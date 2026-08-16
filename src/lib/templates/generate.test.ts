@@ -121,23 +121,28 @@ describe('generateQuestion', () => {
     expect(new Set(q.choices).size).toBe(4);
   });
 
-  it('caps multiple choice at four options', () => {
+  // Generation runs mid-session with a child waiting, so the cases below degrade
+  // to something playable rather than throwing. `validateTemplate` is where an
+  // author is told about them.
+  it('never offers more than four options, whatever the template asked for', () => {
     const template: QuestionTemplate = {
       ...subtraction,
       answerType: 'choice',
       choices: { count: 9, jitter: { min: '1', max: '20' } },
     };
 
-    expect(() => generateQuestion(template, createRng('too-many'))).toThrow(/four|4/i);
+    const q = generateQuestion(template, createRng('too-many'));
+    expect(q.choices).toHaveLength(4);
+    expect(q.choices).toContain(q.answer);
   });
 
-  it('answers true or false when the answer expression is boolean', () => {
+  it('infers a true/false question from a boolean answer', () => {
     const template: QuestionTemplate = {
-      id: 'is-even',
+      id: 'even',
       subject: 'maths',
       topic: 'even and odd',
       level: 'K',
-      prompt: 'Is {x} an even number?',
+      prompt: 'True or false: {x} is an even number.',
       vars: [{ name: 'x', kind: 'int', min: '1', max: '20' }],
       answer: 'isEven(x)',
     };
@@ -146,9 +151,22 @@ describe('generateQuestion', () => {
       const q = generateQuestion(template, createRng(`bool-${i}`));
       expect(q.answerType).toBe('boolean');
       expect(q.answer).toBe((q.vars.x as number) % 2 === 0);
-      // True/false renders its own two buttons; it is not a choice question.
+      // True/false draws its own two buttons; it is not a choice question.
       expect(q.choices).toBeUndefined();
     }
+  });
+
+  it('drops choices on a true/false question rather than failing the draw', () => {
+    const template: QuestionTemplate = {
+      ...subtraction,
+      constraints: [],
+      answer: 'x > y',
+      choices: { count: 4, distractors: ['1', '2', '3'] },
+    };
+
+    const q = generateQuestion(template, createRng('bool-choices'));
+    expect(q.answerType).toBe('boolean');
+    expect(q.choices).toBeUndefined();
   });
 
   it('throws a useful error when constraints can never be met', () => {

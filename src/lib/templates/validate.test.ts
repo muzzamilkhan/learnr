@@ -84,7 +84,7 @@ describe('validateTemplate', () => {
     expect(errorsFor(template)).toEqual([]);
   });
 
-  it('allows between two and four choices, and no more', () => {
+  it('caps multiple choice at four options, which is what the screen fits', () => {
     const choice = (count: number) => ({
       ...valid,
       answerType: 'choice' as const,
@@ -97,24 +97,46 @@ describe('validateTemplate', () => {
     expect(errorsFor(choice(5))).toContainEqual(expect.stringMatching(/choices\.count/i));
   });
 
-  it('rejects choices on a true/false template, which renders its own buttons', () => {
-    const template = {
-      ...valid,
-      constraints: [],
-      answer: 'x > y',
-      answerType: 'boolean' as const,
-      choices: { count: 2, distractors: ['x < y'] },
-    };
-    expect(errorsFor(template)).toContainEqual(expect.stringMatching(/choices.*boolean/i));
+  it('rejects choices on a true/false template, which already has its two options', () => {
+    const boolean = { ...valid, constraints: undefined, answer: 'isEven(x)' };
+    expect(errorsFor(boolean)).toEqual([]);
+
+    // Caught whether the author declared the type or left it to be inferred.
+    expect(
+      errorsFor({ ...boolean, answerType: 'boolean', choices: { count: 2, distractors: ['1'] } }),
+    ).toContainEqual(expect.stringMatching(/true\/false|boolean/i));
+    expect(errorsFor({ ...boolean, choices: { count: 2, distractors: ['1'] } })).toContainEqual(
+      expect.stringMatching(/true\/false|boolean/i),
+    );
   });
 
-  it('rejects an answerType that disagrees with what the answer evaluates to', () => {
+  it('reports an answerType that disagrees with what the answer evaluates to', () => {
+    // Generation coerces these so a session never crashes, so validation is the
+    // only place an author finds out.
     expect(errorsFor({ ...valid, answerType: 'boolean' })).toContainEqual(
       expect.stringMatching(/answerType/i),
     );
     expect(
       errorsFor({ ...valid, constraints: [], answer: 'x > y', answerType: 'number' }),
     ).toContainEqual(expect.stringMatching(/answerType/i));
+    expect(
+      errorsFor({
+        ...valid,
+        constraints: [],
+        answer: 'x > y',
+        answerType: 'choice',
+        choices: { count: 2, distractors: ['1'] },
+      }),
+    ).toContainEqual(expect.stringMatching(/answerType|true\/false|boolean/i));
+
+    // `choice` and `text` accept a number or a string, so neither is a mismatch.
+    expect(errorsFor({ ...valid, answerType: 'text' })).toEqual([]);
+  });
+
+  it('rejects a multiple choice template with nothing to choose from', () => {
+    expect(errorsFor({ ...valid, answerType: 'choice' })).toContainEqual(
+      expect.stringMatching(/choice.*requires choices/i),
+    );
   });
 
   it('catches templates whose constraints can never be satisfied', () => {

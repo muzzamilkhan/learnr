@@ -148,14 +148,20 @@ export function validateTemplate(input: unknown): ValidationResult {
     errors.push(`answerType must be one of ${[...ANSWER_TYPES].join(', ')}`);
   }
 
+  // Without them there is nothing to draw buttons from, and the child would be
+  // handed a number pad for a question written to be tapped.
+  if (template.answerType === 'choice' && template.choices === undefined) {
+    errors.push('answerType "choice" requires choices');
+  }
+
   if (template.choices !== undefined) {
     const { count, distractors, jitter } = template.choices;
     if (typeof count !== 'number' || count < 2 || count > MAX_CHOICES) {
       errors.push(`choices.count must be between 2 and ${MAX_CHOICES}`);
     }
-    // True/false renders two fixed buttons, so authored choices would be ignored.
+    // True/false renders two fixed buttons, so authored choices would be dropped.
     if (template.answerType === 'boolean') {
-      errors.push('choices are not allowed on a boolean (true/false) template');
+      errors.push('choices cannot be combined with a true/false answer');
     }
     distractors?.forEach((d, i) => checkExpr(d, `choices.distractors[${i}]`, bound));
     if (jitter) {
@@ -164,11 +170,38 @@ export function validateTemplate(input: unknown): ValidationResult {
     }
   }
 
-  // Static checks passed — prove it can actually produce questions.
+  // Static checks passed — prove it can actually produce questions. `answerType`
+  // is usually inferred, so this is also the only place that can tell what kind of
+  // question the template really is.
   if (errors.length === 0) {
     for (let i = 0; i < 5; i++) {
       try {
-        generateQuestion(template as QuestionTemplate, createRng(`validate-${template.id}-${i}`));
+        const question = generateQuestion(
+          template as QuestionTemplate,
+          createRng(`validate-${template.id}-${i}`),
+        );
+
+        if (question.answerType === 'boolean' && template.choices !== undefined) {
+          errors.push('choices cannot be combined with a true/false answer');
+          break;
+        }
+        // Generation is deliberately forgiving about a declared type that
+        // disagrees with the answer, so that a session never crashes. Saying so
+        // here is the whole point of validating. Only the types that decide which
+        // pad the child gets matter: `choice` and `text` both accept any answer.
+        const declared = template.answerType;
+        if (declared === 'boolean' && typeof question.answer !== 'boolean') {
+          errors.push(`answerType is "boolean" but the answer is a ${typeof question.answer}`);
+          break;
+        }
+        if (declared === 'number' && typeof question.answer !== 'number') {
+          errors.push(`answerType is "number" but the answer is a ${typeof question.answer}`);
+          break;
+        }
+        if (declared !== undefined && declared !== 'boolean' && typeof question.answer === 'boolean') {
+          errors.push(`answerType is ${JSON.stringify(declared)} but the answer is a boolean`);
+          break;
+        }
       } catch (error) {
         errors.push(`generation failed: ${(error as Error).message}`);
         break;

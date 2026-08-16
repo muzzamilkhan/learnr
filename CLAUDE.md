@@ -98,11 +98,16 @@ Design rules that keep this flexible:
   more than that stops being thumb-sized on an iPad.
 - **`answerType` is inferred from what `answer` evaluates to** and rarely needs
   declaring: a boolean gives `boolean` (true/false), a number gives `number`,
-  anything else gives `text`. Declaring one that disagrees with the answer is an
-  error, not something the engine papers over. Set it explicitly only for
-  `choice`, or for a numeric answer you want typed as text.
-- A `boolean` template has no `choices` — the play screen renders its own two
-  buttons, so declaring choices alongside it is rejected.
+  anything else gives `text`. Declare it only for `choice`, or for a numeric
+  answer you want typed as text.
+- A boolean answer makes it a true/false question whatever the template says, and
+  `choices` alongside one are meaningless — the play screen draws its own two
+  buttons. `validateTemplate` rejects that pairing.
+- **Authoring mistakes are reported by `validateTemplate`, never thrown by
+  `generateQuestion`.** Generation runs mid-session with a child waiting, so it
+  degrades instead: a disagreeing `answerType` is overridden, choices on a
+  true/false template are dropped, and more than `MAX_CHOICES` options are
+  clamped. That is exactly why content must be validated before it ships.
 
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt

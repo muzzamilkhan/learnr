@@ -54,10 +54,12 @@ describe('gradeAnswer', () => {
     expect(gradeAnswer(text('Yes'), 'no').correct).toBe(false);
   });
 
-  it('grades true/false answers', () => {
+  it('grades true/false answers however the label is cased', () => {
     expect(gradeAnswer(boolean(true), 'true').correct).toBe(true);
+    expect(gradeAnswer(boolean(true), 'True').correct).toBe(true);
+    expect(gradeAnswer(boolean(true), ' TRUE ').correct).toBe(true);
     expect(gradeAnswer(boolean(true), 'false').correct).toBe(false);
-    expect(gradeAnswer(boolean(false), 'false').correct).toBe(true);
+    expect(gradeAnswer(boolean(false), 'False').correct).toBe(true);
   });
 
   it('accepts the labels a child actually taps for true/false', () => {

@@ -90,11 +90,10 @@ function buildChoices(
   scope: Scope,
   rng: Rng,
 ): (string | number)[] {
-  if (spec.count < 2 || spec.count > MAX_CHOICES) {
-    throw new Error(
-      `Multiple choice must offer between 2 and ${MAX_CHOICES} options, got ${spec.count}`,
-    );
-  }
+  // Clamped rather than rejected: `validateTemplate` is the gate for authoring
+  // mistakes, and this runs mid-session with a child waiting. Four options that
+  // include the answer beat a thrown error.
+  const count = Math.min(spec.count, MAX_CHOICES);
 
   const options: (string | number)[] = [answer];
   const seen = new Set<string>([String(answer)]);
@@ -108,23 +107,23 @@ function buildChoices(
   };
 
   for (const expr of spec.distractors ?? []) {
-    if (options.length >= spec.count) break;
+    if (options.length >= count) break;
     add(evaluate(expr, scope));
   }
 
   // Top up with jittered values when the authored distractors collide or run out.
-  if (options.length < spec.count && spec.jitter && typeof answer === 'number') {
+  if (options.length < count && spec.jitter && typeof answer === 'number') {
     const min = num(spec.jitter.min, scope, 'jitter.min');
     const max = num(spec.jitter.max, scope, 'jitter.max');
-    for (let guard = 0; options.length < spec.count && guard < 100; guard++) {
+    for (let guard = 0; options.length < count && guard < 100; guard++) {
       const offset = rng.int(min, max) * (rng.next() < 0.5 ? -1 : 1);
       add(answer + offset);
     }
   }
 
-  if (options.length < spec.count) {
+  if (options.length < count) {
     throw new Error(
-      `Template could not produce ${spec.count} distinct choices (got ${options.length}); ` +
+      `Template could not produce ${count} distinct choices (got ${options.length}); ` +
         'add more distractors or a jitter range',
     );
   }
@@ -152,29 +151,19 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
   }
 
   const answerValue = evaluate(template.answer, scope);
-  const inferred: AnswerType =
-    typeof answerValue === 'boolean' ? 'boolean' : typeof answerValue === 'number' ? 'number' : 'text';
-  const answerType = template.answerType ?? inferred;
 
-  // A declared answerType that disagrees with the answer would render the wrong
-  // input, so it is an authoring error rather than something to paper over.
-  if (answerType === 'boolean' || inferred === 'boolean') {
-    if (answerType !== inferred) {
-      throw new Error(
-        `Template ${template.id} declares answerType ${JSON.stringify(answerType)} but its answer is a ${inferred === 'boolean' ? 'boolean' : typeof answerValue}`,
-      );
-    }
-  } else if (answerType === 'number' && inferred !== 'number') {
-    throw new Error(
-      `Template ${template.id} declares answerType "number" but its answer is a ${typeof answerValue}`,
-    );
-  }
-
-  if (answerType === 'boolean' && template.choices) {
-    throw new Error(
-      `Template ${template.id} is true/false and must not declare choices; it renders its own buttons`,
-    );
-  }
+  /**
+   * A boolean answer is a true/false question whatever the template declared: its
+   * two options are implied, so any `choices` are meaningless and are dropped.
+   *
+   * Nothing here throws on an authoring mistake. This runs mid-session with a
+   * child waiting, so a disagreement between `answerType` and the actual answer
+   * degrades to something playable; `validateTemplate` is where it is reported.
+   */
+  const isBoolean = typeof answerValue === 'boolean';
+  const answerType: AnswerType = isBoolean
+    ? 'boolean'
+    : (template.answerType ?? (typeof answerValue === 'number' ? 'number' : 'text'));
 
   return {
     templateId: template.id,
@@ -184,10 +173,10 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
     prompt: renderTemplateString(template.prompt, scope),
     answer: answerValue,
     answerType,
-    // Narrowed by the boolean check above: a choice question never has a boolean answer.
-    choices: template.choices
-      ? buildChoices(template.choices, answerValue as string | number, scope, rng)
-      : undefined,
+    choices:
+      template.choices && !isBoolean
+        ? buildChoices(template.choices, answerValue as string | number, scope, rng)
+        : undefined,
     hint: template.hint ? renderTemplateString(template.hint, scope) : undefined,
     vars: { ...scope },
   };
