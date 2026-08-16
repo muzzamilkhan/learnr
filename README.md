@@ -1,5 +1,46 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Curriculum source
+
+The maths questions in Learnr are written against the **Australian Curriculum
+Version 9.0 — Mathematics (Foundation to Year 10)**, published by the Australian
+Curriculum, Assessment and Reporting Authority (ACARA).
+
+The specific document the Kindergarten to Year 6 content was written from is
+ACARA's [Mathematics: Scope and sequence F–10 (v9.0)](https://www.australiancurriculum.edu.au/content/dam/en/curriculum/ac-version-9/downloads/mathematics/mathematics-scope-and-sequence-f-10-v9.docx),
+downloaded from the [Australian Curriculum website](https://www.australiancurriculum.edu.au).
+
+Every question template in `src/content/maths.ts` records the content
+description it practises in its `tags`, so any question can be traced back to the
+curriculum. The codes read as `AC9M` + year + strand + number — for example
+`AC9M4N02`, Year 4 Number: *"explain and use the properties of odd and even
+numbers"*. Foundation is `F` (Kindergarten in this app), and the strands are `N`
+number, `A` algebra, `M` measurement, `SP` space, `ST` statistics and `P`
+probability. `src/content/catalog.test.ts` checks that no template ships without
+a code.
+
+### Attribution
+
+> © Australian Curriculum, Assessment and Reporting Authority (ACARA) 2010 to
+> present, unless otherwise indicated. This material was downloaded from the
+> [Australian Curriculum website](http://www.australiancurriculum.edu.au)
+> (accessed 17 August 2026) and was modified. The material is licensed under
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+The material was modified in the sense that Learnr writes its own practice
+questions against the content descriptions; it does not reproduce ACARA's
+material verbatim.
+
+### Disclaimer
+
+> ACARA does not endorse any product that uses the Australian Curriculum or make
+> any representations as to the quality of such products. Any product that uses
+> material published on the Australian Curriculum website should not be taken to
+> be affiliated with ACARA or have the sponsorship or approval of ACARA. It is up
+> to each person to make their own assessment of the product, taking into account
+> matters including the degree to which the materials align with the content
+> descriptions and achievement standards.
+
 ## Getting Started
 
 First, run the development server:
