@@ -1,5 +1,6 @@
 /**
- * Levels are Australian school years: Kindergarten, then Year 1 to Year 12.
+ * Levels are Australian school years: Kindergarten, then Year 1 to Year 6 —
+ * primary school, which is as far as the course goes.
  *
  * A level and a topic are independent axes, related many-to-many. "Counting
  * numbers" belongs to Kindergarten *and* Year 1; Kindergarten also carries
@@ -9,21 +10,7 @@
  * it takes to put counting into Year 1.
  */
 
-export const YEAR_LEVELS = [
-  'K',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '10',
-  '11',
-  '12',
-] as const;
+export const YEAR_LEVELS = ['K', '1', '2', '3', '4', '5', '6'] as const;
 
 export type YearLevel = (typeof YEAR_LEVELS)[number];
 
@@ -54,7 +41,26 @@ export function yearLabel(level: YearLevel): string {
   return level === 'K' ? 'Kindergarten' : `Year ${level}`;
 }
 
-/** Sorts K first, then years numerically — "10" must not land between "1" and "2". */
+/** Sorts K first, then years numerically, never as text. */
 export function compareYearLevels(a: YearLevel, b: YearLevel): number {
   return YEAR_LEVELS.indexOf(a) - YEAR_LEVELS.indexOf(b);
+}
+
+/**
+ * The level the home screen opens on: the one the child last chose, if it is
+ * still a year with content behind it. Content is the source of truth, so a
+ * stored level that has since lost its templates falls back rather than landing
+ * the child on an empty screen — to Kindergarten, or the earliest year offered.
+ */
+export function resolveInitialLevel(
+  stored: string | null | undefined,
+  available: YearLevel[],
+): YearLevel | null {
+  if (available.length === 0) return null;
+
+  const parsed = parseYearLevel(stored);
+  if (parsed && available.includes(parsed)) return parsed;
+
+  if (available.includes('K')) return 'K';
+  return [...available].sort(compareYearLevels)[0];
 }

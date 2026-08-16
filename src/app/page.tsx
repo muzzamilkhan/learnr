@@ -1,12 +1,18 @@
-import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
-import { listSubjects } from '@/content/catalog';
+import { listLevels, listSubjects } from '@/content/catalog';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
-import { yearLabel } from '@/lib/curriculum';
+import { LevelPicker } from '@/components/level-picker';
+import { readSelectedLevel } from '@/lib/records';
+import { resolveInitialLevel } from '@/lib/curriculum';
+
+// The screen is per-child: it opens on the level that child last chose, so it
+// must never be prerendered and shared.
+export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
   const session = isAuthConfigured ? await auth() : null;
   const subjects = listSubjects();
+  const levels = listLevels();
 
   if (isAuthConfigured && !session?.user) {
     return (
@@ -20,6 +26,11 @@ export default async function HomePage() {
     );
   }
 
+  // Signed out or without a database there is nowhere to remember the choice, so
+  // the picker simply opens on Kindergarten.
+  const stored = session?.user?.id ? await readSelectedLevel(session.user.id) : null;
+  const initialLevel = resolveInitialLevel(stored, levels);
+
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
       <header className="mb-12 flex items-baseline justify-between gap-4">
@@ -32,30 +43,14 @@ export default async function HomePage() {
         {session?.user ? <SignOutButton /> : null}
       </header>
 
-      {subjects.map((subject) => (
-        <section key={subject.subject} className="mb-12">
-          <h2 className="mb-5 text-3xl font-semibold capitalize">{subject.subject}</h2>
-
-          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {subject.levels.map((level) => (
-              <li key={level.level}>
-                <Link
-                  href={`/play?subject=${subject.subject}&level=${level.level}`}
-                  className="no-select block rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-7 transition active:scale-[0.98] hover:border-(--color-brand)"
-                >
-                  <span className="block text-3xl font-semibold">{yearLabel(level.level)}</span>
-                  <span className="mt-2 block text-lg text-(--color-ink-soft)">
-                    {level.topics.join(' · ')}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {initialLevel ? (
+        <LevelPicker subjects={subjects} levels={levels} initialLevel={initialLevel} />
+      ) : (
+        <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
+      )}
 
       {!isAuthConfigured ? (
-        <p className="rounded-2xl bg-(--color-brand-soft) px-5 py-4 text-base text-(--color-ink-soft)">
+        <p className="mt-12 rounded-2xl bg-(--color-brand-soft) px-5 py-4 text-base text-(--color-ink-soft)">
           Sign-in is not configured yet, so nothing is being saved. Add the Google OAuth
           variables from <code>.env.example</code> to enable accounts and recording.
         </p>

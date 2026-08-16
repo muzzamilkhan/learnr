@@ -9,6 +9,30 @@ import type { Attempt } from './session/session';
  * yet — they exist so the future reinforcement pass has history to work from.
  */
 
+/** The year the child last chose, as stored — the caller resolves it against content. */
+export async function readSelectedLevel(userId: string): Promise<string | null> {
+  if (!prisma) return null;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { selectedLevel: true },
+    });
+    return user?.selectedLevel ?? null;
+  } catch (error) {
+    console.error('Failed to read selected level', error);
+    return null;
+  }
+}
+
+export async function writeSelectedLevel(userId: string, level: YearLevel): Promise<void> {
+  if (!prisma) return;
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { selectedLevel: level } });
+  } catch (error) {
+    console.error('Failed to write selected level', error);
+  }
+}
+
 export interface StartRecordInput {
   userId: string;
   subject: string;

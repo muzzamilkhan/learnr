@@ -7,6 +7,7 @@ import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
 import {
   allTemplates,
   listSubjects,
+  listLevels,
   listTopics,
   templatesFor,
   topicsForLevel,
@@ -111,8 +112,8 @@ describe('levels and topics are many-to-many', () => {
     }
   });
 
-  it('returns nothing for a year or topic that does not exist', () => {
-    expect(topicsForLevel('maths', '11')).toEqual([]);
+  it('returns nothing for a subject or topic that does not exist', () => {
+    expect(topicsForLevel('spelling', 'K')).toEqual([]);
     expect(levelsForTopic('maths', 'calculus')).toEqual([]);
     expect(levelsForTopic('spelling', 'counting numbers')).toEqual([]);
   });
@@ -148,7 +149,24 @@ describe('catalog lookups', () => {
 
   it('looks up templates by subject and year', () => {
     expect(templatesFor('maths', 'K').every((t) => t.level === 'K')).toBe(true);
-    expect(templatesFor('maths', '12')).toEqual([]);
+    expect(templatesFor('maths', '6').every((t) => t.level === '6')).toBe(true);
     expect(templatesFor('spelling', 'K')).toEqual([]);
+  });
+});
+
+describe('listLevels', () => {
+  it('lists every year with content, in school order', () => {
+    expect(listLevels()).toEqual(['K', '1', '2', '3', '4', '5', '6']);
+  });
+
+  it('merges the years across subjects without repeating one', () => {
+    const levels = listLevels([
+      { ...allTemplates[0], subject: 'maths', level: '2' },
+      { ...allTemplates[0], subject: 'spelling', level: '6' },
+      { ...allTemplates[0], subject: 'spelling', level: '2' },
+      { ...allTemplates[0], subject: 'maths', level: 'K' },
+    ]);
+
+    expect(levels).toEqual(['K', '2', '6']);
   });
 });

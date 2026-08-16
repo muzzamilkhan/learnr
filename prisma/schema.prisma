@@ -21,6 +21,8 @@ model User {
   emailVerified DateTime?
   image         String?
   createdAt     DateTime  @default(now())
+  /// The year the home screen reopens on. Australian school year: "K" or "1" through "6".
+  selectedLevel String?
 
   accounts         Account[]
   sessions         Session[]
@@ -72,7 +74,7 @@ model LearningSession {
   id        String    @id @default(cuid())
   userId    String
   subject   String
-  /// Australian school year: "K" or "1" through "12".
+  /// Australian school year: "K" or "1" through "6".
   level     String
   /// RNG seed, so a session's exact question sequence can be replayed.
   seed      String
@@ -93,7 +95,7 @@ model Attempt {
   subject           String
   /// What the question practises, e.g. "counting numbers". Shared across years.
   topic             String
-  /// Australian school year: "K" or "1" through "12".
+  /// Australian school year: "K" or "1" through "6".
   level             String
   prompt            String
   expected          String

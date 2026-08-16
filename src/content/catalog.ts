@@ -45,6 +45,11 @@ export function listSubjects(templates: QuestionTemplate[] = allTemplates): Subj
     });
 }
 
+/** Every year with content, across all subjects — the home screen's level list. */
+export function listLevels(templates: QuestionTemplate[] = allTemplates): YearLevel[] {
+  return unique(templates.map((t) => t.level)).sort(compareYearLevels);
+}
+
 export function templatesFor(
   subject: string,
   level: YearLevel,

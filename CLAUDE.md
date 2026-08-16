@@ -44,9 +44,10 @@ src/app/             routes and server actions
 
 ## Levels and topics
 
-**Levels are Australian school years**: `'K'` then `'1'` to `'12'`, as strings.
-Never an integer — `'K'` has to sort first and `'10'` must not land between `'1'`
-and `'2'`. Use `compareYearLevels` to sort, `yearLabel` to display
+**Levels are Australian school years**: `'K'` then `'1'` to `'6'`, as strings —
+primary school is the whole scope. Never an integer: `'K'` has to sort first, and
+strings keep the door open for years beyond single digits if the scope ever
+widens. Use `compareYearLevels` to sort, `yearLabel` to display
 ("Kindergarten", "Year 3"), and `parseYearLevel` at every boundary (URLs,
 imported files) — it normalises `'k'` and `'03'` and returns null for anything
 else.
@@ -163,6 +164,12 @@ client, so every write verifies the session belongs to the signed-in user first.
 Standard iPad, landscape and portrait. Minimal and calm rather than playful —
 simple enough for a child to pick up with no explanation.
 
+- **Level is the home screen's top-level choice**: one dropdown labelled "Level",
+  then the subjects offering that level below it, each card listing its topics as
+  text. Switching level swaps the cards in place — no navigation. The choice is
+  remembered on `User.selectedLevel` and the screen reopens on it; signed out or
+  without a database there is nowhere to keep it, so it opens on Kindergarten.
+  `resolveInitialLevel` falls back when a stored level has lost its content.
 - **The play screen must fit the viewport with no scrolling.** It's `h-[100dvh]`
   with `overflow-hidden`; the answer pad is fixed-height and the question area
   flexes. Check both orientations after changing that layout.

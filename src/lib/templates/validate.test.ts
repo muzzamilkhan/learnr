@@ -35,7 +35,7 @@ describe('validateTemplate', () => {
     expect(errorsFor({ ...valid, level: 1 })).toContainEqual(expect.stringMatching(/level/i));
     expect(errorsFor({ ...valid, level: '13' })).toContainEqual(expect.stringMatching(/level/i));
     expect(errorsFor({ ...valid, level: 'kindy' })).toContainEqual(expect.stringMatching(/level/i));
-    expect(errorsFor({ ...valid, level: '12' })).toEqual([]);
+    expect(errorsFor({ ...valid, level: '6' })).toEqual([]);
   });
 
   it('rejects duplicate variable names', () => {

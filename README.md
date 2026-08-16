@@ -103,8 +103,8 @@ and unsatisfiable constraints, then proves the template can actually generate.
 
 ### Levels and topics
 
-Levels are Australian school years — `'K'`, then `'1'` to `'12'`, always as
-strings so `'K'` sorts first and `'10'` does not land between `'1'` and `'2'`.
+Levels are Australian school years — `'K'`, then `'1'` to `'6'`. Primary school
+is the whole scope. They are always strings, so `'K'` sorts first.
 
 Levels and topics are many-to-many and neither owns the other. A year offers
 several topics; a topic recurs across years, harder each time. The pairing lives
