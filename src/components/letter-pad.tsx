@@ -7,6 +7,7 @@
  */
 
 import { BackspaceIcon } from './backspace-icon';
+import { CheckIcon } from './check-icon';
 
 const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'] as const;
 
@@ -54,9 +55,10 @@ export function LetterPad({ disabled, canCheck, onLetter, onBackspace, onCheck }
           type="button"
           disabled={disabled || !canCheck}
           onClick={onCheck}
-          className="flex h-full min-w-0 flex-[2] max-w-96 items-center justify-center rounded-xl bg-(--color-brand) text-2xl font-semibold text-white transition active:scale-95 disabled:opacity-30 sm:text-3xl"
+          aria-label="Check"
+          className="flex h-full min-w-0 max-w-96 flex-[2] items-center justify-center rounded-xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30"
         >
-          Check
+          <CheckIcon />
         </button>
       </div>
     </div>

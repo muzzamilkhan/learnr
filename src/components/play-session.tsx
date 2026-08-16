@@ -12,9 +12,14 @@ import { SessionTimer } from './session-timer';
 import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
+import { ContinueButton } from './continue-button';
+import { HintIcon } from './hint-icon';
 
-/** How long the right/wrong feedback stays up before the next question. */
-const FEEDBACK_MS = { correct: 700, wrong: 1600 } as const;
+/**
+ * How long a correct answer is celebrated before the next question. A wrong one
+ * is never on a timer — the child reads the right answer and taps Continue.
+ */
+const CORRECT_MS = 700;
 
 /** Enough for any answer a child is asked to type, short enough to stay legible. */
 const MAX_ENTRY = { text: 16 } as const;
@@ -44,6 +49,10 @@ export function PlaySession({
   );
   const [entry, setEntry] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(null);
+  /** The next question, held back until the child taps Continue. */
+  const [pending, setPending] = useState<SessionState | null>(null);
+  /** Hints are asked for, never pushed — and only for the question in hand. */
+  const [hintShown, setHintShown] = useState(false);
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,6 +80,14 @@ export function PlaySession({
    * Tapped answers pass their value in, because the tap and the submit are the
    * same gesture and `entry` has not been rendered yet.
    */
+  const advance = useCallback((next: SessionState) => {
+    setSession(next);
+    setPending(null);
+    setEntry('');
+    setFeedback(null);
+    setHintShown(false);
+  }, []);
+
   const submit = useCallback(
     (value: string) => {
       if (feedback || value === '') return;
@@ -87,23 +104,28 @@ export function PlaySession({
         recordAttemptAction(recordId.current, attempt);
       }
 
-      advanceTimer.current = setTimeout(
-        () => {
-          setSession(next);
-          setEntry('');
-          setFeedback(null);
-        },
-        correct ? FEEDBACK_MS.correct : FEEDBACK_MS.wrong,
-      );
+      // Right answers move on by themselves; wrong ones wait for Continue, so
+      // the right answer stays on screen for as long as the child wants it.
+      if (correct) advanceTimer.current = setTimeout(() => advance(next), CORRECT_MS);
+      else setPending(next);
     },
-    [session, question, feedback],
+    [session, question, feedback, advance],
   );
 
   // A physical keyboard should work as well as the on-screen pads.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (feedback) return;
       const key = event.key;
+
+      if (pending) {
+        if (key === 'Enter' || key === ' ') {
+          event.preventDefault();
+          advance(pending);
+        }
+        return;
+      }
+
+      if (feedback) return;
 
       if (mode === 'tap') {
         if (key.length !== 1) return;
@@ -128,7 +150,7 @@ export function PlaySession({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [submit, feedback, mode, options, entry]);
+  }, [submit, feedback, mode, options, entry, pending, advance]);
 
   const correctCount = session.attempts.filter((a) => a.correct).length;
 
@@ -160,6 +182,13 @@ export function PlaySession({
           {question.prompt}
         </h1>
 
+        <Hint
+          hint={question.hint}
+          shown={hintShown}
+          answered={feedback !== null}
+          onShow={() => setHintShown(true)}
+        />
+
         {mode === 'tap' ? (
           // Tapped answers show their result on the buttons themselves, so all
           // that is left to say is what the answer was.
@@ -169,18 +198,64 @@ export function PlaySession({
         )}
       </div>
 
-      <div className="h-[46vh] max-h-88 min-h-64 shrink-0">
-        <AnswerInput
-          question={question}
-          mode={mode}
-          options={options}
-          entry={entry}
-          feedback={feedback}
-          onEntry={setEntry}
-          onSubmit={submit}
-        />
+      {/* The pad's slot. After a wrong answer the pad gives way to Continue —
+          except for tapped questions, where the buttons themselves are showing
+          which option was right, so they stay and Continue sits under them. */}
+      <div className="flex h-[46vh] max-h-88 min-h-64 shrink-0 flex-col justify-center gap-3">
+        {(pending === null || mode === 'tap') && (
+          <div className="min-h-0 flex-1">
+            <AnswerInput
+              question={question}
+              mode={mode}
+              options={options}
+              entry={entry}
+              feedback={feedback}
+              onEntry={setEntry}
+              onSubmit={submit}
+            />
+          </div>
+        )}
+
+        {pending !== null && <ContinueButton onContinue={() => advance(pending)} />}
       </div>
     </main>
+  );
+}
+
+/**
+ * The hint is behind a lightbulb rather than on screen: a child who wants help
+ * asks for it, and one who doesn't is never given the method away. Its row keeps
+ * its height whether the bulb, the hint or nothing is in it, so the question
+ * above never jumps.
+ */
+function Hint({
+  hint,
+  shown,
+  answered,
+  onShow,
+}: {
+  hint: string | undefined;
+  shown: boolean;
+  answered: boolean;
+  onShow: () => void;
+}) {
+  return (
+    <div className="flex min-h-14 shrink-0 items-center justify-center px-2">
+      {hint === undefined || answered ? null : shown ? (
+        <p className="max-w-2xl text-center text-xl text-balance text-(--color-ink-soft) sm:text-2xl">
+          {hint}
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={onShow}
+          aria-label="Show a hint"
+          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 active:bg-(--color-brand-soft)"
+        >
+          <HintIcon />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -273,7 +348,10 @@ function AnswerDisplay({
 /** Reserves its own height so nothing shifts when the message appears. */
 function FeedbackLine({ feedback }: { feedback: Feedback }) {
   return (
-    <p aria-live="polite" className="h-7 text-lg font-medium text-(--color-ink-soft)">
+    <p
+      aria-live="polite"
+      className="h-9 text-center text-2xl font-semibold text-(--color-right) sm:text-3xl"
+    >
       {feedback?.state === 'wrong' ? `The answer is ${feedback.expected}` : ''}
     </p>
   );

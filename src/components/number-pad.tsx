@@ -4,13 +4,14 @@
  * An on-screen pad rather than the iPad keyboard: it keeps the question visible,
  * gives large fixed targets, and stops a child wandering into other keys.
  *
- * Laid out like a calculator, with Check down the right-hand side. The decimal
+ * Laid out like a calculator, with the tick down the right-hand side. The decimal
  * point is always offered rather than shown only for questions that need one —
  * a key that appeared exactly when the answer was fractional would give the
  * answer away.
  */
 
 import { BackspaceIcon } from './backspace-icon';
+import { CheckIcon } from './check-icon';
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
@@ -75,9 +76,10 @@ export function NumberPad({ disabled, canCheck, onDigit, onBackspace, onCheck }:
         type="button"
         disabled={disabled || !canCheck}
         onClick={onCheck}
-        className="col-start-4 row-span-4 row-start-1 flex h-full w-full items-center justify-center rounded-2xl bg-(--color-brand) text-3xl font-semibold text-white transition active:scale-95 disabled:opacity-30"
+        aria-label="Check"
+        className="col-start-4 row-span-4 row-start-1 flex h-full w-full items-center justify-center rounded-2xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30"
       >
-        Check
+        <CheckIcon />
       </button>
     </div>
   );

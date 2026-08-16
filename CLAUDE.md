@@ -186,12 +186,23 @@ simple enough for a child to pick up with no explanation.
   `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,
   `LetterPad` or `ChoicePad`); all three occupy the same fixed slot.
 - Tapped answers (choice, true/false) commit on the first touch, with no Check
-  button — there is nothing for a child to review. Typed answers keep Check.
+  button — there is nothing for a child to review. Typed answers keep a Check
+  key, drawn as a tick (`CheckIcon`) rather than the word, so a child who cannot
+  read yet still knows it.
 - After a wrong tap, the right option turns green and the child's turns red, so
   they always see which one was right.
+- **A right answer moves on by itself after a moment; a wrong one waits.** The
+  pad gives way to a Continue button and the right answer stays on screen until
+  the child taps it, so nothing is missed by being slow to read. Tapped
+  questions keep their pad while waiting — the buttons are what shows which
+  option was right — and Continue sits beneath them.
+- **A template's `hint` sits behind a lightbulb** under the question, so help is
+  asked for rather than pushed — a child who doesn't want the method isn't given
+  it. Tapping swaps the bulb for the hint; it resets with each question, and goes
+  once the question is answered. Templates without a hint just leave the row
+  empty, which keeps the question from jumping.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
-- Wrong answers show the correct one and move on. Nothing is punitive; there are
-  no streaks, scores or timers-per-question.
+- Nothing is punitive; there are no streaks, scores or timers-per-question.
 
 ## Setup
 
