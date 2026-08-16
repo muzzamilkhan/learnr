@@ -119,20 +119,29 @@ Template ids follow `subject.level.topic.variant`, e.g.
 **Always run new templates through `validateTemplate` before importing them.** It
 catches unbound variables, out-of-order references, malformed expressions, levels
 that aren't school years, and unsatisfiable constraints, then proves the template
-can actually generate. The test in `src/content/catalog.test.ts` validates
-everything shipped and asserts no question ever asks a child to *type* a negative
-or fractional answer. Tapped answers are exempt from that rule, but a distractor
-a child would find nonsensical is still bad content — keep them plausible.
+can actually generate. `src/content/catalog.test.ts` validates everything shipped
+and checks the rest of what makes content usable: an id shaped
+`subject.level.topic.variant`, a curriculum content description in `tags`, at
+least 20 templates per year, and no typed answer the number pad cannot enter.
 
-Content ships for K–3 only. All four answer types now render, so any of them is
-safe to author:
+Content ships for K–6, 200 templates, written against ACARA's *Mathematics: Scope
+and sequence F–10 (v9.0)*. Every template cites the content description it
+practises (e.g. `AC9M4N02`) in `tags`, so the curriculum link is checkable rather
+than claimed.
 
-| `answerType` | how it is answered |
-| --- | --- |
-| `number` | number pad, then Check |
-| `text` | on-screen A–Z pad, then Check — the iPad keyboard never opens |
-| `boolean` | two buttons, True / False; one tap answers |
-| `choice` | 2–4 buttons; one tap answers |
+All four answer types render, so any of them is safe to author. **Pick the type
+the pad can express**:
+
+| `answerType` | how it is answered | what it can express |
+| --- | --- | --- |
+| `number` | number pad, then Check | digits and one decimal point — **no minus key** |
+| `text` | on-screen A–Z pad, then Check | letters only, no spaces or digits, ≤ 16 chars |
+| `boolean` | two buttons, True / False | one tap answers |
+| `choice` | 2–4 buttons | one tap answers; anything the other types cannot express |
+
+A negative answer has to be multiple choice, because the pad has no minus key —
+that is why the Year 6 integer questions are `choice`. A distractor a child would
+find nonsensical is still bad content, so keep them plausible.
 
 ## Sessions
 
