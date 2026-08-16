@@ -144,6 +144,14 @@ A negative answer has to be multiple choice, because the pad has no minus key �
 that is why the Year 6 integer questions are `choice`. A distractor a child would
 find nonsensical is still bad content, so keep them plausible.
 
+**`text` is a last resort, and never below Year 4.** A word answer makes the child
+spell before they can answer, which tests literacy rather than maths — a
+Kindergartener knows a triangle long before they can spell it. Word answers in K–3
+are `choice` instead, and `catalog.test.ts` enforces that. Any answer drawn from a
+small closed set ("red or blue?", "metres or centimetres?") is a `choice` question
+at any level; a two-option `choices` with both literals as distractors is the
+usual shape.
+
 ## Sessions
 
 A session never ends. The child picks subject + year and answers until they stop;

@@ -1,4 +1,17 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { Expr, QuestionTemplate } from '@/lib/templates/types';
+
+/**
+ * Name of the day `i` steps around the week, where `i` is an expression giving
+ * 0 for Monday. Written once because the day questions need four of them each:
+ * the answer plus its neighbours as distractors.
+ */
+const dayName = (i: Expr): Expr =>
+  `${i} == 0 ? 'Monday' : ${i} == 1 ? 'Tuesday' : ${i} == 2 ? 'Wednesday' : ` +
+  `${i} == 3 ? 'Thursday' : ${i} == 4 ? 'Friday' : ${i} == 5 ? 'Saturday' : 'Sunday'`;
+
+/** Name of the polygon with `i` sides, for `i` an expression giving 3 to 6. */
+const shapeName = (i: Expr): Expr =>
+  `${i} == 3 ? 'triangle' : ${i} == 4 ? 'square' : ${i} == 5 ? 'pentagon' : 'hexagon'`;
 
 /**
  * Maths course, Kindergarten to Year 6.
@@ -23,6 +36,9 @@ import type { QuestionTemplate } from '@/lib/templates/types';
  * - **A child is never asked to type something the screen cannot express.** The
  *   number pad has no minus key, so the Year 6 integer questions are multiple
  *   choice. Decimal answers start at Year 4, where decimals enter the curriculum.
+ *   For the same reason no question below Year 4 is answered with a typed word:
+ *   spelling "triangle" is not the skill being tested, so those are multiple
+ *   choice.
  */
 export const mathsTemplates: QuestionTemplate[] = [
   // ------------------------------------------------------------------
@@ -258,7 +274,8 @@ export const mathsTemplates: QuestionTemplate[] = [
       { name: 'b', kind: 'pick', from: ['yellow', 'orange', 'purple'] },
     ],
     answer: 'b',
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ['a', "'yellow'", "'orange'", "'purple'"] },
     hint: 'The pattern goes {a}, {b}, over and over.',
     tags: ['AC9MFA01'],
   },
@@ -274,7 +291,8 @@ export const mathsTemplates: QuestionTemplate[] = [
       { name: 'c', kind: 'pick', from: ['green', 'purple'] },
     ],
     answer: 'b',
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ['a', 'c'] },
     hint: 'The part that repeats is {a}, {b}, {c}.',
     tags: ['AC9MFA01'],
   },
@@ -291,7 +309,8 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     constraints: ['a != b'],
     answer: "a > b ? 'red' : 'blue'",
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'red'", "'blue'"] },
     tags: ['AC9MFM01'],
   },
   {
@@ -307,7 +326,8 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     constraints: ['a != b'],
     answer: "a > b ? 'box' : 'jar'",
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'box'", "'jar'"] },
     tags: ['AC9MFM01'],
   },
   {
@@ -317,15 +337,15 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: 'K',
     prompt: 'Which day comes after {day}?',
     vars: [
-      {
-        name: 'day',
-        kind: 'pick',
-        from: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-      },
+      { name: 'n', kind: 'int', min: '0', max: '6' },
+      { name: 'day', kind: 'expr', expr: dayName('n') },
+      { name: 'after', kind: 'expr', expr: dayName('mod(n + 1, 7)') },
+      { name: 'twoAfter', kind: 'expr', expr: dayName('mod(n + 2, 7)') },
+      { name: 'before', kind: 'expr', expr: dayName('mod(n + 6, 7)') },
     ],
-    answer:
-      "day == 'Monday' ? 'Tuesday' : day == 'Tuesday' ? 'Wednesday' : day == 'Wednesday' ? 'Thursday' : day == 'Thursday' ? 'Friday' : day == 'Friday' ? 'Saturday' : day == 'Saturday' ? 'Sunday' : 'Monday'",
-    answerType: 'text',
+    answer: 'after',
+    answerType: 'choice',
+    choices: { count: 4, distractors: ['day', 'before', 'twoAfter'] },
     tags: ['AC9MFM02'],
   },
   {
@@ -335,15 +355,15 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: 'K',
     prompt: 'Which day comes before {day}?',
     vars: [
-      {
-        name: 'day',
-        kind: 'pick',
-        from: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-      },
+      { name: 'n', kind: 'int', min: '0', max: '6' },
+      { name: 'day', kind: 'expr', expr: dayName('n') },
+      { name: 'before', kind: 'expr', expr: dayName('mod(n + 6, 7)') },
+      { name: 'twoBefore', kind: 'expr', expr: dayName('mod(n + 5, 7)') },
+      { name: 'after', kind: 'expr', expr: dayName('mod(n + 1, 7)') },
     ],
-    answer:
-      "day == 'Monday' ? 'Sunday' : day == 'Tuesday' ? 'Monday' : day == 'Wednesday' ? 'Tuesday' : day == 'Thursday' ? 'Wednesday' : day == 'Friday' ? 'Thursday' : day == 'Saturday' ? 'Friday' : 'Saturday'",
-    answerType: 'text',
+    answer: 'before',
+    answerType: 'choice',
+    choices: { count: 4, distractors: ['day', 'after', 'twoBefore'] },
     tags: ['AC9MFM02'],
   },
   {
@@ -366,8 +386,17 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: 'K',
     prompt: 'A shape has {n} equal sides and {n} corners. What is it called?',
     vars: [{ name: 'n', kind: 'pick', from: [3, 4, 5, 6] }],
-    answer: "n == 3 ? 'triangle' : n == 4 ? 'square' : n == 5 ? 'pentagon' : 'hexagon'",
-    answerType: 'text',
+    answer: shapeName('n'),
+    answerType: 'choice',
+    // The other three shapes, stepped round the 3..6 cycle so they never repeat.
+    choices: {
+      count: 4,
+      distractors: [
+        shapeName('mod(n - 2, 4) + 3'),
+        shapeName('mod(n - 1, 4) + 3'),
+        shapeName('mod(n, 4) + 3'),
+      ],
+    },
     tags: ['AC9MFSP01'],
   },
   {
@@ -383,7 +412,8 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     constraints: ['a != b', 'b != c', 'a != c'],
     answer: "a > b && a > c ? 'red' : b > c ? 'blue' : 'green'",
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'red'", "'blue'", "'green'"] },
     tags: ['AC9MFST01'],
   },
 
@@ -1476,7 +1506,8 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     answer:
       "thing == 'length of a classroom' || thing == 'height of a door' ? 'metres' : 'centimetres'",
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'metres'", "'centimetres'"] },
     tags: ['AC9M3M01'],
   },
   {
@@ -1540,7 +1571,8 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     constraints: ['r != b'],
     answer: "r > b ? 'red' : 'blue'",
-    answerType: 'text',
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'red'", "'blue'"] },
     tags: ['AC9M3P01'],
   },
   {

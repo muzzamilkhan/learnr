@@ -52,6 +52,20 @@ describe('shipped content', () => {
     }
   });
 
+  // Spelling a word on the letter pad is a literacy test, not a maths one. In the
+  // early years the answer is tapped instead: a word a child of that age cannot
+  // reliably spell would hide what they actually know about the maths.
+  it('never asks a child in K to Year 3 to spell an answer', () => {
+    const early = allTemplates.filter((t) => ['K', '1', '2', '3'].includes(t.level));
+
+    for (const template of early) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-spelling-${i}`));
+        expect(q.answerType, template.id).not.toBe('text');
+      }
+    }
+  });
+
   it('offers at most four options on a multiple choice question', () => {
     for (const template of allTemplates) {
       for (let i = 0; i < 25; i++) {
