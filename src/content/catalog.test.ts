@@ -3,6 +3,7 @@ import { validateTemplates } from '@/lib/templates/validate';
 import { generateQuestion } from '@/lib/templates/generate';
 import { createRng } from '@/lib/rng';
 import { isYearLevel } from '@/lib/curriculum';
+import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
 import {
   allTemplates,
   listSubjects,
@@ -29,17 +30,22 @@ describe('shipped content', () => {
     }
   });
 
-  // The number pad types digits only, so a numeric answer must be a whole number a
-  // child can actually enter. True/false and multiple choice are tapped, not typed,
-  // so they are exempt.
-  it('never asks a child to type a negative or fractional answer', () => {
+  // A typed answer has to be something the number pad can actually produce: digits
+  // and one decimal point, no minus key. True/false and multiple choice are tapped
+  // rather than typed, so they are exempt.
+  it('never asks a child to type an answer the number pad cannot enter', () => {
     for (const template of allTemplates) {
       for (let i = 0; i < 25; i++) {
-        const q = generateQuestion(template, createRng(`${template.id}-neg-${i}`));
+        const q = generateQuestion(template, createRng(`${template.id}-typed-${i}`));
         if (q.answerType !== 'number') continue;
-        expect(typeof q.answer).toBe('number');
-        expect(q.answer as number).toBeGreaterThanOrEqual(0);
-        expect(Number.isInteger(q.answer)).toBe(true);
+
+        const answer = q.answer as number;
+        expect(typeof answer).toBe('number');
+        expect(answer).toBeGreaterThanOrEqual(0);
+        // Two decimal places is as fine as the curriculum gets, and keeps the
+        // answer short enough to read back on the display.
+        expect(Number(answer.toFixed(2))).toBe(answer);
+        expect(String(answer).length).toBeLessThanOrEqual(MAX_NUMBER_LENGTH);
       }
     }
   });

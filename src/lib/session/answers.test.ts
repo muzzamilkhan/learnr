@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { answerMode, answerOptions, formatAnswer } from './answers';
+import { answerMode, answerOptions, appendNumeric, formatAnswer, MAX_NUMBER_LENGTH } from './answers';
 import type { Question } from '../templates/types';
 
 const question = (overrides: Partial<Question>): Question => ({
@@ -43,6 +43,42 @@ describe('answerOptions', () => {
 
   it('offers nothing for a typed question', () => {
     expect(answerOptions(question({}))).toEqual([]);
+  });
+});
+
+describe('appendNumeric', () => {
+  const type = (keys: string) => [...keys].reduce(appendNumeric, '');
+
+  it('builds up a whole number', () => {
+    expect(type('407')).toBe('407');
+  });
+
+  it('types a decimal, which Year 4 upwards needs', () => {
+    expect(type('9.85')).toBe('9.85');
+    expect(type('0.5')).toBe('0.5');
+  });
+
+  it('writes a leading zero when the decimal point comes first', () => {
+    expect(type('.5')).toBe('0.5');
+  });
+
+  it('allows only one decimal point', () => {
+    expect(type('1.2.3')).toBe('1.23');
+  });
+
+  it('takes a minus only at the front', () => {
+    expect(type('-4')).toBe('-4');
+    expect(type('4-')).toBe('4');
+  });
+
+  it('ignores anything that is not part of a number', () => {
+    expect(appendNumeric('12', 'a')).toBe('12');
+    expect(appendNumeric('12', 'Enter')).toBe('12');
+  });
+
+  it('stops at the maximum length', () => {
+    const full = '1'.repeat(MAX_NUMBER_LENGTH);
+    expect(appendNumeric(full, '2')).toBe(full);
   });
 });
 

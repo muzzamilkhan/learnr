@@ -41,3 +41,19 @@ export function formatAnswer(question: Question): string {
   if (typeof question.answer === 'boolean') return question.answer ? 'True' : 'False';
   return String(question.answer);
 }
+
+/** Longest typed number, e.g. "1234.56". Long enough for any answer we ask for. */
+export const MAX_NUMBER_LENGTH = 8;
+
+/**
+ * Add one keypress to a typed number. Digits, a single leading minus and at most
+ * one decimal point get through; anything else leaves the entry alone, so the pad
+ * and a physical keyboard can share one rule.
+ */
+export function appendNumeric(entry: string, key: string): string {
+  if (entry.length >= MAX_NUMBER_LENGTH) return entry;
+  // A bare "." is not a number a child would write, so seed the zero for them.
+  if (key === '.') return entry.includes('.') ? entry : entry === '' ? '0.' : `${entry}.`;
+  if (key === '-') return entry === '' ? '-' : entry;
+  return key >= '0' && key <= '9' ? entry + key : entry;
+}

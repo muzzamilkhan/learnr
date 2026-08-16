@@ -6,7 +6,7 @@ import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
-import { answerMode, answerOptions, formatAnswer } from '@/lib/session/answers';
+import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
 import { endRecordingAction, recordAttemptAction, startRecordingAction } from '@/app/play/actions';
 import { SessionTimer } from './session-timer';
 import { NumberPad } from './number-pad';
@@ -17,7 +17,7 @@ import { ChoicePad } from './choice-pad';
 const FEEDBACK_MS = { correct: 700, wrong: 1600 } as const;
 
 /** Enough for any answer a child is asked to type, short enough to stay legible. */
-const MAX_ENTRY = { number: 6, text: 16 } as const;
+const MAX_ENTRY = { text: 16 } as const;
 
 type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | null;
 
@@ -119,14 +119,11 @@ export function PlaySession({
         return;
       }
 
-      const limit = MAX_ENTRY[mode];
       if (key === 'Backspace') setEntry((v) => v.slice(0, -1));
       else if (key === 'Enter') submit(entry);
-      else if (mode === 'number' && key >= '0' && key <= '9')
-        setEntry((v) => (v.length < limit ? v + key : v));
-      else if (mode === 'number' && key === '-') setEntry((v) => (v === '' ? '-' : v));
+      else if (mode === 'number') setEntry((v) => appendNumeric(v, key));
       else if (mode === 'text' && /^[a-z]$/i.test(key))
-        setEntry((v) => (v.length < limit ? v + key.toUpperCase() : v));
+        setEntry((v) => (v.length < MAX_ENTRY.text ? v + key.toUpperCase() : v));
     };
 
     window.addEventListener('keydown', onKey);
@@ -234,7 +231,7 @@ function AnswerInput({
     <NumberPad
       disabled={disabled}
       canCheck={entry !== ''}
-      onDigit={(digit) => onEntry((v) => (v.length < MAX_ENTRY.number ? v + digit : v))}
+      onDigit={(digit) => onEntry((v) => appendNumeric(v, digit))}
       onBackspace={() => onEntry((v) => v.slice(0, -1))}
       onCheck={() => onSubmit(entry)}
     />
