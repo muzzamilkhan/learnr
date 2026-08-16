@@ -1,26 +1,52 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design brief: standard iPad (1024x768 landscape, 768x1024 portrait), used by a
+ * child. Minimal and calm rather than playful — big type, big targets, few things
+ * on screen at once, nothing that needs reading instructions to understand.
+ */
+
+@theme {
+  --color-ink: #1b2430;
+  --color-ink-soft: #5b6b7f;
+  --color-paper: #f7f9fc;
+  --color-card: #ffffff;
+  --color-brand: #3b6ef5;
+  --color-brand-soft: #e5edff;
+  --color-right: #17a06a;
+  --color-right-soft: #e2f6ed;
+  --color-wrong: #e2705a;
+  --color-wrong-soft: #fdeeea;
+  --color-line: #dfe6ef;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* A child resting a palm on the screen should not scroll or zoom the page. */
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+/* No text selection or long-press callouts during play. */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

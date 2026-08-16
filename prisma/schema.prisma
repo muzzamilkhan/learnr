@@ -1,0 +1,107 @@
+// Learnr data model.
+//
+// Two halves: the Auth.js tables (User/Account/Session), and the learning record
+// (LearningSession/Attempt). Attempts are recorded only for now — no scoring or
+// adaptive selection yet — but they carry everything the future reinforcement
+// pass needs: category, level, time taken and correctness.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+
+  accounts         Account[]
+  sessions         Session[]
+  learningSessions LearningSession[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// One sitting: a child picks a subject + level and answers until they stop.
+/// There is no end condition, so `endedAt` is set on an explicit finish only.
+model LearningSession {
+  id        String    @id @default(cuid())
+  userId    String
+  subject   String
+  level     Int
+  /// RNG seed, so a session's exact question sequence can be replayed.
+  seed      String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  @@index([userId, startedAt])
+}
+
+/// One answered question. Recorded, not yet acted on.
+model Attempt {
+  id                String   @id @default(cuid())
+  learningSessionId String
+  templateId        String
+  subject           String
+  category          String
+  level             Int
+  prompt            String
+  expected          String
+  response          String
+  correct           Boolean
+  timeTakenMs       Int
+  answeredAt        DateTime @default(now())
+
+  learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
+
+  @@index([learningSessionId])
+  /// Supports the future "which categories are weak?" query.
+  @@index([subject, category, level, correct])
+}
