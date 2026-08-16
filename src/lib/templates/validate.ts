@@ -1,4 +1,5 @@
 import { parse, type Node } from '../expr';
+import { isYearLevel, YEAR_LEVELS } from '../curriculum';
 import { createRng } from '../rng';
 import { generateQuestion } from './generate';
 import type { QuestionTemplate, VarSpec } from './types';
@@ -82,11 +83,11 @@ export function validateTemplate(input: unknown): ValidationResult {
   if (typeof template.subject !== 'string' || template.subject.trim() === '') {
     errors.push('subject must be a non-empty string');
   }
-  if (typeof template.category !== 'string' || template.category.trim() === '') {
-    errors.push('category must be a non-empty string');
+  if (typeof template.topic !== 'string' || template.topic.trim() === '') {
+    errors.push('topic must be a non-empty string');
   }
-  if (typeof template.level !== 'number' || !Number.isInteger(template.level) || template.level < 1) {
-    errors.push('level must be an integer of 1 or more');
+  if (!isYearLevel(template.level)) {
+    errors.push(`level must be a school year, one of ${YEAR_LEVELS.join(', ')}`);
   }
 
   if (!Array.isArray(template.vars)) {

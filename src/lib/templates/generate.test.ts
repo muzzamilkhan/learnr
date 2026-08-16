@@ -6,8 +6,8 @@ import type { QuestionTemplate } from './types';
 const subtraction: QuestionTemplate = {
   id: 'sub-basic',
   subject: 'maths',
-  category: 'subtraction',
-  level: 1,
+  topic: 'subtraction',
+  level: 'K',
   prompt: 'What is the difference between {x} and {y}?',
   vars: [
     { name: 'x', kind: 'int', min: '5', max: '10' },
@@ -68,8 +68,8 @@ describe('generateQuestion', () => {
     const template: QuestionTemplate = {
       id: 'derived',
       subject: 'maths',
-      category: 'addition',
-      level: 1,
+      topic: 'addition',
+      level: 'K',
       prompt: 'Sam has {x} apples and buys {y} more. Does he now have {total}?',
       vars: [
         { name: 'x', kind: 'int', min: '1', max: '5' },
@@ -88,8 +88,8 @@ describe('generateQuestion', () => {
     const template: QuestionTemplate = {
       id: 'pick',
       subject: 'maths',
-      category: 'mixed',
-      level: 2,
+      topic: 'mixed',
+      level: '1',
       prompt: 'What is {x} {op} {y}?',
       vars: [
         { name: 'x', kind: 'int', min: '1', max: '9' },

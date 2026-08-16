@@ -5,8 +5,8 @@ import type { Question } from '../templates/types';
 const numeric = (answer: number): Question => ({
   templateId: 't',
   subject: 'maths',
-  category: 'subtraction',
-  level: 1,
+  topic: 'subtraction',
+  level: 'K',
   prompt: 'q',
   answer,
   answerType: 'number',

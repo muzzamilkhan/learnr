@@ -7,8 +7,8 @@ const templates: QuestionTemplate[] = [
   {
     id: 'add-1',
     subject: 'maths',
-    category: 'addition',
-    level: 1,
+    topic: 'addition',
+    level: 'K',
     prompt: 'What is {x} + {y}?',
     vars: [
       { name: 'x', kind: 'int', min: '1', max: '9' },
@@ -19,8 +19,8 @@ const templates: QuestionTemplate[] = [
   {
     id: 'sub-1',
     subject: 'maths',
-    category: 'subtraction',
-    level: 1,
+    topic: 'subtraction',
+    level: 'K',
     prompt: 'What is the difference between {x} and {y}?',
     vars: [
       { name: 'x', kind: 'int', min: '5', max: '10' },
@@ -59,8 +59,8 @@ describe('submitAnswer', () => {
     expect(next.attempts).toHaveLength(1);
     expect(next.attempts[0]).toMatchObject({
       templateId: session.current.templateId,
-      category: session.current.category,
-      level: 1,
+      topic: session.current.topic,
+      level: 'K',
       correct: true,
       timeTakenMs: 2500,
       response: answer,

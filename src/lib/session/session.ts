@@ -1,3 +1,4 @@
+import type { YearLevel } from '../curriculum';
 import { createRng, type Rng } from '../rng';
 import { generateQuestion } from '../templates/generate';
 import type { Question, QuestionTemplate } from '../templates/types';
@@ -12,8 +13,8 @@ import { gradeAnswer } from './grade';
 export interface Attempt {
   templateId: string;
   subject: string;
-  category: string;
-  level: number;
+  topic: string;
+  level: YearLevel;
   prompt: string;
   /** The expected answer, kept so a parent can review what was asked. */
   expected: string;
@@ -25,7 +26,7 @@ export interface Attempt {
 
 export interface SessionState {
   subject: string;
-  level: number;
+  level: YearLevel;
   startedAt: number;
   /** When the current question was put on screen — the timer origin for this attempt. */
   questionShownAt: number;
@@ -43,7 +44,7 @@ export interface SessionConfig {
   seed: string;
   startedAt: number;
   subject?: string;
-  level?: number;
+  level?: YearLevel;
 }
 
 /** Each draw gets its own RNG seeded from (seed, draw index) so state stays serialisable. */
@@ -80,7 +81,7 @@ export function submitAnswer(state: SessionState, response: string, now: number)
   const attempt: Attempt = {
     templateId: state.current.templateId,
     subject: state.current.subject,
-    category: state.current.category,
+    topic: state.current.topic,
     level: state.current.level,
     prompt: state.current.prompt,
     expected: String(state.current.answer),

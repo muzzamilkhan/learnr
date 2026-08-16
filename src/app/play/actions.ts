@@ -3,6 +3,7 @@
 import { auth } from '@/auth';
 import { recordAttempt, recordSessionEnd, recordSessionStart } from '@/lib/records';
 import type { Attempt } from '@/lib/session/session';
+import type { YearLevel } from '@/lib/curriculum';
 
 /**
  * Recording only. These never affect what the child sees next — the session
@@ -11,7 +12,7 @@ import type { Attempt } from '@/lib/session/session';
 
 export async function startRecordingAction(
   subject: string,
-  level: number,
+  level: YearLevel,
   seed: string,
 ): Promise<string | null> {
   const session = await auth();

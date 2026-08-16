@@ -155,7 +155,7 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
   return {
     templateId: template.id,
     subject: template.subject,
-    category: template.category,
+    topic: template.topic,
     level: template.level,
     prompt: renderTemplateString(template.prompt, scope),
     answer: answerValue,

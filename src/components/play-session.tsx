@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { QuestionTemplate } from '@/lib/templates/types';
+import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
 import { endRecordingAction, recordAttemptAction, startRecordingAction } from '@/app/play/actions';
@@ -16,7 +17,7 @@ type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | nu
 
 interface Props {
   subject: string;
-  level: number;
+  level: YearLevel;
   templates: QuestionTemplate[];
   /** Supplied by the server so the first question renders before hydration. */
   seed: string;

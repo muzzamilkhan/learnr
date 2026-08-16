@@ -2,15 +2,7 @@ import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
 import { listSubjects } from '@/content/catalog';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
-
-const LEVEL_NAMES: Record<number, string> = {
-  1: 'Counting',
-  2: 'Adding',
-  3: 'Taking away',
-  4: 'Mixing it up',
-  5: 'Times tables',
-  6: 'Sharing out',
-};
+import { yearLabel } from '@/lib/curriculum';
 
 export default async function HomePage() {
   const session = isAuthConfigured ? await auth() : null;
@@ -51,14 +43,9 @@ export default async function HomePage() {
                   href={`/play?subject=${subject.subject}&level=${level.level}`}
                   className="no-select block rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-7 transition active:scale-[0.98] hover:border-(--color-brand)"
                 >
-                  <span className="text-sm font-semibold tracking-widest text-(--color-ink-soft) uppercase">
-                    Level {level.level}
-                  </span>
-                  <span className="mt-1 block text-3xl font-semibold">
-                    {LEVEL_NAMES[level.level] ?? level.categories.join(', ')}
-                  </span>
-                  <span className="mt-2 block text-lg text-(--color-ink-soft) capitalize">
-                    {level.categories.join(' · ')}
+                  <span className="block text-3xl font-semibold">{yearLabel(level.level)}</span>
+                  <span className="mt-2 block text-lg text-(--color-ink-soft)">
+                    {level.topics.join(' · ')}
                   </span>
                 </Link>
               </li>

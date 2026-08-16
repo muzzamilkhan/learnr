@@ -1,3 +1,5 @@
+import type { YearLevel } from '../curriculum';
+
 /**
  * Question templates are data, authored outside the app (by hand or by an AI) and
  * expanded into concrete questions at runtime.
@@ -38,8 +40,14 @@ export interface ChoiceSpec {
 export interface QuestionTemplate {
   id: string;
   subject: string;
-  category: string;
-  level: number;
+  /**
+   * What this question practises, e.g. "counting numbers". Topics are shared
+   * across years — the same topic reappears at a harder level — so a topic is a
+   * tag on the template, never a property of the level.
+   */
+  topic: string;
+  /** The Australian school year this template was written for. */
+  level: YearLevel;
   /** Prompt with `{expression}` holes, e.g. "What is {x} + {y}?" */
   prompt: string;
   vars: readonly VarSpec[];
@@ -58,8 +66,8 @@ export interface QuestionTemplate {
 export interface Question {
   templateId: string;
   subject: string;
-  category: string;
-  level: number;
+  topic: string;
+  level: YearLevel;
   prompt: string;
   answer: string | number;
   answerType: AnswerType;

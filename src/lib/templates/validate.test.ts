@@ -5,8 +5,8 @@ import type { QuestionTemplate } from './types';
 const valid: QuestionTemplate = {
   id: 'sub-basic',
   subject: 'maths',
-  category: 'subtraction',
-  level: 1,
+  topic: 'subtraction',
+  level: 'K',
   prompt: 'What is the difference between {x} and {y}?',
   vars: [
     { name: 'x', kind: 'int', min: '5', max: '10' },
@@ -28,7 +28,14 @@ describe('validateTemplate', () => {
   it('requires the identifying fields', () => {
     expect(errorsFor({ ...valid, id: '' })).toContainEqual(expect.stringMatching(/id/i));
     expect(errorsFor({ ...valid, subject: '' })).toContainEqual(expect.stringMatching(/subject/i));
-    expect(errorsFor({ ...valid, level: 0 })).toContainEqual(expect.stringMatching(/level/i));
+    expect(errorsFor({ ...valid, topic: '' })).toContainEqual(expect.stringMatching(/topic/i));
+  });
+
+  it('requires level to be a school year, not a number or an invented year', () => {
+    expect(errorsFor({ ...valid, level: 1 })).toContainEqual(expect.stringMatching(/level/i));
+    expect(errorsFor({ ...valid, level: '13' })).toContainEqual(expect.stringMatching(/level/i));
+    expect(errorsFor({ ...valid, level: 'kindy' })).toContainEqual(expect.stringMatching(/level/i));
+    expect(errorsFor({ ...valid, level: '12' })).toEqual([]);
   });
 
   it('rejects duplicate variable names', () => {

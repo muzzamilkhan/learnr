@@ -3,7 +3,7 @@
 // Two halves: the Auth.js tables (User/Account/Session), and the learning record
 // (LearningSession/Attempt). Attempts are recorded only for now — no scoring or
 // adaptive selection yet — but they carry everything the future reinforcement
-// pass needs: category, level, time taken and correctness.
+// pass needs: topic, level, time taken and correctness.
 
 generator client {
   provider = "prisma-client"
@@ -72,7 +72,8 @@ model LearningSession {
   id        String    @id @default(cuid())
   userId    String
   subject   String
-  level     Int
+  /// Australian school year: "K" or "1" through "12".
+  level     String
   /// RNG seed, so a session's exact question sequence can be replayed.
   seed      String
   startedAt DateTime  @default(now())
@@ -90,8 +91,10 @@ model Attempt {
   learningSessionId String
   templateId        String
   subject           String
-  category          String
-  level             Int
+  /// What the question practises, e.g. "counting numbers". Shared across years.
+  topic             String
+  /// Australian school year: "K" or "1" through "12".
+  level             String
   prompt            String
   expected          String
   response          String
@@ -102,6 +105,6 @@ model Attempt {
   learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
 
   @@index([learningSessionId])
-  /// Supports the future "which categories are weak?" query.
-  @@index([subject, category, level, correct])
+  /// Supports the future "which topics are weak?" query.
+  @@index([subject, topic, level, correct])
 }

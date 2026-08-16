@@ -3,22 +3,25 @@ import { auth, isAuthConfigured } from '@/auth';
 import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
 import { newSession } from '@/lib/session/seed';
+import { parseYearLevel, yearLabel } from '@/lib/curriculum';
 
 export default async function PlayPage({
   searchParams,
 }: {
   searchParams: Promise<{ subject?: string; level?: string }>;
 }) {
-  const { subject = 'maths', level: levelParam = '1' } = await searchParams;
-  const level = Number(levelParam);
-  const templates = Number.isFinite(level) ? templatesFor(subject, level) : [];
+  const { subject = 'maths', level: levelParam = 'K' } = await searchParams;
+  const level = parseYearLevel(levelParam);
+  const templates = level ? templatesFor(subject, level) : [];
 
-  if (templates.length === 0) {
+  if (!level || templates.length === 0) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-6 px-8 text-center">
         <h1 className="text-4xl font-semibold">Nothing to practice here yet</h1>
         <p className="text-xl text-(--color-ink-soft)">
-          There are no questions for {subject} level {levelParam}.
+          {level
+            ? `There are no ${subject} questions for ${yearLabel(level)}.`
+            : `"${levelParam}" is not a school year.`}
         </p>
         <Link
           href="/"

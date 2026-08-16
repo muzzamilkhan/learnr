@@ -2,7 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { validateTemplates } from '@/lib/templates/validate';
 import { generateQuestion } from '@/lib/templates/generate';
 import { createRng } from '@/lib/rng';
-import { allTemplates, listSubjects, templatesFor } from './catalog';
+import { isYearLevel } from '@/lib/curriculum';
+import {
+  allTemplates,
+  listSubjects,
+  listTopics,
+  templatesFor,
+  topicsForLevel,
+  levelsForTopic,
+} from './catalog';
 
 describe('shipped content', () => {
   it('every template is valid', () => {
@@ -32,21 +40,63 @@ describe('shipped content', () => {
     }
   });
 
-  it('exposes maths with contiguous levels that each have templates', () => {
-    const subjects = listSubjects();
-    const maths = subjects.find((s) => s.subject === 'maths');
+  it('tags every template with a school year', () => {
+    for (const template of allTemplates) {
+      expect(isYearLevel(template.level)).toBe(true);
+    }
+  });
+});
 
-    expect(maths).toBeDefined();
-    expect(maths!.levels.map((l) => l.level)).toEqual([1, 2, 3, 4, 5, 6]);
-    for (const level of maths!.levels) {
-      expect(level.templateCount).toBeGreaterThan(0);
-      expect(level.categories.length).toBeGreaterThan(0);
+describe('levels and topics are many-to-many', () => {
+  it('gives a year several topics', () => {
+    expect(topicsForLevel('maths', 'K')).toEqual(['counting numbers', 'even and odd']);
+    expect(topicsForLevel('maths', '1').length).toBeGreaterThan(1);
+  });
+
+  it('carries a topic across several years, harder each time', () => {
+    expect(levelsForTopic('maths', 'counting numbers')).toEqual(['K', '1']);
+    expect(levelsForTopic('maths', 'even and odd')).toEqual(['K', '2']);
+    expect(levelsForTopic('maths', 'multiplication')).toEqual(['2', '3']);
+  });
+
+  it('round-trips: every topic of a year lists that year back', () => {
+    for (const subject of listSubjects()) {
+      for (const level of subject.levels) {
+        for (const topic of level.topics) {
+          expect(levelsForTopic(subject.subject, topic)).toContain(level.level);
+        }
+      }
     }
   });
 
-  it('looks up templates by subject and level', () => {
-    expect(templatesFor('maths', 1).every((t) => t.level === 1)).toBe(true);
-    expect(templatesFor('maths', 99)).toEqual([]);
-    expect(templatesFor('spelling', 1)).toEqual([]);
+  it('returns nothing for a year or topic that does not exist', () => {
+    expect(topicsForLevel('maths', '11')).toEqual([]);
+    expect(levelsForTopic('maths', 'algebra')).toEqual([]);
+    expect(levelsForTopic('spelling', 'counting numbers')).toEqual([]);
+  });
+});
+
+describe('catalog lookups', () => {
+  it('lists maths years in school order', () => {
+    const maths = listSubjects().find((s) => s.subject === 'maths');
+
+    expect(maths).toBeDefined();
+    expect(maths!.levels.map((l) => l.level)).toEqual(['K', '1', '2', '3']);
+    for (const level of maths!.levels) {
+      expect(level.templateCount).toBeGreaterThan(0);
+      expect(level.topics.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('lists every topic in the subject', () => {
+    expect(listTopics('maths')).toContain('counting numbers');
+    expect(listTopics('maths')).toContain('division');
+    expect(listTopics('spelling')).toEqual([]);
+  });
+
+  it('looks up templates by subject and year', () => {
+    expect(templatesFor('maths', 'K').every((t) => t.level === 'K')).toBe(true);
+    expect(templatesFor('maths', '12')).toEqual([]);
+    expect(templatesFor('spelling', 'K')).toEqual([]);
   });
 });

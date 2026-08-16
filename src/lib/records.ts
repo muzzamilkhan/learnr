@@ -1,4 +1,5 @@
 import 'server-only';
+import type { YearLevel } from './curriculum';
 import { prisma } from './db';
 import type { Attempt } from './session/session';
 
@@ -11,7 +12,7 @@ import type { Attempt } from './session/session';
 export interface StartRecordInput {
   userId: string;
   subject: string;
-  level: number;
+  level: YearLevel;
   seed: string;
 }
 
@@ -49,7 +50,7 @@ export async function recordAttempt(
         learningSessionId,
         templateId: attempt.templateId,
         subject: attempt.subject,
-        category: attempt.category,
+        topic: attempt.topic,
         level: attempt.level,
         prompt: attempt.prompt,
         expected: attempt.expected,

@@ -24,13 +24,14 @@ the network, the clock or the database — callers pass in `now` and an RNG. Thi
 the rule that keeps the app testable; don't break it for convenience.
 
 ```
-src/lib/expr/       safe expression language (tokenize → parse → evaluate)
-src/lib/templates/  question templates: types, generation, validation
-src/lib/session/    session state machine and grading
-src/lib/rng.ts      seeded PRNG
-src/content/        the shipped course content + catalog lookups
-src/components/     UI
-src/app/            routes and server actions
+src/lib/expr/        safe expression language (tokenize → parse → evaluate)
+src/lib/templates/   question templates: types, generation, validation
+src/lib/session/     session state machine and grading
+src/lib/curriculum.ts school years, labels and ordering
+src/lib/rng.ts       seeded PRNG
+src/content/         the shipped course content + catalog lookups
+src/components/      UI
+src/app/             routes and server actions
 ```
 
 - `src/lib/expr` is a small Pratt-parsed expression language. It exists because
@@ -41,14 +42,36 @@ src/app/            routes and server actions
   every test is deterministic and any session can be replayed from its seed.
 - Session state is immutable: `submitAnswer` returns a new state.
 
+## Levels and topics
+
+**Levels are Australian school years**: `'K'` then `'1'` to `'12'`, as strings.
+Never an integer — `'K'` has to sort first and `'10'` must not land between `'1'`
+and `'2'`. Use `compareYearLevels` to sort, `yearLabel` to display
+("Kindergarten", "Year 3"), and `parseYearLevel` at every boundary (URLs,
+imported files) — it normalises `'k'` and `'03'` and returns null for anything
+else.
+
+**A topic is what a question practises** ("counting numbers", "even and odd").
+
+**Levels and topics are many-to-many, and neither owns the other.** A year offers
+several topics; a topic recurs across years, harder each time. Counting numbers
+runs from Kindergarten into Year 1; even and odd from Kindergarten into Year 2.
+The pairing lives on the template — one year, one topic — so the curriculum is
+*derived from content*, not declared. Adding a Year 4 division template is all it
+takes to put division into Year 4.
+
+Walk it from either end: `topicsForLevel(subject, level)` and
+`levelsForTopic(subject, topic)`. Don't add a level→topics table; it would go
+stale against the templates that are the actual source of truth.
+
 ## Question templates
 
 A template is data. The engine binds variables, checks constraints, then renders.
 
 ```ts
 {
-  id: 'maths.subtraction.difference',
-  subject: 'maths', category: 'subtraction', level: 3,
+  id: 'maths.1.subtraction.difference',
+  subject: 'maths', topic: 'subtraction', level: '1',
   prompt: 'What is the difference between {x} and {y}?',
   vars: [
     { name: 'x', kind: 'int', min: '5', max: '20' },
@@ -77,19 +100,28 @@ Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
 isEven isOdd`.
 
+Template ids follow `subject.level.topic.variant`, e.g.
+`maths.2.even-and-odd.next-odd`.
+
 **Always run new templates through `validateTemplate` before importing them.** It
-catches unbound variables, out-of-order references, malformed expressions and
-unsatisfiable constraints, and then proves the template can actually generate. The
-test in `src/content/catalog.test.ts` validates everything shipped and asserts no
-question ever asks a child for a negative or fractional answer.
+catches unbound variables, out-of-order references, malformed expressions, levels
+that aren't school years, and unsatisfiable constraints, then proves the template
+can actually generate. The test in `src/content/catalog.test.ts` validates
+everything shipped and asserts no question ever asks a child for a negative or
+fractional answer.
+
+Content ships for K–3 only. Every shipped answer is a whole number, because the
+play screen offers **a number pad and nothing else** — templates may declare
+`text` or `choice` answers, but no UI renders them yet. Don't author content that
+needs them until that's built.
 
 ## Sessions
 
-A session never ends. The child picks subject + level and answers until they stop;
-templates are drawn at random from the pool for that level. The header shows a
-count-up timer only — no limits or targets yet.
+A session never ends. The child picks subject + year and answers until they stop;
+templates are drawn at random from the pool for that year, across all of its
+topics. The header shows a count-up timer only — no limits or targets yet.
 
-Every answer is recorded (`Attempt`: template, category, level, time taken,
+Every answer is recorded (`Attempt`: template, topic, level, time taken,
 correct/incorrect, the response as typed). **Nothing reads these rows yet.** They
 exist so a later pass can prioritise weak areas. Don't build scoring or adaptive
 question selection on them until that's the actual task.
