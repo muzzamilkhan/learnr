@@ -74,6 +74,49 @@ describe('validateTemplate', () => {
     expect(errorsFor(template)).toContainEqual(expect.stringMatching(/op.*empty|empty.*op/i));
   });
 
+  it('accepts a true/false template', () => {
+    const template = {
+      ...valid,
+      prompt: 'Is {x} bigger than {y}?',
+      constraints: [],
+      answer: 'x > y',
+    };
+    expect(errorsFor(template)).toEqual([]);
+  });
+
+  it('allows between two and four choices, and no more', () => {
+    const choice = (count: number) => ({
+      ...valid,
+      answerType: 'choice' as const,
+      choices: { count, jitter: { min: '1', max: '9' } },
+    });
+
+    expect(errorsFor(choice(2))).toEqual([]);
+    expect(errorsFor(choice(4))).toEqual([]);
+    expect(errorsFor(choice(1))).toContainEqual(expect.stringMatching(/choices\.count/i));
+    expect(errorsFor(choice(5))).toContainEqual(expect.stringMatching(/choices\.count/i));
+  });
+
+  it('rejects choices on a true/false template, which renders its own buttons', () => {
+    const template = {
+      ...valid,
+      constraints: [],
+      answer: 'x > y',
+      answerType: 'boolean' as const,
+      choices: { count: 2, distractors: ['x < y'] },
+    };
+    expect(errorsFor(template)).toContainEqual(expect.stringMatching(/choices.*boolean/i));
+  });
+
+  it('rejects an answerType that disagrees with what the answer evaluates to', () => {
+    expect(errorsFor({ ...valid, answerType: 'boolean' })).toContainEqual(
+      expect.stringMatching(/answerType/i),
+    );
+    expect(
+      errorsFor({ ...valid, constraints: [], answer: 'x > y', answerType: 'number' }),
+    ).toContainEqual(expect.stringMatching(/answerType/i));
+  });
+
   it('catches templates whose constraints can never be satisfied', () => {
     const template = { ...valid, constraints: ['x > 1000'] };
     expect(errorsFor(template)).toContainEqual(expect.stringMatching(/constraint/i));

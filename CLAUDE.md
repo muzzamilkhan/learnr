@@ -94,7 +94,15 @@ Design rules that keep this flexible:
 - Variable kinds: `int`, `number` (decimals), `pick` (from a list, optionally
   weighted), `expr` (derived, never random).
 - Optional `choices` turns a template into multiple choice, with authored
-  `distractors` and a `jitter` fallback.
+  `distractors` and a `jitter` fallback. **At most 4 options** (`MAX_CHOICES`) —
+  more than that stops being thumb-sized on an iPad.
+- **`answerType` is inferred from what `answer` evaluates to** and rarely needs
+  declaring: a boolean gives `boolean` (true/false), a number gives `number`,
+  anything else gives `text`. Declaring one that disagrees with the answer is an
+  error, not something the engine papers over. Set it explicitly only for
+  `choice`, or for a numeric answer you want typed as text.
+- A `boolean` template has no `choices` — the play screen renders its own two
+  buttons, so declaring choices alongside it is rejected.
 
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
@@ -107,13 +115,19 @@ Template ids follow `subject.level.topic.variant`, e.g.
 catches unbound variables, out-of-order references, malformed expressions, levels
 that aren't school years, and unsatisfiable constraints, then proves the template
 can actually generate. The test in `src/content/catalog.test.ts` validates
-everything shipped and asserts no question ever asks a child for a negative or
-fractional answer.
+everything shipped and asserts no question ever asks a child to *type* a negative
+or fractional answer. Tapped answers are exempt from that rule, but a distractor
+a child would find nonsensical is still bad content — keep them plausible.
 
-Content ships for K–3 only. Every shipped answer is a whole number, because the
-play screen offers **a number pad and nothing else** — templates may declare
-`text` or `choice` answers, but no UI renders them yet. Don't author content that
-needs them until that's built.
+Content ships for K–3 only. All four answer types now render, so any of them is
+safe to author:
+
+| `answerType` | how it is answered |
+| --- | --- |
+| `number` | number pad, then Check |
+| `text` | on-screen A–Z pad, then Check — the iPad keyboard never opens |
+| `boolean` | two buttons, True / False; one tap answers |
+| `choice` | 2–4 buttons; one tap answers |
 
 ## Sessions
 
@@ -136,10 +150,16 @@ Standard iPad, landscape and portrait. Minimal and calm rather than playful —
 simple enough for a child to pick up with no explanation.
 
 - **The play screen must fit the viewport with no scrolling.** It's `h-[100dvh]`
-  with `overflow-hidden`; the number pad is fixed-height and the question area
+  with `overflow-hidden`; the answer pad is fixed-height and the question area
   flexes. Check both orientations after changing that layout.
-- Answers use the on-screen number pad, not the iPad keyboard — it keeps the
-  question visible and the targets large and fixed.
+- **Every answer is given on-screen, never with the iPad keyboard** — it keeps the
+  question visible and the targets large and fixed. `answerMode` in
+  `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,
+  `LetterPad` or `ChoicePad`); all three occupy the same fixed slot.
+- Tapped answers (choice, true/false) commit on the first touch, with no Check
+  button — there is nothing for a child to review. Typed answers keep Check.
+- After a wrong tap, the right option turns green and the child's turns red, so
+  they always see which one was right.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
 - Wrong answers show the correct one and move on. Nothing is punitive; there are
   no streaks, scores or timers-per-question.

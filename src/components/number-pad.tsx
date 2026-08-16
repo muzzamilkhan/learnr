@@ -5,6 +5,8 @@
  * gives large fixed targets, and stops a child wandering into other keys.
  */
 
+import { BackspaceIcon } from './backspace-icon';
+
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
 interface Props {
@@ -17,25 +19,6 @@ interface Props {
 
 const KEY_CLASS =
   'flex h-full w-full items-center justify-center rounded-2xl border-2 border-(--color-line) bg-(--color-card) text-4xl font-semibold transition active:scale-95 active:bg-(--color-brand-soft) disabled:opacity-40';
-
-/** Drawn rather than typed: the ⌫ glyph is missing from some iPad system fonts. */
-function BackspaceIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="h-9 w-9"
-    >
-      <path d="M20 5H9L3 12l6 7h11a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1Z" />
-      <path d="m16 9-5 6M11 9l5 6" />
-    </svg>
-  );
-}
 
 export function NumberPad({ disabled, canCheck, onDigit, onBackspace, onCheck }: Props) {
   return (

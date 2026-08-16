@@ -1,17 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
+import { answerMode, answerOptions, formatAnswer } from '@/lib/session/answers';
 import { endRecordingAction, recordAttemptAction, startRecordingAction } from '@/app/play/actions';
 import { SessionTimer } from './session-timer';
 import { NumberPad } from './number-pad';
+import { LetterPad } from './letter-pad';
+import { ChoicePad } from './choice-pad';
 
 /** How long the right/wrong feedback stays up before the next question. */
 const FEEDBACK_MS = { correct: 700, wrong: 1600 } as const;
+
+/** Enough for any answer a child is asked to type, short enough to stay legible. */
+const MAX_ENTRY = { number: 6, text: 16 } as const;
 
 type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | null;
 
@@ -41,6 +47,10 @@ export function PlaySession({
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const question = session.current;
+  const mode = answerMode(question);
+  const options = useMemo(() => answerOptions(question), [question]);
+
   useEffect(() => {
     if (!recordingEnabled) return;
     startRecordingAction(subject, level, seed).then((id) => {
@@ -56,42 +66,72 @@ export function PlaySession({
     };
   }, []);
 
-  const check = useCallback(() => {
-    if (feedback || entry === '') return;
+  /**
+   * The one path an answer takes, whether it was typed and checked or tapped.
+   * Tapped answers pass their value in, because the tap and the submit are the
+   * same gesture and `entry` has not been rendered yet.
+   */
+  const submit = useCallback(
+    (value: string) => {
+      if (feedback || value === '') return;
 
-    const { correct } = gradeAnswer(session.current, entry);
-    const expected = String(session.current.answer);
-    const next = submitAnswer(session, entry, Date.now());
+      const { correct } = gradeAnswer(question, value);
+      const expected = formatAnswer(question);
+      const next = submitAnswer(session, value, Date.now());
 
-    setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
+      setEntry(value);
+      setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
 
-    if (recordId.current) {
-      const attempt = next.attempts[next.attempts.length - 1];
-      recordAttemptAction(recordId.current, attempt);
-    }
+      if (recordId.current) {
+        const attempt = next.attempts[next.attempts.length - 1];
+        recordAttemptAction(recordId.current, attempt);
+      }
 
-    advanceTimer.current = setTimeout(
-      () => {
-        setSession(next);
-        setEntry('');
-        setFeedback(null);
-      },
-      correct ? FEEDBACK_MS.correct : FEEDBACK_MS.wrong,
-    );
-  }, [session, entry, feedback]);
+      advanceTimer.current = setTimeout(
+        () => {
+          setSession(next);
+          setEntry('');
+          setFeedback(null);
+        },
+        correct ? FEEDBACK_MS.correct : FEEDBACK_MS.wrong,
+      );
+    },
+    [session, question, feedback],
+  );
 
-  // A physical keyboard should work as well as the on-screen pad.
+  // A physical keyboard should work as well as the on-screen pads.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (feedback) return;
-      if (event.key >= '0' && event.key <= '9') setEntry((v) => (v.length < 6 ? v + event.key : v));
-      else if (event.key === 'Backspace') setEntry((v) => v.slice(0, -1));
-      else if (event.key === 'Enter') check();
-      else if (event.key === '-') setEntry((v) => (v === '' ? '-' : v));
+      const key = event.key;
+
+      if (mode === 'tap') {
+        if (key.length !== 1) return;
+        const typed = key.toLowerCase();
+        // Typing the option itself wins over its position, so "2" picks the option
+        // labelled 2 rather than the second one. Otherwise 1-4 pick by position,
+        // and a first letter picks by name — t and f for true/false.
+        const match =
+          options.find((o) => o.label.toLowerCase() === typed) ??
+          options[Number(key) - 1] ??
+          options.find((o) => o.label.toLowerCase().startsWith(typed));
+        if (match) submit(match.value);
+        return;
+      }
+
+      const limit = MAX_ENTRY[mode];
+      if (key === 'Backspace') setEntry((v) => v.slice(0, -1));
+      else if (key === 'Enter') submit(entry);
+      else if (mode === 'number' && key >= '0' && key <= '9')
+        setEntry((v) => (v.length < limit ? v + key : v));
+      else if (mode === 'number' && key === '-') setEntry((v) => (v === '' ? '-' : v));
+      else if (mode === 'text' && /^[a-z]$/i.test(key))
+        setEntry((v) => (v.length < limit ? v + key.toUpperCase() : v));
     };
+
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [check, feedback]);
+  }, [submit, feedback, mode, options, entry]);
 
   const correctCount = session.attempts.filter((a) => a.correct).length;
 
@@ -120,26 +160,96 @@ export function PlaySession({
           key={session.askedCount}
           className="max-w-3xl text-center text-3xl leading-snug font-semibold text-balance sm:text-4xl lg:text-5xl"
         >
-          {session.current.prompt}
+          {question.prompt}
         </h1>
 
-        <AnswerDisplay entry={entry} feedback={feedback} />
+        {mode === 'tap' ? (
+          // Tapped answers show their result on the buttons themselves, so all
+          // that is left to say is what the answer was.
+          <FeedbackLine feedback={feedback} />
+        ) : (
+          <AnswerDisplay entry={entry} feedback={feedback} wide={mode === 'text'} />
+        )}
       </div>
 
       <div className="h-[46vh] max-h-88 min-h-64 shrink-0">
-        <NumberPad
-          disabled={feedback !== null}
-          onDigit={(d) => setEntry((v) => (v.length < 6 ? v + d : v))}
-          onBackspace={() => setEntry((v) => v.slice(0, -1))}
-          onCheck={check}
-          canCheck={entry !== ''}
+        <AnswerInput
+          question={question}
+          mode={mode}
+          options={options}
+          entry={entry}
+          feedback={feedback}
+          onEntry={setEntry}
+          onSubmit={submit}
         />
       </div>
     </main>
   );
 }
 
-function AnswerDisplay({ entry, feedback }: { entry: string; feedback: Feedback }) {
+function AnswerInput({
+  question,
+  mode,
+  options,
+  entry,
+  feedback,
+  onEntry,
+  onSubmit,
+}: {
+  question: Question;
+  mode: ReturnType<typeof answerMode>;
+  options: readonly { value: string; label: string }[];
+  entry: string;
+  feedback: Feedback;
+  onEntry: (update: (value: string) => string) => void;
+  onSubmit: (value: string) => void;
+}) {
+  const disabled = feedback !== null;
+
+  if (mode === 'tap') {
+    return (
+      <ChoicePad
+        options={options}
+        disabled={disabled}
+        chosen={disabled ? entry : null}
+        reveal={disabled ? String(question.answer) : null}
+        onChoose={onSubmit}
+      />
+    );
+  }
+
+  if (mode === 'text') {
+    return (
+      <LetterPad
+        disabled={disabled}
+        canCheck={entry !== ''}
+        onLetter={(letter) => onEntry((v) => (v.length < MAX_ENTRY.text ? v + letter : v))}
+        onBackspace={() => onEntry((v) => v.slice(0, -1))}
+        onCheck={() => onSubmit(entry)}
+      />
+    );
+  }
+
+  return (
+    <NumberPad
+      disabled={disabled}
+      canCheck={entry !== ''}
+      onDigit={(digit) => onEntry((v) => (v.length < MAX_ENTRY.number ? v + digit : v))}
+      onBackspace={() => onEntry((v) => v.slice(0, -1))}
+      onCheck={() => onSubmit(entry)}
+    />
+  );
+}
+
+function AnswerDisplay({
+  entry,
+  feedback,
+  wide,
+}: {
+  entry: string;
+  feedback: Feedback;
+  wide: boolean;
+}) {
   const tone =
     feedback?.state === 'correct'
       ? 'border-(--color-right) bg-(--color-right-soft) text-(--color-right)'
@@ -151,14 +261,23 @@ function AnswerDisplay({ entry, feedback }: { entry: string; feedback: Feedback 
     <div className="flex shrink-0 flex-col items-center gap-2">
       <output
         aria-live="polite"
-        className={`flex h-20 w-56 items-center justify-center rounded-3xl border-2 text-5xl font-bold tabular-nums transition-colors ${tone}`}
+        className={`flex h-20 items-center justify-center rounded-3xl border-2 px-6 font-bold tabular-nums transition-colors ${
+          wide ? 'w-96 max-w-full text-4xl tracking-wide' : 'w-56 text-5xl'
+        } ${tone}`}
       >
         {feedback?.state === 'correct' ? '✓' : entry || <span className="opacity-25">?</span>}
       </output>
 
-      <p className="h-7 text-lg font-medium text-(--color-ink-soft)">
-        {feedback?.state === 'wrong' ? `The answer is ${feedback.expected}` : ''}
-      </p>
+      <FeedbackLine feedback={feedback} />
     </div>
+  );
+}
+
+/** Reserves its own height so nothing shifts when the message appears. */
+function FeedbackLine({ feedback }: { feedback: Feedback }) {
+  return (
+    <p aria-live="polite" className="h-7 text-lg font-medium text-(--color-ink-soft)">
+      {feedback?.state === 'wrong' ? `The answer is ${feedback.expected}` : ''}
+    </p>
   );
 }

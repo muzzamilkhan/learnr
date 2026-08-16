@@ -23,10 +23,18 @@ export type VarSpec =
 /** An expression string, evaluated against the variables bound so far. */
 export type Expr = string;
 
-export type AnswerType = 'number' | 'text' | 'choice';
+/**
+ * How the child answers. `boolean` is true/false — the answer expression evaluates
+ * to a boolean and the play screen renders two fixed buttons, so it needs no
+ * `choices` of its own.
+ */
+export type AnswerType = 'number' | 'text' | 'choice' | 'boolean';
+
+/** Four is the most options that stay legible and thumb-sized on an iPad. */
+export const MAX_CHOICES = 4;
 
 export interface ChoiceSpec {
-  /** Total options shown, including the correct one. */
+  /** Total options shown, including the correct one. At most `MAX_CHOICES`. */
   count: number;
   /**
    * Expressions producing plausible wrong answers. Duplicates and values equal to
@@ -53,8 +61,9 @@ export interface QuestionTemplate {
   vars: readonly VarSpec[];
   /** Boolean expressions all bindings must satisfy, e.g. ["x > y", "isInt(x / y)"]. */
   constraints?: readonly Expr[];
-  /** Expression producing the correct answer. */
+  /** Expression producing the correct answer. A boolean result makes it true/false. */
   answer: Expr;
+  /** Defaults to what `answer` evaluates to: number, boolean, or otherwise text. */
   answerType?: AnswerType;
   choices?: ChoiceSpec;
   /** Optional hint, also supports `{expression}` holes. */
@@ -69,8 +78,9 @@ export interface Question {
   topic: string;
   level: YearLevel;
   prompt: string;
-  answer: string | number;
+  answer: string | number | boolean;
   answerType: AnswerType;
+  /** Only for `choice` questions; true/false renders its own buttons. */
   choices?: (string | number)[];
   hint?: string;
   /** The bound variables, kept for debugging and analytics. */

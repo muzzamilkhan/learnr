@@ -29,13 +29,29 @@ describe('shipped content', () => {
     }
   });
 
-  it('never asks a child for a negative or fractional answer', () => {
+  // The number pad types digits only, so a numeric answer must be a whole number a
+  // child can actually enter. True/false and multiple choice are tapped, not typed,
+  // so they are exempt.
+  it('never asks a child to type a negative or fractional answer', () => {
     for (const template of allTemplates) {
       for (let i = 0; i < 25; i++) {
-        const { answer } = generateQuestion(template, createRng(`${template.id}-neg-${i}`));
-        expect(typeof answer).toBe('number');
-        expect(answer as number).toBeGreaterThanOrEqual(0);
-        expect(Number.isInteger(answer)).toBe(true);
+        const q = generateQuestion(template, createRng(`${template.id}-neg-${i}`));
+        if (q.answerType !== 'number') continue;
+        expect(typeof q.answer).toBe('number');
+        expect(q.answer as number).toBeGreaterThanOrEqual(0);
+        expect(Number.isInteger(q.answer)).toBe(true);
+      }
+    }
+  });
+
+  it('offers at most four options on a multiple choice question', () => {
+    for (const template of allTemplates) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-choice-${i}`));
+        if (!q.choices) continue;
+        expect(q.choices.length).toBeGreaterThanOrEqual(2);
+        expect(q.choices.length).toBeLessThanOrEqual(4);
+        expect(q.choices).toContain(q.answer);
       }
     }
   });

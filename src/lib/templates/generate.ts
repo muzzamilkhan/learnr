@@ -1,6 +1,6 @@
 import { evaluate, type Scope, type Value } from '../expr';
 import type { Rng } from '../rng';
-import type { ChoiceSpec, Expr, Question, QuestionTemplate, VarSpec } from './types';
+import { MAX_CHOICES, type AnswerType, type ChoiceSpec, type Expr, type Question, type QuestionTemplate, type VarSpec } from './types';
 
 /** How many times to redraw before giving up on a template's constraints. */
 const MAX_ATTEMPTS = 200;
@@ -90,6 +90,12 @@ function buildChoices(
   scope: Scope,
   rng: Rng,
 ): (string | number)[] {
+  if (spec.count < 2 || spec.count > MAX_CHOICES) {
+    throw new Error(
+      `Multiple choice must offer between 2 and ${MAX_CHOICES} options, got ${spec.count}`,
+    );
+  }
+
   const options: (string | number)[] = [answer];
   const seen = new Set<string>([String(answer)]);
 
@@ -146,11 +152,29 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
   }
 
   const answerValue = evaluate(template.answer, scope);
-  if (typeof answerValue === 'boolean') {
-    throw new Error(`Template ${template.id} produced a boolean answer; use 'yes'/'no' strings instead`);
+  const inferred: AnswerType =
+    typeof answerValue === 'boolean' ? 'boolean' : typeof answerValue === 'number' ? 'number' : 'text';
+  const answerType = template.answerType ?? inferred;
+
+  // A declared answerType that disagrees with the answer would render the wrong
+  // input, so it is an authoring error rather than something to paper over.
+  if (answerType === 'boolean' || inferred === 'boolean') {
+    if (answerType !== inferred) {
+      throw new Error(
+        `Template ${template.id} declares answerType ${JSON.stringify(answerType)} but its answer is a ${inferred === 'boolean' ? 'boolean' : typeof answerValue}`,
+      );
+    }
+  } else if (answerType === 'number' && inferred !== 'number') {
+    throw new Error(
+      `Template ${template.id} declares answerType "number" but its answer is a ${typeof answerValue}`,
+    );
   }
 
-  const answerType = template.answerType ?? (typeof answerValue === 'number' ? 'number' : 'text');
+  if (answerType === 'boolean' && template.choices) {
+    throw new Error(
+      `Template ${template.id} is true/false and must not declare choices; it renders its own buttons`,
+    );
+  }
 
   return {
     templateId: template.id,
@@ -160,7 +184,10 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
     prompt: renderTemplateString(template.prompt, scope),
     answer: answerValue,
     answerType,
-    choices: template.choices ? buildChoices(template.choices, answerValue, scope, rng) : undefined,
+    // Narrowed by the boolean check above: a choice question never has a boolean answer.
+    choices: template.choices
+      ? buildChoices(template.choices, answerValue as string | number, scope, rng)
+      : undefined,
     hint: template.hint ? renderTemplateString(template.hint, scope) : undefined,
     vars: { ...scope },
   };

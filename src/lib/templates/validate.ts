@@ -2,7 +2,7 @@ import { parse, type Node } from '../expr';
 import { isYearLevel, YEAR_LEVELS } from '../curriculum';
 import { createRng } from '../rng';
 import { generateQuestion } from './generate';
-import type { QuestionTemplate, VarSpec } from './types';
+import { MAX_CHOICES, type QuestionTemplate, type VarSpec } from './types';
 
 /**
  * Templates are authored outside the app, so they are untrusted input. Validation
@@ -15,6 +15,7 @@ export interface ValidationResult {
 }
 
 const VAR_KINDS = new Set(['int', 'number', 'pick', 'expr']);
+const ANSWER_TYPES = new Set(['number', 'text', 'choice', 'boolean']);
 
 /** Collect every identifier an expression reads. */
 function referencedVars(node: Node, into: Set<string> = new Set()): Set<string> {
@@ -143,10 +144,18 @@ export function validateTemplate(input: unknown): ValidationResult {
     }
   }
 
+  if (template.answerType !== undefined && !ANSWER_TYPES.has(template.answerType)) {
+    errors.push(`answerType must be one of ${[...ANSWER_TYPES].join(', ')}`);
+  }
+
   if (template.choices !== undefined) {
     const { count, distractors, jitter } = template.choices;
-    if (typeof count !== 'number' || count < 2) {
-      errors.push('choices.count must be 2 or more');
+    if (typeof count !== 'number' || count < 2 || count > MAX_CHOICES) {
+      errors.push(`choices.count must be between 2 and ${MAX_CHOICES}`);
+    }
+    // True/false renders two fixed buttons, so authored choices would be ignored.
+    if (template.answerType === 'boolean') {
+      errors.push('choices are not allowed on a boolean (true/false) template');
     }
     distractors?.forEach((d, i) => checkExpr(d, `choices.distractors[${i}]`, bound));
     if (jitter) {

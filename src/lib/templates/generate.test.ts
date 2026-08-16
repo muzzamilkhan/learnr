@@ -121,6 +121,36 @@ describe('generateQuestion', () => {
     expect(new Set(q.choices).size).toBe(4);
   });
 
+  it('caps multiple choice at four options', () => {
+    const template: QuestionTemplate = {
+      ...subtraction,
+      answerType: 'choice',
+      choices: { count: 9, jitter: { min: '1', max: '20' } },
+    };
+
+    expect(() => generateQuestion(template, createRng('too-many'))).toThrow(/four|4/i);
+  });
+
+  it('answers true or false when the answer expression is boolean', () => {
+    const template: QuestionTemplate = {
+      id: 'is-even',
+      subject: 'maths',
+      topic: 'even and odd',
+      level: 'K',
+      prompt: 'Is {x} an even number?',
+      vars: [{ name: 'x', kind: 'int', min: '1', max: '20' }],
+      answer: 'isEven(x)',
+    };
+
+    for (let i = 0; i < 30; i++) {
+      const q = generateQuestion(template, createRng(`bool-${i}`));
+      expect(q.answerType).toBe('boolean');
+      expect(q.answer).toBe((q.vars.x as number) % 2 === 0);
+      // True/false renders its own two buttons; it is not a choice question.
+      expect(q.choices).toBeUndefined();
+    }
+  });
+
   it('throws a useful error when constraints can never be met', () => {
     const impossible: QuestionTemplate = {
       ...subtraction,
