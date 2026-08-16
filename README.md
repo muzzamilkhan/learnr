@@ -148,6 +148,11 @@ number, `A` algebra, `M` measurement, `SP` space, `ST` statistics and `P`
 probability. `src/content/catalog.test.ts` checks that no template ships without
 a code.
 
+The app carries this in-product too: **/curriculum**, linked from the home
+screen, states the source and attribution and lists every code the shipped
+content cites, year by year — read from the templates, so the page cannot drift
+from what a child is actually asked.
+
 ### Attribution
 
 > © Australian Curriculum, Assessment and Reporting Authority (ACARA) 2010 to

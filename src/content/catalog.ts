@@ -78,6 +78,54 @@ export function levelsForTopic(
   ).sort(compareYearLevels);
 }
 
+/**
+ * An Australian Curriculum content description code, as cited in a template's
+ * `tags` — `AC9M` + year (`F` for Foundation) + strand + number, e.g. `AC9M4N02`.
+ */
+const CURRICULUM_CODE = /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/;
+
+export interface CodeUse {
+  code: string;
+  topics: string[];
+  templateCount: number;
+}
+
+export interface LevelCodes {
+  level: YearLevel;
+  codes: CodeUse[];
+}
+
+/**
+ * The curriculum codes a subject's content cites, grouped by year. Derived from
+ * the templates rather than declared, for the same reason the topic lookups are:
+ * a hand-kept list would go stale against the content it claims to describe.
+ */
+export function curriculumCodes(
+  subject: string,
+  templates: QuestionTemplate[] = allTemplates,
+): LevelCodes[] {
+  const forSubject = templates.filter((t) => t.subject === subject);
+
+  return unique(forSubject.map((t) => t.level))
+    .sort(compareYearLevels)
+    .map((level) => {
+      const forLevel = forSubject.filter((t) => t.level === level);
+      const codes = unique(
+        forLevel.flatMap((t) => (t.tags ?? []).filter((tag) => CURRICULUM_CODE.test(tag))),
+      )
+        .sort()
+        .map((code) => {
+          const citing = forLevel.filter((t) => t.tags?.includes(code));
+          return {
+            code,
+            topics: unique(citing.map((t) => t.topic)).sort(),
+            templateCount: citing.length,
+          };
+        });
+      return { level, codes };
+    });
+}
+
 /** Every topic in a subject, across all years. */
 export function listTopics(
   subject: string,

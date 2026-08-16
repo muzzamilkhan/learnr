@@ -12,6 +12,7 @@ import {
   templatesFor,
   topicsForLevel,
   levelsForTopic,
+  curriculumCodes,
 } from './catalog';
 
 describe('shipped content', () => {
@@ -151,6 +152,46 @@ describe('catalog lookups', () => {
     expect(templatesFor('maths', 'K').every((t) => t.level === 'K')).toBe(true);
     expect(templatesFor('maths', '6').every((t) => t.level === '6')).toBe(true);
     expect(templatesFor('spelling', 'K')).toEqual([]);
+  });
+});
+
+describe('curriculumCodes', () => {
+  it('groups the codes a subject cites by year, in school order', () => {
+    const grouped = curriculumCodes('maths');
+
+    expect(grouped.map((g) => g.level)).toEqual(['K', '1', '2', '3', '4', '5', '6']);
+    expect(grouped[0].codes.map((c) => c.code)).toContain('AC9MFN01');
+    expect(grouped[4].codes.map((c) => c.code)).toContain('AC9M4N02');
+  });
+
+  it('counts the templates citing a code and names the topics they practise', () => {
+    const grouped = curriculumCodes('maths', [
+      { ...allTemplates[0], level: '2', topic: 'addition', tags: ['AC9M2N01'] },
+      { ...allTemplates[0], level: '2', topic: 'subtraction', tags: ['AC9M2N01'] },
+      { ...allTemplates[0], level: '2', topic: 'addition', tags: ['AC9M2A01'] },
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        level: '2',
+        codes: [
+          { code: 'AC9M2A01', topics: ['addition'], templateCount: 1 },
+          { code: 'AC9M2N01', topics: ['addition', 'subtraction'], templateCount: 2 },
+        ],
+      },
+    ]);
+  });
+
+  it('ignores tags that are not curriculum codes', () => {
+    const grouped = curriculumCodes('maths', [
+      { ...allTemplates[0], level: 'K', tags: ['AC9MFN01', 'needs-review'] },
+    ]);
+
+    expect(grouped[0].codes.map((c) => c.code)).toEqual(['AC9MFN01']);
+  });
+
+  it('is empty for a subject with no content', () => {
+    expect(curriculumCodes('spelling')).toEqual([]);
   });
 });
 

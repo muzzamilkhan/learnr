@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
@@ -48,6 +49,13 @@ export default async function HomePage() {
       ) : (
         <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
       )}
+
+      <p className="mt-12 text-lg text-(--color-ink-soft)">
+        <Link href="/curriculum" className="text-(--color-brand) underline">
+          Curriculum sources
+        </Link>{' '}
+        — what the questions are written against.
+      </p>
 
       {!isAuthConfigured ? (
         <p className="mt-12 rounded-2xl bg-(--color-brand-soft) px-5 py-4 text-base text-(--color-ink-soft)">
