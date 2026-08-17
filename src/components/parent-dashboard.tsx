@@ -2,11 +2,11 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
 import { AvatarIcon } from '@/components/avatar-icon';
+import { CopyIcon } from '@/components/copy-icon';
 import { EditIcon } from '@/components/edit-icon';
 import { RemoveIcon } from '@/components/remove-icon';
 import { Select } from '@/components/select';
@@ -193,9 +193,6 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href={`/progress?child=${child.id}`} className={BUTTON}>
-            Progress
-          </Link>
           {/* Three states, one button. Revealing a live code must not issue a new
               one — the child may be halfway through typing the old one. */}
           {!code ? (
@@ -212,8 +209,8 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
             </button>
           )}
           {/* Edit and remove are glyphs: they are on every card, they say the
-              same thing on every card, and the words were crowding out the two
-              buttons a parent actually came for. */}
+              same thing on every card, and the words were crowding out the code
+              button — the one thing a parent comes to this card for. */}
           <button
             type="button"
             onClick={onEdit}
@@ -258,6 +255,31 @@ function CodePanel({
   pending: boolean;
 }) {
   const [left, setLeft] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  // Best-effort, like playing a sound: an insecure context or a refused
+  // permission rejects the write, and a code that can still be read off the
+  // screen is not worth throwing over. The tick is only shown if it worked.
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code.value);
+      setCopied(true);
+    } catch {
+      // Nothing to say — the code is right there to be typed.
+    }
+  };
+
+  // The tick goes back to the sheets after a moment, and the timer is cleared on
+  // unmount and whenever a new code replaces this one.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  useEffect(() => {
+    setCopied(false);
+  }, [code.value]);
 
   // The clock belongs in an effect, not in render, and a code that ticks down
   // while a parent reads it should say so.
@@ -269,20 +291,42 @@ function CodePanel({
   }, [code.expiresAt]);
 
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-(--color-brand-soft) px-4 py-3">
-      <div>
-        <span className="block text-3xl font-bold tracking-[0.3em] text-(--color-brand)">
+    // The code is the thing on this panel, so it sits in the middle of it with
+    // everything else stacked underneath. Copying is the other way it reaches
+    // the child's device — read aloud across a room, or pasted into a message —
+    // so that button goes right beside the digits, where the thing it copies is.
+    // The letter-spacing puts a gap after the last character, so the copy button
+    // is nudged back by half of it to sit where it looks equally spaced.
+    <div className="mt-3 rounded-lg bg-(--color-brand-soft) px-4 py-3 text-center">
+      <div className="flex items-center justify-center gap-2">
+        <span className="text-3xl font-bold tracking-[0.3em] text-(--color-brand) -mr-[0.15em]">
           {code.value}
         </span>
-        <span className="mt-1 block text-xs text-(--color-ink-soft)">
-          {left === null
-            ? 'Good once only.'
-            : left > 0
-              ? `${left} min left, and good once only.`
-              : 'This one has run out — get a new code.'}
-        </span>
+        <button
+          type="button"
+          onClick={copy}
+          aria-label={copied ? 'Code copied' : 'Copy code'}
+          title={copied ? 'Copied' : 'Copy code'}
+          className={`${ICON_BUTTON} ${copied ? 'text-(--color-right)' : ''}`}
+        >
+          <CopyIcon copied={copied} />
+        </button>
       </div>
-      <button type="button" onClick={onRenew} disabled={pending} className={BUTTON}>
+
+      <p className="mt-1 text-xs text-(--color-ink-soft)">
+        {left === null
+          ? 'Good once only.'
+          : left > 0
+            ? `${left} min left, and good once only.`
+            : 'This one has run out — get a new code.'}
+      </p>
+
+      <button
+        type="button"
+        onClick={onRenew}
+        disabled={pending}
+        className={`${BUTTON} mt-2`}
+      >
         New code
       </button>
     </div>

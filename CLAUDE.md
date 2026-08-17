@@ -447,7 +447,9 @@ and an "Add a child" button pointing at the other screen. A failed read is not
 "no children" and is not redirected — it says so and stays put.
 
 `/children` is that other screen: a card per child with name, avatar and level,
-plus add, edit, remove, progress and the login code. Both screens sit in
+plus add, edit, remove and the login code. It does not link to the report: the
+nav above it already goes there and the report picks its own child, so a second
+way in was a button per card saying what one dropdown already says. Both screens sit in
 `ParentShell`, which carries the title, the two-item nav between them, the
 profile menu and the curriculum link — the last of which follows every signed-in
 branch, a parent's included, because it is the one thing they would actually want
@@ -467,9 +469,9 @@ a gate: it does not re-run on a client-side hop, so `readParent` — which is
 where the sign-in and parent-role checks live — is called by the pages too, and
 `cache`d so the two calls in one request are one query.
 
-**Edit and remove are glyphs on the child card; progress and the code keep their
+**Edit and remove are glyphs on the child card; the code button keeps its
 words.** The first two are on every card, say the same thing on every card, and
-were pushing the two a parent actually came for onto a second row on a narrow
+were pushing the one a parent actually came for onto a second row on a narrow
 screen. The label they lose moves to `aria-label` and `title` — it is off the
 screen, not off the page — and the buttons stay the same height as the ones
 beside them so the row still lines up. Remove is a bin rather than a cross: a
@@ -536,9 +538,17 @@ keeps them apart. One button carries three states: "Get code" when there is no
 live code, "Show code" when there is one (revealing what is already stored — a
 child may be halfway through typing it, and re-issuing here would break the code
 in their hand), and "Hide code" once it is on screen. Regenerating is its own
-button beside the revealed code. `isCodeLive` is the pure test that picks between
-the first two, and the hour is counted down in an effect rather than at render —
-reading the clock while rendering is not something a component gets to do.
+button under the revealed code. That code is centred in its panel with a copy
+button right beside the digits, since copying is the other way it reaches the
+child's device — read aloud across a room, or pasted into a message. The copy
+turns into a tick for a moment: a clipboard write is otherwise invisible, and a
+button that looks unchanged gets tapped twice. The write is best-effort like
+playing a sound — an insecure context rejects it, and a code still sitting on
+screen to be typed is not worth throwing over.
+
+`isCodeLive` is the pure test that picks between the first two states, and the
+hour is counted down in an effect rather than at render — reading the clock
+while rendering is not something a component gets to do.
 
 Redemption is **not** a NextAuth provider. Auth.js refuses to combine a
 Credentials provider with database sessions (`UnsupportedStrategy`), and moving
