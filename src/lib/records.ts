@@ -372,12 +372,20 @@ const HISTORY_LIMIT = 2000;
  * The attempts behind the parents' report, oldest first. Read as raw history
  * rather than as skill rows because the report has to show change over time,
  * which a folded-up profile has already thrown away.
+ *
+ * Unlike the rest of this file it is **not** best-effort. Everything else here
+ * serves a child mid-question, where a swallowed failure costs a little history
+ * and the child plays on. Here an empty array renders as "your child has never
+ * practised", which is a lie when the database merely hiccuped and is exactly
+ * the failure `accounts.ts` refuses to make. So `null` means *could not read*
+ * and `[]` means *nothing recorded*, and the screen says something different
+ * for each.
  */
 export async function readObservations(
   userId: string,
   subject: string,
   limit = HISTORY_LIMIT,
-): Promise<Observation[]> {
+): Promise<Observation[] | null> {
   if (!prisma) return [];
   try {
     const rows = await prisma.attempt.findMany({
@@ -412,7 +420,71 @@ export async function readObservations(
       .reverse();
   } catch (error) {
     console.error('Failed to read practice history', error);
-    return [];
+    return null;
+  }
+}
+
+/** How many sittings the report lists. Enough to show a pattern, few enough to read. */
+const SITTING_LIMIT = 8;
+
+/** One sitting as the parents' report lists it. */
+export interface Sitting {
+  id: string;
+  startedAt: number;
+  level: YearLevel;
+  attempts: number;
+  correct: number;
+  /** Summed time on this sitting's questions, each already capped when it was recorded. */
+  timeMs: number;
+}
+
+/**
+ * The child's last few sittings. A weekly total cannot tell five real sessions
+ * apart from five ninety-second visits, and that difference is most of what a
+ * parent is looking for.
+ *
+ * `null` on failure, for the same reason `readObservations` does it.
+ */
+export async function readSittings(
+  userId: string,
+  subject: string,
+  limit = SITTING_LIMIT,
+): Promise<Sitting[] | null> {
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.learningSession.findMany({
+      where: { userId, subject },
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        startedAt: true,
+        level: true,
+        attempts: { select: { correct: true, timeTakenMs: true } },
+      },
+    });
+
+    return rows
+      .map((row) => {
+        const level = parseYearLevel(row.level);
+        // A sitting nobody answered a question in is not a sitting, and listing
+        // it would make a child look busier than they were. Dropped after the
+        // take rather than before, so this can return fewer than `limit`.
+        if (!level || row.attempts.length === 0) return undefined;
+
+        return {
+          id: row.id,
+          startedAt: row.startedAt.getTime(),
+          level,
+          attempts: row.attempts.length,
+          correct: row.attempts.filter((attempt) => attempt.correct).length,
+          timeMs: row.attempts.reduce((total, attempt) => total + attempt.timeTakenMs, 0),
+        };
+      })
+      .filter((sitting) => sitting !== undefined);
+  } catch (error) {
+    console.error('Failed to read sittings', error);
+    return null;
   }
 }
 
