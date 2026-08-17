@@ -1,7 +1,13 @@
 'use server';
 
 import { auth } from '@/auth';
-import { recordAttempt, recordSessionEnd, recordSessionStart } from '@/lib/records';
+import {
+  awardRoundStars,
+  recordAttempt,
+  recordSessionEnd,
+  recordSessionStart,
+  type AttemptResult,
+} from '@/lib/records';
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 
@@ -20,13 +26,28 @@ export async function startRecordingAction(
   return recordSessionStart({ userId: session.user.id, subject, level, seed });
 }
 
+/**
+ * Returns the play streak so the screen can mark the first answer of a day.
+ * Nothing about the next question depends on it, so a null answer here means
+ * "no fanfare", never a stall.
+ */
 export async function recordAttemptAction(
   learningSessionId: string,
   attempt: Attempt,
-): Promise<void> {
+): Promise<AttemptResult | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return recordAttempt(session.user.id, learningSessionId, attempt);
+}
+
+/**
+ * Bank the stars for a closed round. The count is recomputed from the answers on
+ * the server, so this says only *that* a round finished, never what it was worth.
+ */
+export async function awardRoundAction(learningSessionId: string): Promise<void> {
   const session = await auth();
   if (!session?.user?.id) return;
-  await recordAttempt(session.user.id, learningSessionId, attempt);
+  await awardRoundStars(session.user.id, learningSessionId);
 }
 
 export async function endRecordingAction(learningSessionId: string): Promise<void> {

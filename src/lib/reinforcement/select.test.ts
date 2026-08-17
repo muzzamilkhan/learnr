@@ -37,6 +37,12 @@ function answers(topic: string, results: boolean[], endedAt = NOW - 60 * 60 * 10
 const rights = (n: number) => Array(n).fill(true);
 const wrongs = (n: number) => Array(n).fill(false);
 
+/** What knowing a topic looks like: four right on each of `days` separate days, ending an hour ago. */
+const known = (topic: string, days = 2): Observation[] =>
+  Array.from({ length: days }, (_, day) =>
+    answers(topic, rights(4), NOW - 60 * 60 * 1000 - (days - 1 - day) * DAY),
+  ).flat();
+
 interface Run {
   counts: Record<string, number>;
   share: (topic: string) => number;
@@ -88,7 +94,7 @@ describe('with nothing known yet', () => {
 describe('once a pattern has formed', () => {
   const struggling = buildProfile([
     ...answers('counting', [true, false, false, false, false]),
-    ...answers('addition', rights(5)),
+    ...known('addition'),
   ]);
 
   it('names the topic that needs work', () => {
@@ -131,6 +137,52 @@ describe('once a pattern has formed', () => {
     expect(run.share('shapes')).toBeGreaterThan(0.1);
   });
 
+  /**
+   * Shipped years carry between one and five templates a topic, purely a matter
+   * of how much got written. That must not decide how much practice a child
+   * gets: weight belongs to the topic and is split across its templates.
+   */
+  describe('when one topic has far more templates than another', () => {
+    const uneven: QuestionTemplate[] = [
+      ...Array.from({ length: 5 }, (_, i) => template('counting', `v${i}`)),
+      template('even and odd'),
+      ...Array.from({ length: 4 }, (_, i) => template('shapes', `v${i}`)),
+      template('addition'),
+    ];
+
+    const bothWeak = buildProfile([
+      ...answers('counting', wrongs(5)),
+      ...answers('even and odd', wrongs(5)),
+    ]);
+
+    const drawTopics = (profile: LearnerProfile, draws = 2000) => {
+      const counts: Record<string, number> = {};
+      let recent: string[] = [];
+      for (let draw = 0; draw < draws; draw++) {
+        const picked = selectTemplate(uneven, { profile, now: NOW, recent }, createRng(`u:${draw}`));
+        counts[picked.topic] = (counts[picked.topic] ?? 0) + 1;
+        recent = [picked.topic, ...recent].slice(0, RECENT_MEMORY);
+      }
+      return (topic: string) => (counts[topic] ?? 0) / draws;
+    };
+
+    it('gives two equally weak topics the same practice, five templates or one', () => {
+      const share = drawTopics(bothWeak);
+
+      expect(share('counting') / share('even and odd')).toBeGreaterThan(0.8);
+      expect(share('counting') / share('even and odd')).toBeLessThan(1.25);
+    });
+
+    it('never lets template count outrank what the child is finding hard', () => {
+      // 'even and odd' is failing and has one template; 'shapes' is unproven and
+      // has four. Need decides, not the size of the content pile.
+      const share = drawTopics(buildProfile(answers('even and odd', wrongs(5))));
+
+      expect(share('even and odd')).toBeGreaterThan(share('shapes'));
+      expect(share('even and odd')).toBeGreaterThan(share('counting'));
+    });
+  });
+
   it('holds back a topic that was just asked', () => {
     const context = { profile: struggling, now: NOW };
     const cold = weightTemplates(pool, context).find((e) => e.template.topic === 'counting')!;
@@ -143,7 +195,7 @@ describe('once a pattern has formed', () => {
 });
 
 describe('coming back to what has been learned', () => {
-  const mastered = buildProfile(answers('shapes', rights(4)));
+  const mastered = buildProfile(known('shapes'));
 
   it('leaves a freshly mastered topic alone', () => {
     const statuses = weightTemplates(pool, { profile: mastered, now: NOW });
@@ -185,7 +237,7 @@ describe('selectTemplate', () => {
   });
 
   it('still answers when every topic is in cooldown', () => {
-    const profile = buildProfile(TOPICS.flatMap((topic) => answers(topic, rights(5))));
+    const profile = buildProfile(TOPICS.flatMap((topic) => known(topic)));
     const picked = selectTemplate(pool, { profile, now: NOW, recent: TOPICS }, createRng('s'));
 
     expect(pool).toContain(picked);

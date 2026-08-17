@@ -18,6 +18,66 @@
   --color-wrong: #e2705a;
   --color-wrong-soft: #fdeeea;
   --color-line: #dfe6ef;
+  /* Rewards. Warm rather than loud — a reward, not a slot machine. */
+  --color-star: #f0a92b;
+  --color-star-soft: #fdf1dc;
+  --color-flame: #ee6c3f;
+  --color-flame-soft: #fdece5;
+}
+
+/* A star landing: overshoot, then settle. Each one is delayed a beat after the
+   last so three stars arrive as three events and not as one flash. */
+@keyframes star-land {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-40deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.25) rotate(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes reward-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The streak, on the first answer of a day: in from the top, held, then away. */
+@keyframes streak-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(-1.5rem) scale(0.9);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.75rem) scale(0.98);
+  }
+}
+
+@keyframes streak-count {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
 }
 
 html,

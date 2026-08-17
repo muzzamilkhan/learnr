@@ -21,7 +21,11 @@ const DAY = 24 * 60 * 60 * 1000;
 function answers(
   topic: string,
   results: boolean[],
-  { from = 0, timeTakenMs = 5000 }: { from?: number; timeTakenMs?: number } = {},
+  {
+    from = 0,
+    timeTakenMs = 5000,
+    offsetMinutes,
+  }: { from?: number; timeTakenMs?: number; offsetMinutes?: number } = {},
 ): Observation[] {
   return results.map((correct, index) => ({
     topic,
@@ -29,11 +33,16 @@ function answers(
     correct,
     timeTakenMs,
     answeredAt: from + index * 60_000,
+    offsetMinutes,
   }));
 }
 
 const rights = (n: number) => Array(n).fill(true);
 const wrongs = (n: number) => Array(n).fill(false);
+
+/** What knowing a topic looks like: four right answers on each of `days` separate days. */
+const known = (topic: string, days: number): Observation[] =>
+  Array.from({ length: days }, (_, day) => answers(topic, rights(4), { from: day * DAY })).flat();
 
 describe('building a profile', () => {
   it('starts with nothing known', () => {
@@ -116,15 +125,81 @@ describe('skill status', () => {
     expect(skillStatus(findSkill(profile, 'counting', 'K'), 0)).toBe('developing');
   });
 
-  it('calls a topic secure after a run of right answers', () => {
-    const profile = buildProfile(answers('counting', rights(6)));
+  it('calls a topic secure once it has been got right again on another day', () => {
+    const profile = buildProfile(known('counting', 2));
     const skill = findSkill(profile, 'counting', 'K')!;
 
     expect(skillStatus(skill, skill.lastAnsweredAt)).toBe('secure');
   });
 
+  it('will not call a topic secure on one sitting, however long the run', () => {
+    const profile = buildProfile(answers('counting', rights(20)));
+    const skill = findSkill(profile, 'counting', 'K')!;
+
+    // Twenty in a row, all in ten minutes: that is one memory answering twenty
+    // times, and it is not the same thing as still knowing it tomorrow.
+    expect(skill.streak).toBe(20);
+    expect(skill.correctDays).toBe(1);
+    expect(skillStatus(skill, skill.lastAnsweredAt)).toBe('developing');
+  });
+
+  it('will not call a topic secure on a couple of answers a day apart either', () => {
+    const profile = buildProfile([
+      ...answers('counting', rights(2), { from: 0 }),
+      ...answers('counting', rights(2), { from: DAY }),
+    ]);
+    const skill = findSkill(profile, 'counting', 'K')!;
+
+    expect(skill.correctDays).toBe(2);
+    expect(skillStatus(skill, skill.lastAnsweredAt)).toBe('developing');
+  });
+
+  it('counts a day once, however many answers it holds', () => {
+    const profile = buildProfile([
+      ...answers('counting', rights(5), { from: 0 }),
+      ...answers('counting', rights(5), { from: 3 * DAY }),
+    ]);
+
+    expect(findSkill(profile, 'counting', 'K')!.correctDays).toBe(2);
+  });
+
+  it('will not inflate the days from answers arriving out of order', () => {
+    const monday = answers('counting', rights(4), { from: 0 });
+    const tuesday = answers('counting', rights(4), { from: DAY });
+
+    // Folded as they arrive rather than as they happened — two writes landing at
+    // once, or a retry overtaking. Alternating days must not read as eight.
+    const jumbled = [tuesday[0], monday[0], tuesday[1], monday[1], tuesday[2], monday[2]].reduce(
+      applyObservation,
+      emptyProfile(),
+    );
+
+    expect(findSkill(jumbled, 'counting', 'K')!.correctDays).toBeLessThanOrEqual(2);
+  });
+
+  it('counts the day the child was in, not UTC', () => {
+    // Morning and evening of one Sydney day (+11), which straddles UTC midnight:
+    // 10am on the 1st is 23:00 UTC on the 31st, 8pm is 09:00 UTC on the 1st.
+    const morning = Date.UTC(2025, 11, 31, 23, 0);
+    const evening = Date.UTC(2026, 0, 1, 9, 0);
+    const sydney = { offsetMinutes: 660 };
+
+    const local = buildProfile([
+      ...answers('counting', rights(1), { from: morning, ...sydney }),
+      ...answers('counting', rights(1), { from: evening, ...sydney }),
+    ]);
+    const utc = buildProfile([
+      ...answers('counting', rights(1), { from: morning }),
+      ...answers('counting', rights(1), { from: evening }),
+    ]);
+
+    // One day of practice for the family that lived it, two for the server.
+    expect(findSkill(local, 'counting', 'K')!.correctDays).toBe(1);
+    expect(findSkill(utc, 'counting', 'K')!.correctDays).toBe(2);
+  });
+
   it('one slip does not undo a secure topic', () => {
-    const profile = buildProfile(answers('counting', [...rights(10), false]));
+    const profile = buildProfile([...known('counting', 2), ...answers('counting', [false], { from: 5 * DAY })]);
     const skill = findSkill(profile, 'counting', 'K')!;
 
     expect(skillStatus(skill, skill.lastAnsweredAt)).toBe('developing');
@@ -132,7 +207,7 @@ describe('skill status', () => {
   });
 
   it('asks for a secure topic again once it has had time to fade', () => {
-    const profile = buildProfile(answers('counting', rights(6)));
+    const profile = buildProfile(known('counting', 2));
     const skill = findSkill(profile, 'counting', 'K')!;
 
     expect(skillStatus(skill, skill.lastAnsweredAt + DAY)).toBe('secure');
@@ -140,12 +215,25 @@ describe('skill status', () => {
   });
 
   it('leaves a well known topic alone for longer than a just learned one', () => {
-    const justLearned = buildProfile(answers('counting', rights(4)));
-    const wellKnown = buildProfile(answers('shapes', rights(12)));
+    const justLearned = buildProfile(known('counting', 2));
+    const wellKnown = buildProfile(known('shapes', 5));
 
     const a = findSkill(justLearned, 'counting', 'K')!;
     const b = findSkill(wellKnown, 'shapes', 'K')!;
 
+    expect(skillStatus(a, a.lastAnsweredAt)).toBe('secure');
+    expect(skillStatus(b, b.lastAnsweredAt)).toBe('secure');
+    expect(reviewDueAt(b) - b.lastAnsweredAt).toBeGreaterThan(reviewDueAt(a) - a.lastAnsweredAt);
+  });
+
+  it('grows the gap with days come back to, not with the run', () => {
+    const marathon = buildProfile(answers('counting', rights(40)));
+    const spaced = buildProfile(known('shapes', 4));
+
+    const a = findSkill(marathon, 'counting', 'K')!;
+    const b = findSkill(spaced, 'shapes', 'K')!;
+
+    expect(a.streak).toBeGreaterThan(b.streak);
     expect(reviewDueAt(b) - b.lastAnsweredAt).toBeGreaterThan(reviewDueAt(a) - a.lastAnsweredAt);
   });
 });

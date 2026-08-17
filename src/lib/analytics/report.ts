@@ -42,6 +42,9 @@ export interface TopicReport {
   /** Recency-weighted accuracy — what the selector acts on. */
   strength: number;
   streak: number;
+  /** Separate days it has been got right on — the evidence behind calling it known. */
+  correctDays: number;
+  /** Average over answers, with abandoned questions capped by the session engine. */
   averageTimeMs: number;
   lastAnsweredAt: number;
   /** When this topic is worth revisiting, whether or not it is secure yet. */
@@ -120,6 +123,7 @@ export function topicReports(observations: readonly Observation[], now: number):
         accuracy: accuracy(skill),
         strength: skill.strength,
         streak: skill.streak,
+        correctDays: skill.correctDays,
         averageTimeMs: averageTimeMs(skill),
         lastAnsweredAt: skill.lastAnsweredAt,
         reviewDueAt: reviewDueAt(skill),

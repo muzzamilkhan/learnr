@@ -26,6 +26,14 @@ model User {
   /// The year the home screen reopens on. Australian school year: "K" or "1" through "6".
   selectedLevel String?
 
+  /// Days in a row with at least one answer on them. Reward only — nothing about
+  /// what to ask next reads it.
+  playStreak    Int  @default(0)
+  /// The last local day counted towards the streak, as a day number rather than a
+  /// timestamp: the streak is counted in the child's days, and a timestamp would
+  /// need the offset re-applied at every read to mean anything. Null until they play.
+  playStreakDay Int?
+
   accounts         Account[]
   sessions         Session[]
   learningSessions LearningSession[]
@@ -83,11 +91,20 @@ model LearningSession {
   seed      String
   startedAt DateTime  @default(now())
   endedAt   DateTime?
+  /// Stars earned this sitting, one closed round of ten questions at a time. A
+  /// cache of the attempts like TopicSkill is — `starsEarned` over this session's
+  /// answers reproduces it — kept here so the total is one SUM rather than a walk
+  /// through every answer a child has ever given.
+  stars     Int       @default(0)
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   attempts Attempt[]
 
   @@index([userId, startedAt])
+  /// History is always read for one child and one subject, so this is the side the
+  /// planner should drive from: narrow to their sessions here, then walk the
+  /// attempts of each in `answeredAt` order. Attempt carries no userId of its own.
+  @@index([userId, subject, level])
 }
 
 /// What a child can do on one topic at one year level, folded forward from their
@@ -108,6 +125,11 @@ model TopicSkill {
   strength Float @default(0)
   /// Correct answers in a row. A run, not a single right answer, is what mastery looks like.
   streak   Int @default(0)
+  /// Distinct local days with at least one right answer. A run inside one sitting is
+  /// short-term memory; the same topic known again a day later is what mastery is.
+  correctDays Int @default(0)
+  /// The last day counted towards `correctDays`, so folding forward can tell a new day apart.
+  lastCorrectDay Int?
 
   totalTimeMs    Int      @default(0)
   lastAnsweredAt DateTime
@@ -134,12 +156,16 @@ model Attempt {
   expected          String
   response          String
   correct           Boolean
+  /// Capped by the session engine — an abandoned question is not a measurement.
   timeTakenMs       Int
   answeredAt        DateTime @default(now())
+  /// Minutes east of UTC when it was answered. Stored so rebuilding a profile from
+  /// history puts each answer on the same day the live fold did.
+  offsetMinutes     Int      @default(0)
 
   learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
 
-  @@index([learningSessionId])
-  /// Supports the future "which topics are weak?" query.
-  @@index([subject, topic, level, correct])
+  /// "This session's answers, newest first" — the shape both history reads take once
+  /// the planner has narrowed to a child's sessions. Covers the plain FK lookup too.
+  @@index([learningSessionId, answeredAt])
 }

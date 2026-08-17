@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
-import { startSession, submitAnswer, elapsedMs, formatDuration, type SessionState } from './session';
+import {
+  MAX_TIME_MS,
+  startSession,
+  submitAnswer,
+  elapsedMs,
+  formatDuration,
+  type SessionState,
+} from './session';
 import { buildProfile, findSkill, type Observation } from '../analytics/profile';
 import type { QuestionTemplate } from '../templates/types';
 
@@ -87,6 +94,21 @@ describe('submitAnswer', () => {
     session = submitAnswer(session, String(session.current.answer), 4000); // 1000ms
 
     expect(session.attempts.map((a) => a.timeTakenMs)).toEqual([2000, 1000]);
+  });
+
+  it('caps an abandoned question rather than calling it a four hour answer', () => {
+    const session = start(0);
+    const walkedAway = submitAnswer(session, String(session.current.answer), 4 * 60 * 60 * 1000);
+
+    // The iPad was put down and picked up after dinner. That is not a time.
+    expect(walkedAway.attempts[0].timeTakenMs).toBe(MAX_TIME_MS);
+  });
+
+  it('records the day the answer belongs to as the child’s, not the server’s', () => {
+    const session = start(0);
+    const next = submitAnswer(session, String(session.current.answer), 1000, 660);
+
+    expect(next.attempts[0].offsetMinutes).toBe(660);
   });
 
   it('never runs out of questions', () => {

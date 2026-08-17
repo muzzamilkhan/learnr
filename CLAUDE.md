@@ -35,7 +35,9 @@ src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
 src/lib/reinforcement/ which question to ask next
+src/lib/rewards/     stars for a round, and the day streak
 src/lib/curriculum.ts school years, labels and ordering
+src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
 src/content/         the shipped course content + catalog lookups
 src/components/      UI
@@ -168,9 +170,23 @@ the reinforcement selector deciding which. The header shows a count-up timer onl
 — no limits or targets yet.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
-correct/incorrect, the response as typed) and folded into that child's
-`TopicSkill` for the topic. Attempts are the history; the skill row is that
-history rolled forward, and a cache of it — never a second truth.
+correct/incorrect, the response as typed, and the UTC offset it was given at) and
+folded into that child's `TopicSkill` for the topic. Attempts are the history; the
+skill row is that history rolled forward, and a cache of it — never a second
+truth, so `buildProfile` over the attempts has to reproduce the row.
+
+Keeping that true costs a **row lock**: `updateTopicSkill` reads with
+`SELECT ... FOR UPDATE` inside a transaction, so answers landing at once queue up
+and each folds onto the one before. Two tabs will do it, and so will one child
+answering faster than the round trip. The lock is there rather than a merge in SQL
+so `nextSkill` stays the only place the arithmetic is written down. The row cannot
+be locked before it exists, so the first answer on a topic can still collide on
+insert — hence the retry, and one time round is enough.
+
+**Time taken is capped** (`MAX_TIME_MS`) before it is recorded. An abandoned
+question — the iPad put down and picked up after dinner — is not a measurement,
+and the total is per topic and never trimmed, so one of them would otherwise sit
+in that topic's average for good. That average is what a parent is shown.
 
 Recording is best-effort and must never block or interrupt play: writes go through
 server actions that swallow failures. `learningSessionId` round-trips through the
@@ -180,7 +196,8 @@ client, so every write verifies the session belongs to the signed-in user first.
 
 Two libraries over one model. `src/lib/analytics/profile.ts` folds attempts into a
 `LearnerProfile` — per topic and level: attempts, correct, a recency-weighted
-`strength`, the current `streak` and when it was last answered.
+`strength`, the current `streak`, the separate days it has been got right on
+(`correctDays`) and when it was last answered.
 `src/lib/reinforcement/select.ts` reads that profile to pick the next template;
 `src/lib/analytics/report.ts` reads the same history to say where a child needs
 help. Neither owns the other, and both are pure — `now` and the RNG are passed in.
@@ -192,11 +209,28 @@ questions is being mixed in more heavily by the twentieth.
 
 **Status is what everything keys off** (`skillStatus`), and it refuses to guess:
 under `MIN_OBSERVATIONS` answers a topic is `new`, never a weakness. Then
-`struggling` (strength under 0.6), `developing`, `secure` (strength 0.85+ with a
-run behind it) and `review-due` — secure, but left alone long enough to be worth
-confirming. The review gap grows with the run: a couple of days for something just
-learned, a month for something known five times over. Coming back *after* it has
+`struggling` (strength under 0.6), `developing`, `secure` and `review-due` —
+secure, but left alone long enough to be worth confirming.
+
+**The two bars are not the same height, deliberately.** Calling a topic hard costs
+a few extra questions on something the child can do, so `MIN_OBSERVATIONS` is
+enough for it. Calling a topic *known* is the expensive mistake — it drops the
+topic to a fraction of the questions and puts it away for days — so it needs a
+strong run *and* `SECURE_OBSERVATIONS` answers *and* right answers on
+`SECURE_DAYS` separate days. A run inside one sitting is one memory answering
+several times; the answer that survives a night's sleep is the one that means
+something, and it is the only thing allowed to count as mastery.
+
+The review gap then grows with `correctDays`, not with the streak: a couple of
+days for something just learned, a month for something known five times over. A
+streak can reach any length in ten minutes, so intervals key off the number of
+times a child has *come back* and still known it. Coming back *after* it has
 started to fade is the point.
+
+Days are the child's, not the server's: each attempt carries the UTC offset it was
+given at, so an evening's practice in Sydney counts as that evening. `correctDays`
+only ever counts a day later than the last one counted, so answers arriving out of
+order undercount rather than inflate — mastery is delayed, never faked.
 
 Selection rules, in order — all three matter, and none of them ever rules a
 template out entirely:
@@ -205,6 +239,11 @@ template out entirely:
   weights are flat and questions are drawn at random, exactly as before.
 - **Weight by status**, so hard topics come up more and mastered ones get out of
   the way without disappearing — a child should still get things right.
+- **Weight the topic, not the template.** A topic's weight is divided across
+  however many templates it has, because template count is a fact about how much
+  content got written and must never decide how much practice a child gets. Years
+  ship with between one and five templates a topic; without this a struggling
+  topic with one template came up less often than an unproven topic with four.
 - **Hold weak topics to a share of the session** (`MIN_FOCUS_SHARE` to
   `MAX_FOCUS_SHARE`). Prioritised, not swarmed: a fifth of the questions is enough
   to improve, and past a bit under half it stops being practice and starts being
@@ -216,6 +255,14 @@ template out entirely:
 `weightTemplates` is exported because it *is* the policy — read it in a test, or
 to explain a choice later. Tests assert shares over a few hundred seeded draws
 rather than exact sequences; the RNG is deterministic, so they don't flake.
+
+**Selection is driven by correctness alone — time taken is reported, never acted
+on.** It is tempting signal: fast and right is fluency, slow and right is working
+it out. But slow is also distracted, or asking a parent, and one number cannot
+tell those apart. Marking a child down for being slow is exactly the punitive
+thing this app does not do. If that changes, the honest version is to gate
+*mastery* on fluency — a slow correct answer still counts as correct but does not
+advance a topic towards `secure` — never to weight a topic up for slowness.
 
 The analytics side is a library only: `topicReports`, `problemTopics`,
 `dueForReview`, `progressOverTime` and `summarise`. **There is no parent-facing
@@ -262,8 +309,51 @@ simple enough for a child to pick up with no explanation.
   it. Tapping swaps the bulb for the hint; it resets with each question, and goes
   once the question is answered. Templates without a hint just leave the row
   empty, which keeps the question from jumping.
+- **The rewards are a break and a badge, never a running score.** The stars fill
+  the screen for a few seconds between rounds and the streak flashes once a day;
+  neither sits on the play screen where a child could watch it and worry. There
+  is no per-question timer and nothing a wrong answer takes away.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
-- Nothing is punitive; there are no streaks, scores or timers-per-question.
+
+## Rewards
+
+`src/lib/rewards` — pure, like the rest of `lib`, and read by nothing that
+decides what to ask next. Reinforcement is driven by the profile alone; stars and
+streaks would make it reward-seeking rather than teaching.
+
+**Stars come every `ROUND_SIZE` (10) questions**: 3 for a clean round, 2 for some
+right, 1 for a round with none. The floor is the point — sitting through ten hard
+questions is the behaviour worth rewarding, so a bad round still earns something,
+and 3 stays worth aiming at. `RoundReward` covers the screen for a few seconds,
+dismissable by a tap, and the next question's clock restarts when it goes so the
+break never lands in that question's recorded time.
+
+Stars are cached on `LearningSession.stars` and totalled with one `SUM`, but they
+are still derived: `starsEarned` over a sitting's answers reproduces the column.
+The server **recounts from the stored answers** — the client says only *that* a
+round closed — and it **sets rather than increments**, so a repeated call is
+harmless and a dropped one repairs itself at the next round. It is banked after
+the tenth answer's write resolves; racing it would find nine answers and award
+nothing.
+
+**The play streak counts days, not hours.** `User.playStreak` and
+`User.playStreakDay` — a day number, not a timestamp, because a day here is the
+child's (`src/lib/day.ts`) and a timestamp would need the offset re-applied at
+every read. A missed day restarts at 1, not 0: the child is answering right now.
+The write is a compare-and-set on the stored day, so two answers landing together
+advance it once. `currentStreak` decides whether a stored run is still alive —
+yesterday still counts, the day before does not — and it is computed in the
+browser via `useSyncExternalStore`, since only the child's device knows what day
+it is where they are.
+
+An hours rule was considered and rejected: practice after school one day and
+before school the next is twenty hours apart and would break a streak the child
+kept perfectly well.
+
+**The profile menu is the only place the totals live** — top right of the home
+screen, streak beside the avatar, stars and sign-out behind a tap. That is where
+a child is deciding whether to practise, which is when a run of days is worth
+seeing; mid-question it is not.
 
 ## Setup
 

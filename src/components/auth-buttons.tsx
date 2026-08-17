@@ -18,6 +18,7 @@ export function SignInButton() {
   );
 }
 
+/** Lives inside the profile menu, so it is shaped as a row in it rather than a button. */
 export function SignOutButton() {
   return (
     <form
@@ -28,7 +29,8 @@ export function SignOutButton() {
     >
       <button
         type="submit"
-        className="no-select rounded-xl border-2 border-(--color-line) px-5 py-3 text-lg font-medium text-(--color-ink-soft) transition active:scale-[0.98]"
+        role="menuitem"
+        className="no-select w-full rounded-xl px-3 py-2.5 text-left text-lg font-medium text-(--color-ink-soft) transition active:scale-[0.98] active:bg-(--color-brand-soft)"
       >
         Sign out
       </button>

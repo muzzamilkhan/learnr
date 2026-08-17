@@ -1,4 +1,5 @@
 import type { YearLevel } from '../curriculum';
+import { DAY_MS, localDay } from '../day';
 
 /**
  * What a child has shown they can do, folded down from the questions they have
@@ -21,6 +22,13 @@ export interface Observation {
   correct: boolean;
   timeTakenMs: number;
   answeredAt: number;
+  /**
+   * Minutes east of UTC where the answer was given, e.g. 600 for Sydney in
+   * winter. Only "which day was this?" depends on it, and left out it is UTC —
+   * the same default the report takes. Carried per observation rather than per
+   * fold so a family that crosses daylight saving keeps honest days.
+   */
+  offsetMinutes?: number;
 }
 
 /** One topic at one year level — the grain everything here is measured at. */
@@ -37,6 +45,14 @@ export interface TopicSkill {
   strength: number;
   /** Correct answers in a row. One right answer is luck; a run is the signal. */
   streak: number;
+  /**
+   * Distinct local days with at least one right answer. This is the count that
+   * says a topic is *known* rather than merely warm: four in a row in one
+   * sitting is short-term memory, the same thing a week later is not.
+   */
+  correctDays: number;
+  /** The last day counted, so the fold can tell a new day from the same one again. */
+  lastCorrectDay: number | null;
   totalTimeMs: number;
   lastAnsweredAt: number;
 }
@@ -62,20 +78,43 @@ export const STRUGGLING_BELOW = 0.6;
 export const SECURE_AT = 0.85;
 export const SECURE_STREAK = 3;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Mastery is not the same question as "are they struggling?", and it needs more
+ * than the bare minimum to answer. `MIN_OBSERVATIONS` is the point at which we
+ * will say a topic is *hard* — the cost of being wrong there is a few extra
+ * questions on something they can do. Calling a topic *known* is the expensive
+ * mistake: it steps the topic down to a fraction of the questions and puts it
+ * away for days.
+ */
+export const SECURE_OBSERVATIONS = 8;
+
+/**
+ * And on more than one day. Four right in a row in one sitting is the same
+ * memory answering four times; the point of spaced practice is the answer that
+ * survives a night's sleep, so that is what is allowed to count as known.
+ */
+export const SECURE_DAYS = 2;
+
+// Re-exported because a skill row's `lastCorrectDay` is one of these, and callers
+// reading that column should not have to know where the arithmetic lives.
+export { localDay };
 
 /**
  * How long a secure topic is left alone before it is worth asking again. The
- * gap grows with the run behind it: something known once needs confirming in a
- * couple of days, something known five times over keeps for a month. Coming
- * back to it *after* it has started to fade is the point — that is what makes
- * the recall stick rather than just filling the screen with things they can
- * already do.
+ * gap grows with the number of separate days it has been got right on: known
+ * on two days needs confirming within a couple more, known on five keeps for a
+ * month. Coming back to it *after* it has started to fade is the point — that
+ * is what makes the recall stick rather than just filling the screen with
+ * things they can already do.
+ *
+ * Days rather than the streak, because a streak is a within-sitting run and can
+ * reach any length in ten minutes: intervals should grow with the number of
+ * times a child has *come back* and still known it.
  */
 export const REVIEW_INTERVALS_MS: readonly number[] = [2 * DAY_MS, 5 * DAY_MS, 12 * DAY_MS, 28 * DAY_MS];
 
 export function reviewIntervalMs(skill: TopicSkill): number {
-  const step = Math.min(Math.max(skill.streak - SECURE_STREAK, 0), REVIEW_INTERVALS_MS.length - 1);
+  const step = Math.min(Math.max(skill.correctDays - SECURE_DAYS, 0), REVIEW_INTERVALS_MS.length - 1);
   return REVIEW_INTERVALS_MS[step];
 }
 
@@ -91,12 +130,17 @@ export function reviewDueAt(skill: TopicSkill): number {
  */
 export type SkillStatus = 'new' | 'struggling' | 'developing' | 'secure' | 'review-due';
 
+/** Enough evidence to call a topic known: a strong run, over enough answers, on more than one day. */
+const isMastered = (skill: TopicSkill): boolean =>
+  skill.strength >= SECURE_AT &&
+  skill.streak >= SECURE_STREAK &&
+  skill.attempts >= SECURE_OBSERVATIONS &&
+  skill.correctDays >= SECURE_DAYS;
+
 export function skillStatus(skill: TopicSkill | undefined, now: number): SkillStatus {
   if (!skill || skill.attempts < MIN_OBSERVATIONS) return 'new';
   if (skill.strength < STRUGGLING_BELOW) return 'struggling';
-  if (skill.strength >= SECURE_AT && skill.streak >= SECURE_STREAK) {
-    return now >= reviewDueAt(skill) ? 'review-due' : 'secure';
-  }
+  if (isMastered(skill)) return now >= reviewDueAt(skill) ? 'review-due' : 'secure';
   return 'developing';
 }
 
@@ -118,6 +162,7 @@ export function findSkill(
  */
 export function nextSkill(previous: TopicSkill | undefined, observation: Observation): TopicSkill {
   const outcome = observation.correct ? 1 : 0;
+  const day = localDay(observation.answeredAt, observation.offsetMinutes);
 
   if (!previous) {
     return {
@@ -127,10 +172,21 @@ export function nextSkill(previous: TopicSkill | undefined, observation: Observa
       correct: outcome,
       strength: outcome,
       streak: outcome,
+      correctDays: outcome,
+      lastCorrectDay: observation.correct ? day : null,
       totalTimeMs: observation.timeTakenMs,
       lastAnsweredAt: observation.answeredAt,
     };
   }
+
+  // A day counts once, and only when something was got right on it. The test is
+  // "later than the last day counted" rather than "different from" so the count
+  // cannot be inflated by answers arriving out of order — two writes landing at
+  // once, or a retry overtaking. `buildProfile` sorts, so a fold over a whole
+  // history is exact; a live fold that is handed an older answer late will
+  // undercount, which delays calling a topic known and never fakes it.
+  const newDay =
+    observation.correct && (previous.lastCorrectDay === null || day > previous.lastCorrectDay);
 
   return {
     ...previous,
@@ -138,6 +194,8 @@ export function nextSkill(previous: TopicSkill | undefined, observation: Observa
     correct: previous.correct + outcome,
     strength: previous.strength + RECENCY * (outcome - previous.strength),
     streak: observation.correct ? previous.streak + 1 : 0,
+    correctDays: previous.correctDays + (newDay ? 1 : 0),
+    lastCorrectDay: newDay ? day : previous.lastCorrectDay,
     totalTimeMs: previous.totalTimeMs + observation.timeTakenMs,
     lastAnsweredAt: Math.max(previous.lastAnsweredAt, observation.answeredAt),
   };

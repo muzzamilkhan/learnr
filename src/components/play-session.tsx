@@ -8,13 +8,21 @@ import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
 import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
-import { endRecordingAction, recordAttemptAction, startRecordingAction } from '@/app/play/actions';
+import { closedRound, type Round } from '@/lib/rewards/stars';
+import {
+  awardRoundAction,
+  endRecordingAction,
+  recordAttemptAction,
+  startRecordingAction,
+} from '@/app/play/actions';
 import { SessionTimer } from './session-timer';
 import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
 import { HintIcon } from './hint-icon';
+import { RoundReward } from './round-reward';
+import { StreakFlash } from './streak-flash';
 
 /**
  * How long a correct answer is celebrated before the next question. A wrong one
@@ -63,6 +71,10 @@ export function PlaySession({
   const [pending, setPending] = useState<SessionState | null>(null);
   /** Hints are asked for, never pushed — and only for the question in hand. */
   const [hintShown, setHintShown] = useState(false);
+  /** The round of ten just finished, while its stars are on screen. */
+  const [reward, setReward] = useState<Round | null>(null);
+  /** The day streak, on the one answer of the day that extended it. */
+  const [streak, setStreak] = useState<number | null>(null);
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,7 +108,27 @@ export function PlaySession({
     setEntry('');
     setFeedback(null);
     setHintShown(false);
+
+    // Ten answers closes a round. Which stars it is worth is read off the answers
+    // themselves, so the celebration and the server's recount cannot disagree.
+    // Banking them is `submit`'s job — it has to wait for the write.
+    const round = closedRound(next.attempts.map((attempt) => attempt.correct));
+    if (round) setReward(round);
   }, []);
+
+  /**
+   * The next question has been sitting behind the stars rather than in front of
+   * the child, so its clock starts again here. Otherwise the break would land in
+   * that question's time, and time per topic is something a parent gets shown.
+   */
+  const dismissReward = useCallback(() => {
+    setReward(null);
+    setSession((state) => ({ ...state, questionShownAt: Date.now() }));
+  }, []);
+
+  // Stable, so answering while the flash is up does not restart its timer and
+  // leave a faded-out badge mounted over the screen.
+  const dismissStreak = useCallback(() => setStreak(null), []);
 
   const submit = useCallback(
     (value: string) => {
@@ -104,14 +136,30 @@ export function PlaySession({
 
       const { correct } = gradeAnswer(question, value);
       const expected = formatAnswer(question);
-      const next = submitAnswer(session, value, Date.now());
+      // Read the offset per answer rather than once at the top: it is the only
+      // way a session that runs across a daylight saving change stays honest
+      // about which day each answer belongs to.
+      const now = Date.now();
+      const next = submitAnswer(session, value, now, -new Date(now).getTimezoneOffset());
 
       setEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
 
       if (recordId.current) {
+        const id = recordId.current;
         const attempt = next.attempts[next.attempts.length - 1];
-        recordAttemptAction(recordId.current, attempt);
+        const results = next.attempts.map((a) => a.correct);
+
+        // Only the first answer of a day comes back with anything to show, and
+        // a failed write simply comes back with nothing.
+        recordAttemptAction(id, attempt).then((result) => {
+          if (result?.streakAdvanced) setStreak(result.streak);
+          // Banked *after* the answer is written, never alongside it: the server
+          // counts the round from the stored answers, and a recount that raced
+          // the tenth of them would find nine and award nothing. A dropped call
+          // repairs itself at the next round, which recounts the sitting whole.
+          if (closedRound(results)) awardRoundAction(id);
+        });
       }
 
       // Right answers move on by themselves; wrong ones wait for Continue, so
@@ -126,6 +174,15 @@ export function PlaySession({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const key = event.key;
+
+      // The stars are over everything else, so nothing behind them may be answered.
+      if (reward) {
+        if (key === 'Enter' || key === ' ') {
+          event.preventDefault();
+          dismissReward();
+        }
+        return;
+      }
 
       if (pending) {
         if (key === 'Enter' || key === ' ') {
@@ -160,7 +217,7 @@ export function PlaySession({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [submit, feedback, mode, options, entry, pending, advance]);
+  }, [submit, feedback, mode, options, entry, pending, advance, reward, dismissReward]);
 
   const correctCount = session.attempts.filter((a) => a.correct).length;
 
@@ -234,6 +291,9 @@ export function PlaySession({
 
         {pending !== null && <ContinueButton onContinue={() => advance(pending)} />}
       </div>
+
+      {streak !== null && <StreakFlash days={streak} onDone={dismissStreak} />}
+      {reward !== null && <RoundReward round={reward} onDone={dismissReward} />}
     </main>
   );
 }

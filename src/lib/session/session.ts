@@ -28,8 +28,11 @@ export interface Attempt {
   expected: string;
   response: string;
   correct: boolean;
+  /** Capped at `MAX_TIME_MS` — see there for why an uncapped one is not a measurement. */
   timeTakenMs: number;
   answeredAt: number;
+  /** Minutes east of UTC when it was answered, so the day it counts towards is the child's. */
+  offsetMinutes: number;
 }
 
 export interface SessionState {
@@ -112,7 +115,24 @@ export function startSession(config: SessionConfig): SessionState {
   };
 }
 
-export function submitAnswer(state: SessionState, response: string, now: number): SessionState {
+/**
+ * The longest a question is credited with having taken. Past this the number has
+ * stopped being a measurement: the iPad was put down mid-question and picked up
+ * again after dinner, and the honest reading is "we don't know", not four hours.
+ *
+ * It matters because the time is kept as a running total per topic and never
+ * trimmed, so one abandoned question would otherwise sit in that topic's average
+ * for good — and that average is what a parent is shown.
+ */
+export const MAX_TIME_MS = 5 * 60 * 1000;
+
+export function submitAnswer(
+  state: SessionState,
+  response: string,
+  now: number,
+  /** Minutes east of UTC, so "which day was this?" is the child's day. */
+  offsetMinutes = 0,
+): SessionState {
   const { correct, response: normalised } = gradeAnswer(state.current, response);
 
   const attempt: Attempt = {
@@ -124,8 +144,9 @@ export function submitAnswer(state: SessionState, response: string, now: number)
     expected: String(state.current.answer),
     response: normalised,
     correct,
-    timeTakenMs: Math.max(0, now - state.questionShownAt),
+    timeTakenMs: Math.min(Math.max(0, now - state.questionShownAt), MAX_TIME_MS),
     answeredAt: now,
+    offsetMinutes,
   };
 
   const draw = state.draw + 1;

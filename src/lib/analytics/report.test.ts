@@ -32,10 +32,16 @@ function answers(
 const rights = (n: number) => Array(n).fill(true);
 const wrongs = (n: number) => Array(n).fill(false);
 
+/** What knowing a topic looks like: four right on each of `days` separate days, ending yesterday. */
+const known = (topic: string, days = 2): Observation[] =>
+  Array.from({ length: days }, (_, day) =>
+    answers(topic, rights(4), { endedAt: NOW - DAY - (days - 1 - day) * DAY }),
+  ).flat();
+
 describe('topicReports', () => {
   const history = [
     ...answers('counting', [true, false, false, false, false]),
-    ...answers('addition', rights(6)),
+    ...known('addition'),
     ...answers('shapes', [true, false]),
   ];
 
@@ -79,7 +85,7 @@ describe('topicReports', () => {
   });
 
   it('lists a mastered topic for review once it has had time to fade', () => {
-    const reports = topicReports(answers('addition', rights(4)), NOW + 20 * DAY);
+    const reports = topicReports(known('addition'), NOW + 20 * DAY);
 
     expect(reports[0].status).toBe('review-due');
     expect(dueForReview(reports).map((report) => report.topic)).toEqual(['addition']);
@@ -167,12 +173,12 @@ describe('summarise', () => {
   it('counts the practice behind the report', () => {
     const history = [
       ...answers('counting', [true, false, false, false, false], { endedAt: NOW - 2 * DAY }),
-      ...answers('addition', rights(6), { endedAt: NOW - DAY }),
+      ...known('addition'),
     ];
 
     expect(summarise(history, { now: NOW })).toMatchObject({
-      attempts: 11,
-      correct: 7,
+      attempts: 13,
+      correct: 9,
       daysPracticed: 2,
       topics: 2,
       secure: 1,

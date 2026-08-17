@@ -3,8 +3,10 @@ import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
 import { LevelPicker } from '@/components/level-picker';
-import { readSelectedLevel } from '@/lib/records';
+import { ProfileMenu } from '@/components/profile-menu';
+import { readPlayStreak, readSelectedLevel, readStarTotal } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
+import { noStreak } from '@/lib/rewards/streak';
 
 // The screen is per-child: it opens on the level that child last chose, so it
 // must never be prerendered and shared.
@@ -27,21 +29,39 @@ export default async function HomePage() {
     );
   }
 
-  // Signed out or without a database there is nowhere to remember the choice, so
-  // the picker simply opens on Kindergarten.
-  const stored = session?.user?.id ? await readSelectedLevel(session.user.id) : null;
+  // Signed out or without a database there is nowhere to remember the choice or
+  // to keep a streak, so the picker opens on Kindergarten and there is nothing
+  // to reward — all three reads go together for the same reason.
+  const userId = session?.user?.id;
+  const [stored, streak, stars] = userId
+    ? await Promise.all([
+        readSelectedLevel(userId),
+        readPlayStreak(userId),
+        readStarTotal(userId),
+      ])
+    : [null, noStreak(), 0];
+
   const initialLevel = resolveInitialLevel(stored, levels);
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-      <header className="mb-12 flex items-baseline justify-between gap-4">
+      <header className="mb-12 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-5xl font-bold tracking-tight">
             {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
           </h1>
           <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
         </div>
-        {session?.user ? <SignOutButton /> : null}
+        {session?.user ? (
+          <ProfileMenu
+            name={session.user.name ?? null}
+            image={session.user.image ?? null}
+            streak={streak}
+            stars={stars}
+          >
+            <SignOutButton />
+          </ProfileMenu>
+        ) : null}
       </header>
 
       {initialLevel ? (

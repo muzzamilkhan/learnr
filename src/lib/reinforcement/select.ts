@@ -26,6 +26,11 @@ import {
  *  - a **cooldown** on the topics just asked, so the mix is spread through the
  *    session rather than clumped.
  *
+ * All three are about **topics**, not templates. A topic's weight is split
+ * across however many templates it happens to have, so how much practice a
+ * child gets on something is decided by how they are doing at it and never by
+ * how much content we got round to writing for it.
+ *
  * Pure: the caller passes `now` and the RNG, so a whole session can be replayed
  * from its seed and starting profile.
  */
@@ -87,6 +92,24 @@ const cooldownFactor = (topic: string, recent: readonly string[]): number => {
 const sum = (values: readonly number[]): number => values.reduce((a, b) => a + b, 0);
 
 /**
+ * How many templates each topic has in this pool.
+ *
+ * The unit of the policy is the **topic** — that is what a status is about, what
+ * a share is measured in, and what `focusTopics` names. But the draw is over
+ * templates, so a topic's weight has to be split across its own templates rather
+ * than multiplied by them. Without this, template count quietly outvotes status:
+ * shipped years have between one and five templates a topic, so a struggling
+ * topic with one template came up less often than an unproven topic with four.
+ */
+function templatesPerTopic(templates: readonly QuestionTemplate[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const template of templates) {
+    counts.set(template.topic, (counts.get(template.topic) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
  * The odds each template is drawn at, and why. Exported because it is the whole
  * policy: a test can read it, and so can anything that later wants to explain a
  * choice to a parent.
@@ -102,15 +125,20 @@ export function weightTemplates(
   );
 
   // Nothing is known yet, so there is nothing to act on: draw at random rather
-  // than build a diagnosis out of two answers.
+  // than build a diagnosis out of two answers. Random here means random over
+  // templates, which is what it has always meant.
   if (!hasPattern(context.profile)) {
     return templates.map((template, index) => ({ template, status: statuses[index], weight: 1 }));
   }
 
+  const perTopic = templatesPerTopic(templates);
+
   const weighted = templates.map((template, index) => ({
     template,
     status: statuses[index],
-    weight: STATUS_WEIGHTS[statuses[index]] * cooldownFactor(template.topic, recent),
+    weight:
+      (STATUS_WEIGHTS[statuses[index]] * cooldownFactor(template.topic, recent)) /
+      (perTopic.get(template.topic) ?? 1),
   }));
 
   const focus = weighted.filter((entry) => FOCUS.has(entry.status));
