@@ -11,7 +11,6 @@ import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readPlayStreak, readSelectedLevel, readStarTotal } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
-import { noStreak } from '@/lib/rewards/streak';
 
 // The screen is per-child: it opens on the level that child last chose, so it
 // must never be prerendered and shared.
@@ -56,21 +55,18 @@ export default async function HomePage() {
     );
   }
 
-  // Signed out or without a database there is nowhere to remember the choice or
-  // to keep a streak, so the picker opens on Kindergarten and there is nothing
-  // to reward — all three reads go together for the same reason.
   const userId = session?.user?.id;
-  const [account, stored, streak, stars] = userId
-    ? await Promise.all([
-        readAccount(userId),
-        readSelectedLevel(userId),
-        readPlayStreak(userId),
-        readStarTotal(userId),
-      ])
-    : [null, null, noStreak(), 0];
+  const account = userId ? await readAccount(userId) : null;
+  const isParent = account?.role === 'parent';
+
+  // A parent doesn't play, so there is no level to reopen on, no run of days and
+  // no stars — reading them would only put numbers on their screen that are
+  // counting nothing.
+  const [stored, streak, stars] = userId && !isParent
+    ? await Promise.all([readSelectedLevel(userId), readPlayStreak(userId), readStarTotal(userId)])
+    : [null, null, null];
 
   const initialLevel = resolveInitialLevel(stored, levels);
-  const isParent = account?.role === 'parent';
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
 
   // Signed in but hasn't said what kind of account this is. Asked once, kept

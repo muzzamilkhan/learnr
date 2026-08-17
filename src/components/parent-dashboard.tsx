@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { AvatarIcon } from '@/components/avatar-icon';
@@ -136,6 +137,12 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
           </p>
         </div>
         <div className="flex gap-3">
+          <Link
+            href={`/progress?child=${child.id}`}
+            className="no-select rounded-2xl border-2 border-(--color-line) px-5 py-3 text-xl font-semibold transition hover:border-(--color-brand)"
+          >
+            Progress
+          </Link>
           <button
             type="button"
             onClick={getCode}

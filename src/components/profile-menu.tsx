@@ -25,9 +25,13 @@ const subscribeToTheClock = () => () => {};
 interface Props {
   name: string | null;
   image: string | null;
-  /** As stored. Whether the run is still live depends on the child's clock, not the server's. */
-  streak: PlayStreak;
-  stars: number;
+  /**
+   * As stored, and null for a parent — they don't play, so a run of days and a
+   * pile of stars on their account are counting nothing. Whether a run is still
+   * live depends on the child's clock, not the server's.
+   */
+  streak: PlayStreak | null;
+  stars: number | null;
   /** The sign-out form, built on the server so it stays a server action. */
   children: ReactNode;
 }
@@ -47,8 +51,8 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
    */
   const days = useSyncExternalStore(
     subscribeToTheClock,
-    () => currentStreak(streak, Date.now(), -new Date().getTimezoneOffset()),
-    () => streak.days,
+    () => (streak ? currentStreak(streak, Date.now(), -new Date().getTimezoneOffset()) : 0),
+    () => streak?.days ?? 0,
   );
 
   useEffect(() => {
@@ -79,15 +83,17 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
         aria-label={name ? `Account: ${name}` : 'Account'}
         // The streak sits inside the button rather than beside it: it doubles the
         // target, and there is nothing a child could tap here by mistake.
-        className="no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 pl-3 transition active:scale-95"
+        className={`no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 ${streak ? 'pl-3' : 'pl-1.5'} transition active:scale-95`}
       >
-        <span
-          className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
-          title={`${days} day${days === 1 ? '' : 's'} in a row`}
-        >
-          <FlameIcon className="h-5 w-5" />
-          {days}
-        </span>
+        {streak ? (
+          <span
+            className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
+            title={`${days} day${days === 1 ? '' : 's'} in a row`}
+          >
+            <FlameIcon className="h-5 w-5" />
+            {days}
+          </span>
+        ) : null}
         <Avatar name={name} image={image} />
       </button>
 
@@ -100,13 +106,15 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
             <p className="truncate px-3 pt-1 text-base text-(--color-ink-soft)">{name}</p>
           ) : null}
 
-          <p className="flex items-center gap-2 px-3 py-2 text-xl font-semibold">
-            <StarIcon filled className="h-6 w-6 text-(--color-star)" />
-            <span className="tabular-nums">{stars}</span>
-            <span className="font-normal text-(--color-ink-soft)">
-              star{stars === 1 ? '' : 's'}
-            </span>
-          </p>
+          {stars === null ? null : (
+            <p className="flex items-center gap-2 px-3 py-2 text-xl font-semibold">
+              <StarIcon filled className="h-6 w-6 text-(--color-star)" />
+              <span className="tabular-nums">{stars}</span>
+              <span className="font-normal text-(--color-ink-soft)">
+                star{stars === 1 ? '' : 's'}
+              </span>
+            </p>
+          )}
 
           <div className="border-t-2 border-(--color-line) pt-1">{children}</div>
         </div>
