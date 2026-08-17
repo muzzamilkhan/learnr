@@ -265,10 +265,9 @@ thing this app does not do. If that changes, the honest version is to gate
 advance a topic towards `secure` — never to weight a topic up for slowness.
 
 The analytics side is a library only: `topicReports`, `problemTopics`,
-`dueForReview`, `progressOverTime` and `summarise`. **There is no parent-facing
-screen yet** — that is a separate piece of design work, and these functions exist
-to be consumed by it when it happens. Buckets take a UTC offset from the caller so
-a Sydney evening's practice doesn't land on the next day.
+`dueForReview`, `progressOverTime` and `summarise`. `/progress` is the screen that
+consumes them — see **Parent analytics** below. Buckets take a UTC offset from the
+caller so a Sydney evening's practice doesn't land on the next day.
 
 ## UI
 
@@ -416,6 +415,61 @@ best-effort — a silently failed answer costs history and the child plays on, b
 a silently failed login is a child locked out and a silently failed removal is a
 parent lied to, so the mutations report whether they worked.
 
+## Parent analytics
+
+`/progress?child=<id>&subject=maths` — a parent picks a child and sees how they
+are going. It reads and renders; nothing on it writes.
+
+**The child id is never trusted.** `listChildren(parentId)` returns both the
+dropdown's options and the set of ids this parent may look at, and the parameter
+is resolved against that list. There is no separate ownership check to drift out
+of step with the query — the same reason `accounts.ts` puts `parentId` in every
+`where`.
+
+**Whose days these are is the child's question, not the parent's.** The server
+has no timezone and does not know the browser's, so the offset comes from
+`latestOffsetMinutes` — the offset the child last answered at, which every
+`Attempt` already stores. A parent reading this from another timezone still sees
+their child's evenings as evenings.
+
+**`readObservations` and `readSittings` are not best-effort**, unlike everything
+else in `records.ts`. A swallowed failure there costs a little history while a
+child plays on; here an empty array would render as "your child has never
+practised", which is a lie when the database hiccuped. `null` means *could not
+read* and `[]` means *nothing recorded*, and the screen says something different
+for each.
+
+**The screen refuses to diagnose what it doesn't know.** Under
+`MIN_OBSERVATIONS` answers, "Needs a hand" and "Doing well" say so in words
+rather than listing something built from two data points. A child who has never
+played gets a sentence, not empty charts.
+
+`headline` holds the arithmetic behind the three tiles — a rolling 7 days
+against the 7 before, because a Monday-aligned week reads "0 questions" every
+Monday morning. It lives in `lib` and is tested, like everything else that
+counts, and the `now` it runs on is read once, at the request boundary —
+`requestNow()` in `src/app/progress/now.ts`, rather than a bare `Date.now()` in
+the component, which `react-hooks/purity` flags as impure. `strengths` mirrors
+`problemTopics`, ordered by `correctDays` because that is the evidence that means
+something; it excludes `review-due` so no topic appears in two sections at once.
+
+Two framing decisions the copy depends on. The tile says **"time on questions"**,
+not "minutes spent": it is summed `timeTakenMs`, already capped per answer, so
+it can't be inflated by an iPad left on the sofa — and it undercounts, which the
+label has to be honest about. And a line under the tiles explains that **around
+three in four right is the system working**; the selector mixes hard topics in
+deliberately, and without that line a parent reads 76% as a C.
+
+`recharts` draws the topic bars and is the project's only UI dependency. Height
+is questions and the fill is correct answers; the remainder is line grey rather
+than `--color-wrong`, because it is "the rest of the questions" and not a column
+of failures. The practice calendar is hand-rolled SVG and server-rendered — no
+library ships one worth the bytes.
+
+**A parent's profile menu has no stars and no streak.** They don't play, so both
+would be counting nothing; `page.tsx` skips those two reads entirely for a
+parent rather than reading numbers it won't show.
+
 ## Setup
 
 Copy `.env.example` to `.env` and fill in:
@@ -436,6 +490,3 @@ client is generated to `src/generated/prisma` (gitignored) and constructed with 
 
 - TDD, lean tests. Test behaviour through the public function, not internals.
 - Work on `master` and push when a piece of work is done. Not a stable release yet.
-- Parent-facing **analytics** are a future feature. The library is written
-  (`src/lib/analytics`) and the parent dashboard now exists to hang it off, but
-  nothing renders a report yet.
