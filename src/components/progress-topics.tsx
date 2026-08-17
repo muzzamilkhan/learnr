@@ -13,6 +13,7 @@ import { localDay } from '@/lib/day';
 import type { Sitting } from '@/lib/records';
 import { createRng } from '@/lib/rng';
 import { generateQuestion } from '@/lib/templates/generate';
+import { Well } from './well';
 
 /**
  * The "where do they need help?" half. Every list here refuses to guess: under
@@ -72,9 +73,8 @@ export function ProgressTopics({
   const breadth = level ? coverage(reports, topicsForLevel(subject, level), level) : null;
 
   return (
-    <section className="space-y-8">
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Needs a hand</h2>
+    <section className="space-y-4">
+      <Well title="Needs a hand">
         {!judged ? (
           <Unproven />
         ) : problems.length === 0 ? (
@@ -82,12 +82,10 @@ export function ProgressTopics({
             Nothing is going badly at the moment.
           </p>
         ) : (
-          <ul className="space-y-2">
+          // Divided rather than boxed: a card inside a well reads as double-boxed.
+          <ul className="divide-y divide-(--color-line)">
             {problems.map((report) => (
-              <li
-                key={`${report.level}|${report.topic}`}
-                className="rounded-xl border border-(--color-line) bg-(--color-card) p-3"
-              >
+              <li key={`${report.level}|${report.topic}`} className="py-3 first:pt-0 last:pb-0">
                 <TopicLine report={report} now={now} offsetMinutes={offsetMinutes} />
                 {(() => {
                   const example = exampleQuestion(subject, report.topic, report.level);
@@ -101,10 +99,9 @@ export function ProgressTopics({
             ))}
           </ul>
         )}
-      </div>
+      </Well>
 
-      <div>
-        <h2 className="mb-2 text-lg font-semibold">Doing well</h2>
+      <Well title="Doing well">
         {!judged ? (
           <Unproven />
         ) : doingWell.length === 0 ? (
@@ -125,15 +122,13 @@ export function ProgressTopics({
             ))}
           </ul>
         )}
-      </div>
+      </Well>
 
       {due.length > 0 ? (
-        <div>
-          <h2 className="mb-0.5 text-lg font-semibold">Coming up for review</h2>
-          <p className="mb-2 text-sm text-(--color-ink-soft)">
-            Known, and left alone long enough to be worth confirming. Learnr will bring these
-            back on its own.
-          </p>
+        <Well
+          title="Coming up for review"
+          note="Known, and left alone long enough to be worth confirming. Learnr will bring these back on its own."
+        >
           <ul className="space-y-1">
             {due.map((report) => (
               <li key={`${report.level}|${report.topic}`} className="text-sm">
@@ -142,14 +137,14 @@ export function ProgressTopics({
               </li>
             ))}
           </ul>
-        </div>
+        </Well>
       ) : null}
 
       {breadth && level && breadth.offered > 0 ? (
-        <div>
-          <h2 className="mb-0.5 text-lg font-semibold">
-            {yearLabel(level)} · {breadth.practised} of {breadth.offered} topics practised
-          </h2>
+        <Well
+          title={`${yearLabel(level)} topics`}
+          aside={`${breadth.practised} of ${breadth.offered} practised`}
+        >
           {breadth.untouched.length > 0 ? (
             <p className="text-sm text-(--color-ink-soft)">
               Not yet tried: {breadth.untouched.join(', ')}.
@@ -157,12 +152,11 @@ export function ProgressTopics({
           ) : (
             <p className="text-sm text-(--color-ink-soft)">Every topic this year offers.</p>
           )}
-        </div>
+        </Well>
       ) : null}
 
       {sittings.length > 0 ? (
-        <div>
-          <h2 className="mb-2 text-lg font-semibold">Recent sittings</h2>
+        <Well title="Recent sittings">
           <ul className="space-y-1">
             {sittings.map((sitting) => (
               <li key={sitting.id} className="text-sm tabular-nums">
@@ -179,7 +173,7 @@ export function ProgressTopics({
               </li>
             ))}
           </ul>
-        </div>
+        </Well>
       ) : null}
     </section>
   );

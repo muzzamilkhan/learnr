@@ -115,6 +115,7 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
       : null,
   );
   const [shown, setShown] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -135,6 +136,39 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
       router.refresh();
     });
   };
+
+  // Asked for in the card rather than through `confirm()`: the browser dialog
+  // is unstyled, unreadable on an iPad, and — being synchronous — the one thing
+  // on this screen that can freeze it. It also cannot say what is actually
+  // being lost, which is the only reason to ask at all.
+  if (confirming) {
+    return (
+      <div className="rounded-xl border border-(--color-wrong) bg-(--color-card) p-4">
+        <p className="text-base font-semibold">Remove {child.name}?</p>
+        <p className="mt-0.5 text-sm text-(--color-ink-soft)">
+          Their answers, progress and login code go too. This can&rsquo;t be undone.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            className="no-select rounded-lg bg-(--color-wrong) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+          >
+            {pending ? 'Removing…' : `Remove ${child.name}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirming(false)}
+            disabled={pending}
+            className={BUTTON}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-4">
@@ -172,7 +206,7 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
           </button>
           <button
             type="button"
-            onClick={remove}
+            onClick={() => setConfirming(true)}
             disabled={pending}
             className={`${BUTTON} text-(--color-wrong) hover:border-(--color-wrong)`}
           >

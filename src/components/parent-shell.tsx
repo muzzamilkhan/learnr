@@ -48,13 +48,23 @@ export function ParentShell({
       {children}
 
       {/* What the questions are written against — the one thing a parent would
-          actually want to read, so it follows them onto both screens. */}
-      <p className="mt-10 text-sm text-(--color-ink-soft)">
-        <Link href="/curriculum" className="text-(--color-brand) underline">
-          Curriculum sources
-        </Link>{' '}
-        — what the questions are written against.
-      </p>
+          actually want to read, so it follows them onto both screens. Drawn as a
+          panel rather than a footnote: a line of small print under a page of
+          boxed sections is the shape of something nobody is meant to click. */}
+      <Link
+        href="/curriculum"
+        className="no-select mt-8 flex items-center gap-4 rounded-xl border border-(--color-line) bg-(--color-card) p-4 transition hover:border-(--color-brand)"
+      >
+        <span className="min-w-0">
+          <span className="block text-base font-semibold">Curriculum sources</span>
+          <span className="mt-0.5 block text-sm text-(--color-ink-soft)">
+            What the questions are written against — the Australian Curriculum, year by year.
+          </span>
+        </span>
+        <span aria-hidden className="ml-auto text-lg text-(--color-brand)">
+          &rarr;
+        </span>
+      </Link>
     </main>
   );
 }

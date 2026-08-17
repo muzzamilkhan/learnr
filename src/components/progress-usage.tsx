@@ -1,18 +1,19 @@
-import { headline, progressOverTime, topicReports } from '@/lib/analytics/report';
+import { calendarWeeks, headline, topicReports } from '@/lib/analytics/report';
 import type { Observation } from '@/lib/analytics/profile';
 import { yearLabel } from '@/lib/curriculum';
-import { PracticeCalendar, practisedDays } from './practice-calendar';
+import { PracticeCalendar, elapsedDays, practisedDays } from './practice-calendar';
 import { TopicBars, type TopicBar } from './topic-bars';
+import { Well } from './well';
 
-/** Eight weeks. Long enough for a habit to show, short enough for the squares to stay big. */
-const CALENDAR_DAYS = 56;
+/** Four weeks. Recent enough to be about now, and it fills the width at a readable size. */
+const CALENDAR_WEEKS = 4;
 
 /** Beyond this the labels stop being readable on an iPad; the coverage line covers the tail. */
 const MAX_BARS = 8;
 
 /**
  * The "are they using it?" half of the parents' screen: three figures against
- * last week, eight weeks of days, and how much of each topic has been answered.
+ * last week, four weeks of days, and how much of each topic has been answered.
  */
 export function ProgressUsage({
   observations,
@@ -24,12 +25,7 @@ export function ProgressUsage({
   offsetMinutes: number;
 }) {
   const figures = headline(observations, { now, offsetMinutes });
-  const buckets = progressOverTime(observations, {
-    now,
-    unit: 'day',
-    count: CALENDAR_DAYS,
-    offsetMinutes,
-  });
+  const weeks = calendarWeeks(observations, { now, weeks: CALENDAR_WEEKS, offsetMinutes });
 
   const reports = topicReports(observations, now);
   // The same topic can appear at two years once a child moves up, so the year is
@@ -52,7 +48,7 @@ export function ProgressUsage({
     }));
 
   return (
-    <section className="space-y-8">
+    <section className="space-y-4">
       <div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Tile
@@ -77,24 +73,17 @@ export function ProgressUsage({
         </p>
       </div>
 
-      <div>
-        <div className="mb-2 flex items-baseline justify-between gap-4">
-          <h2 className="text-lg font-semibold">Practice</h2>
-          <p className="text-sm text-(--color-ink-soft)">
-            {practisedDays(buckets)} of the last {CALENDAR_DAYS} days
-          </p>
-        </div>
-        <PracticeCalendar buckets={buckets} offsetMinutes={offsetMinutes} />
-      </div>
+      <Well
+        title="Practice"
+        aside={`${practisedDays(weeks)} of the last ${elapsedDays(weeks)} days`}
+      >
+        <PracticeCalendar weeks={weeks} offsetMinutes={offsetMinutes} />
+      </Well>
 
       {bars.length > 0 ? (
-        <div>
-          <h2 className="mb-0.5 text-lg font-semibold">Topics</h2>
-          <p className="mb-2 text-sm text-(--color-ink-soft)">
-            How many questions each topic has had, and how many were right.
-          </p>
+        <Well title="Topics" note="How many questions each topic has had, and how many were right.">
           <TopicBars data={bars} />
-        </div>
+        </Well>
       ) : null}
     </section>
   );

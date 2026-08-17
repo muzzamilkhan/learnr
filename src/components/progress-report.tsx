@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes } from '@/lib/analytics/report';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
@@ -7,6 +6,7 @@ import { AvatarIcon } from './avatar-icon';
 import { ChildPicker } from './child-picker';
 import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
+import { SubjectPicker } from './subject-picker';
 import type { Avatar } from '@/lib/avatars';
 
 interface ProgressChild {
@@ -57,28 +57,7 @@ export function ProgressReport({
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <ChildPicker profiles={profiles} selected={child.id} subject={subject} />
-          {/* One subject needs no choosing; a second one turns this into tabs. */}
-          {subjects.length > 1 ? (
-            <nav className="flex gap-1">
-              {subjects.map((option) => (
-                <Link
-                  key={option}
-                  href={`/progress?child=${child.id}&subject=${option}`}
-                  className={`no-select rounded-lg px-3 py-1.5 text-sm font-semibold capitalize transition ${
-                    option === subject
-                      ? 'bg-(--color-brand) text-white'
-                      : 'border border-(--color-line) hover:border-(--color-brand)'
-                  }`}
-                >
-                  {option}
-                </Link>
-              ))}
-            </nav>
-          ) : (
-            <span className="text-sm font-semibold capitalize text-(--color-ink-soft)">
-              {subject}
-            </span>
-          )}
+          <SubjectPicker subjects={subjects} selected={subject} child={child.id} />
         </div>
       </div>
 
@@ -92,7 +71,7 @@ export function ProgressReport({
           where you&rsquo;ll see how it&rsquo;s going.
         </p>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-4">
           <ProgressUsage observations={observations} now={now} offsetMinutes={offsetMinutes} />
           <ProgressTopics
             observations={observations}

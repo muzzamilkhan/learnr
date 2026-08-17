@@ -1,21 +1,26 @@
-import type { ProgressBucket } from '@/lib/analytics/report';
+import type { CalendarDay } from '@/lib/analytics/report';
 
 /**
- * Eight weeks of days, one square each, filled by how much was answered.
+ * Four weeks of days, one square each, filled by how much was answered.
  *
  * The gaps are the point. A weekly total hides a fortnight off; a row of empty
  * squares does not, and "are they actually using it" is the question a parent
  * opens this screen with.
  *
- * Rows are runs of seven ending today rather than calendar weeks, so there are
- * no weekday labels — claiming a Monday column that does not line up would be
- * worse than not claiming one.
+ * Rows are real Monday-to-Sunday weeks, so the weekday labels above them are a
+ * claim the grid can actually keep. The tail of the current week is left blank
+ * rather than drawn as an unpractised day — a Friday nobody has reached yet is
+ * not a Friday nobody used.
  */
 
 const COLUMNS = 7;
 const CELL = 14;
 const GAP = 4;
 const STEP = CELL + GAP;
+/** Room for the weekday row above the grid, in the same units as the cells. */
+const LABELS = 13;
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 /** Four steps, so a long sitting reads differently from a single question. */
 function shade(attempts: number): string {
@@ -35,47 +40,70 @@ const dayLabel = new Intl.DateTimeFormat('en-AU', {
 });
 
 /** Days with at least one answer. The other half of what the grid shows. */
-export function practisedDays(buckets: readonly ProgressBucket[]): number {
-  return buckets.filter((bucket) => bucket.attempts > 0).length;
+export function practisedDays(weeks: readonly CalendarDay[][]): number {
+  return weeks.flat().filter((day) => day.attempts > 0).length;
+}
+
+/** Days the grid covers that have actually happened — the denominator for the above. */
+export function elapsedDays(weeks: readonly CalendarDay[][]): number {
+  return weeks.flat().filter((day) => !day.future).length;
 }
 
 export function PracticeCalendar({
-  buckets,
+  weeks,
   offsetMinutes,
 }: {
-  buckets: ProgressBucket[];
+  weeks: CalendarDay[][];
   offsetMinutes: number;
 }) {
-  const rows = Math.ceil(buckets.length / COLUMNS);
   const width = COLUMNS * STEP - GAP;
-  const height = rows * STEP - GAP;
+  const height = LABELS + weeks.length * STEP - GAP;
 
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
+      // Scaled up to whatever it is given rather than drawn at a fixed size, so
+      // the squares grow with the column instead of huddling in one corner of it.
+      className="h-auto w-full"
       role="img"
-      aria-label={`Practised on ${practisedDays(buckets)} of the last ${buckets.length} days`}
+      aria-label={`Practised on ${practisedDays(weeks)} of the last ${elapsedDays(weeks)} days`}
     >
-      {buckets.map((bucket, index) => (
-        <rect
-          key={bucket.start}
-          x={(index % COLUMNS) * STEP}
-          y={Math.floor(index / COLUMNS) * STEP}
-          width={CELL}
-          height={CELL}
-          rx={3}
-          fill={shade(bucket.attempts)}
+      {WEEKDAYS.map((label, column) => (
+        <text
+          key={label}
+          x={column * STEP + CELL / 2}
+          y={LABELS - 5}
+          textAnchor="middle"
+          fontSize="7"
+          fill="var(--color-ink-soft)"
         >
-          <title>
-            {dayLabel.format(new Date(bucket.start + offsetMinutes * 60_000))}
-            {bucket.attempts === 0
-              ? ' — no practice'
-              : ` — ${bucket.attempts} question${bucket.attempts === 1 ? '' : 's'}`}
-          </title>
-        </rect>
+          {label}
+        </text>
       ))}
+
+      {weeks.map((week, row) =>
+        week.map((day, column) =>
+          // A day that has not happened gets no square at all.
+          day.future ? null : (
+            <rect
+              key={day.start}
+              x={column * STEP}
+              y={LABELS + row * STEP}
+              width={CELL}
+              height={CELL}
+              rx={3}
+              fill={shade(day.attempts)}
+            >
+              <title>
+                {dayLabel.format(new Date(day.start + offsetMinutes * 60_000))}
+                {day.attempts === 0
+                  ? ' — no practice'
+                  : ` — ${day.attempts} question${day.attempts === 1 ? '' : 's'}`}
+              </title>
+            </rect>
+          ),
+        ),
+      )}
     </svg>
   );
 }

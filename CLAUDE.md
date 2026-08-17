@@ -392,7 +392,14 @@ plus add, edit, remove, progress and the login code. Both screens sit in
 `ParentShell`, which carries the title, the two-item nav between them, the
 profile menu and the curriculum link — the last of which follows every signed-in
 branch, a parent's included, because it is the one thing they would actually want
-to read.
+to read. That link is a panel rather than a footnote: a line of small print under
+a page of boxed sections is the shape of something nobody is meant to click.
+
+**Removing a child is confirmed in the card, never with `confirm()`.** The
+browser dialog is unstyled, unreadable on an iPad, and — being synchronous — the
+one thing on that screen that can freeze it. It also cannot say what is being
+lost, which is the only reason to ask: the row cascades, so the confirmation
+names the child and says the answers, progress and login code go with them.
 
 **Parent screens are not built to the child's scale.** The play and level screens
 are sized for a six-year-old holding an iPad at arm's length; a parent is reading
@@ -509,7 +516,27 @@ deliberately, and without that line a parent reads 76% as a C.
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
 of failures. The practice calendar is hand-rolled SVG and server-rendered — no
-library ships one worth the bytes.
+library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
+(`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
+carry weekday labels, since a column that is Monday one week and Thursday the
+next is not a column. The tail of the current week is `future` and gets **no
+square at all** — a Friday nobody has reached and a Friday nobody used must not
+look the same, and it is why the count reads "of the last 24 days" rather than
+28. The SVG scales to its container (`h-auto w-full`) on a proportional viewBox,
+so the cells grow with the width instead of huddling in a corner.
+
+**Each section of the report is a `Well`** — one bordered panel per question a
+parent is asking. Run together as bare headings they read as one long page to
+parse; boxed, the boundaries are visible in a skim, which is how a weekly read
+actually happens. The three headline tiles are already boxed and stay as they
+are, with the "three in four" line as their caption. Inside a well, lists are
+`divide-y` rows rather than cards — a card in a well reads as double-boxed.
+
+**Subject is a dropdown, not tabs** (`SubjectPicker`, alongside `ChildPicker`
+and URL-backed the same way), and it renders even though maths is the only
+subject. A row of one tab is a label pretending to be a control; a dropdown with
+one option is honestly a dropdown, and reads the same the day a second subject
+ships.
 
 **A parent's profile menu has no stars and no streak.** They don't play, so both
 would be counting nothing; `page.tsx` skips those two reads entirely for a

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  calendarWeeks,
   coverage,
   dueForReview,
   headline,
@@ -171,6 +172,75 @@ describe('progressOverTime', () => {
     expect(buckets).toHaveLength(4);
     expect(buckets.at(-1)!.attempts).toBe(4);
     expect(new Date(buckets.at(-1)!.start).getUTCDay()).toBe(1);
+  });
+});
+
+describe('calendarWeeks', () => {
+  it('returns whole Monday-to-Sunday weeks, the last one containing today', () => {
+    const weeks = calendarWeeks([], { now: NOW, weeks: 4 });
+
+    expect(weeks).toHaveLength(4);
+    expect(weeks.every((week) => week.length === 7)).toBe(true);
+    expect(new Date(weeks[0][0].start).getUTCDay()).toBe(1);
+    // NOW is a Wednesday, so today is the third cell of the last row.
+    expect(weeks.at(-1)![2].start).toBe(Date.UTC(2026, 7, 12));
+  });
+
+  it('marks the rest of this week as future, not as days without practice', () => {
+    const [, , , thisWeek] = calendarWeeks([], { now: NOW, weeks: 4 });
+
+    // Monday to Wednesday have happened; Thursday to Sunday have not.
+    expect(thisWeek.map((day) => day.future)).toEqual([
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+    ]);
+  });
+
+  it('fills the days that were practised', () => {
+    const weeks = calendarWeeks(answers('counting', [true, false], { endedAt: NOW }), {
+      now: NOW,
+      weeks: 4,
+    });
+
+    expect(weeks.at(-1)![2]).toMatchObject({ attempts: 2, correct: 1 });
+    expect(weeks.flat().reduce((total, day) => total + day.attempts, 0)).toBe(2);
+  });
+
+  it('drops anything older than the four weeks it draws', () => {
+    const old = answers('counting', rights(3), { endedAt: NOW - 40 * DAY });
+
+    const weeks = calendarWeeks(old, { now: NOW, weeks: 4 });
+
+    expect(weeks.flat().reduce((total, day) => total + day.attempts, 0)).toBe(0);
+  });
+
+  it('aligns the weeks to the family’s local day, not to UTC', () => {
+    // 8am Sydney on Thursday the 13th is 22:00 UTC on Wednesday the 12th.
+    const morning = Date.UTC(2026, 7, 12, 22, 0);
+    const observations = answers('counting', rights(1), { endedAt: morning });
+
+    const [, , , thisWeek] = calendarWeeks(observations, {
+      now: morning,
+      weeks: 4,
+      offsetMinutes: 600,
+    });
+
+    // Thursday, so four days have happened and the answer lands on the fourth.
+    expect(thisWeek.map((day) => day.future)).toEqual([
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+    ]);
+    expect(thisWeek[3].attempts).toBe(1);
   });
 });
 

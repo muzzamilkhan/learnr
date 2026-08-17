@@ -278,6 +278,47 @@ export function progressOverTime(
     }));
 }
 
+export interface CalendarDay extends ProgressBucket {
+  /**
+   * Later than `now` — a day that has not happened yet. A Friday nobody has
+   * reached and a Friday nobody practised on are different things, and a grid
+   * that drew them the same would report a gap that isn't there.
+   */
+  future: boolean;
+}
+
+/**
+ * The practice calendar's grid: whole Monday-to-Sunday weeks, the last of which
+ * contains today.
+ *
+ * Runs of seven ending today would need no alignment, but they also cannot
+ * carry weekday labels — a column that is Monday one week and Thursday the next
+ * is not a column. So the weeks are real calendar weeks and the tail of the
+ * current one is marked `future` rather than left off, which keeps every row
+ * seven cells wide.
+ */
+export function calendarWeeks(
+  observations: readonly Observation[],
+  { now, weeks = 4, offsetMinutes = 0 }: { now: number; weeks?: number; offsetMinutes?: number },
+): CalendarDay[][] {
+  const offsetMs = offsetMinutes * 60_000;
+  const monday = bucketStart(now, 'week', offsetMs);
+  const today = bucketStart(now, 'day', offsetMs);
+  const first = monday - (weeks - 1) * WEEK_MS;
+
+  // One request covering the whole grid, so the day counting stays in one place.
+  const days = progressOverTime(observations, {
+    now: monday + 6 * DAY_MS,
+    unit: 'day',
+    count: weeks * 7,
+    offsetMinutes,
+  }).filter((bucket) => bucket.start >= first);
+
+  const grid = days.map((bucket) => ({ ...bucket, future: bucket.start > today }));
+
+  return Array.from({ length: weeks }, (_, week) => grid.slice(week * 7, week * 7 + 7));
+}
+
 export interface Summary {
   attempts: number;
   correct: number;
