@@ -708,7 +708,7 @@ git commit -m "Draw eight weeks of practice as a grid of days"
 - Create: `src/components/topic-bars.tsx`
 
 **Interfaces:**
-- Produces: `TopicBars({ data }: { data: TopicBar[] })` and `export interface TopicBar { key: string; label: string; correct: number; wrong: number }`.
+- Produces: `TopicBars({ data }: { data: TopicBar[] })` and `export interface TopicBar { label: string; correct: number; wrong: number }`. Labels arrive already distinct — Task 7 appends the year when a topic recurs across levels — so there is no separate key field.
 
 - [ ] **Step 1: Install Recharts**
 
@@ -736,8 +736,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
  */
 
 export interface TopicBar {
-  /** Topic and level — the same topic recurs across years, so the topic alone is not unique. */
-  key: string;
+  /**
+   * The topic, with its year appended when the child has practised that topic at
+   * more than one — the same topic recurs across years, so it is the caller's job
+   * to hand these over already distinct.
+   */
   label: string;
   correct: number;
   wrong: number;
@@ -990,7 +993,6 @@ export function ProgressUsage({
     .sort((a, b) => b.attempts - a.attempts || a.topic.localeCompare(b.topic))
     .slice(0, MAX_BARS)
     .map((report) => ({
-      key: `${report.level}|${report.topic}`,
       label: repeated.has(report.topic)
         ? `${report.topic} (${yearLabel(report.level)})`
         : report.topic,
