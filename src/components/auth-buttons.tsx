@@ -1,6 +1,10 @@
 import { signIn, signOut } from '@/auth';
 
-export function SignInButton() {
+/**
+ * `lg` is the child's scale; `bar` is the landing page's top bar, where it sits
+ * beside the code box rather than alone on a screen of its own.
+ */
+export function SignInButton({ size = 'lg' }: { size?: 'lg' | 'bar' }) {
   return (
     <form
       action={async () => {
@@ -10,7 +14,11 @@ export function SignInButton() {
     >
       <button
         type="submit"
-        className="no-select rounded-2xl bg-(--color-brand) px-10 py-5 text-2xl font-semibold text-white transition active:scale-[0.98]"
+        className={
+          size === 'bar'
+            ? 'no-select rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-white transition active:scale-[0.98]'
+            : 'no-select rounded-2xl bg-(--color-brand) px-10 py-5 text-2xl font-semibold text-white transition active:scale-[0.98]'
+        }
       >
         Sign in with Google
       </button>

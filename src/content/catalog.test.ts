@@ -13,6 +13,7 @@ import {
   topicsForLevel,
   levelsForTopic,
   curriculumCodes,
+  subjectOverview,
 } from './catalog';
 
 describe('shipped content', () => {
@@ -223,5 +224,47 @@ describe('listLevels', () => {
     ]);
 
     expect(levels).toEqual(['K', '2', '6']);
+  });
+});
+
+// The landing page's "what it teaches" section is built from this, so what a
+// stranger is told the app covers is read from the content rather than written
+// beside it. A hardcoded summary drifts the first time a template lands.
+describe('subjectOverview', () => {
+  it('reads the years and topics straight from the shipped templates', () => {
+    const overview = subjectOverview('maths');
+
+    expect(overview.levels.map((l) => l.level)).toEqual(listLevels());
+    for (const level of overview.levels) {
+      expect(level.topics).toEqual(topicsForLevel('maths', level.level));
+    }
+  });
+
+  it('totals the templates and the distinct topics across every year', () => {
+    const overview = subjectOverview('maths');
+
+    expect(overview.templateCount).toBe(allTemplates.filter((t) => t.subject === 'maths').length);
+    expect(overview.topicCount).toBe(listTopics('maths').length);
+  });
+
+  // A topic recurring across years is one topic, not one per year — counting it
+  // twice would overstate the breadth on the one page nobody can check yet.
+  it('counts a topic once however many years it spans', () => {
+    const overview = subjectOverview('maths', [
+      { ...allTemplates[0], subject: 'maths', topic: 'counting numbers', level: 'K' },
+      { ...allTemplates[0], subject: 'maths', topic: 'counting numbers', level: '1' },
+    ]);
+
+    expect(overview.topicCount).toBe(1);
+    expect(overview.templateCount).toBe(2);
+    expect(overview.levels.map((l) => l.level)).toEqual(['K', '1']);
+  });
+
+  it('is empty for a subject with no content', () => {
+    const overview = subjectOverview('spelling');
+
+    expect(overview.levels).toEqual([]);
+    expect(overview.templateCount).toBe(0);
+    expect(overview.topicCount).toBe(0);
   });
 });

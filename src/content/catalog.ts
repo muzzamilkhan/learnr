@@ -126,6 +126,38 @@ export function curriculumCodes(
     });
 }
 
+export interface SubjectOverview {
+  subject: string;
+  levels: LevelSummary[];
+  /** How many templates ship for the subject, across every year. */
+  templateCount: number;
+  /** Distinct topics — a topic recurring across years is one topic, not several. */
+  topicCount: number;
+}
+
+/**
+ * What a subject covers, in the one shape the landing page needs: the years, the
+ * topics in each, and the two totals worth quoting to someone who has not signed
+ * in yet.
+ *
+ * It exists so that page can be *derived* rather than written beside the content.
+ * A stranger reading "counting, shapes, addition…" has no way to check it against
+ * what a child is actually asked, which is exactly why it must not be a list
+ * maintained by hand — the same reason `/curriculum` reads `curriculumCodes`.
+ */
+export function subjectOverview(
+  subject: string,
+  templates: QuestionTemplate[] = allTemplates,
+): SubjectOverview {
+  const levels = listSubjects(templates).find((s) => s.subject === subject)?.levels ?? [];
+  return {
+    subject,
+    levels,
+    templateCount: levels.reduce((sum, level) => sum + level.templateCount, 0),
+    topicCount: listTopics(subject, templates).length,
+  };
+}
+
 /** Every topic in a subject, across all years. */
 export function listTopics(
   subject: string,

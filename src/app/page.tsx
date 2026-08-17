@@ -2,8 +2,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
-import { SignInButton, SignOutButton } from '@/components/auth-buttons';
-import { CodeSignIn } from '@/components/code-sign-in';
+import { SignOutButton } from '@/components/auth-buttons';
+import { Landing } from '@/components/landing';
 import { LevelPicker } from '@/components/level-picker';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
@@ -51,23 +51,9 @@ export default async function HomePage() {
   const subjects = listSubjects();
   const levels = listLevels();
 
-  if (isAuthConfigured && !session?.user) {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-10 px-8 text-center">
-        <div className="space-y-3">
-          <h1 className="text-6xl font-bold tracking-tight">LearnR</h1>
-          <p className="text-2xl text-(--color-ink-soft)">Practice maths at your own pace.</p>
-        </div>
-        <SignInButton />
-        {/* Two ways in, not one with a fallback: a grown-up signs in with Google, a
-            child types the code they were given. */}
-        <div className="flex w-full flex-col items-center gap-6">
-          <span className="text-lg text-(--color-ink-soft)">or</span>
-          <CodeSignIn />
-        </div>
-      </main>
-    );
-  }
+  // Signed out, this is the app's public face: what it is, what it covers, and
+  // the two ways in. See `Landing`.
+  if (isAuthConfigured && !session?.user) return <Landing />;
 
   const userId = session?.user?.id;
   const account = userId ? await readAccount(userId) : null;

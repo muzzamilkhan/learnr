@@ -2,15 +2,26 @@
 
 A maths practice app for children, built for a standard iPad.
 
-A child picks a subject and their school year, and answers questions until they
-decide to stop. There is no score to chase, no streak to break and no timer per
-question — a wrong answer shows the right one and moves on. The session runs on a
-count-up clock and ends when the child closes it.
+**A parent sets the year; the child just plays.** A parent signs in with Google,
+adds each child with the school year they are in, and hands them a 4-character
+code to type. The child picks a subject and answers questions until they decide
+to stop — the session never ends on its own, and the header counts nothing. There
+is no timer on a question and no score to protect; a wrong answer shows the right
+one and waits.
+
+Leaving the year to the child was considered and rejected. Given the choice a
+child picks the year that feels easiest, and the questions that don't feel easy
+are the point — so the level is the parent's to set, and a managed child gets no
+dropdown and can't reach another year by typing a URL.
 
 Questions are generated, not stored. Each one comes from a **template** that
 declares its variables and an expression for the answer, so a single template
 produces an endless supply of questions at the same difficulty. 200 templates
 ship, covering Kindergarten to Year 6 of the Australian Curriculum.
+
+Signed out, `/` is a landing page: what the app is, what it covers — read from
+the shipped templates, so it cannot drift — and the two ways in side by side in
+the top bar, Google for a grown-up and the code box for a child.
 
 ## Getting started
 
@@ -69,11 +80,19 @@ src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine, grading, answer input rules
 src/lib/analytics/   the learner profile, and the report written from it
 src/lib/reinforcement/ which question to ask next
+src/lib/rewards/     stars for a round, and the day streak
 src/lib/curriculum.ts school years, labels and ordering
+src/lib/accounts.ts  parents, children, and the Prisma side of both
+src/lib/login-code.ts the 4-character code a child signs in with
+src/lib/day.ts       which local day a moment falls in
+src/lib/rng.ts       seeded PRNG
 src/content/         the shipped course content and catalog lookups
 src/components/      UI
 src/app/             routes and server actions
 ```
+
+`accounts.ts` and `records.ts` are the exception that talks to the database — the
+pure-function rule covers the engine, not the persistence the app calls it from.
 
 ### Templates
 
@@ -163,8 +182,42 @@ gap is the point — recall that has had time to fade is the recall worth
 practising.
 
 `src/lib/analytics` reads the same history from the other end: which topics need
-help, which way each is trending, and practice over time. It is a library only for
-now; the screen that shows a parent any of it is still to be designed.
+help, which way each is trending, and practice over time. **/progress** is the
+screen in front of it — a parent picks a child and a subject and gets three
+headline tiles, the topics needing a hand, the ones going well, a bar per topic
+and a four-week practice calendar. Under `MIN_OBSERVATIONS` answers it says so in
+words rather than diagnosing from two data points, and a failed read says "could
+not read" rather than rendering as "never practised".
+
+Whose days these are is the child's question, not the parent's: the server has no
+timezone, so the offset comes from the one the child last answered at, which every
+attempt already stores. A parent reading the report from another timezone still
+sees their child's evenings as evenings.
+
+### Rewards
+
+Stars come every ten questions — 3 for a clean round, 2 for some right, 1 for a
+round with none. The floor is the point: sitting through ten hard questions is the
+behaviour worth rewarding. A **play streak** counts days rather than hours, so
+practice after school one day and before school the next keeps a run that twenty
+hours would have broken. Both ride on the profile menu, and neither is a score —
+nothing a wrong answer does takes anything off either.
+
+Rewards are read by nothing that decides what to ask next. Reinforcement runs off
+the profile alone; wiring stars into it would make the app reward-seeking rather
+than teaching.
+
+### Accounts
+
+Two kinds, chosen once on first sign-in and then permanent: **parent** or
+**child**. A parent doesn't play — `/` redirects them to `/progress` — and gets
+`/children` to add, edit and remove children and to issue login codes.
+
+A **managed child** is an ordinary `User` row with `parentId` set, no email and no
+`Account` row, so sessions, attempts and skills all work on it unchanged. The code
+a parent generates lasts an hour and is spent at redemption, but the session it
+creates does not expire on a schedule: the window protects the handoff from parent
+to child, and once the child is in they stay in.
 
 ## Curriculum source
 
@@ -185,10 +238,11 @@ number, `A` algebra, `M` measurement, `SP` space, `ST` statistics and `P`
 probability. `src/content/catalog.test.ts` checks that no template ships without
 a code.
 
-The app carries this in-product too: **/curriculum**, linked from the home
-screen, states the source and attribution and lists every code the shipped
-content cites, year by year — read from the templates, so the page cannot drift
-from what a child is actually asked.
+The app carries this in-product too: **/curriculum** states the source and
+attribution and lists every code the shipped content cites, year by year — read
+from the templates, so the page cannot drift from what a child is actually asked.
+It is linked from every signed-in screen and from the landing page, which carries
+its own summary of the same content for someone who has not signed in yet.
 
 ### Attribution
 
@@ -214,6 +268,5 @@ material verbatim.
 
 ## Status
 
-Not a stable release. Maths is the only subject. Parent login and controls are a
-future feature — session settings are kept configurable, but nothing is built for
-them yet, and the analytics library has no screen in front of it.
+Not a stable release. Maths is the only subject — the catalog and the subject
+dropdown are both built for a second one, but there isn't one yet.

@@ -3,7 +3,10 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'LearnR',
-  description: 'Practice maths at your own pace.',
+  description:
+    'Maths practice for Kindergarten to Year 6, written against the Australian Curriculum. ' +
+    'Questions are generated rather than stored, and what comes next is chosen from what a ' +
+    'child is finding hard. No timer, no score — and a weekly report for parents.',
 };
 
 export const viewport: Viewport = {
