@@ -180,7 +180,12 @@ simple enough for a child to pick up with no explanation.
   `resolveInitialLevel` falls back when a stored level has lost its content.
 - **The play screen must fit the viewport with no scrolling.** It's `h-[100dvh]`
   with `overflow-hidden`; the answer pad is fixed-height and the question area
-  flexes. Check both orientations after changing that layout.
+  flexes. Check both orientations after changing that layout, and check a phone
+  as well as an iPad — a phone is where it runs out of height first.
+- **Height, not width, is what the play screen is short of.** The pad takes about
+  40% of a phone and 43% of an iPad, and the question is sized in `vh` rather than
+  by breakpoint, stepping down again for a long prompt (`promptSize`). Sizing the
+  question by width alone let a wordy Year 6 prompt push up under the header.
 - **Every answer is given on-screen, never with the iPad keyboard** — it keeps the
   question visible and the targets large and fixed. `answerMode` in
   `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,

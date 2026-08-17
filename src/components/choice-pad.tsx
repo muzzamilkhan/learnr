@@ -27,7 +27,7 @@ interface Props {
 }
 
 const BASE =
-  'flex h-full w-full items-center justify-center rounded-2xl border-2 px-4 text-center text-3xl font-semibold break-words transition active:scale-95 sm:text-4xl';
+  'flex h-full w-full items-center justify-center rounded-xl border-2 px-3 text-center text-2xl font-semibold break-words transition active:scale-95 sm:rounded-2xl sm:px-4 sm:text-4xl';
 
 /** Two options sit side by side; three in a row; four as a 2x2 block. */
 const layoutFor = (count: number) =>
@@ -35,7 +35,9 @@ const layoutFor = (count: number) =>
 
 export function ChoicePad({ options, disabled, chosen, reveal, onChoose }: Props) {
   return (
-    <div className={`mx-auto grid h-full w-full max-w-3xl gap-3 ${layoutFor(options.length)}`}>
+    <div
+      className={`mx-auto grid h-full w-full max-w-3xl gap-2 sm:gap-3 ${layoutFor(options.length)}`}
+    >
       {options.map((option) => {
         const isChosen = chosen === option.value;
         const isAnswer = reveal === option.value;
