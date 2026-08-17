@@ -5,6 +5,7 @@ import { listSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readObservations, readSittings } from '@/lib/records';
+import { requestNow } from './now';
 
 // Per-parent and per-child, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
@@ -54,6 +55,8 @@ export default async function ProgressPage({
     readSittings(child.id, subject),
   ]);
 
+  const now = requestNow();
+
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
       <ProgressReport
@@ -63,7 +66,7 @@ export default async function ProgressPage({
         subject={subject}
         observations={observations}
         sittings={sittings}
-        now={Date.now()}
+        now={now}
       />
     </main>
   );
