@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import { startSession, submitAnswer, elapsedMs, formatDuration } from './session';
+import { startSession, submitAnswer, elapsedMs, formatDuration, type SessionState } from './session';
+import { buildProfile, findSkill, type Observation } from '../analytics/profile';
 import type { QuestionTemplate } from '../templates/types';
 
 const templates: QuestionTemplate[] = [
@@ -113,6 +114,112 @@ describe('submitAnswer', () => {
     const before = structuredClone(session.attempts);
     submitAnswer(session, '1', 2000);
     expect(session.attempts).toEqual(before);
+  });
+});
+
+describe('what it asks next', () => {
+  const topics = ['counting', 'addition', 'shapes', 'even and odd'];
+
+  const wider: QuestionTemplate[] = topics.map((topic) => ({
+    id: `maths.K.${topic}.a`,
+    subject: 'maths',
+    topic,
+    level: 'K',
+    prompt: 'What is {x} + 1?',
+    vars: [{ name: 'x', kind: 'int', min: '1', max: '9' }],
+    answer: 'x + 1',
+  }));
+
+  const wrongAnswers = (topic: string): Observation[] =>
+    Array.from({ length: 5 }, (_, index) => ({
+      topic,
+      level: 'K' as const,
+      correct: false,
+      timeTakenMs: 6000,
+      answeredAt: index * 60_000,
+    }));
+
+  /** Plays `count` questions, getting `wrongTopic` wrong and everything else right. */
+  function play(state: SessionState, count: number, wrongTopic?: string) {
+    const asked: string[] = [state.current.topic];
+    let at = state.startedAt;
+
+    for (let i = 0; i < count; i++) {
+      at += 5000;
+      const answer = String(state.current.answer);
+      const response = state.current.topic === wrongTopic ? `${answer}9` : answer;
+      state = submitAnswer(state, response, at);
+      asked.push(state.current.topic);
+    }
+
+    return { state, asked };
+  }
+
+  const shareOf = (asked: string[], topic: string) =>
+    asked.filter((seen) => seen === topic).length / asked.length;
+
+  it('draws at random until the answers say something', () => {
+    const { asked } = play(startSession({ templates: wider, seed: 'fresh', startedAt: 0 }), 3);
+
+    expect(asked).toHaveLength(4);
+    // Three answers is not a pattern, so nothing has been prioritised yet.
+    expect(shareOf(asked, 'counting')).toBeLessThanOrEqual(0.5);
+  });
+
+  it('leans on the topic the child is finding hard, and still asks the rest', () => {
+    const session = startSession({
+      templates: wider,
+      seed: 'lean',
+      startedAt: 0,
+      profile: buildProfile(wrongAnswers('counting')),
+    });
+
+    const { asked } = play(session, 60, 'counting');
+
+    expect(shareOf(asked, 'counting')).toBeGreaterThan(0.25);
+    expect(shareOf(asked, 'counting')).toBeLessThanOrEqual(0.5);
+    for (const topic of topics) expect(asked).toContain(topic);
+  });
+
+  it('eases off once the child has got the hang of it', () => {
+    // The same sitting twice over, differing only in whether the child gets
+    // counting right — so the change in the mix is the engine's doing.
+    const session = () =>
+      startSession({
+        templates: wider,
+        seed: 'ease',
+        startedAt: 0,
+        profile: buildProfile(wrongAnswers('counting')),
+      });
+
+    const stillStuck = play(session(), 60, 'counting');
+    const gettingIt = play(session(), 60);
+
+    expect(shareOf(gettingIt.asked, 'counting')).toBeLessThan(shareOf(stillStuck.asked, 'counting'));
+    expect(findSkill(gettingIt.state.profile, 'counting', 'K')!.strength).toBeGreaterThan(0.85);
+  });
+
+  it('takes this sitting into account, not just the history it started with', () => {
+    const session = startSession({ templates: wider, seed: 'learn', startedAt: 0 });
+    const topic = session.current.topic;
+
+    const next = submitAnswer(session, 'definitely wrong', 5000);
+    const skill = findSkill(next.profile, topic, 'K')!;
+
+    expect(skill).toMatchObject({ attempts: 1, correct: 0, streak: 0 });
+    expect(session.profile.skills).toEqual([]);
+  });
+
+  it('does not open a session on the topic the last one closed on', () => {
+    const opened = startSession({
+      templates: wider,
+      seed: 'carry',
+      startedAt: 0,
+      profile: buildProfile(wrongAnswers('counting')),
+      recentTopics: ['counting'],
+    });
+
+    expect(opened.current.topic).not.toBe('counting');
   });
 });
 

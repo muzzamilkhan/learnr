@@ -1,4 +1,6 @@
+import { applyObservation, emptyProfile, type LearnerProfile } from '../analytics/profile';
 import type { YearLevel } from '../curriculum';
+import { RECENT_MEMORY, selectTemplate, type SelectionContext } from '../reinforcement/select';
 import { createRng, type Rng } from '../rng';
 import { generateQuestion } from '../templates/generate';
 import type { Question, QuestionTemplate } from '../templates/types';
@@ -6,8 +8,14 @@ import { gradeAnswer } from './grade';
 
 /**
  * A session has no end. Once a subject + level has templates, it draws from them
- * at random for as long as the child keeps going. All state transitions are pure:
- * the caller supplies the clock, so the engine stays testable.
+ * for as long as the child keeps going. All state transitions are pure: the
+ * caller supplies the clock, so the engine stays testable.
+ *
+ * Which template is drawn is the reinforcement selector's call, from the profile
+ * the session carries — random until that profile says something, then weighted
+ * towards what needs work. The profile is updated as the child answers, so a
+ * topic that falls apart in the first ten questions is being mixed in more
+ * heavily by the twentieth, without waiting for the next sitting.
  */
 
 export interface Attempt {
@@ -37,6 +45,10 @@ export interface SessionState {
   draw: number;
   seed: string;
   templates: readonly QuestionTemplate[];
+  /** What the child has shown so far, this sitting and every one before it. */
+  profile: LearnerProfile;
+  /** Topics of the last few questions, newest first — what stops one topic clumping. */
+  recentTopics: readonly string[];
 }
 
 export interface SessionConfig {
@@ -45,13 +57,29 @@ export interface SessionConfig {
   startedAt: number;
   subject?: string;
   level?: YearLevel;
+  /**
+   * History to start from. Left out — signed out, or a child's first sitting —
+   * the session simply draws at random, which is what an empty profile means.
+   */
+  profile?: LearnerProfile;
+  /** Topics from the end of the last sitting, so a session does not open on the one it closed on. */
+  recentTopics?: readonly string[];
 }
 
-/** Each draw gets its own RNG seeded from (seed, draw index) so state stays serialisable. */
-function drawQuestion(templates: readonly QuestionTemplate[], seed: string, draw: number): Question {
+/**
+ * Each draw gets its own RNG seeded from (seed, draw index) so state stays
+ * serialisable. The seed alone no longer fixes the sequence — a replay needs the
+ * profile the session started from as well, which is the price of questions that
+ * respond to the child.
+ */
+function drawQuestion(
+  templates: readonly QuestionTemplate[],
+  seed: string,
+  draw: number,
+  context: SelectionContext,
+): Question {
   const rng: Rng = createRng(`${seed}:${draw}`);
-  const template = rng.pick(templates);
-  return generateQuestion(template, rng);
+  return generateQuestion(selectTemplate(templates, context, rng), rng);
 }
 
 export function startSession(config: SessionConfig): SessionState {
@@ -59,7 +87,14 @@ export function startSession(config: SessionConfig): SessionState {
     throw new Error('Cannot start a session with no question templates');
   }
 
-  const first = drawQuestion(config.templates, config.seed, 0);
+  const profile = config.profile ?? emptyProfile();
+  const recentTopics = (config.recentTopics ?? []).slice(0, RECENT_MEMORY);
+
+  const first = drawQuestion(config.templates, config.seed, 0, {
+    profile,
+    now: config.startedAt,
+    recent: recentTopics,
+  });
 
   return {
     subject: config.subject ?? first.subject,
@@ -72,6 +107,8 @@ export function startSession(config: SessionConfig): SessionState {
     draw: 0,
     seed: config.seed,
     templates: config.templates,
+    profile,
+    recentTopics,
   };
 }
 
@@ -92,14 +129,20 @@ export function submitAnswer(state: SessionState, response: string, now: number)
   };
 
   const draw = state.draw + 1;
+  // The answer counts towards what comes next: an Attempt is already everything
+  // an observation is.
+  const profile = applyObservation(state.profile, attempt);
+  const recentTopics = [attempt.topic, ...state.recentTopics].slice(0, RECENT_MEMORY);
 
   return {
     ...state,
-    current: drawQuestion(state.templates, state.seed, draw),
+    current: drawQuestion(state.templates, state.seed, draw, { profile, now, recent: recentTopics }),
     draw,
     questionShownAt: now,
     attempts: [...state.attempts, attempt],
     askedCount: state.askedCount + 1,
+    profile,
+    recentTopics,
   };
 }
 

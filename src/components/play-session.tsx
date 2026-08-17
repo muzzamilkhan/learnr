@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
+import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
@@ -33,6 +34,13 @@ interface Props {
   /** Supplied by the server so the first question renders before hydration. */
   seed: string;
   startedAt: number;
+  /**
+   * What the child has shown before. It steers which templates come up, and is
+   * carried forward as they answer — so it must match on the server and the
+   * client, like the seed.
+   */
+  profile: LearnerProfile;
+  recentTopics: string[];
   recordingEnabled: boolean;
 }
 
@@ -42,10 +50,12 @@ export function PlaySession({
   templates,
   seed,
   startedAt,
+  profile,
+  recentTopics,
   recordingEnabled,
 }: Props) {
   const [session, setSession] = useState<SessionState>(() =>
-    startSession({ templates, seed, startedAt, subject, level }),
+    startSession({ templates, seed, startedAt, subject, level, profile, recentTopics }),
   );
   const [entry, setEntry] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(null);

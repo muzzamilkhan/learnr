@@ -1,9 +1,11 @@
 // Learnr data model.
 //
 // Two halves: the Auth.js tables (User/Account/Session), and the learning record
-// (LearningSession/Attempt). Attempts are recorded only for now — no scoring or
-// adaptive selection yet — but they carry everything the future reinforcement
-// pass needs: topic, level, time taken and correctness.
+// (LearningSession/Attempt/TopicSkill). Attempts are the history — every answer,
+// as given. TopicSkill is that history folded forward into what the child can do
+// now: the reinforcement selector reads it to decide what to ask next, and the
+// parents' report is written from it. It is a cache of the attempts, never a
+// second truth — `buildProfile` over the Attempt rows reproduces it exactly.
 
 generator client {
   provider = "prisma-client"
@@ -27,6 +29,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   learningSessions LearningSession[]
+  topicSkills      TopicSkill[]
 }
 
 model Account {
@@ -87,7 +90,37 @@ model LearningSession {
   @@index([userId, startedAt])
 }
 
-/// One answered question. Recorded, not yet acted on.
+/// What a child can do on one topic at one year level, folded forward from their
+/// attempts one answer at a time. Read at the start of a session to weight the
+/// questions, and by the parents' report.
+model TopicSkill {
+  id      String @id @default(cuid())
+  userId  String
+  subject String
+  /// What the questions practise, e.g. "counting numbers".
+  topic   String
+  /// Australian school year: "K" or "1" through "6".
+  level   String
+
+  attempts Int @default(0)
+  correct  Int @default(0)
+  /// Recency-weighted accuracy in [0, 1] — what the child can do now, not on average.
+  strength Float @default(0)
+  /// Correct answers in a row. A run, not a single right answer, is what mastery looks like.
+  streak   Int @default(0)
+
+  totalTimeMs    Int      @default(0)
+  lastAnsweredAt DateTime
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One row per child, subject, topic and year — and the lookup the session start does.
+  @@unique([userId, subject, topic, level])
+}
+
+/// One answered question, as it was answered. The history everything else is
+/// derived from, and the only row a replay or a rebuild needs.
 model Attempt {
   id                String   @id @default(cuid())
   learningSessionId String

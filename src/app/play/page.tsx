@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
 import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
+import { emptyProfile } from '@/lib/analytics/profile';
+import { readLearnerProfile, readRecentTopics } from '@/lib/records';
+import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
 
@@ -34,10 +37,22 @@ export default async function PlayPage({
   }
 
   const session = isAuthConfigured ? await auth() : null;
+  const userId = session?.user?.id;
+
+  // What the child has shown before, so the first question of this sitting is
+  // already weighted by it. Signed out there is no history, and an empty profile
+  // is exactly what draws questions at random.
+  const [profile, recentTopics] = userId
+    ? await Promise.all([
+        readLearnerProfile(userId, subject),
+        readRecentTopics(userId, subject, level, RECENT_MEMORY),
+      ])
+    : [emptyProfile(), []];
 
   // Seeded here rather than in the client so the first question is server
-  // rendered and the child never sees an empty screen. The seed is deterministic
-  // input to the engine, so server and client render the same question.
+  // rendered and the child never sees an empty screen. The seed and the profile
+  // are deterministic input to the engine, so server and client render the same
+  // question.
   const { seed, startedAt } = newSession();
 
   return (
@@ -47,7 +62,9 @@ export default async function PlayPage({
       templates={templates}
       seed={seed}
       startedAt={startedAt}
-      recordingEnabled={Boolean(session?.user?.id)}
+      profile={profile}
+      recentTopics={recentTopics}
+      recordingEnabled={Boolean(userId)}
     />
   );
 }

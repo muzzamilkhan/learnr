@@ -45,8 +45,13 @@ npm run test:watch  # vitest, watch
 npm run typecheck   # tsc --noEmit
 npm run build       # production build
 npm run db:migrate  # prisma migrate dev
+npm run db:deploy   # prisma migrate deploy, skipped without a database
 npm run db:studio   # browse the data
 ```
+
+`npm run build` applies pending migrations first, so a deploy carries its own
+schema changes. Without a database configured that step does nothing and
+succeeds.
 
 ## How it works
 
@@ -62,6 +67,8 @@ its seed.
 src/lib/expr/        safe expression language (tokenize -> parse -> evaluate)
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine, grading, answer input rules
+src/lib/analytics/   the learner profile, and the report written from it
+src/lib/reinforcement/ which question to ask next
 src/lib/curriculum.ts school years, labels and ordering
 src/content/         the shipped course content and catalog lookups
 src/components/      UI
@@ -125,9 +132,39 @@ the question visible and the targets large and fixed.
 | `choice` | 2–4 buttons | one tap answers; anything the others cannot express |
 
 Every answer is recorded as an `Attempt` — which template, how long it took, and
-the response as typed. Nothing reads those rows yet; they exist so a later pass
-can prioritise a child's weak areas. Recording is best-effort and never blocks
-play.
+the response as typed — and folded into the child's skill for that topic.
+Recording is best-effort and never blocks play.
+
+### Which question comes next
+
+Questions used to be drawn at random. They still are, until the answers say
+something: once a topic has been answered enough times to judge, the selector
+weights the pool towards what the child is finding hard.
+
+The model is one `LearnerProfile` — per topic and year: how many answers, how many
+right, a recency-weighted `strength`, the current run, and when it was last seen.
+It is folded forward one answer at a time, so it updates *during* a session as
+well as between them, and the same arithmetic backs the stored row and the played
+one.
+
+Three rules keep a lean from becoming a drill:
+
+- **A weak topic is held to a share of the session** — roughly a fifth to a bit
+  under half. Enough to improve; not so much that a child who is stuck on counting
+  spends an afternoon counting.
+- **A topic just asked is cooled down**, so the extra practice is spread through
+  the session rather than clumped into a run.
+- **Nothing is ever ruled out.** Mastered topics still come up — a child should
+  spend some of their time getting things right.
+
+Once a topic is secure it goes quiet, then comes back: a couple of days later for
+something just learned, up to a month for something known several times over. The
+gap is the point — recall that has had time to fade is the recall worth
+practising.
+
+`src/lib/analytics` reads the same history from the other end: which topics need
+help, which way each is trending, and practice over time. It is a library only for
+now; the screen that shows a parent any of it is still to be designed.
 
 ## Curriculum source
 
@@ -179,4 +216,4 @@ material verbatim.
 
 Not a stable release. Maths is the only subject. Parent login and controls are a
 future feature — session settings are kept configurable, but nothing is built for
-them yet.
+them yet, and the analytics library has no screen in front of it.
