@@ -29,20 +29,20 @@ export interface TopicBar {
  */
 const HEIGHT = 260;
 
-/** Two lines at most, broken on a word. Longer than this and iPad labels collide. */
+/** Two lines at most, and two budgets: a line that would still run past the bar is elided. */
 function wrap(text: string, max = 12): string[] {
-  const words = text.split(' ');
-  const lines: string[] = [''];
+  const lines: string[] = [];
 
-  for (const word of words) {
+  for (const word of text.split(' ')) {
     const line = lines.length - 1;
-    if (lines[line] === '') lines[line] = word;
-    else if (lines[line].length + word.length + 1 <= max) lines[line] += ` ${word}`;
+    if (line >= 0 && lines[line].length + word.length + 1 <= max) lines[line] += ` ${word}`;
     else if (lines.length < 2) lines.push(word);
     else lines[line] += ` ${word}`;
   }
 
-  return lines;
+  // The line count was never the whole budget — width is the half that actually
+  // makes labels collide, so anything still over it is elided rather than drawn.
+  return lines.map((line) => (line.length <= max ? line : `${line.slice(0, max - 1).trimEnd()}…`));
 }
 
 function TopicTick({ x = 0, y = 0, payload }: { x?: number; y?: number; payload?: { value?: string } }) {
