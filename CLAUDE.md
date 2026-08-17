@@ -12,8 +12,14 @@ npm run test:watch  # vitest, watch
 npm run typecheck   # tsc --noEmit
 npm run build       # production build
 npm run db:migrate  # prisma migrate dev
+npm run db:deploy   # prisma migrate deploy, skipped without a database
 npm run db:studio   # browse the data
 ```
+
+`npm run build` runs `db:deploy` first, so a deploy applies its own migrations.
+Without `DATABASE_URL` (or with the placeholder from `.env.example`) that step
+prints a line and succeeds — a build must not be the one thing insisting on
+Postgres when the app itself plays fine without it.
 
 Run `npm test` and `npm run typecheck` before pushing.
 
@@ -27,6 +33,8 @@ the rule that keeps the app testable; don't break it for convenience.
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
+src/lib/analytics/   the learner profile, and the report written from it
+src/lib/reinforcement/ which question to ask next
 src/lib/curriculum.ts school years, labels and ordering
 src/lib/rng.ts       seeded PRNG
 src/content/         the shipped course content + catalog lookups
@@ -155,17 +163,65 @@ usual shape.
 ## Sessions
 
 A session never ends. The child picks subject + year and answers until they stop;
-templates are drawn at random from the pool for that year, across all of its
-topics. The header shows a count-up timer only — no limits or targets yet.
+templates are drawn from the pool for that year, across all of its topics, with
+the reinforcement selector deciding which. The header shows a count-up timer only
+— no limits or targets yet.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
-correct/incorrect, the response as typed). **Nothing reads these rows yet.** They
-exist so a later pass can prioritise weak areas. Don't build scoring or adaptive
-question selection on them until that's the actual task.
+correct/incorrect, the response as typed) and folded into that child's
+`TopicSkill` for the topic. Attempts are the history; the skill row is that
+history rolled forward, and a cache of it — never a second truth.
 
 Recording is best-effort and must never block or interrupt play: writes go through
 server actions that swallow failures. `learningSessionId` round-trips through the
 client, so every write verifies the session belongs to the signed-in user first.
+
+## Reinforcement and analytics
+
+Two libraries over one model. `src/lib/analytics/profile.ts` folds attempts into a
+`LearnerProfile` — per topic and level: attempts, correct, a recency-weighted
+`strength`, the current `streak` and when it was last answered.
+`src/lib/reinforcement/select.ts` reads that profile to pick the next template;
+`src/lib/analytics/report.ts` reads the same history to say where a child needs
+help. Neither owns the other, and both are pure — `now` and the RNG are passed in.
+
+The profile is built by folding, one answer at a time (`nextSkill`), so the same
+arithmetic serves the stored `TopicSkill` row and the in-session profile that
+updates as the child plays. That is why a topic falling apart in the first ten
+questions is being mixed in more heavily by the twentieth.
+
+**Status is what everything keys off** (`skillStatus`), and it refuses to guess:
+under `MIN_OBSERVATIONS` answers a topic is `new`, never a weakness. Then
+`struggling` (strength under 0.6), `developing`, `secure` (strength 0.85+ with a
+run behind it) and `review-due` — secure, but left alone long enough to be worth
+confirming. The review gap grows with the run: a couple of days for something just
+learned, a month for something known five times over. Coming back *after* it has
+started to fade is the point.
+
+Selection rules, in order — all three matter, and none of them ever rules a
+template out entirely:
+
+- **No pattern, no steering.** Until one topic has `MIN_OBSERVATIONS` answers the
+  weights are flat and questions are drawn at random, exactly as before.
+- **Weight by status**, so hard topics come up more and mastered ones get out of
+  the way without disappearing — a child should still get things right.
+- **Hold weak topics to a share of the session** (`MIN_FOCUS_SHARE` to
+  `MAX_FOCUS_SHARE`). Prioritised, not swarmed: a fifth of the questions is enough
+  to improve, and past a bit under half it stops being practice and starts being
+  picked on. The floor is skipped when the only topic needing work is the one just
+  asked.
+- **Cool down what was just asked**, so the mix is spread through the session
+  rather than clumped.
+
+`weightTemplates` is exported because it *is* the policy — read it in a test, or
+to explain a choice later. Tests assert shares over a few hundred seeded draws
+rather than exact sequences; the RNG is deterministic, so they don't flake.
+
+The analytics side is a library only: `topicReports`, `problemTopics`,
+`dueForReview`, `progressOverTime` and `summarise`. **There is no parent-facing
+screen yet** — that is a separate piece of design work, and these functions exist
+to be consumed by it when it happens. Buckets take a UTC offset from the caller so
+a Sydney evening's practice doesn't land on the next day.
 
 ## UI
 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:deploy && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "node scripts/migrate.mjs",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
