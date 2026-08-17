@@ -52,9 +52,9 @@ export function ProgressUsage({
     }));
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-8">
       <div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Tile
             label="Time on questions"
             value={`${figures.minutes} min`}
@@ -71,16 +71,16 @@ export function ProgressUsage({
         </div>
         {/* Without this a parent reads 76% as a C. The selector mixes hard topics
             in deliberately, so a healthy child sits in the seventies. */}
-        <p className="mt-3 text-base text-(--color-ink-soft)">
+        <p className="mt-2 text-sm text-(--color-ink-soft)">
           Over the last 7 days, against the 7 before. Questions are picked to stretch — around
           three in four right means it&rsquo;s working.
         </p>
       </div>
 
       <div>
-        <div className="mb-3 flex items-baseline justify-between gap-4">
-          <h2 className="text-2xl font-semibold">Practice</h2>
-          <p className="text-lg text-(--color-ink-soft)">
+        <div className="mb-2 flex items-baseline justify-between gap-4">
+          <h2 className="text-lg font-semibold">Practice</h2>
+          <p className="text-sm text-(--color-ink-soft)">
             {practisedDays(buckets)} of the last {CALENDAR_DAYS} days
           </p>
         </div>
@@ -89,8 +89,8 @@ export function ProgressUsage({
 
       {bars.length > 0 ? (
         <div>
-          <h2 className="mb-1 text-2xl font-semibold">Topics</h2>
-          <p className="mb-3 text-base text-(--color-ink-soft)">
+          <h2 className="mb-0.5 text-lg font-semibold">Topics</h2>
+          <p className="mb-2 text-sm text-(--color-ink-soft)">
             How many questions each topic has had, and how many were right.
           </p>
           <TopicBars data={bars} />
@@ -112,10 +112,10 @@ function Tile({
   unit?: string;
 }) {
   return (
-    <div className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-6">
-      <p className="text-lg text-(--color-ink-soft)">{label}</p>
-      <p className="mt-1 text-4xl font-bold tabular-nums">{value}</p>
-      <p className="mt-1 text-base text-(--color-ink-soft)">
+    <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-4">
+      <p className="text-sm text-(--color-ink-soft)">{label}</p>
+      <p className="mt-0.5 text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-0.5 text-xs text-(--color-ink-soft)">
         {delta === null || delta === 0 ? (
           delta === 0 ? 'Same as last week' : 'No comparison yet'
         ) : (

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes } from '@/lib/analytics/report';
-import { parseYearLevel } from '@/lib/curriculum';
+import { parseYearLevel, yearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import { AvatarIcon } from './avatar-icon';
 import { ChildPicker } from './child-picker';
@@ -21,6 +21,9 @@ interface ProgressChild {
  * is nothing to report. A failed read and a child who has never played are
  * different things and must not look the same — one is our problem, the other
  * is just true.
+ *
+ * The page title and nav come from `ParentShell`; what belongs here is the one
+ * toolbar that says which child and which subject is being read.
  */
 export function ProgressReport({
   child,
@@ -44,53 +47,52 @@ export function ProgressReport({
 
   return (
     <>
-      <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-(--color-brand-soft) text-(--color-brand)">
-            <AvatarIcon avatar={child.avatar} className="h-10 w-10" />
-          </span>
-          <h1 className="text-4xl font-bold tracking-tight">{child.name}&rsquo;s progress</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <ChildPicker profiles={profiles} selected={child.id} subject={subject} />
-          <Link href="/" className="text-lg text-(--color-brand) underline">
-            Dashboard
-          </Link>
-        </div>
-      </header>
+      <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-(--color-line) bg-(--color-card) px-4 py-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--color-brand-soft) text-(--color-brand)">
+          <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
+        </span>
+        <p className="text-sm text-(--color-ink-soft)">
+          {level ? yearLabel(level) : 'No level set'}
+        </p>
 
-      {/* One subject reads as a heading; a second one turns the row into tabs. */}
-      {subjects.length > 1 ? (
-        <nav className="mb-8 flex gap-2">
-          {subjects.map((option) => (
-            <Link
-              key={option}
-              href={`/progress?child=${child.id}&subject=${option}`}
-              className={`no-select rounded-2xl px-5 py-3 text-xl font-semibold capitalize transition ${
-                option === subject
-                  ? 'bg-(--color-brand) text-white'
-                  : 'border-2 border-(--color-line) hover:border-(--color-brand)'
-              }`}
-            >
-              {option}
-            </Link>
-          ))}
-        </nav>
-      ) : (
-        <p className="mb-8 text-2xl font-semibold capitalize text-(--color-ink-soft)">{subject}</p>
-      )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <ChildPicker profiles={profiles} selected={child.id} subject={subject} />
+          {/* One subject needs no choosing; a second one turns this into tabs. */}
+          {subjects.length > 1 ? (
+            <nav className="flex gap-1">
+              {subjects.map((option) => (
+                <Link
+                  key={option}
+                  href={`/progress?child=${child.id}&subject=${option}`}
+                  className={`no-select rounded-lg px-3 py-1.5 text-sm font-semibold capitalize transition ${
+                    option === subject
+                      ? 'bg-(--color-brand) text-white'
+                      : 'border border-(--color-line) hover:border-(--color-brand)'
+                  }`}
+                >
+                  {option}
+                </Link>
+              ))}
+            </nav>
+          ) : (
+            <span className="text-sm font-semibold capitalize text-(--color-ink-soft)">
+              {subject}
+            </span>
+          )}
+        </div>
+      </div>
 
       {observations === null || sittings === null ? (
-        <p className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-6 text-xl text-(--color-ink-soft)">
+        <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
           Couldn&rsquo;t load progress just now. Try again in a moment.
         </p>
       ) : observations.length === 0 ? (
-        <p className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-6 text-xl text-(--color-ink-soft)">
+        <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
           {child.name} hasn&rsquo;t answered any {subject} questions yet. Once they have, this is
           where you&rsquo;ll see how it&rsquo;s going.
         </p>
       ) : (
-        <div className="space-y-12">
+        <div className="space-y-8">
           <ProgressUsage observations={observations} now={now} offsetMinutes={offsetMinutes} />
           <ProgressTopics
             observations={observations}

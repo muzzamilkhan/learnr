@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
+import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
 import { AvatarIcon } from '@/components/avatar-icon';
 import {
   createChildAction,
@@ -23,10 +24,16 @@ export interface ChildRow {
   codeExpiresAt: string | null;
 }
 
+/** Shared by every small button on the parent screens — a mouse target, not a thumb one. */
+const BUTTON =
+  'no-select rounded-lg border border-(--color-line) px-3 py-1.5 text-sm font-semibold transition hover:border-(--color-brand) disabled:opacity-50';
+const PRIMARY =
+  'no-select rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-50';
+
 /**
- * What a parent sees instead of the play screen. A parent doesn't practise — they
- * set up a profile per child and hand out codes — so there is no level picker and
- * no subject card here at all.
+ * Managing the child profiles: add, edit, remove, and hand out a login code.
+ * This is the parent's second screen — their first is the report, because that
+ * is what they open the app to look at once the profiles exist.
  *
  * A child's level is set here and nowhere else. That is the point of the managed
  * profile: the year is a decision the parent has made, so the child's own screen
@@ -45,8 +52,8 @@ export function ParentDashboard({
   const router = useRouter();
 
   return (
-    <section className="space-y-4">
-      <ul className="space-y-4">
+    <section className="space-y-3">
+      <ul className="space-y-3">
         {profiles.map((child) =>
           editing === child.id ? (
             <li key={child.id}>
@@ -82,14 +89,14 @@ export function ParentDashboard({
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="no-select w-full rounded-3xl border-2 border-dashed border-(--color-line) px-7 py-6 text-2xl font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) hover:text-(--color-brand)"
+          className="no-select w-full rounded-xl border border-dashed border-(--color-line) px-4 py-3 text-sm font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) hover:text-(--color-brand)"
         >
           + Add child
         </button>
       )}
 
       {profiles.length === 0 && editing !== 'new' ? (
-        <p className="text-lg text-(--color-ink-soft)">
+        <p className="text-sm text-(--color-ink-soft)">
           Add a profile for each child. You&rsquo;ll pick their level, and they sign in with a
           code rather than an account of their own.
         </p>
@@ -98,22 +105,27 @@ export function ParentDashboard({
   );
 }
 
-/** How long a freshly issued code has left, rounded down — a parent needs the gist. */
-function minutesLeft(expiresAt: string): number {
-  return Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 60000));
-}
-
 function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
-  const [code, setCode] = useState<string | null>(
-    child.code && child.codeExpiresAt && minutesLeft(child.codeExpiresAt) > 0 ? child.code : null,
+  // Read once, at mount: a code's hour does not turn over while a parent looks
+  // at the row, and reading the clock during render is not something a component
+  // gets to do.
+  const [code, setCode] = useState<{ value: string; expiresAt: number } | null>(() =>
+    child.code && child.codeExpiresAt && isCodeLive(child.code, new Date(child.codeExpiresAt), new Date())
+      ? { value: child.code, expiresAt: new Date(child.codeExpiresAt).getTime() }
+      : null,
   );
+  const [shown, setShown] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  const getCode = () => {
+  const issue = () => {
     startTransition(async () => {
       const issued = await issueLoginCodeAction(child.id);
-      if (issued) setCode(issued);
+      if (!issued) return;
+      // A fresh code always starts its hour now, so the row does not need the
+      // server to tell it when this one runs out.
+      setCode({ value: issued, expiresAt: Date.now() + CODE_TTL_MS });
+      setShown(true);
     });
   };
 
@@ -125,60 +137,99 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
   };
 
   return (
-    <div className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-6">
-      <div className="flex flex-wrap items-center gap-5">
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-(--color-brand-soft) text-(--color-brand)">
-          <AvatarIcon avatar={child.avatar} className="h-11 w-11" />
+    <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-(--color-brand-soft) text-(--color-brand)">
+          <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-3xl font-semibold">{child.name}</p>
-          <p className="text-lg text-(--color-ink-soft)">
+          <p className="truncate text-base font-semibold">{child.name}</p>
+          <p className="text-sm text-(--color-ink-soft)">
             {child.level ? yearLabel(child.level as YearLevel) : 'No level set'}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Link
-            href={`/progress?child=${child.id}`}
-            className="no-select rounded-2xl border-2 border-(--color-line) px-5 py-3 text-xl font-semibold transition hover:border-(--color-brand)"
-          >
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/progress?child=${child.id}`} className={BUTTON}>
             Progress
           </Link>
-          <button
-            type="button"
-            onClick={getCode}
-            disabled={pending}
-            className="no-select rounded-2xl bg-(--color-brand) px-5 py-3 text-xl font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
-          >
-            Get code
-          </button>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="no-select rounded-2xl border-2 border-(--color-line) px-5 py-3 text-xl font-semibold transition hover:border-(--color-brand)"
-          >
+          {/* Three states, one button. Revealing a live code must not issue a new
+              one — the child may be halfway through typing the old one. */}
+          {!code ? (
+            <button type="button" onClick={issue} disabled={pending} className={PRIMARY}>
+              Get code
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShown((was) => !was)}
+              className={shown ? BUTTON : PRIMARY}
+            >
+              {shown ? 'Hide code' : 'Show code'}
+            </button>
+          )}
+          <button type="button" onClick={onEdit} className={BUTTON}>
             Edit
           </button>
           <button
             type="button"
             onClick={remove}
             disabled={pending}
-            className="no-select rounded-2xl border-2 border-(--color-line) px-5 py-3 text-xl font-semibold text-(--color-wrong) transition hover:border-(--color-wrong) disabled:opacity-50"
+            className={`${BUTTON} text-(--color-wrong) hover:border-(--color-wrong)`}
           >
             Remove
           </button>
         </div>
       </div>
 
-      {code ? (
-        <p className="mt-5 rounded-2xl bg-(--color-brand-soft) px-5 py-4 text-center">
-          <span className="block text-5xl font-bold tracking-[0.4em] text-(--color-brand)">
-            {code}
-          </span>
-          <span className="mt-2 block text-base text-(--color-ink-soft)">
-            Good for an hour, and once only. Getting another code stops this one working.
-          </span>
-        </p>
+      {code && shown ? (
+        <CodePanel code={code} onRenew={issue} pending={pending} />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The code itself, big enough to read out across a room even though everything
+ * else on this screen is sized for a grown-up — it is the one thing here that
+ * gets copied by eye onto another device.
+ */
+function CodePanel({
+  code,
+  onRenew,
+  pending,
+}: {
+  code: { value: string; expiresAt: number };
+  onRenew: () => void;
+  pending: boolean;
+}) {
+  const [left, setLeft] = useState<number | null>(null);
+
+  // The clock belongs in an effect, not in render, and a code that ticks down
+  // while a parent reads it should say so.
+  useEffect(() => {
+    const tick = () => setLeft(minutesLeft(new Date(code.expiresAt), new Date()));
+    tick();
+    const timer = setInterval(tick, 30_000);
+    return () => clearInterval(timer);
+  }, [code.expiresAt]);
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-(--color-brand-soft) px-4 py-3">
+      <div>
+        <span className="block text-3xl font-bold tracking-[0.3em] text-(--color-brand)">
+          {code.value}
+        </span>
+        <span className="mt-1 block text-xs text-(--color-ink-soft)">
+          {left === null
+            ? 'Good once only.'
+            : left > 0
+              ? `${left} min left, and good once only.`
+              : 'This one has run out — get a new code.'}
+        </span>
+      </div>
+      <button type="button" onClick={onRenew} disabled={pending} className={BUTTON}>
+        New code
+      </button>
     </div>
   );
 }
@@ -214,11 +265,11 @@ function ChildForm({
   return (
     <form
       onSubmit={submit}
-      className="space-y-6 rounded-3xl border-2 border-(--color-brand) bg-(--color-card) p-6"
+      className="space-y-4 rounded-xl border border-(--color-brand) bg-(--color-card) p-4"
     >
-      <div className="flex flex-wrap items-end gap-5">
+      <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-48 flex-1">
-          <label htmlFor="child-name" className="mb-2 block text-xl font-semibold">
+          <label htmlFor="child-name" className="mb-1 block text-sm font-semibold">
             Name
           </label>
           <input
@@ -227,18 +278,18 @@ function ChildForm({
             onChange={(event) => setName(event.target.value)}
             maxLength={40}
             autoFocus
-            className="w-full rounded-2xl border-2 border-(--color-line) px-5 py-3 text-2xl"
+            className="w-full rounded-lg border border-(--color-line) px-3 py-1.5 text-base"
           />
         </div>
         <div>
-          <label htmlFor="child-level" className="mb-2 block text-xl font-semibold">
+          <label htmlFor="child-level" className="mb-1 block text-sm font-semibold">
             Level
           </label>
           <select
             id="child-level"
             value={level}
             onChange={(event) => setLevel(event.target.value)}
-            className="no-select rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-5 py-3 text-2xl font-medium"
+            className="no-select rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-1.5 text-base font-medium"
           >
             {levels.map((option) => (
               <option key={option} value={option}>
@@ -250,8 +301,8 @@ function ChildForm({
       </div>
 
       <fieldset>
-        <legend className="mb-3 text-xl font-semibold">Picture</legend>
-        <div className="flex flex-wrap gap-3">
+        <legend className="mb-2 text-sm font-semibold">Picture</legend>
+        <div className="flex flex-wrap gap-2">
           {AVATARS.map((option) => (
             <button
               key={option}
@@ -259,31 +310,23 @@ function ChildForm({
               onClick={() => setAvatar(option)}
               aria-label={option}
               aria-pressed={avatar === option}
-              className={`no-select flex h-16 w-16 items-center justify-center rounded-2xl border-2 transition ${
+              className={`no-select flex h-10 w-10 items-center justify-center rounded-lg border transition ${
                 avatar === option
                   ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
                   : 'border-(--color-line) text-(--color-ink-soft) hover:border-(--color-brand)'
               }`}
             >
-              <AvatarIcon avatar={option} className="h-10 w-10" />
+              <AvatarIcon avatar={option} className="h-6 w-6" />
             </button>
           ))}
         </div>
       </fieldset>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={pending || !name.trim()}
-          className="no-select rounded-2xl bg-(--color-brand) px-6 py-3 text-xl font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
-        >
+      <div className="flex gap-2">
+        <button type="submit" disabled={pending || !name.trim()} className={PRIMARY}>
           {initial ? 'Save' : 'Add child'}
         </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="no-select rounded-2xl border-2 border-(--color-line) px-6 py-3 text-xl font-semibold transition hover:border-(--color-brand)"
-        >
+        <button type="button" onClick={onCancel} className={BUTTON}>
           Cancel
         </button>
       </div>

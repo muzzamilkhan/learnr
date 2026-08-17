@@ -72,27 +72,27 @@ export function ProgressTopics({
   const breadth = level ? coverage(reports, topicsForLevel(subject, level), level) : null;
 
   return (
-    <section className="space-y-10">
+    <section className="space-y-8">
       <div>
-        <h2 className="mb-3 text-2xl font-semibold">Needs a hand</h2>
+        <h2 className="mb-2 text-lg font-semibold">Needs a hand</h2>
         {!judged ? (
           <Unproven />
         ) : problems.length === 0 ? (
-          <p className="text-lg text-(--color-ink-soft)">
+          <p className="text-sm text-(--color-ink-soft)">
             Nothing is going badly at the moment.
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-2">
             {problems.map((report) => (
               <li
                 key={`${report.level}|${report.topic}`}
-                className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5"
+                className="rounded-xl border border-(--color-line) bg-(--color-card) p-3"
               >
                 <TopicLine report={report} now={now} offsetMinutes={offsetMinutes} />
                 {(() => {
                   const example = exampleQuestion(subject, report.topic, report.level);
                   return example ? (
-                    <p className="mt-3 rounded-2xl bg-(--color-brand-soft) px-4 py-3 text-lg">
+                    <p className="mt-2 rounded-lg bg-(--color-brand-soft) px-3 py-2 text-sm">
                       Try together: {example}
                     </p>
                   ) : null;
@@ -104,17 +104,17 @@ export function ProgressTopics({
       </div>
 
       <div>
-        <h2 className="mb-3 text-2xl font-semibold">Doing well</h2>
+        <h2 className="mb-2 text-lg font-semibold">Doing well</h2>
         {!judged ? (
           <Unproven />
         ) : doingWell.length === 0 ? (
-          <p className="text-lg text-(--color-ink-soft)">
+          <p className="text-sm text-(--color-ink-soft)">
             Nothing has been known on enough separate days to call it learned yet.
           </p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {doingWell.map((report) => (
-              <li key={`${report.level}|${report.topic}`} className="text-lg">
+              <li key={`${report.level}|${report.topic}`} className="text-sm">
                 <span className="font-semibold capitalize">{report.topic}</span>
                 <span className="text-(--color-ink-soft)">
                   {' '}
@@ -129,14 +129,14 @@ export function ProgressTopics({
 
       {due.length > 0 ? (
         <div>
-          <h2 className="mb-1 text-2xl font-semibold">Coming up for review</h2>
-          <p className="mb-3 text-base text-(--color-ink-soft)">
+          <h2 className="mb-0.5 text-lg font-semibold">Coming up for review</h2>
+          <p className="mb-2 text-sm text-(--color-ink-soft)">
             Known, and left alone long enough to be worth confirming. Learnr will bring these
             back on its own.
           </p>
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {due.map((report) => (
-              <li key={`${report.level}|${report.topic}`} className="text-lg">
+              <li key={`${report.level}|${report.topic}`} className="text-sm">
                 <span className="font-semibold capitalize">{report.topic}</span>
                 <span className="text-(--color-ink-soft)"> · {yearLabel(report.level)}</span>
               </li>
@@ -147,25 +147,25 @@ export function ProgressTopics({
 
       {breadth && level && breadth.offered > 0 ? (
         <div>
-          <h2 className="mb-1 text-2xl font-semibold">
+          <h2 className="mb-0.5 text-lg font-semibold">
             {yearLabel(level)} · {breadth.practised} of {breadth.offered} topics practised
           </h2>
           {breadth.untouched.length > 0 ? (
-            <p className="text-lg text-(--color-ink-soft)">
+            <p className="text-sm text-(--color-ink-soft)">
               Not yet tried: {breadth.untouched.join(', ')}.
             </p>
           ) : (
-            <p className="text-lg text-(--color-ink-soft)">Every topic this year offers.</p>
+            <p className="text-sm text-(--color-ink-soft)">Every topic this year offers.</p>
           )}
         </div>
       ) : null}
 
       {sittings.length > 0 ? (
         <div>
-          <h2 className="mb-3 text-2xl font-semibold">Recent sittings</h2>
-          <ul className="space-y-2">
+          <h2 className="mb-2 text-lg font-semibold">Recent sittings</h2>
+          <ul className="space-y-1">
             {sittings.map((sitting) => (
-              <li key={sitting.id} className="text-lg tabular-nums">
+              <li key={sitting.id} className="text-sm tabular-nums">
                 <span className="font-medium">
                   {DATE.format(new Date(sitting.startedAt + offsetMinutes * 60_000))}
                 </span>
@@ -188,7 +188,7 @@ export function ProgressTopics({
 /** Said in words rather than drawn as an empty list. Not knowing is a real answer. */
 function Unproven() {
   return (
-    <p className="text-lg text-(--color-ink-soft)">
+    <p className="text-sm text-(--color-ink-soft)">
       Not enough answers yet to say. Learnr waits for {MIN_OBSERVATIONS} answers on a topic
       before it calls anything easy or hard.
     </p>
@@ -207,8 +207,8 @@ function TopicLine({
   const days = localDay(now, offsetMinutes) - localDay(report.lastAnsweredAt, offsetMinutes);
 
   return (
-    <p className="text-lg">
-      <span className="text-xl font-semibold capitalize">{report.topic}</span>
+    <p className="text-sm">
+      <span className="text-base font-semibold capitalize">{report.topic}</span>
       <span className="text-(--color-ink-soft)">
         {' '}
         · {yearLabel(report.level)} · {Math.round(report.accuracy * 100)}% of {report.attempts}

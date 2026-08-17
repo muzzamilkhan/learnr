@@ -66,6 +66,29 @@ export function normaliseCode(input: string): string | null {
  * Both stored fields are null once a code is spent or was never issued, so the
  * null checks are the single-use rule doing its work rather than defensiveness.
  */
+/**
+ * Whether the stored code is still worth showing. This is what decides between
+ * "Show code" and "Get code" on the children screen: a code that is still live
+ * can be revealed again, and revealing it must not issue a new one — a child may
+ * be halfway through typing the old one.
+ */
+export function isCodeLive(
+  storedCode: string | null,
+  expiresAt: Date | null,
+  now: Date,
+): boolean {
+  if (!storedCode || !expiresAt) return false;
+  return now < expiresAt;
+}
+
+/**
+ * How long a code has left, rounded down. Shown to a parent, who needs the gist
+ * rather than the second — and rounding down never promises time that isn't there.
+ */
+export function minutesLeft(expiresAt: Date, now: Date): number {
+  return Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 60_000));
+}
+
 export function isCodeValid(
   input: string,
   storedCode: string | null,

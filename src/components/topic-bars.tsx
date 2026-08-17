@@ -27,7 +27,7 @@ export interface TopicBar {
  * Declared rather than left to the container: ResponsiveContainer renders
  * nothing until it mounts, and without a height the whole page jumps when it does.
  */
-const HEIGHT = 260;
+const HEIGHT = 220;
 
 /** Two lines at most, and two budgets: a line that would still run past the bar is elided. */
 function wrap(text: string, max = 12): string[] {
@@ -84,9 +84,9 @@ function BarTooltip({
   const total = correct + wrong;
 
   return (
-    <div className="rounded-xl border-2 border-(--color-line) bg-(--color-card) px-4 py-3 shadow-lg">
-      <p className="text-lg font-semibold">{label}</p>
-      <p className="text-base text-(--color-ink-soft)">
+    <div className="rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-2 shadow-lg">
+      <p className="text-sm font-semibold">{label}</p>
+      <p className="text-xs text-(--color-ink-soft)">
         {correct} of {total} right
         {total > 0 ? ` · ${Math.round((correct / total) * 100)}%` : ''}
       </p>

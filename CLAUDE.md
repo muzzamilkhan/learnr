@@ -363,10 +363,28 @@ change; every account that predates the column meets the chooser on its next
 sign-in, which is why the migration deliberately backfills nothing. A person is a
 better source for this than a heuristic over their data.
 
-A **parent does not play.** Their home screen is the dashboard instead of the
-level picker: a card per child with name, avatar and level, plus add, edit,
-remove and "Get code". The curriculum link sits under every signed-in branch, a
-parent's included — it is the one thing they would actually want to read.
+A **parent does not play**, so they get neither the level picker nor a subject
+card. They get two screens instead, and **the report is the one they land on**:
+setting a profile up happens once, reading how a child is going happens every
+week, so `/` **redirects a parent to `/progress`** rather than rebuilding the
+report there. Only a parent with no children yet gets a screen at `/`: a sentence
+and an "Add a child" button pointing at the other screen. A failed read is not
+"no children" and is not redirected — it says so and stays put.
+
+`/children` is that other screen: a card per child with name, avatar and level,
+plus add, edit, remove, progress and the login code. Both screens sit in
+`ParentShell`, which carries the title, the two-item nav between them, the
+profile menu and the curriculum link — the last of which follows every signed-in
+branch, a parent's included, because it is the one thing they would actually want
+to read.
+
+**Parent screens are not built to the child's scale.** The play and level screens
+are sized for a six-year-old holding an iPad at arm's length; a parent is reading
+a report on a laptop, and blowing that up only means more scrolling and less on
+screen. So `ParentShell` and everything under it run denser: `text-sm`/`text-base`
+body, single-width borders, `rounded-xl`, `px-3 py-1.5` buttons. The one
+exception is the login code itself, which is still drawn large — it is read off
+this screen by eye and typed into another device.
 
 A **managed child** is a `User` row with `parentId` set, no email and no
 `Account` row — nothing OAuth about it. Because it is an ordinary user row,
@@ -399,6 +417,15 @@ to get back in is the friction this feature exists to remove. `Session.expires` 
 not nullable, so "does not expire" is spelled as a date far enough out never to
 arrive.
 
+**Showing a code and issuing one are different actions**, and the child card
+keeps them apart. One button carries three states: "Get code" when there is no
+live code, "Show code" when there is one (revealing what is already stored — a
+child may be halfway through typing it, and re-issuing here would break the code
+in their hand), and "Hide code" once it is on screen. Regenerating is its own
+button beside the revealed code. `isCodeLive` is the pure test that picks between
+the first two, and the hour is counted down in an effect rather than at render —
+reading the clock while rendering is not something a component gets to do.
+
 Redemption is **not** a NextAuth provider. Auth.js refuses to combine a
 Credentials provider with database sessions (`UnsupportedStrategy`), and moving
 the app to JWT sessions to get around that would cost server-side session state
@@ -418,7 +445,9 @@ parent lied to, so the mutations report whether they worked.
 ## Parent analytics
 
 `/progress?child=<id>&subject=maths` — a parent picks a child and sees how they
-are going. It reads and renders; nothing on it writes.
+are going. It reads and renders; nothing on it writes. It is also **where a
+parent lands**, since `/` redirects them here as soon as they have one child —
+see **Accounts** above.
 
 **The child id is never trusted.** `listChildren(parentId)` returns both the
 dropdown's options and the set of ids this parent may look at, and the parameter

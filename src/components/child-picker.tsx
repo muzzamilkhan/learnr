@@ -24,14 +24,14 @@ export function ChildPicker({
   if (profiles.length < 2) return null;
 
   return (
-    <label className="flex items-center gap-3">
+    <label className="flex items-center gap-2">
       <span className="sr-only">Child</span>
       <select
         value={selected}
         onChange={(event) =>
           router.replace(`/progress?child=${event.target.value}&subject=${subject}`)
         }
-        className="no-select rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-5 py-3 text-xl font-medium"
+        className="no-select rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-1.5 text-sm font-medium"
       >
         {profiles.map((profile) => (
           <option key={profile.id} value={profile.id}>

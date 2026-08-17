@@ -1,10 +1,11 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
 import { CodeSignIn } from '@/components/code-sign-in';
 import { LevelPicker } from '@/components/level-picker';
-import { ParentDashboard, type ChildRow } from '@/components/parent-dashboard';
+import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
 import { SubjectCards } from '@/components/subject-cards';
@@ -83,18 +84,60 @@ export default async function HomePage() {
     );
   }
 
-  const childProfiles = isParent && userId ? await listChildren(userId) : [];
-  const children: ChildRow[] | null =
-    childProfiles === null
-      ? null
-      : childProfiles.map((child) => ({
-          id: child.id,
-          name: child.name,
-          avatar: child.avatar,
-          level: child.level,
-          code: child.code,
-          codeExpiresAt: child.codeExpiresAt?.toISOString() ?? null,
-        }));
+  // A parent opens this app to see how their children are going, so that is what
+  // their home screen is. The report lives at `/progress` and is not rebuilt here
+  // — with children to report on, this screen's whole job is to get out of the
+  // way. Setting the profiles up is the other screen, and only the parent with no
+  // children yet is sent there.
+  if (isParent && userId) {
+    const profiles = await listChildren(userId);
+    const menu = (
+      <ProfileMenu
+        name={session?.user?.name ?? null}
+        image={session?.user?.image ?? null}
+        streak={null}
+        stars={null}
+      >
+        <SignOutButton />
+      </ProfileMenu>
+    );
+
+    // A failed read is not "no children", so it is not redirected anywhere — it
+    // says what went wrong and leaves the parent where they are.
+    if (profiles === null) {
+      return (
+        <ParentShell title="Learnr" current="progress" menu={menu}>
+          <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
+            Couldn&rsquo;t load your children just now. Try again in a moment.
+          </p>
+        </ParentShell>
+      );
+    }
+    if (profiles.length > 0) redirect('/progress');
+
+    return (
+      <ParentShell
+        title={session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
+        subtitle="Nothing to report on yet."
+        current="progress"
+        menu={menu}
+      >
+        <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
+          <h2 className="text-lg font-semibold">Add your first child</h2>
+          <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
+            Give them a name and a level, and they sign in with a code rather than an account of
+            their own. Once they start practising, this screen becomes their progress.
+          </p>
+          <Link
+            href="/children"
+            className="no-select mt-4 inline-block rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          >
+            Add a child
+          </Link>
+        </div>
+      </ParentShell>
+    );
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
@@ -103,9 +146,7 @@ export default async function HomePage() {
           <h1 className="text-5xl font-bold tracking-tight">
             {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
           </h1>
-          <p className="mt-2 text-2xl text-(--color-ink-soft)">
-            {isParent ? 'Who are you setting up?' : 'What shall we practice?'}
-          </p>
+          <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
         </div>
         {session?.user ? (
           <ProfileMenu
@@ -119,16 +160,8 @@ export default async function HomePage() {
         ) : null}
       </header>
 
-      {/* A parent doesn't play, so they get no level and no subjects at all. */}
-      {isParent ? (
-        children === null ? (
-          <p className="text-xl text-(--color-ink-soft)">
-            Couldn&rsquo;t load your children just now. Try again in a moment.
-          </p>
-        ) : (
-          <ParentDashboard profiles={children} levels={levels} />
-        )
-      ) : !initialLevel ? (
+      {/* Only a child reaches this far — a parent was routed away above. */}
+      {!initialLevel ? (
         <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
       ) : isManagedChild ? (
         // The parent set this year, so it is shown rather than chosen: subjects

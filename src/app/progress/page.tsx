@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { listSubjects } from '@/content/catalog';
+import { SignOutButton } from '@/components/auth-buttons';
+import { ParentShell } from '@/components/parent-shell';
+import { ProfileMenu } from '@/components/profile-menu';
 import { ProgressReport } from '@/components/progress-report';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readObservations, readSittings } from '@/lib/records';
@@ -26,32 +29,44 @@ export default async function ProgressPage({
   const account = await readAccount(userId);
   if (account?.role !== 'parent') redirect('/');
 
+  // A parent doesn't play, so there is no run of days and no stars to show.
+  const menu = (
+    <ProfileMenu
+      name={session?.user?.name ?? null}
+      image={session?.user?.image ?? null}
+      streak={null}
+      stars={null}
+    >
+      <SignOutButton />
+    </ProfileMenu>
+  );
+
   const profiles = await listChildren(userId);
   if (profiles === null) {
     return (
-      <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-        <h1 className="text-4xl font-bold tracking-tight">Couldn&rsquo;t load</h1>
-        <p className="mt-3 text-xl text-(--color-ink-soft)">
-          Something went wrong reading your children. Try again in a moment.
+      <ParentShell title="Progress" current="progress" menu={menu}>
+        <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
+          Couldn&rsquo;t load your children just now. Try again in a moment.
         </p>
-        <Link href="/" className="mt-6 inline-block text-lg text-(--color-brand) underline">
-          Back to the dashboard
-        </Link>
-      </main>
+      </ParentShell>
     );
   }
   if (profiles.length === 0) {
     return (
-      <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-        <h1 className="text-4xl font-bold tracking-tight">No children yet</h1>
-        <p className="mt-3 text-xl text-(--color-ink-soft)">
-          Add a profile on the dashboard, and their progress will show up here once they start
-          practising.
-        </p>
-        <Link href="/" className="mt-6 inline-block text-lg text-(--color-brand) underline">
-          Back to the dashboard
-        </Link>
-      </main>
+      <ParentShell title="Progress" current="progress" menu={menu}>
+        <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
+          <h2 className="text-lg font-semibold">No children yet</h2>
+          <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
+            Add a profile, and their progress will show up here once they start practising.
+          </p>
+          <Link
+            href="/children"
+            className="no-select mt-4 inline-block rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          >
+            Add a child
+          </Link>
+        </div>
+      </ParentShell>
     );
   }
 
@@ -71,7 +86,7 @@ export default async function ProgressPage({
   const now = requestNow();
 
   return (
-    <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
+    <ParentShell title={`${child.name}'s progress`} current="progress" menu={menu}>
       <ProgressReport
         child={{ id: child.id, name: child.name, avatar: child.avatar, level: child.level }}
         profiles={profiles.map(({ id, name }) => ({ id, name }))}
@@ -81,6 +96,6 @@ export default async function ProgressPage({
         sittings={sittings}
         now={now}
       />
-    </main>
+    </ParentShell>
   );
 }

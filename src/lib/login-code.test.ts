@@ -5,7 +5,9 @@ import {
   CODE_TTL_MS,
   codeExpiry,
   generateLoginCode,
+  isCodeLive,
   isCodeValid,
+  minutesLeft,
   normaliseCode,
 } from './login-code';
 
@@ -78,5 +80,34 @@ describe('isCodeValid', () => {
   it('rejects when there is no code to match — a spent code is cleared, not kept', () => {
     expect(isCodeValid('ABCD', null, null, during)).toBe(false);
     expect(isCodeValid('ABCD', stored, null, during)).toBe(false);
+  });
+});
+
+describe('isCodeLive', () => {
+  const expires = new Date('2026-08-17T10:00:00Z');
+
+  it('is true while a code has time left', () => {
+    expect(isCodeLive('ABCD', expires, new Date('2026-08-17T09:59:00Z'))).toBe(true);
+  });
+
+  it('is false once it has run out', () => {
+    expect(isCodeLive('ABCD', expires, new Date('2026-08-17T10:00:00Z'))).toBe(false);
+  });
+
+  it('is false when there is no code — spent and never issued look the same', () => {
+    expect(isCodeLive(null, expires, new Date('2026-08-17T09:00:00Z'))).toBe(false);
+    expect(isCodeLive('ABCD', null, new Date('2026-08-17T09:00:00Z'))).toBe(false);
+  });
+});
+
+describe('minutesLeft', () => {
+  const expires = new Date('2026-08-17T10:00:00Z');
+
+  it('rounds down, because a parent only needs the gist', () => {
+    expect(minutesLeft(expires, new Date('2026-08-17T09:00:30Z'))).toBe(59);
+  });
+
+  it('never goes negative', () => {
+    expect(minutesLeft(expires, new Date('2026-08-17T11:00:00Z'))).toBe(0);
   });
 });
