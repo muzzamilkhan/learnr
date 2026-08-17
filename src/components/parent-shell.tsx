@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { LogoMark } from '@/components/logo';
+import { ParentHeading, ParentNav } from '@/components/parent-heading';
 
 /**
  * The frame around every parent screen.
@@ -14,19 +15,27 @@ import { LogoMark } from '@/components/logo';
  * borders, `rounded-xl`, and buttons a mouse can hit.
  *
  * The two parent jobs are two screens — the report and the profiles — so the nav
- * lives here rather than being re-stated by each of them.
+ * lives here rather than being re-stated by each of them. It is rendered from a
+ * **layout**, not from either page: a shell rebuilt by whichever page is on
+ * screen would be unmounted and remounted on every hop between them, and the
+ * logo, the menu and the nav would visibly flash. From the layout they are
+ * mounted once and only the page beneath them changes, so what moves is what
+ * actually differs. That is also why the title and the current nav item are read
+ * from the URL by `ParentHeading` — a layout is never told which page it is
+ * wrapping.
  */
 export function ParentShell({
+  profiles,
   title,
   subtitle,
-  current,
   menu,
   children,
 }: {
+  /** This parent's children, so the heading can name whichever one is on screen. */
+  profiles: { id: string; name: string }[];
+  /** What the heading says when there is no child to name yet. */
   title: string;
   subtitle?: string;
-  /** Which of the two screens this is, so the nav can show it as the current one. */
-  current: 'progress' | 'children';
   /** The profile menu, built on the server so sign-out stays a server action. */
   menu?: ReactNode;
   children: ReactNode;
@@ -37,9 +46,7 @@ export function ParentShell({
           account, and an account belongs beside the name of the screen, not
           stranded under it. It never wraps, so on a phone it stays pinned to the
           right edge rather than sliding to the left of a new line. The nav is
-          the row below, full width: two destinations sharing the space evenly
-          read as a place to go, where two chips floating in a corner read as
-          decoration. */}
+          the row below, full width. */}
       <header className="mb-6">
         <div className="flex items-center justify-between gap-4">
           {/* The mark links home, which for a parent is the report — the one
@@ -48,16 +55,18 @@ export function ParentShell({
             <Link href="/" aria-label="LearnR home" className="no-select">
               <LogoMark size="md" />
             </Link>
-            <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold tracking-tight">{title}</h1>
-              {subtitle ? (
-                <p className="mt-0.5 text-sm text-(--color-ink-soft)">{subtitle}</p>
-              ) : null}
-            </div>
+            {/* The heading reads the query string, so it is suspended: a page
+                that hasn't got its search params yet gets the row's height
+                rather than nothing, and the layout above never blocks. */}
+            <Suspense fallback={<div className="min-w-0 h-8" />}>
+              <ParentHeading profiles={profiles} fallbackTitle={title} fallbackSubtitle={subtitle} />
+            </Suspense>
           </div>
           {menu}
         </div>
-        <Nav current={current} />
+        <Suspense fallback={<div className="mt-4 h-9" />}>
+          <ParentNav />
+        </Suspense>
       </header>
 
       {children}
@@ -81,30 +90,5 @@ export function ParentShell({
         </span>
       </Link>
     </main>
-  );
-}
-
-function Nav({ current }: { current: 'progress' | 'children' }) {
-  return (
-    <nav className="no-select mt-4 flex rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold">
-      <NavLink href="/progress" label="Progress" active={current === 'progress'} />
-      <NavLink href="/children" label="Children" active={current === 'children'} />
-    </nav>
-  );
-}
-
-function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={`flex-1 rounded-md px-3 py-1.5 text-center transition ${
-        active
-          ? 'bg-(--color-brand) text-white'
-          : 'text-(--color-ink-soft) hover:text-(--color-brand)'
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

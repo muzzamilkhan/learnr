@@ -454,6 +454,19 @@ branch, a parent's included, because it is the one thing they would actually wan
 to read. That link is a panel rather than a footnote: a line of small print under
 a page of boxed sections is the shape of something nobody is meant to click.
 
+**The shell is a layout, not something each page draws.** Both screens live in
+the `src/app/(parent)` route group and `layout.tsx` renders `ParentShell` around
+them, so hopping between the report and the profiles replaces only what differs:
+the logo, the profile menu and the nav stay mounted rather than being torn down
+and rebuilt, which is what made the hop flicker. A layout is never told which
+page it is wrapping, so the two things that vary — the title and which nav item
+is current — read the URL from the client (`ParentHeading`, `ParentNav`), and
+`resolveChild` picks the child the `?child=` parameter names so the heading and
+the report can't disagree about who is on screen. The layout is a frame and not
+a gate: it does not re-run on a client-side hop, so `readParent` — which is
+where the sign-in and parent-role checks live — is called by the pages too, and
+`cache`d so the two calls in one request are one query.
+
 **Removing a child is confirmed in the card, never with `confirm()`.** The
 browser dialog is unstyled, unreadable on an iPad, and — being synchronous — the
 one thing on that screen that can freeze it. It also cannot say what is being
@@ -584,7 +597,12 @@ deliberately, and without that line a parent reads 76% as a C.
 `recharts` draws the topic bars and is the project's only UI dependency. Height
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
-of failures. The practice calendar is hand-rolled SVG and server-rendered — no
+of failures. **Its labels are turned on their side**: a topic name is several
+words and a year's worth of topics puts a dozen bars across a panel, so flat
+labels collided however they were wrapped. Vertical they cannot collide at all,
+and what limits them is the height reserved below the axis — one number, the
+same for every bar, with anything longer elided (the tooltip still names the
+topic in full). The practice calendar is hand-rolled SVG and server-rendered — no
 library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
 (`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
 carry weekday labels, since a column that is Monday one week and Thursday the

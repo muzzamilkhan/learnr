@@ -26,39 +26,42 @@ export interface TopicBar {
 /**
  * Declared rather than left to the container: ResponsiveContainer renders
  * nothing until it mounts, and without a height the whole page jumps when it does.
+ * Tall enough that the rotated labels below take their room out of the page
+ * rather than out of the bars.
  */
-const HEIGHT = 220;
+const HEIGHT = 300;
 
-/** Two lines at most, and two budgets: a line that would still run past the bar is elided. */
-function wrap(text: string, max = 12): string[] {
-  const lines: string[] = [];
+/**
+ * The labels are turned on their side, and that is the whole reason they fit.
+ * A topic name is several words long and a year's worth of topics puts a dozen
+ * bars on a chart the width of a panel, so laid flat they collided into each
+ * other however they were wrapped. Turned vertical they cannot collide at all:
+ * what limits them is the height reserved below the axis, which is one number
+ * and the same for every bar.
+ */
+const LABEL_HEIGHT = 124;
 
-  for (const word of text.split(' ')) {
-    const line = lines.length - 1;
-    if (line >= 0 && lines[line].length + word.length + 1 <= max) lines[line] += ` ${word}`;
-    else if (lines.length < 2) lines.push(word);
-    else lines[line] += ` ${word}`;
-  }
+/** Roughly what a 12px label gets through in `LABEL_HEIGHT` pixels. */
+const MAX_CHARS = 18;
 
-  // The line count was never the whole budget — width is the half that actually
-  // makes labels collide, so anything still over it is elided rather than drawn.
-  return lines.map((line) => (line.length <= max ? line : `${line.slice(0, max - 1).trimEnd()}…`));
+function elide(text: string, max = MAX_CHARS): string {
+  return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
 function TopicTick({ x = 0, y = 0, payload }: { x?: number; y?: number; payload?: { value?: string } }) {
   return (
-    <g transform={`translate(${x},${y + 12})`}>
-      {wrap(String(payload?.value ?? '')).map((line, index) => (
-        <text
-          key={line + index}
-          textAnchor="middle"
-          fill="var(--color-ink-soft)"
-          fontSize={12}
-          y={index * 14}
-        >
-          {line}
-        </text>
-      ))}
+    // Rotated about the tick, anchored at its end, so the text runs downwards
+    // from the axis and reads bottom-to-top — the way an axis label is read.
+    <g transform={`translate(${x},${y + 8})`}>
+      <text
+        transform="rotate(-90)"
+        textAnchor="end"
+        dominantBaseline="central"
+        fill="var(--color-ink-soft)"
+        fontSize={12}
+      >
+        {elide(String(payload?.value ?? ''))}
+      </text>
     </g>
   );
 }
@@ -103,7 +106,7 @@ export function TopicBars({ data }: { data: TopicBar[] }) {
           <XAxis
             dataKey="label"
             interval={0}
-            height={44}
+            height={LABEL_HEIGHT}
             tickLine={false}
             axisLine={{ stroke: 'var(--color-line)' }}
             tick={<TopicTick />}

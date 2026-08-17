@@ -109,7 +109,7 @@ export default async function HomePage() {
     // says what went wrong and leaves the parent where they are.
     if (profiles === null) {
       return (
-        <ParentShell title="LearnR" current="progress" menu={menu}>
+        <ParentShell profiles={[]} title="LearnR" menu={menu}>
           <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
             Couldn&rsquo;t load your children just now. Try again in a moment.
           </p>
@@ -120,9 +120,9 @@ export default async function HomePage() {
 
     return (
       <ParentShell
+        profiles={[]}
         title={session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
         subtitle="Nothing to report on yet."
-        current="progress"
         menu={menu}
       >
         <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
