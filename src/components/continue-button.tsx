@@ -10,7 +10,7 @@ export function ContinueButton({ onContinue }: { onContinue: () => void }) {
       type="button"
       autoFocus
       onClick={onContinue}
-      className="mx-auto flex h-20 w-full max-w-md shrink-0 items-center justify-center gap-3 rounded-2xl bg-(--color-brand) text-3xl font-semibold text-white transition active:scale-95"
+      className="mx-auto flex h-16 w-full max-w-md shrink-0 items-center justify-center gap-3 rounded-xl bg-(--color-brand) text-2xl font-semibold text-white transition active:scale-95 sm:h-20 sm:rounded-2xl sm:text-3xl"
     >
       Continue
       <svg

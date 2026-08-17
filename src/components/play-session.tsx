@@ -157,7 +157,7 @@ export function PlaySession({
   return (
     // Fixed to the viewport: everything must fit an iPad screen with no scrolling,
     // so the pad is never below the fold in either orientation.
-    <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-6 py-5 sm:px-10">
+    <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-4 py-3 sm:px-10 sm:py-5">
       <header className="flex shrink-0 items-center justify-between gap-4">
         <Link
           href="/"
@@ -174,10 +174,10 @@ export function PlaySession({
         </p>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 py-4">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
         <h1
           key={session.askedCount}
-          className="max-w-3xl text-center text-3xl leading-snug font-semibold text-balance sm:text-4xl lg:text-5xl"
+          className={`max-w-3xl text-center leading-snug font-semibold text-balance ${promptSize(question.prompt)}`}
         >
           {question.prompt}
         </h1>
@@ -200,8 +200,14 @@ export function PlaySession({
 
       {/* The pad's slot. After a wrong answer the pad gives way to Continue —
           except for tapped questions, where the buttons themselves are showing
-          which option was right, so they stay and Continue sits under them. */}
-      <div className="flex h-[46vh] max-h-88 min-h-64 shrink-0 flex-col justify-center gap-3">
+          which option was right, so they stay and Continue sits under them.
+
+          A phone has far less height to give than an iPad, so the pad takes 40%
+          of it there rather than the ~46% it took everywhere before, leaving the
+          question the room it was short of. The bounds are part of the same
+          expression: a fixed 16rem floor would quietly take that 6% back on a
+          short phone. */}
+      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 sm:h-[clamp(16rem,43vh,22rem)] sm:gap-3">
         {(pending === null || mode === 'tap') && (
           <div className="min-h-0 flex-1">
             <AnswerInput
@@ -223,6 +229,19 @@ export function PlaySession({
 }
 
 /**
+ * How big the question is set. The screen is a fixed height that may not scroll,
+ * and the height left over is what the question has to fit in — so it is sized in
+ * `vh` rather than by breakpoint, which is what stopped a wordy Year 6 prompt
+ * fitting a phone or a landscape iPad. Longer prompts take a smaller step again;
+ * length is a good enough proxy for lines, as prompts are one plain sentence.
+ */
+function promptSize(prompt: string) {
+  if (prompt.length > 90) return 'text-[clamp(1rem,2.8vh,1.875rem)]';
+  if (prompt.length > 45) return 'text-[clamp(1.125rem,3.5vh,2.25rem)]';
+  return 'text-[clamp(1.375rem,4.5vh,3rem)]';
+}
+
+/**
  * The hint is behind a lightbulb rather than on screen: a child who wants help
  * asks for it, and one who doesn't is never given the method away. Its row keeps
  * its height whether the bulb, the hint or nothing is in it, so the question
@@ -240,9 +259,9 @@ function Hint({
   onShow: () => void;
 }) {
   return (
-    <div className="flex min-h-14 shrink-0 items-center justify-center px-2">
+    <div className="flex min-h-12 shrink-0 items-center justify-center px-2 sm:min-h-14">
       {hint === undefined || answered ? null : shown ? (
-        <p className="max-w-2xl text-center text-xl text-balance text-(--color-ink-soft) sm:text-2xl">
+        <p className="max-w-2xl text-center text-[clamp(1rem,2.4vh,1.5rem)] text-balance text-(--color-ink-soft)">
           {hint}
         </p>
       ) : (
@@ -250,7 +269,7 @@ function Hint({
           type="button"
           onClick={onShow}
           aria-label="Show a hint"
-          className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 active:bg-(--color-brand-soft)"
+          className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 active:bg-(--color-brand-soft) sm:h-14 sm:w-14"
         >
           <HintIcon />
         </button>
@@ -333,8 +352,10 @@ function AnswerDisplay({
     <div className="flex shrink-0 flex-col items-center gap-2">
       <output
         aria-live="polite"
-        className={`flex h-20 items-center justify-center rounded-3xl border-2 px-6 font-bold tabular-nums transition-colors ${
-          wide ? 'w-96 max-w-full text-4xl tracking-wide' : 'w-56 text-5xl'
+        className={`flex h-16 items-center justify-center rounded-3xl border-2 px-6 font-bold tabular-nums transition-colors sm:h-20 ${
+          wide
+            ? 'w-96 max-w-full text-3xl tracking-wide sm:text-4xl'
+            : 'w-44 text-4xl sm:w-56 sm:text-5xl'
         } ${tone}`}
       >
         {feedback?.state === 'correct' ? '✓' : entry || <span className="opacity-25">?</span>}
@@ -350,7 +371,7 @@ function FeedbackLine({ feedback }: { feedback: Feedback }) {
   return (
     <p
       aria-live="polite"
-      className="h-9 text-center text-2xl font-semibold text-(--color-right) sm:text-3xl"
+      className="h-8 text-center text-xl font-semibold text-(--color-right) sm:h-9 sm:text-3xl"
     >
       {feedback?.state === 'wrong' ? `The answer is ${feedback.expected}` : ''}
     </p>

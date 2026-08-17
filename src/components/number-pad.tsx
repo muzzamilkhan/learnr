@@ -24,11 +24,11 @@ interface Props {
 }
 
 const KEY_CLASS =
-  'flex h-full w-full items-center justify-center rounded-2xl border-2 border-(--color-line) bg-(--color-card) text-4xl font-semibold transition active:scale-95 active:bg-(--color-brand-soft) disabled:opacity-40';
+  'flex h-full w-full items-center justify-center rounded-xl border-2 border-(--color-line) bg-(--color-card) text-3xl font-semibold transition active:scale-95 active:bg-(--color-brand-soft) disabled:opacity-40 sm:rounded-2xl sm:text-4xl';
 
 export function NumberPad({ disabled, canCheck, onDigit, onBackspace, onCheck }: Props) {
   return (
-    <div className="mx-auto grid h-full w-full max-w-2xl grid-cols-4 grid-rows-4 gap-3">
+    <div className="mx-auto grid h-full w-full max-w-2xl grid-cols-4 grid-rows-4 gap-2 sm:gap-3">
       {DIGITS.map((digit, index) => (
         <button
           key={digit}
@@ -77,7 +77,7 @@ export function NumberPad({ disabled, canCheck, onDigit, onBackspace, onCheck }:
         disabled={disabled || !canCheck}
         onClick={onCheck}
         aria-label="Check"
-        className="col-start-4 row-span-4 row-start-1 flex h-full w-full items-center justify-center rounded-2xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30"
+        className="col-start-4 row-span-4 row-start-1 flex h-full w-full items-center justify-center rounded-xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30 sm:rounded-2xl"
       >
         <CheckIcon />
       </button>
