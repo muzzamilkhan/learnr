@@ -60,12 +60,7 @@ export default async function ChildrenPage() {
   }));
 
   return (
-    <ParentShell
-      title="Children"
-      subtitle="Profiles, levels and login codes."
-      current="children"
-      menu={menu}
-    >
+    <ParentShell title="Children" current="children" menu={menu}>
       <ParentDashboard profiles={rows} levels={listLevels()} />
     </ParentShell>
   );
