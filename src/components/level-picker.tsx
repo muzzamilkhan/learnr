@@ -5,6 +5,7 @@ import type { SubjectSummary } from '@/content/catalog';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { saveSelectedLevelAction } from '@/app/actions';
 import { SubjectCards } from '@/components/subject-cards';
+import { Select } from '@/components/select';
 
 /**
  * Level is the top-level choice: pick a year once, then see the subjects that
@@ -37,18 +38,13 @@ export function LevelPicker({
         <label htmlFor="level" className="text-2xl font-semibold">
           Level
         </label>
-        <select
+        <Select
           id="level"
+          size="lg"
           value={level}
-          onChange={(event) => choose(event.target.value as YearLevel)}
-          className="no-select rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-5 py-3 text-2xl font-medium"
-        >
-          {levels.map((option) => (
-            <option key={option} value={option}>
-              {yearLabel(option)}
-            </option>
-          ))}
-        </select>
+          options={levels.map((option) => ({ value: option, label: yearLabel(option) }))}
+          onChange={(next) => choose(next as YearLevel)}
+        />
       </div>
 
       <SubjectCards subjects={subjects} level={level} />

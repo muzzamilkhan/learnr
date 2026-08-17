@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 
+import { Select } from '@/components/select';
+
 /**
  * Which child this screen is about. The choice goes in the URL rather than in
  * component state so a refresh keeps it — a parent who reloads should still be
@@ -24,21 +26,11 @@ export function ChildPicker({
   if (profiles.length < 2) return null;
 
   return (
-    <label className="flex items-center gap-2">
-      <span className="sr-only">Child</span>
-      <select
-        value={selected}
-        onChange={(event) =>
-          router.replace(`/progress?child=${event.target.value}&subject=${subject}`)
-        }
-        className="no-select rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-1.5 text-sm font-medium"
-      >
-        {profiles.map((profile) => (
-          <option key={profile.id} value={profile.id}>
-            {profile.name}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label="Child"
+      value={selected}
+      options={profiles.map((profile) => ({ value: profile.id, label: profile.name }))}
+      onChange={(child) => router.replace(`/progress?child=${child}&subject=${subject}`)}
+    />
   );
 }

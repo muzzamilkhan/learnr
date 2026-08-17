@@ -313,6 +313,18 @@ simple enough for a child to pick up with no explanation.
   neither sits on the play screen where a child could watch it and worry. There
   is no per-question timer and nothing a wrong answer takes away.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
+- **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS —
+  system font, system blue, its own rounding — so it is the one control the theme
+  cannot reach, and on an iPad it lands a grey widget in the middle of a screen
+  built from `--color-*`. `src/components/select.tsx` is a button plus a listbox
+  with the same look as everything beside it, and options sized for a thumb.
+  It comes in `lg` for the child's screens and `sm`/`md` for a parent's, matching
+  the two scales above. The trigger is sized to its **widest** option rather than
+  its current one — every label renders into one grid cell with all but the chosen
+  one hidden — so picking "Year 3" after "Kindergarten" doesn't shrink the control
+  and shift what sits beside it. It closes on an outside pointerdown or Escape,
+  never on blur: a tap on an option moves focus off the button first, and closing
+  there would remove the option before the tap could land on it.
 - **Three sounds, and only on the play screen**: right, wrong, and a fanfare with
   the stars. `src/components/sounds.ts` is the shim — it lives beside the
   components, not in `src/lib`, because it touches `Audio` and could never be

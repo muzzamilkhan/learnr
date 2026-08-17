@@ -7,6 +7,7 @@ import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
 import { AvatarIcon } from '@/components/avatar-icon';
+import { Select } from '@/components/select';
 import {
   createChildAction,
   issueLoginCodeAction,
@@ -319,18 +320,13 @@ function ChildForm({
           <label htmlFor="child-level" className="mb-1 block text-sm font-semibold">
             Level
           </label>
-          <select
+          <Select
             id="child-level"
+            size="md"
             value={level}
-            onChange={(event) => setLevel(event.target.value)}
-            className="no-select rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-1.5 text-base font-medium"
-          >
-            {levels.map((option) => (
-              <option key={option} value={option}>
-                {yearLabel(option)}
-              </option>
-            ))}
-          </select>
+            options={levels.map((option) => ({ value: option, label: yearLabel(option) }))}
+            onChange={setLevel}
+          />
         </div>
       </div>
 

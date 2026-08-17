@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 
+import { Select } from '@/components/select';
+
 /**
  * Which subject this screen is about. A dropdown rather than tabs: maths is the
  * only subject today, and a row of one tab is a label pretending to be a
@@ -24,21 +26,17 @@ export function SubjectPicker({
   if (subjects.length === 0) return null;
 
   return (
-    <label className="flex items-center gap-2">
-      <span className="sr-only">Subject</span>
-      <select
-        value={selected}
-        onChange={(event) =>
-          router.replace(`/progress?child=${child}&subject=${event.target.value}`)
-        }
-        className="no-select rounded-lg border border-(--color-line) bg-(--color-card) px-3 py-1.5 text-sm font-medium capitalize"
-      >
-        {subjects.map((subject) => (
-          <option key={subject} value={subject} className="capitalize">
-            {subject}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select
+      label="Subject"
+      value={selected}
+      options={subjects.map((subject) => ({ value: subject, label: titleCase(subject) }))}
+      onChange={(subject) => router.replace(`/progress?child=${child}&subject=${subject}`)}
+    />
   );
+}
+
+/** The options were capitalised in CSS while this was a native select; the
+ *  custom one draws its own label text, so do it there. */
+function titleCase(subject: string) {
+  return subject.charAt(0).toUpperCase() + subject.slice(1);
 }
