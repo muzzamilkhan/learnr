@@ -55,7 +55,7 @@ export default async function HomePage() {
     return (
       <main className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center gap-10 px-8 text-center">
         <div className="space-y-3">
-          <h1 className="text-6xl font-bold tracking-tight">Learnr</h1>
+          <h1 className="text-6xl font-bold tracking-tight">LearnR</h1>
           <p className="text-2xl text-(--color-ink-soft)">Practice maths at your own pace.</p>
         </div>
         <SignInButton />
@@ -89,7 +89,7 @@ export default async function HomePage() {
     return (
       <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
         <header className="mb-12">
-          <h1 className="text-5xl font-bold tracking-tight">Welcome to Learnr</h1>
+          <h1 className="text-5xl font-bold tracking-tight">Welcome to LearnR</h1>
           <p className="mt-2 text-2xl text-(--color-ink-soft)">Who&rsquo;s using this account?</p>
         </header>
         <RoleChooser />
@@ -119,7 +119,7 @@ export default async function HomePage() {
     // says what went wrong and leaves the parent where they are.
     if (profiles === null) {
       return (
-        <ParentShell title="Learnr" current="progress" menu={menu}>
+        <ParentShell title="LearnR" current="progress" menu={menu}>
           <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
             Couldn&rsquo;t load your children just now. Try again in a moment.
           </p>
@@ -130,7 +130,7 @@ export default async function HomePage() {
 
     return (
       <ParentShell
-        title={session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
+        title={session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
         subtitle="Nothing to report on yet."
         current="progress"
         menu={menu}
@@ -157,7 +157,7 @@ export default async function HomePage() {
       <header className="mb-12 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-5xl font-bold tracking-tight">
-            {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
+            {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
           </h1>
           <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
         </div>

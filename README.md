@@ -1,4 +1,4 @@
-# Learnr
+# LearnR
 
 A maths practice app for children, built for a standard iPad.
 
@@ -168,7 +168,7 @@ now; the screen that shows a parent any of it is still to be designed.
 
 ## Curriculum source
 
-The maths questions in Learnr are written against the **Australian Curriculum
+The maths questions in LearnR are written against the **Australian Curriculum
 Version 9.0 — Mathematics (Foundation to Year 10)**, published by the Australian
 Curriculum, Assessment and Reporting Authority (ACARA).
 
@@ -198,7 +198,7 @@ from what a child is actually asked.
 > (accessed 17 August 2026) and was modified. The material is licensed under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
-The material was modified in the sense that Learnr writes its own practice
+The material was modified in the sense that LearnR writes its own practice
 questions against the content descriptions; it does not reproduce ACARA's
 material verbatim.
 

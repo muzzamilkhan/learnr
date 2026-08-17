@@ -1230,7 +1230,7 @@ export function ProgressTopics({
         <div>
           <h2 className="mb-1 text-2xl font-semibold">Coming up for review</h2>
           <p className="mb-3 text-base text-(--color-ink-soft)">
-            Known, and left alone long enough to be worth confirming. Learnr will bring these
+            Known, and left alone long enough to be worth confirming. LearnR will bring these
             back on its own.
           </p>
           <ul className="space-y-2">
@@ -1286,7 +1286,7 @@ export function ProgressTopics({
 function Unproven() {
   return (
     <p className="text-lg text-(--color-ink-soft)">
-      Not enough answers yet to say. Learnr waits for {MIN_OBSERVATIONS} answers on a topic
+      Not enough answers yet to say. LearnR waits for {MIN_OBSERVATIONS} answers on a topic
       before it calls anything easy or hard.
     </p>
   );

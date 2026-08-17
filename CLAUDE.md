@@ -1,4 +1,4 @@
-# Learnr
+# LearnR
 
 A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
 designed for a standard iPad. Maths is the only subject so far.

@@ -1,4 +1,4 @@
-// Learnr data model.
+// LearnR data model.
 //
 // Two halves: the Auth.js tables (User/Account/Session), and the learning record
 // (LearningSession/Attempt/TopicSkill). Attempts are the history — every answer,

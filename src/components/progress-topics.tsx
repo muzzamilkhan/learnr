@@ -127,7 +127,7 @@ export function ProgressTopics({
       {due.length > 0 ? (
         <Well
           title="Coming up for review"
-          note="Known, and left alone long enough to be worth confirming. Learnr will bring these back on its own."
+          note="Known, and left alone long enough to be worth confirming. LearnR will bring these back on its own."
         >
           <ul className="space-y-1">
             {due.map((report) => (
@@ -183,7 +183,7 @@ export function ProgressTopics({
 function Unproven() {
   return (
     <p className="text-sm text-(--color-ink-soft)">
-      Not enough answers yet to say. Learnr waits for {MIN_OBSERVATIONS} answers on a topic
+      Not enough answers yet to say. LearnR waits for {MIN_OBSERVATIONS} answers on a topic
       before it calls anything easy or hard.
     </p>
   );

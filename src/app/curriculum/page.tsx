@@ -4,8 +4,8 @@ import { curriculumCodes } from '@/content/catalog';
 import { yearLabel } from '@/lib/curriculum';
 
 export const metadata: Metadata = {
-  title: 'Curriculum sources · Learnr',
-  description: 'The curriculum Learnr’s questions are written against, and the attribution it carries.',
+  title: 'Curriculum sources · LearnR',
+  description: 'The curriculum LearnR’s questions are written against, and the attribution it carries.',
 };
 
 // The strand each code's letters name, so a code reads without a decoder ring.
@@ -34,13 +34,13 @@ export default function CurriculumPage() {
         </Link>
         <h1 className="mt-4 text-4xl font-bold tracking-tight">Curriculum sources</h1>
         <p className="mt-3 text-xl text-(--color-ink-soft)">
-          Where Learnr’s questions come from, and how to check them.
+          Where LearnR’s questions come from, and how to check them.
         </p>
       </header>
 
       <section className="space-y-4 text-lg leading-relaxed">
         <p>
-          The maths questions in Learnr are written against the{' '}
+          The maths questions in LearnR are written against the{' '}
           <strong>Australian Curriculum Version 9.0 — Mathematics (Foundation to Year 10)</strong>,
           published by the Australian Curriculum, Assessment and Reporting Authority (ACARA).
         </p>
@@ -106,7 +106,7 @@ export default function CurriculumPage() {
         .
       </blockquote>
       <p className="mt-4 text-lg leading-relaxed">
-        The material was modified in the sense that Learnr writes its own practice questions against
+        The material was modified in the sense that LearnR writes its own practice questions against
         the content descriptions; it does not reproduce ACARA’s material verbatim.
       </p>
 
