@@ -81,15 +81,13 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
         // target, and there is nothing a child could tap here by mistake.
         className="no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 pl-3 transition active:scale-95"
       >
-        {days > 0 ? (
-          <span
-            className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
-            title={`${days} day${days === 1 ? '' : 's'} in a row`}
-          >
-            <FlameIcon className="h-5 w-5" />
-            {days}
-          </span>
-        ) : null}
+        <span
+          className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
+          title={`${days} day${days === 1 ? '' : 's'} in a row`}
+        >
+          <FlameIcon className="h-5 w-5" />
+          {days}
+        </span>
         <Avatar name={name} image={image} />
       </button>
 

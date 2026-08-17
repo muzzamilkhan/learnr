@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
@@ -9,6 +9,8 @@ import { startSession, submitAnswer, type SessionState } from '@/lib/session/ses
 import { gradeAnswer } from '@/lib/session/grade';
 import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
 import { closedRound, type Round } from '@/lib/rewards/stars';
+import { noStreak, type PlayStreak } from '@/lib/rewards/streak';
+import { localDay } from '@/lib/day';
 import {
   awardRoundAction,
   endRecordingAction,
@@ -21,6 +23,7 @@ import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
 import { HintIcon } from './hint-icon';
+import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
 import { StreakFlash } from './streak-flash';
 
@@ -50,6 +53,10 @@ interface Props {
   profile: LearnerProfile;
   recentTopics: string[];
   recordingEnabled: boolean;
+  /** Who's playing, and their totals as last read from the server. Null signed out. */
+  account: { name: string | null; image: string | null; streak: PlayStreak; stars: number } | null;
+  /** The sign-out form, built on the server so it stays a server action. */
+  signOutSlot: ReactNode;
 }
 
 export function PlaySession({
@@ -61,11 +68,28 @@ export function PlaySession({
   profile,
   recentTopics,
   recordingEnabled,
+  account,
+  signOutSlot,
 }: Props) {
   const [session, setSession] = useState<SessionState>(() =>
     startSession({ templates, seed, startedAt, subject, level, profile, recentTopics }),
   );
   const [entry, setEntry] = useState('');
+  /**
+   * `entry` mirrored outside React state. The keyboard listener below is a
+   * plain `addEventListener`, so between a keystroke and the effect below
+   * re-running with a fresh closure, it is still holding the *previous*
+   * render's `entry` — typing the last digit of an answer and hitting Enter
+   * in the same breath reliably lands inside that window, on real hardware,
+   * not just as a theoretical race. Reading the ref instead of the closure
+   * variable when Enter is pressed means Check always sees what's on screen.
+   */
+  const entryRef = useRef('');
+  const updateEntry = useCallback((next: string | ((value: string) => string)) => {
+    const resolved = typeof next === 'function' ? next(entryRef.current) : next;
+    entryRef.current = resolved;
+    setEntry(resolved);
+  }, []);
   const [feedback, setFeedback] = useState<Feedback>(null);
   /** The next question, held back until the child taps Continue. */
   const [pending, setPending] = useState<SessionState | null>(null);
@@ -75,6 +99,9 @@ export function PlaySession({
   const [reward, setReward] = useState<Round | null>(null);
   /** The day streak, on the one answer of the day that extended it. */
   const [streak, setStreak] = useState<number | null>(null);
+  /** Runs the profile menu shown in the header — kept live as answers land. */
+  const [stars, setStars] = useState(account?.stars ?? 0);
+  const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -105,7 +132,7 @@ export function PlaySession({
   const advance = useCallback((next: SessionState) => {
     setSession(next);
     setPending(null);
-    setEntry('');
+    updateEntry('');
     setFeedback(null);
     setHintShown(false);
 
@@ -113,8 +140,14 @@ export function PlaySession({
     // themselves, so the celebration and the server's recount cannot disagree.
     // Banking them is `submit`'s job — it has to wait for the write.
     const round = closedRound(next.attempts.map((attempt) => attempt.correct));
-    if (round) setReward(round);
-  }, []);
+    if (round) {
+      setReward(round);
+      // Optimistic, like the round celebration itself: the server recounts from
+      // the stored answers regardless, so this only has to hold until the next
+      // full page load reconciles it.
+      setStars((total) => total + round.stars);
+    }
+  }, [updateEntry]);
 
   /**
    * The next question has been sitting behind the stars rather than in front of
@@ -140,9 +173,10 @@ export function PlaySession({
       // way a session that runs across a daylight saving change stays honest
       // about which day each answer belongs to.
       const now = Date.now();
-      const next = submitAnswer(session, value, now, -new Date(now).getTimezoneOffset());
+      const offsetMinutes = -new Date(now).getTimezoneOffset();
+      const next = submitAnswer(session, value, now, offsetMinutes);
 
-      setEntry(value);
+      updateEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
 
       if (recordId.current) {
@@ -153,7 +187,10 @@ export function PlaySession({
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
         recordAttemptAction(id, attempt).then((result) => {
-          if (result?.streakAdvanced) setStreak(result.streak);
+          if (result) {
+            setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
+            if (result.streakAdvanced) setStreak(result.streak);
+          }
           // Banked *after* the answer is written, never alongside it: the server
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
@@ -167,7 +204,7 @@ export function PlaySession({
       if (correct) advanceTimer.current = setTimeout(() => advance(next), CORRECT_MS);
       else setPending(next);
     },
-    [session, question, feedback, advance],
+    [session, question, feedback, advance, updateEntry],
   );
 
   // A physical keyboard should work as well as the on-screen pads.
@@ -208,16 +245,28 @@ export function PlaySession({
         return;
       }
 
-      if (key === 'Backspace') setEntry((v) => v.slice(0, -1));
-      else if (key === 'Enter') submit(entry);
-      else if (mode === 'number') setEntry((v) => appendNumeric(v, key));
+      // Backspace's browser default is to navigate back when focus isn't in an
+      // editable field, which nothing here is.
+      if (key === 'Backspace') {
+        event.preventDefault();
+        updateEntry((v) => v.slice(0, -1));
+      } else if (key === 'Enter') {
+        event.preventDefault();
+        // Read the ref, not the closure's `entry`: this listener is replaced by
+        // a fresh one each render, but that replacement happens after React
+        // commits, and typing a last digit then hitting Enter can land the
+        // keydown before that commit — the closure here would still be holding
+        // the previous render's `entry`. The ref is updated synchronously by
+        // `updateEntry`, so it is never behind a keystroke that already landed.
+        submit(entryRef.current);
+      } else if (mode === 'number') updateEntry((v) => appendNumeric(v, key));
       else if (mode === 'text' && /^[a-z]$/i.test(key))
-        setEntry((v) => (v.length < MAX_ENTRY.text ? v + key.toUpperCase() : v));
+        updateEntry((v) => (v.length < MAX_ENTRY.text ? v + key.toUpperCase() : v));
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [submit, feedback, mode, options, entry, pending, advance, reward, dismissReward]);
+  }, [submit, feedback, mode, options, pending, advance, reward, dismissReward, updateEntry]);
 
   const correctCount = session.attempts.filter((a) => a.correct).length;
 
@@ -239,6 +288,12 @@ export function PlaySession({
         <p className="min-w-24 text-right text-lg font-medium text-(--color-ink-soft) tabular-nums">
           {correctCount} / {session.askedCount}
         </p>
+
+        {account ? (
+          <ProfileMenu name={account.name} image={account.image} streak={playStreak} stars={stars}>
+            {signOutSlot}
+          </ProfileMenu>
+        ) : null}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
@@ -283,7 +338,7 @@ export function PlaySession({
               options={options}
               entry={entry}
               feedback={feedback}
-              onEntry={setEntry}
+              onEntry={updateEntry}
               onSubmit={submit}
             />
           </div>
