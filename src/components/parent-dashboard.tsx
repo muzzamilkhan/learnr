@@ -7,6 +7,8 @@ import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
 import { AvatarIcon } from '@/components/avatar-icon';
+import { EditIcon } from '@/components/edit-icon';
+import { RemoveIcon } from '@/components/remove-icon';
 import { Select } from '@/components/select';
 import {
   createChildAction,
@@ -30,6 +32,13 @@ const BUTTON =
   'no-select rounded-lg border border-(--color-line) px-3 py-1.5 text-sm font-semibold transition hover:border-(--color-brand) disabled:opacity-50';
 const PRIMARY =
   'no-select rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-50';
+/**
+ * Square, and the same height as the buttons that still carry words, so a row of
+ * both lines up. The label the glyph replaces moves to `aria-label` and `title`:
+ * it is gone from the screen, not from the page.
+ */
+const ICON_BUTTON =
+  'no-select flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-(--color-line) transition hover:border-(--color-brand) disabled:opacity-50';
 
 /**
  * Managing the child profiles: add, edit, remove, and hand out a login code.
@@ -202,16 +211,27 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
               {shown ? 'Hide code' : 'Show code'}
             </button>
           )}
-          <button type="button" onClick={onEdit} className={BUTTON}>
-            Edit
+          {/* Edit and remove are glyphs: they are on every card, they say the
+              same thing on every card, and the words were crowding out the two
+              buttons a parent actually came for. */}
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label={`Edit ${child.name}`}
+            title={`Edit ${child.name}`}
+            className={ICON_BUTTON}
+          >
+            <EditIcon />
           </button>
           <button
             type="button"
             onClick={() => setConfirming(true)}
             disabled={pending}
-            className={`${BUTTON} text-(--color-wrong) hover:border-(--color-wrong)`}
+            aria-label={`Remove ${child.name}`}
+            title={`Remove ${child.name}`}
+            className={`${ICON_BUTTON} text-(--color-wrong) hover:border-(--color-wrong)`}
           >
-            Remove
+            <RemoveIcon />
           </button>
         </div>
       </div>

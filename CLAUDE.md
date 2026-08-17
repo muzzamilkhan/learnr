@@ -467,6 +467,15 @@ a gate: it does not re-run on a client-side hop, so `readParent` — which is
 where the sign-in and parent-role checks live — is called by the pages too, and
 `cache`d so the two calls in one request are one query.
 
+**Edit and remove are glyphs on the child card; progress and the code keep their
+words.** The first two are on every card, say the same thing on every card, and
+were pushing the two a parent actually came for onto a second row on a narrow
+screen. The label they lose moves to `aria-label` and `title` — it is off the
+screen, not off the page — and the buttons stay the same height as the ones
+beside them so the row still lines up. Remove is a bin rather than a cross: a
+cross on a card reads as "close this", and dismissing the row is the one thing
+that button must not be mistaken for.
+
 **Removing a child is confirmed in the card, never with `confirm()`.** The
 browser dialog is unstyled, unreadable on an iPad, and — being synchronous — the
 one thing on that screen that can freeze it. It also cannot say what is being
