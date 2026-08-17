@@ -60,7 +60,9 @@ export function CodeSignIn({ variant = 'hero' }: { variant?: CodeSignInVariant }
       aria-invalid={error !== null}
       className={
         variant === 'bar'
-          ? 'w-[6.5rem] rounded-lg border border-(--color-line) bg-(--color-card) px-2 py-1.5 text-center text-lg font-bold tracking-[0.25em] uppercase'
+          ? // Fills the row it is given inside the phone's "Get started" panel,
+            // and goes back to its own width once it is in the bar itself.
+            'w-full min-w-0 flex-1 rounded-lg border border-(--color-line) bg-(--color-card) px-2 py-1.5 text-center text-lg font-bold tracking-[0.25em] uppercase sm:w-[6.5rem] sm:flex-none'
           : 'w-full rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-6 py-5 text-center text-5xl font-bold tracking-[0.4em] uppercase'
       }
     />
@@ -70,7 +72,7 @@ export function CodeSignIn({ variant = 'hero' }: { variant?: CodeSignInVariant }
     // The error sits out of flow so a wrong code doesn't change the bar's height
     // and shove the page down under it.
     return (
-      <form onSubmit={submit} className="relative flex items-center gap-2">
+      <form onSubmit={submit} className="relative flex w-full items-center gap-2 sm:w-auto">
         <label htmlFor={id} className="sr-only">
           Login code
         </label>

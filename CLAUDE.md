@@ -346,6 +346,36 @@ simple enough for a child to pick up with no explanation.
   originals. AAC in `.m4a` rather than Opus because iPad Safari is the target and
   it plays this everywhere, with no fallback source to maintain.
 
+## The logo
+
+`public/logo.PNG` is the artwork as delivered — the badge, the wordmark and the
+tagline, drawn on a white page. Everything else is cut from it and committed
+beside it, so the derived files are the ones the app loads and the original stays
+the thing to re-cut from:
+
+- `public/logo-mark.png` — the badge alone, for headers.
+- `public/logo-lockup.png` — the whole thing, for the landing hero.
+- `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico`,
+  `src/app/opengraph-image.png` — Next wires these up by filename, so the only
+  thing `layout.tsx` adds is a `metadataBase` for their absolute URLs.
+
+**The white page is flood-filled to transparency from the edges inwards**, not
+keyed off luminance: the white *inside* the mark — the book's pages, the pencil's
+eyes, the sparkles — has to survive, and only a fill that starts at the border
+leaves it alone. Without it the mark would sit on `--color-paper` as a faintly
+paler square, `#ffffff` against `#f7f9fc`. The apple icon is the one that keeps
+an opaque background, because iOS composites its own rounded mask over a square
+and a transparent one comes out black.
+
+**The mark alone is what goes in a header**, since the word "LearnR" is already
+there in type beside it; the lockup carries its own wordmark and tagline, so it
+is only used where nothing else is saying what this is.
+
+**Not on the play screen.** That screen is one question at arm's length with
+nothing else to look at, and a logo in the corner is exactly the sort of thing a
+child watches instead of the question — the same reason the header counts no time
+and no score.
+
 ## Rewards
 
 `src/lib/rewards` — pure, like the rest of `lib`, and read by nothing that
@@ -449,6 +479,16 @@ would not be enforcing anything.
 
 A child who signs in with their own Google account (`role: 'child'`,
 `parentId: null`) behaves exactly as before, dropdown and all.
+
+**Signed out, both ways in live in the landing page's top bar as peers** — a
+grown-up signs in with Google, a child types their code, and neither is the
+fallback for the other. On a phone there is no room to say that side by side:
+four characters read off another screen have a floor on how small they get, so
+below `sm` the pair goes behind one "Get started" button and opens as a panel
+underneath, where each gets a full row and a line of copy saying whose it is.
+`GetStarted` renders them **once** and re-lays them out in CSS — `sm:contents`
+dissolves the wrapper at the wider size — rather than shipping a phone copy and
+a desktop copy of the code box, which is how the two would drift apart.
 
 **Login codes.** A parent generates a 4-character code
 (`src/lib/login-code.ts`) that a child types on the sign-in screen. The charset

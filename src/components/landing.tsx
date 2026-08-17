@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { SignInButton } from '@/components/auth-buttons';
 import { CodeSignIn } from '@/components/code-sign-in';
+import { GetStarted } from '@/components/get-started';
+import { LogoLockup, LogoMark } from '@/components/logo';
 import { Well } from '@/components/well';
 import { subjectOverview } from '@/content/catalog';
 import { yearLabel } from '@/lib/curriculum';
@@ -23,12 +25,27 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-10 border-b border-(--color-line) bg-(--color-paper)/95 backdrop-blur">
       <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3">
-        <span className="text-xl font-bold tracking-tight">LearnR</span>
-        {/* Wraps to its own row on a narrow phone rather than shrinking: four
-            characters read off another screen have a floor on how small they get. */}
-        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-3">
-          <CodeSignIn variant="bar" />
-          <SignInButton size="bar" />
+        <span className="flex items-center gap-2">
+          <LogoMark size="sm" />
+          <span className="text-xl font-bold tracking-tight">LearnR</span>
+        </span>
+        {/* Four characters read off another screen have a floor on how small
+            they get, so on a phone the pair goes behind one button rather than
+            being squeezed into the bar. See `GetStarted`. */}
+        <div className="ml-auto flex items-center gap-4">
+          <GetStarted>
+            {/* In the bar the two sit side by side and speak for themselves. In
+                the panel they are stacked, and an empty four-character box with
+                a Go beside it needs saying whose it is. */}
+            <p className="px-1 text-xs text-(--color-ink-soft) sm:hidden">
+              Got a code from your grown-up?
+            </p>
+            <CodeSignIn variant="bar" />
+            <p className="mt-2 border-t border-(--color-line) px-1 pt-3 text-xs text-(--color-ink-soft) sm:hidden">
+              Or, for a parent:
+            </p>
+            <SignInButton size="bar" />
+          </GetStarted>
         </div>
       </div>
     </header>
@@ -53,20 +70,29 @@ export function Landing() {
     <>
       <TopBar />
       <main className="mx-auto max-w-4xl px-6 pt-14 pb-20">
-        <section className="max-w-2xl">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-            Maths practice that follows the child.
-          </h1>
-          <p className="mt-4 text-lg leading-relaxed text-(--color-ink-soft)">
-            {first && last ? (
-              <>
-                {yearLabel(first.level)} to {yearLabel(last.level)}, written against the Australian
-                Curriculum.{' '}
-              </>
-            ) : null}
-            Questions are generated rather than stored, so the practice never runs out — and what
-            comes next is chosen from what your child is actually finding hard.
-          </p>
+        {/* The lockup is the hero's other half rather than a band above it: it
+            carries the wordmark and the tagline, so stacking it over a headline
+            that says much the same thing twice would be saying it twice. On a
+            phone it goes first — column-reverse, so the source order still leads
+            with the headline for anything reading the page rather than looking
+            at it. */}
+        <section className="flex flex-col-reverse items-center gap-8 sm:flex-row sm:gap-10">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              Maths practice that follows the child.
+            </h1>
+            <p className="mt-4 text-lg leading-relaxed text-(--color-ink-soft)">
+              {first && last ? (
+                <>
+                  {yearLabel(first.level)} to {yearLabel(last.level)}, written against the
+                  Australian Curriculum.{' '}
+                </>
+              ) : null}
+              Questions are generated rather than stored, so the practice never runs out — and what
+              comes next is chosen from what your child is actually finding hard.
+            </p>
+          </div>
+          <LogoLockup className="w-56 shrink-0 sm:w-2/5 sm:max-w-xs" />
         </section>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-3">

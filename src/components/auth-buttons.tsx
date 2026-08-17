@@ -16,7 +16,9 @@ export function SignInButton({ size = 'lg' }: { size?: 'lg' | 'bar' }) {
         type="submit"
         className={
           size === 'bar'
-            ? 'no-select rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-white transition active:scale-[0.98]'
+            ? // Full width inside the phone's "Get started" panel, its own width
+              // once it is in the bar itself. See `GetStarted`.
+              'no-select w-full rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold whitespace-nowrap text-white transition active:scale-[0.98] sm:w-auto'
             : 'no-select rounded-2xl bg-(--color-brand) px-10 py-5 text-2xl font-semibold text-white transition active:scale-[0.98]'
         }
       >

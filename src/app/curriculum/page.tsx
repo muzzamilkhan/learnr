@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { LogoMark } from '@/components/logo';
 import { curriculumCodes } from '@/content/catalog';
 import { yearLabel } from '@/lib/curriculum';
 
@@ -32,10 +33,15 @@ export default function CurriculumPage() {
         <Link href="/" className="text-lg font-medium text-(--color-brand)">
           ← Back
         </Link>
-        <h1 className="mt-4 text-4xl font-bold tracking-tight">Curriculum sources</h1>
-        <p className="mt-3 text-xl text-(--color-ink-soft)">
-          Where LearnR’s questions come from, and how to check them.
-        </p>
+        <div className="mt-4 flex items-center gap-4">
+          <LogoMark size="lg" />
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">Curriculum sources</h1>
+            <p className="mt-2 text-xl text-(--color-ink-soft)">
+              Where LearnR’s questions come from, and how to check them.
+            </p>
+          </div>
+        </div>
       </header>
 
       <section className="space-y-4 text-lg leading-relaxed">

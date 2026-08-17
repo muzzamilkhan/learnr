@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { LogoMark } from '@/components/logo';
 
 /**
  * The frame around every parent screen.
@@ -41,11 +42,18 @@ export function ParentShell({
           decoration. */}
       <header className="mb-6">
         <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight">{title}</h1>
-            {subtitle ? (
-              <p className="mt-0.5 text-sm text-(--color-ink-soft)">{subtitle}</p>
-            ) : null}
+          {/* The mark links home, which for a parent is the report — the one
+              place every other parent screen is a detour from. */}
+          <div className="flex min-w-0 items-center gap-3">
+            <Link href="/" aria-label="LearnR home" className="no-select">
+              <LogoMark size="md" />
+            </Link>
+            <div className="min-w-0">
+              <h1 className="truncate text-2xl font-bold tracking-tight">{title}</h1>
+              {subtitle ? (
+                <p className="mt-0.5 text-sm text-(--color-ink-soft)">{subtitle}</p>
+              ) : null}
+            </div>
           </div>
           {menu}
         </div>

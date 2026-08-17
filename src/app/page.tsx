@@ -5,6 +5,7 @@ import { listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
 import { Landing } from '@/components/landing';
 import { LevelPicker } from '@/components/level-picker';
+import { LogoMark } from '@/components/logo';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
@@ -74,9 +75,12 @@ export default async function HomePage() {
   if (account && account.role === null) {
     return (
       <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-        <header className="mb-12">
-          <h1 className="text-5xl font-bold tracking-tight">Welcome to LearnR</h1>
-          <p className="mt-2 text-2xl text-(--color-ink-soft)">Who&rsquo;s using this account?</p>
+        <header className="mb-12 flex items-center gap-5">
+          <LogoMark size="lg" />
+          <div>
+            <h1 className="text-5xl font-bold tracking-tight">Welcome to LearnR</h1>
+            <p className="mt-2 text-2xl text-(--color-ink-soft)">Who&rsquo;s using this account?</p>
+          </div>
         </header>
         <RoleChooser />
       </main>
@@ -141,11 +145,14 @@ export default async function HomePage() {
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
       <header className="mb-12 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-5xl font-bold tracking-tight">
-            {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
-          </h1>
-          <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
+        <div className="flex items-center gap-5">
+          <LogoMark size="lg" />
+          <div>
+            <h1 className="text-5xl font-bold tracking-tight">
+              {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
+            </h1>
+            <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
+          </div>
         </div>
         {session?.user ? (
           <ProfileMenu
