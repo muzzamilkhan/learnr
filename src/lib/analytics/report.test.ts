@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 
 import {
+  coverage,
   dueForReview,
   headline,
   latestOffsetMinutes,
   periods,
   problemTopics,
   progressOverTime,
+  strengths,
   summarise,
   topicReports,
   trendFor,
@@ -306,5 +308,56 @@ describe('headline', () => {
       questionsDelta: 4,
       accuracyDelta: null,
     });
+  });
+});
+
+describe('strengths', () => {
+  it('lists what the child has, best evidence first', () => {
+    const history = [...known('addition', 4), ...known('shapes', 2), ...answers('counting', wrongs(6))];
+    const reports = topicReports(history, NOW);
+
+    expect(strengths(reports).map((report) => report.topic)).toEqual(['addition', 'shapes']);
+  });
+
+  it('leaves a topic that is due for review to dueForReview', () => {
+    // Known, then left alone long enough that it is worth confirming again.
+    const stale = topicReports(known('addition', 2).map((o) => ({ ...o, answeredAt: o.answeredAt - 20 * DAY })), NOW);
+
+    expect(stale[0].status).toBe('review-due');
+    expect(strengths(stale)).toEqual([]);
+    expect(dueForReview(stale)).toHaveLength(1);
+  });
+
+  it('says nothing when nothing is proven yet', () => {
+    expect(strengths(topicReports(answers('counting', rights(2)), NOW))).toEqual([]);
+  });
+});
+
+describe('coverage', () => {
+  const offered = ['addition', 'counting', 'shapes', 'subtraction'];
+
+  it('counts what has been tried against what the year offers', () => {
+    const reports = topicReports(
+      [...answers('addition', rights(3), { level: '1' }), ...answers('shapes', wrongs(1), { level: '1' })],
+      NOW,
+    );
+
+    expect(coverage(reports, offered, '1')).toEqual({
+      offered: 4,
+      practised: 2,
+      untouched: ['counting', 'subtraction'],
+    });
+  });
+
+  it('counts a single attempt as tried — this is not a question about mastery', () => {
+    const reports = topicReports(answers('counting', wrongs(1), { level: '1' }), NOW);
+
+    expect(coverage(reports, offered, '1').practised).toBe(1);
+  });
+
+  it('ignores practice at another year level', () => {
+    const reports = topicReports(answers('addition', rights(3), { level: 'K' }), NOW);
+
+    expect(coverage(reports, offered, '1')).toMatchObject({ practised: 0, offered: 4 });
   });
 });

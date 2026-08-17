@@ -155,6 +155,62 @@ export function dueForReview(reports: readonly TopicReport[], limit = 3): TopicR
   return reports.filter((report) => report.status === 'review-due').slice(0, limit);
 }
 
+/**
+ * The mirror of `problemTopics`: what to say well done about. Ordered by
+ * `correctDays`, because that is the evidence that means something — four right
+ * in a row is one memory answering four times, the same topic known again a week
+ * later is not.
+ *
+ * `review-due` is left out even though those topics are mastered too.
+ * `dueForReview` already lists them, and a topic appearing in two sections of
+ * the same screen reads as a bug.
+ */
+export function strengths(reports: readonly TopicReport[], limit = 3): TopicReport[] {
+  return reports
+    .filter((report) => report.status === 'secure')
+    .sort(
+      (a, b) =>
+        b.correctDays - a.correctDays ||
+        b.strength - a.strength ||
+        b.attempts - a.attempts ||
+        compareYearLevels(a.level, b.level) ||
+        a.topic.localeCompare(b.topic),
+    )
+    .slice(0, limit);
+}
+
+export interface Coverage {
+  offered: number;
+  practised: number;
+  untouched: string[];
+}
+
+/**
+ * How much of the year has been touched at all. A different question from the
+ * status sections: this one is about breadth, and a child circling the same
+ * three topics is worth knowing about even when they are doing well at them.
+ *
+ * Takes the level rather than trusting the caller to filter, because `reports`
+ * spans every year the child has practised and `offered` covers exactly one.
+ */
+export function coverage(
+  reports: readonly TopicReport[],
+  offered: readonly string[],
+  level: YearLevel,
+): Coverage {
+  const tried = new Set(
+    reports.filter((report) => report.level === level && report.attempts > 0).map((report) => report.topic),
+  );
+
+  return {
+    offered: offered.length,
+    // Counted over `offered` rather than over `tried`, so a topic the child has
+    // practised that this year no longer offers cannot push the figure past the total.
+    practised: offered.filter((topic) => tried.has(topic)).length,
+    untouched: offered.filter((topic) => !tried.has(topic)),
+  };
+}
+
 export type BucketUnit = 'day' | 'week';
 
 export interface ProgressBucket {
