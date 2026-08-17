@@ -41,6 +41,18 @@ export function yearLabel(level: YearLevel): string {
   return level === 'K' ? 'Kindergarten' : `Year ${level}`;
 }
 
+/**
+ * The same level said in the width of a chip: "Year K" rather than
+ * "Kindergarten". For places where the level sits in a row beside other short
+ * facts and the full word is three times the length of every year above it —
+ * one long label makes that row wrap for the youngest child and nobody else.
+ * The child's own screens still get `yearLabel`, where there is room to say it
+ * properly.
+ */
+export function shortYearLabel(level: YearLevel): string {
+  return `Year ${level}`;
+}
+
 /** Sorts K first, then years numerically, never as text. */
 export function compareYearLevels(a: YearLevel, b: YearLevel): number {
   return YEAR_LEVELS.indexOf(a) - YEAR_LEVELS.indexOf(b);

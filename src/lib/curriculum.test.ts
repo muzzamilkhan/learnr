@@ -3,6 +3,7 @@ import {
   YEAR_LEVELS,
   isYearLevel,
   parseYearLevel,
+  shortYearLabel,
   yearLabel,
   compareYearLevels,
   resolveInitialLevel,
@@ -48,6 +49,13 @@ describe('yearLabel', () => {
     expect(yearLabel('K')).toBe('Kindergarten');
     expect(yearLabel('1')).toBe('Year 1');
     expect(yearLabel('6')).toBe('Year 6');
+  });
+});
+
+describe('shortYearLabel', () => {
+  it('says Kindergarten as a year, so every level is the same width', () => {
+    expect(shortYearLabel('K')).toBe('Year K');
+    expect(shortYearLabel('3')).toBe('Year 3');
   });
 });
 

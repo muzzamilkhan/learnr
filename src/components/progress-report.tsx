@@ -1,6 +1,6 @@
 import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes } from '@/lib/analytics/report';
-import { parseYearLevel, yearLabel } from '@/lib/curriculum';
+import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import { AvatarIcon } from './avatar-icon';
 import { ChildPicker } from './child-picker';
@@ -52,7 +52,7 @@ export function ProgressReport({
           <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
         </span>
         <p className="text-sm text-(--color-ink-soft)">
-          {level ? yearLabel(level) : 'No level set'}
+          {level ? shortYearLabel(level) : 'No level set'}
         </p>
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
