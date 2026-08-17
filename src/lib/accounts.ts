@@ -89,7 +89,14 @@ export interface ChildProfile {
   codeExpiresAt: Date | null;
 }
 
-export async function listChildren(parentId: string): Promise<ChildProfile[]> {
+/**
+ * A parent's children, newest-created last. `null` means *could not read* and
+ * `[]` means *no children yet* — the same distinction `readObservations` and
+ * `readSittings` make, and for the same reason: an empty dashboard and a failed
+ * read must not render the same, or a database hiccup tells a parent their
+ * children are gone.
+ */
+export async function listChildren(parentId: string): Promise<ChildProfile[] | null> {
   if (!prisma) return [];
   try {
     const rows = await prisma.user.findMany({
@@ -114,7 +121,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[]> {
     }));
   } catch (error) {
     console.error('Failed to list children', error);
-    return [];
+    return null;
   }
 }
 

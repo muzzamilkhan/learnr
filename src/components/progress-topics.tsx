@@ -9,6 +9,7 @@ import {
   type TopicReport,
 } from '@/lib/analytics/report';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
+import { localDay } from '@/lib/day';
 import type { Sitting } from '@/lib/records';
 import { createRng } from '@/lib/rng';
 import { generateQuestion } from '@/lib/templates/generate';
@@ -20,7 +21,14 @@ import { generateQuestion } from '@/lib/templates/generate';
  * diagnosis built from two data points.
  */
 
-const DATE = new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+const DATE = new Intl.DateTimeFormat('en-AU', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  // The timestamp is already shifted into the child's day below, so it is read
+  // back as UTC rather than through whatever timezone the server happens to be in.
+  timeZone: 'UTC',
+});
 
 /**
  * One real question from this topic, so "fractions are hard" becomes something a
@@ -47,12 +55,14 @@ export function ProgressTopics({
   subject,
   level,
   now,
+  offsetMinutes,
 }: {
   observations: Observation[];
   sittings: Sitting[];
   subject: string;
   level: YearLevel | null;
   now: number;
+  offsetMinutes: number;
 }) {
   const reports = topicReports(observations, now);
   const problems = problemTopics(reports);
@@ -78,7 +88,7 @@ export function ProgressTopics({
                 key={`${report.level}|${report.topic}`}
                 className="rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5"
               >
-                <TopicLine report={report} now={now} />
+                <TopicLine report={report} now={now} offsetMinutes={offsetMinutes} />
                 {(() => {
                   const example = exampleQuestion(subject, report.topic, report.level);
                   return example ? (
@@ -156,7 +166,9 @@ export function ProgressTopics({
           <ul className="space-y-2">
             {sittings.map((sitting) => (
               <li key={sitting.id} className="text-lg tabular-nums">
-                <span className="font-medium">{DATE.format(new Date(sitting.startedAt))}</span>
+                <span className="font-medium">
+                  {DATE.format(new Date(sitting.startedAt + offsetMinutes * 60_000))}
+                </span>
                 <span className="text-(--color-ink-soft)">
                   {' '}
                   · {yearLabel(sitting.level)} · {sitting.attempts} question
@@ -183,8 +195,16 @@ function Unproven() {
   );
 }
 
-function TopicLine({ report, now }: { report: TopicReport; now: number }) {
-  const days = Math.round((now - report.lastAnsweredAt) / 86_400_000);
+function TopicLine({
+  report,
+  now,
+  offsetMinutes,
+}: {
+  report: TopicReport;
+  now: number;
+  offsetMinutes: number;
+}) {
+  const days = localDay(now, offsetMinutes) - localDay(report.lastAnsweredAt, offsetMinutes);
 
   return (
     <p className="text-lg">

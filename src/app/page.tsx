@@ -83,16 +83,18 @@ export default async function HomePage() {
     );
   }
 
-  const children: ChildRow[] = isParent && userId
-    ? (await listChildren(userId)).map((child) => ({
-        id: child.id,
-        name: child.name,
-        avatar: child.avatar,
-        level: child.level,
-        code: child.code,
-        codeExpiresAt: child.codeExpiresAt?.toISOString() ?? null,
-      }))
-    : [];
+  const childProfiles = isParent && userId ? await listChildren(userId) : [];
+  const children: ChildRow[] | null =
+    childProfiles === null
+      ? null
+      : childProfiles.map((child) => ({
+          id: child.id,
+          name: child.name,
+          avatar: child.avatar,
+          level: child.level,
+          code: child.code,
+          codeExpiresAt: child.codeExpiresAt?.toISOString() ?? null,
+        }));
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
@@ -119,7 +121,13 @@ export default async function HomePage() {
 
       {/* A parent doesn't play, so they get no level and no subjects at all. */}
       {isParent ? (
-        <ParentDashboard profiles={children} levels={levels} />
+        children === null ? (
+          <p className="text-xl text-(--color-ink-soft)">
+            Couldn&rsquo;t load your children just now. Try again in a moment.
+          </p>
+        ) : (
+          <ParentDashboard profiles={children} levels={levels} />
+        )
       ) : !initialLevel ? (
         <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
       ) : isManagedChild ? (

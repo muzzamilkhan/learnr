@@ -9,7 +9,7 @@ import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
 import type { Avatar } from '@/lib/avatars';
 
-export interface ProgressChild {
+interface ProgressChild {
   id: string;
   name: string;
   avatar: Avatar;
@@ -98,6 +98,7 @@ export function ProgressReport({
             subject={subject}
             level={level}
             now={now}
+            offsetMinutes={offsetMinutes}
           />
         </div>
       )}

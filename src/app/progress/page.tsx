@@ -27,6 +27,19 @@ export default async function ProgressPage({
   if (account?.role !== 'parent') redirect('/');
 
   const profiles = await listChildren(userId);
+  if (profiles === null) {
+    return (
+      <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
+        <h1 className="text-4xl font-bold tracking-tight">Couldn&rsquo;t load</h1>
+        <p className="mt-3 text-xl text-(--color-ink-soft)">
+          Something went wrong reading your children. Try again in a moment.
+        </p>
+        <Link href="/" className="mt-6 inline-block text-lg text-(--color-brand) underline">
+          Back to the dashboard
+        </Link>
+      </main>
+    );
+  }
   if (profiles.length === 0) {
     return (
       <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
