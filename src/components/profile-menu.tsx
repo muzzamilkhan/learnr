@@ -1,59 +1,34 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { currentStreak, type PlayStreak } from '@/lib/rewards/streak';
-import { FlameIcon, StarIcon } from './star-icon';
+import { StarIcon } from './star-icon';
 
 /**
- * The one thing in the top corner: how many days in a row, whose account this
- * is, and — behind a tap — the stars and the way out.
+ * The one thing in the top corner: how many stars the child has collected, whose
+ * account this is, and — behind a tap — the way out.
  *
- * The streak and the stars live here rather than on the play screen on purpose.
- * A child at the home screen is deciding whether to practise, which is exactly
- * when a run of days is worth seeing; a child mid-question is not, and a counter
- * they could watch going wrong is the sort of pressure this app avoids.
+ * The total is a badge and never a score: it only ever goes up, it moves in
+ * whole stars a round at a time, and there is nothing a wrong answer takes off
+ * it. The run of days is not here at all — it belongs on the home screen, where
+ * a child is deciding whether to practise (`StreakBadge`).
  */
-
-/**
- * Nothing to subscribe to: the day only turns over at midnight, and a child
- * whose home screen has been open since yesterday will reload it long before the
- * stale number matters. Stable identity, so the store is never resubscribed.
- */
-const subscribeToTheClock = () => () => {};
 
 interface Props {
   name: string | null;
   image: string | null;
   /**
-   * As stored, and null for a parent — they don't play, so a run of days and a
-   * pile of stars on their account are counting nothing. Whether a run is still
-   * live depends on the child's clock, not the server's.
+   * Stars collected in total, and null for a parent — they don't play, so a pile
+   * of stars on their account would be counting nothing.
    */
-  streak: PlayStreak | null;
   stars: number | null;
   /** The sign-out form, built on the server so it stays a server action. */
   children: ReactNode;
 }
 
-export function ProfileMenu({ name, image, streak, stars, children }: Props) {
+export function ProfileMenu({ name, image, stars, children }: Props) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
-
-  /**
-   * Whether the run is still alive is a question only the browser can answer —
-   * the server has no idea which day it is where the child is sitting. So the
-   * server renders the stored number and the client corrects it, which is what
-   * this hook is for: a streak that quietly ended last week must not still be
-   * claimed, and it must not be a hydration mismatch either.
-   *
-   * The snapshot is the same number all day, so re-reading it costs nothing.
-   */
-  const days = useSyncExternalStore(
-    subscribeToTheClock,
-    () => (streak ? currentStreak(streak, Date.now(), -new Date().getTimezoneOffset()) : 0),
-    () => streak?.days ?? 0,
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -81,19 +56,19 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={name ? `Account: ${name}` : 'Account'}
-        // The streak sits inside the button rather than beside it: it doubles the
-        // target, and there is nothing a child could tap here by mistake.
-        className={`no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 ${streak ? 'pl-3' : 'pl-1.5'} transition active:scale-95`}
+        // The star count sits inside the button rather than beside it: it doubles
+        // the target, and there is nothing a child could tap here by mistake.
+        className={`no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 ${stars === null ? 'pl-1.5' : 'pl-3'} transition active:scale-95`}
       >
-        {streak ? (
+        {stars === null ? null : (
           <span
-            className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
-            title={`${days} day${days === 1 ? '' : 's'} in a row`}
+            className="flex items-center gap-1 text-lg font-bold text-(--color-star) tabular-nums"
+            title={`${stars} star${stars === 1 ? '' : 's'} collected`}
           >
-            <FlameIcon className="h-5 w-5" />
-            {days}
+            <StarIcon filled className="h-5 w-5" />
+            {stars}
           </span>
-        ) : null}
+        )}
         <Avatar name={name} image={image} />
       </button>
 
@@ -106,17 +81,9 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
             <p className="truncate px-3 pt-1 text-base text-(--color-ink-soft)">{name}</p>
           ) : null}
 
-          {stars === null ? null : (
-            <p className="flex items-center gap-2 px-3 py-2 text-xl font-semibold">
-              <StarIcon filled className="h-6 w-6 text-(--color-star)" />
-              <span className="tabular-nums">{stars}</span>
-              <span className="font-normal text-(--color-ink-soft)">
-                star{stars === 1 ? '' : 's'}
-              </span>
-            </p>
-          )}
-
-          <div className="border-t-2 border-(--color-line) pt-1">{children}</div>
+          {/* The total is on the button itself, so it is not repeated in here —
+              behind the tap there is only the way out. */}
+          <div className={name ? 'border-t-2 border-(--color-line) pt-1' : ''}>{children}</div>
         </div>
       ) : null}
     </div>

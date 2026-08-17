@@ -9,15 +9,12 @@ import { startSession, submitAnswer, type SessionState } from '@/lib/session/ses
 import { gradeAnswer } from '@/lib/session/grade';
 import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
 import { closedRound, type Round } from '@/lib/rewards/stars';
-import { noStreak, type PlayStreak } from '@/lib/rewards/streak';
-import { localDay } from '@/lib/day';
 import {
   awardRoundAction,
   endRecordingAction,
   recordAttemptAction,
   startRecordingAction,
 } from '@/app/play/actions';
-import { SessionTimer } from './session-timer';
 import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
@@ -55,7 +52,7 @@ interface Props {
   recentTopics: string[];
   recordingEnabled: boolean;
   /** Who's playing, and their totals as last read from the server. Null signed out. */
-  account: { name: string | null; image: string | null; streak: PlayStreak; stars: number } | null;
+  account: { name: string | null; image: string | null; stars: number } | null;
   /** The sign-out form, built on the server so it stays a server action. */
   signOutSlot: ReactNode;
 }
@@ -100,9 +97,8 @@ export function PlaySession({
   const [reward, setReward] = useState<Round | null>(null);
   /** The day streak, on the one answer of the day that extended it. */
   const [streak, setStreak] = useState<number | null>(null);
-  /** Runs the profile menu shown in the header — kept live as answers land. */
+  /** The star total on the profile menu — kept live as rounds are banked. */
   const [stars, setStars] = useState(account?.stars ?? 0);
-  const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -193,10 +189,7 @@ export function PlaySession({
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
         recordAttemptAction(id, attempt).then((result) => {
-          if (result) {
-            setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
-            if (result.streakAdvanced) setStreak(result.streak);
-          }
+          if (result?.streakAdvanced) setStreak(result.streak);
           // Banked *after* the answer is written, never alongside it: the server
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
@@ -274,12 +267,14 @@ export function PlaySession({
     return () => window.removeEventListener('keydown', onKey);
   }, [submit, feedback, mode, options, pending, advance, reward, dismissReward, updateEntry]);
 
-  const correctCount = session.attempts.filter((a) => a.correct).length;
-
   return (
     // Fixed to the viewport: everything must fit an iPad screen with no scrolling,
     // so the pad is never below the fold in either orientation.
     <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-4 py-3 sm:px-10 sm:py-5">
+      {/* Nothing here counts anything. A clock and a running score are both things
+          a child would watch instead of the question, and neither is theirs to
+          worry about — the round's stars are the only reckoning, and they come
+          between questions. What is left is the way out and whose screen it is. */}
       <header className="flex shrink-0 items-center justify-between gap-4">
         <Link
           href="/"
@@ -289,14 +284,8 @@ export function PlaySession({
           Done
         </Link>
 
-        <SessionTimer startedAt={session.startedAt} />
-
-        <p className="min-w-24 text-right text-lg font-medium text-(--color-ink-soft) tabular-nums">
-          {correctCount} / {session.askedCount}
-        </p>
-
         {account ? (
-          <ProfileMenu name={account.name} image={account.image} streak={playStreak} stars={stars}>
+          <ProfileMenu name={account.name} image={account.image} stars={stars}>
             {signOutSlot}
           </ProfileMenu>
         ) : null}

@@ -8,6 +8,7 @@ import { LevelPicker } from '@/components/level-picker';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
+import { StreakBadge } from '@/components/streak-badge';
 import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readPlayStreak, readSelectedLevel, readStarTotal } from '@/lib/records';
@@ -21,15 +22,28 @@ export const dynamic = 'force-dynamic';
  * What the questions are written against. Shown to a child as reassurance and to a
  * parent as the thing they'd actually want to check, so it sits under every
  * signed-in branch rather than only under the play cards.
+ *
+ * Boxed for the same reason the parent shell boxes it: a line of small print
+ * under a page of cards is the shape of something nobody is meant to click. Sized
+ * to the child's scale rather than reusing `Well`, which is built for a parent
+ * reading a report on a laptop.
  */
 function CurriculumLink() {
   return (
-    <p className="mt-12 text-lg text-(--color-ink-soft)">
-      <Link href="/curriculum" className="text-(--color-brand) underline">
-        Curriculum sources
-      </Link>{' '}
-      — what the questions are written against.
-    </p>
+    <Link
+      href="/curriculum"
+      className="no-select mt-12 flex items-center gap-4 rounded-2xl border-2 border-(--color-line) bg-(--color-card) p-5 transition hover:border-(--color-brand) active:scale-[0.99]"
+    >
+      <span className="min-w-0">
+        <span className="block text-xl font-semibold">Curriculum sources</span>
+        <span className="mt-1 block text-base text-(--color-ink-soft)">
+          What the questions are written against — the Australian Curriculum, year by year.
+        </span>
+      </span>
+      <span aria-hidden className="ml-auto text-2xl text-(--color-brand)">
+        &rarr;
+      </span>
+    </Link>
   );
 }
 
@@ -95,7 +109,6 @@ export default async function HomePage() {
       <ProfileMenu
         name={session?.user?.name ?? null}
         image={session?.user?.image ?? null}
-        streak={null}
         stars={null}
       >
         <SignOutButton />
@@ -147,12 +160,14 @@ export default async function HomePage() {
             {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
           </h1>
           <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
+          {/* The run of days lives here rather than on the play screen: this is
+              where a child is deciding whether to practise today. */}
+          {streak ? <StreakBadge streak={streak} /> : null}
         </div>
         {session?.user ? (
           <ProfileMenu
             name={session.user.name ?? null}
             image={session.user.image ?? null}
-            streak={streak}
             stars={stars}
           >
             <SignOutButton />

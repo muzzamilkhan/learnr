@@ -166,8 +166,11 @@ usual shape.
 
 A session never ends. The child picks subject + year and answers until they stop;
 templates are drawn from the pool for that year, across all of its topics, with
-the reinforcement selector deciding which. The header shows a count-up timer only
-— no limits or targets yet.
+the reinforcement selector deciding which. **The header counts nothing**: no
+clock and no right-so-far tally, only Done and the profile menu. Both were things
+a child would watch instead of the question, and neither is theirs to worry
+about — the round's stars are the only reckoning, and they come between
+questions.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
 correct/incorrect, the response as typed, and the UTC offset it was given at) and
@@ -377,10 +380,15 @@ An hours rule was considered and rejected: practice after school one day and
 before school the next is twenty hours apart and would break a streak the child
 kept perfectly well.
 
-**The profile menu is the only place the totals live** — top right of the home
-screen, streak beside the avatar, stars and sign-out behind a tap. That is where
-a child is deciding whether to practise, which is when a run of days is worth
-seeing; mid-question it is not.
+**The star total is the badge on the profile menu**, beside the avatar and on
+every child screen. It only ever goes up, it moves a whole round at a time, and
+nothing takes it away — so it reads as a collection rather than a score. Behind
+the tap there is only the name and the way out.
+
+**The run of days is on the home screen only** (`StreakBadge`, under the
+greeting). That is where a child is deciding whether to practise, which is when
+a run of days is worth seeing; mid-question it is not, so the play screen shows
+it once as `StreakFlash` on the answer that extends it and never again.
 
 ## Accounts
 
