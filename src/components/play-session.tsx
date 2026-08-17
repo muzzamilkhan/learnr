@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
@@ -21,6 +21,7 @@ import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
+import { ExitIcon } from './exit-icon';
 import { HintIcon } from './hint-icon';
 import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
@@ -76,6 +77,7 @@ export function PlaySession({
   account,
   signOutSlot,
 }: Props) {
+  const router = useRouter();
   const [session, setSession] = useState<SessionState>(() =>
     startSession({ templates, seed, startedAt, subject, level, profile, recentTopics }),
   );
@@ -287,13 +289,17 @@ export function PlaySession({
           worry about — the round's stars are the only reckoning, and they come
           between questions. What is left is the way out and whose screen it is. */}
       <header className="flex shrink-0 items-center justify-between gap-4">
-        <Link
-          href="/"
+        {/* A button rather than a link, and an icon rather than the word: it is
+            the one control on this screen a child might reach for without being
+            able to read, and it sits opposite the profile menu it now matches. */}
+        <button
+          type="button"
+          onClick={() => router.push('/')}
           aria-label="Finish and go back"
-          className="rounded-xl border-2 border-(--color-line) bg-(--color-card) px-5 py-3 text-lg font-medium text-(--color-ink-soft) transition active:scale-95"
+          className="rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
         >
-          Done
-        </Link>
+          <ExitIcon />
+        </button>
 
         {account ? (
           <ProfileMenu

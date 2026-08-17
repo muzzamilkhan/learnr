@@ -167,7 +167,8 @@ usual shape.
 A session never ends. The child picks subject + year and answers until they stop;
 templates are drawn from the pool for that year, across all of its topics, with
 the reinforcement selector deciding which. **The header counts nothing**: no
-clock and no right-so-far tally, only Done and the profile menu. Both were things
+clock and no right-so-far tally, only the way out (a door icon, drawn for the
+same reason the Check key is a tick) and the profile menu. Both were things
 a child would watch instead of the question, and neither is theirs to worry
 about — the round's stars are the only reckoning, and they come between
 questions.
@@ -385,6 +386,12 @@ the avatar, the same control on the home screen and the play screen so a child
 never looks in two places for the two numbers. Days sit left of the stars: the
 run is the thing that lapses if they stop. Behind the tap there is only the name
 and the way out.
+
+Both are drawn through `formatCount` (`src/lib/format.ts`), which pins `en-AU`
+rather than reading the browser's locale — the totals are rendered on the server
+and corrected on the client, and a locale that disagrees across that boundary is
+a hydration mismatch. A star total has no ceiling, and "1,204" is a number to be
+pleased about where "1204" is one to decipher.
 
 Neither is a score. The star total only ever goes up, a whole round at a time,
 and nothing a wrong answer does takes anything off either of them. A lapsed run

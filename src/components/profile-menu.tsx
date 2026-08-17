@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import Image from 'next/image';
+import { formatCount } from '@/lib/format';
 import { currentStreak, type PlayStreak } from '@/lib/rewards/streak';
 import { FlameIcon, StarIcon } from './star-icon';
 
@@ -96,20 +97,20 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
         {streak && days > 0 ? (
           <span
             className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
-            title={`${days} day${days === 1 ? '' : 's'} in a row`}
+            title={`${formatCount(days)} day${days === 1 ? '' : 's'} in a row`}
           >
             <FlameIcon className="h-5 w-5" />
-            {days}
+            {formatCount(days)}
           </span>
         ) : null}
 
         {stars === null ? null : (
           <span
             className="flex items-center gap-1 text-lg font-bold text-(--color-star) tabular-nums"
-            title={`${stars} star${stars === 1 ? '' : 's'} collected`}
+            title={`${formatCount(stars)} star${stars === 1 ? '' : 's'} collected`}
           >
             <StarIcon filled className="h-5 w-5" />
-            {stars}
+            {formatCount(stars)}
           </span>
         )}
         <Avatar name={name} image={image} />

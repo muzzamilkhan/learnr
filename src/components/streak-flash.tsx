@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { formatCount } from '@/lib/format';
 import { FlameIcon } from './star-icon';
 
 /**
@@ -32,7 +33,7 @@ export function StreakFlash({ days, onDone }: { days: number; onDone: () => void
         <FlameIcon className="h-7 w-7 text-(--color-flame) sm:h-8 sm:w-8" />
         <p className="text-xl font-bold text-(--color-flame) sm:text-2xl">
           <span className="inline-block animate-[streak-count_600ms_ease-out_400ms] tabular-nums">
-            {days}
+            {formatCount(days)}
           </span>{' '}
           day{days === 1 ? '' : 's'} in a row
         </p>
