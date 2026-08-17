@@ -1,0 +1,65 @@
+'use client';
+
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { redeemLoginCodeAction } from '@/app/actions';
+import { CODE_LENGTH } from '@/lib/login-code';
+
+/**
+ * The child's way in, beside the Google button. Four characters read off a
+ * parent's screen — no email, no password, nothing a child has to remember
+ * between one day and the next.
+ *
+ * A wrong code is answered inline rather than by navigating: getting it wrong is
+ * the ordinary case, and losing the screen for it would make a small mistake feel
+ * like a big one.
+ */
+export function CodeSignIn() {
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
+
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (code.length < CODE_LENGTH) return;
+
+    setError(null);
+    startTransition(async () => {
+      const result = await redeemLoginCodeAction(code);
+      if (result) {
+        setError(result.error);
+        setCode('');
+        return;
+      }
+      router.refresh();
+    });
+  };
+
+  return (
+    <form onSubmit={submit} className="flex w-full max-w-sm flex-col items-center gap-4">
+      <label htmlFor="code" className="text-xl text-(--color-ink-soft)">
+        Got a code from your grown-up?
+      </label>
+      <input
+        id="code"
+        value={code}
+        onChange={(event) => setCode(event.target.value.toUpperCase().slice(0, CODE_LENGTH))}
+        maxLength={CODE_LENGTH}
+        autoCapitalize="characters"
+        autoCorrect="off"
+        spellCheck={false}
+        aria-invalid={error !== null}
+        className="w-full rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-6 py-5 text-center text-5xl font-bold tracking-[0.4em] uppercase"
+      />
+      <button
+        type="submit"
+        disabled={pending || code.length < CODE_LENGTH}
+        className="no-select w-full rounded-2xl bg-(--color-brand) px-6 py-4 text-2xl font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+      >
+        Let&rsquo;s go
+      </button>
+      {error ? <p className="text-center text-lg text-(--color-wrong)">{error}</p> : null}
+    </form>
+  );
+}

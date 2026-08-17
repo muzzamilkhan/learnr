@@ -60,13 +60,18 @@ whole app to JWT sessions loses server-side session data for no benefit here
 action that does by hand what the database strategy would do for it:
 
 1. Look up the `User` by `loginCode` where `loginCodeExpiresAt > now`.
-2. If found: clear `loginCode`/`loginCodeExpiresAt` on that row (the code is
-   now spent) and create a `Session` row for it — `prisma.session.create`,
-   the same table the Prisma adapter already writes to — with
-   `expires = now + 30 days`, matching Auth.js's own default session
-   lifetime for the Google path. This isn't a deliberate "sessions expire
-   monthly" policy; it's just matching the platform default so nothing about
-   session lifetime regresses for either login path.
+2. If found: clear `loginCode`/`loginCodeExpiresAt` on that row and create a
+   `Session` row for it — `prisma.session.create`, the same table the Prisma
+   adapter already writes to.
+
+   **The code is spent at redemption, and the session it creates does not
+   expire on a schedule.** These are the two halves of one decision: the
+   short-lived thing is the *code*, not the login. A child should not be
+   locked out mid-term because a month elapsed — being asked to find a parent
+   to get back into a maths app is exactly the friction this feature removes.
+   The 60-minute window and single-use redemption protect the handoff; once
+   the child is in, they are in. `expires` is a required column on `Session`,
+   so it is set far in the future rather than left null.
 3. Set the session cookie via `cookies().set(...)`.
 4. If not found: return an error for the form to show, no session created.
 
@@ -139,5 +144,5 @@ with how `records.ts` is handled today.
 - Any parent-facing analytics/report screen.
 - Session revocation UI, or any brute-force protection on code entry beyond
   the 60-minute window and single-use redemption.
-- A monthly (or any custom) session expiry policy — session lifetime is
-  whatever Auth.js already defaults to.
+- Any session expiry policy for the code path. A redeemed code creates a
+  session that stays valid; only the code itself expires.

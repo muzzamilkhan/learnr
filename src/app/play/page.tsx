@@ -1,10 +1,18 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
 import { SignOutButton } from '@/components/auth-buttons';
 import { emptyProfile } from '@/lib/analytics/profile';
-import { readLearnerProfile, readPlayStreak, readRecentTopics, readStarTotal } from '@/lib/records';
+import { readAccount } from '@/lib/accounts';
+import {
+  readLearnerProfile,
+  readPlayStreak,
+  readRecentTopics,
+  readSelectedLevel,
+  readStarTotal,
+} from '@/lib/records';
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
@@ -16,6 +24,20 @@ export default async function PlayPage({
   searchParams: Promise<{ subject?: string; level?: string }>;
 }) {
   const { subject = 'maths', level: levelParam = 'K' } = await searchParams;
+
+  const session = isAuthConfigured ? await auth() : null;
+  const userId = session?.user?.id;
+  const account = userId ? await readAccount(userId) : null;
+
+  // A managed child's year is the parent's decision, so it is enforced here and
+  // not only hidden in the UI — the level is a query parameter, and hiding the
+  // dropdown would leave a typed URL as a way straight past it.
+  const isManagedChild = account?.role === 'child' && account.parentId !== null;
+  const managedLevel = isManagedChild ? await readSelectedLevel(account.id) : null;
+  if (managedLevel && managedLevel !== levelParam) {
+    redirect(`/play?subject=${subject}&level=${managedLevel}`);
+  }
+
   const level = parseYearLevel(levelParam);
   const templates = level ? templatesFor(subject, level) : [];
 
@@ -37,9 +59,6 @@ export default async function PlayPage({
       </main>
     );
   }
-
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
 
   // What the child has shown before, so the first question of this sitting is
   // already weighted by it. Signed out there is no history, and an empty profile

@@ -26,6 +26,28 @@ model User {
   /// The year the home screen reopens on. Australian school year: "K" or "1" through "6".
   selectedLevel String?
 
+  /// Chosen once at first sign-in and then permanent: "parent" or "child". Null
+  /// means the choice hasn't been made yet, which is what routes to the chooser —
+  /// including for every account that already existed before this column did.
+  role String?
+
+  /// Set only on a child profile a parent created. Null on every account that
+  /// signed in with Google itself, parent or child. This is what tells the home
+  /// screen the level is the parent's to set, not the child's.
+  parentId String?
+  parent   User?   @relation("ChildProfiles", fields: [parentId], references: [id], onDelete: Cascade)
+  children User[]  @relation("ChildProfiles")
+
+  /// Preset icon id, e.g. "fox". A managed child has no Google account and so no
+  /// `image`; this is what stands in for one.
+  avatar String?
+
+  /// The code a parent hands to a child, and when it stops working. Both null when
+  /// there is no live code — redeeming clears them, so a code is spent at use
+  /// rather than left to run down its hour. Only ever set on a managed child.
+  loginCode          String?   @unique
+  loginCodeExpiresAt DateTime?
+
   /// Days in a row with at least one answer on them. Reward only — nothing about
   /// what to ask next reads it.
   playStreak    Int  @default(0)
@@ -38,6 +60,9 @@ model User {
   sessions         Session[]
   learningSessions LearningSession[]
   topicSkills      TopicSkill[]
+
+  /// The parent dashboard's only read: this parent's children.
+  @@index([parentId])
 }
 
 model Account {

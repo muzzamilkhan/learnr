@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CODE_CHARSET,
+  CODE_LENGTH,
+  CODE_TTL_MS,
+  codeExpiry,
+  generateLoginCode,
+  isCodeValid,
+  normaliseCode,
+} from './login-code';
+
+/** A counting stand-in for `crypto.randomInt`, so the charset walk is checkable. */
+function sequence(...values: number[]): (max: number) => number {
+  let i = 0;
+  return () => values[i++ % values.length];
+}
+
+describe('generateLoginCode', () => {
+  it('draws CODE_LENGTH characters from the charset', () => {
+    const code = generateLoginCode(sequence(0, 1, 2, 3));
+    expect(code).toBe('ABCD');
+    expect(code).toHaveLength(CODE_LENGTH);
+  });
+
+  it('only ever uses charset characters', () => {
+    let n = 0;
+    for (let i = 0; i < 200; i += 1) {
+      const code = generateLoginCode(() => n++ % CODE_CHARSET.length);
+      for (const char of code) expect(CODE_CHARSET).toContain(char);
+    }
+  });
+
+  it('leaves out characters a child could misread', () => {
+    // 0/O and 1/I/L are the pairs that get read back wrong off a screen.
+    for (const char of '01OIL') expect(CODE_CHARSET).not.toContain(char);
+  });
+});
+
+describe('normaliseCode', () => {
+  it('accepts what a child actually types', () => {
+    expect(normaliseCode(' abcd ')).toBe('ABCD');
+  });
+
+  it('is null for anything that is not a whole code', () => {
+    expect(normaliseCode('abc')).toBeNull();
+    expect(normaliseCode('abcde')).toBeNull();
+    expect(normaliseCode('ab!d')).toBeNull();
+    // Excluded characters are not codes, however they were arrived at.
+    expect(normaliseCode('abc0')).toBeNull();
+  });
+});
+
+describe('codeExpiry', () => {
+  it('is an hour after it was issued', () => {
+    const now = new Date('2026-08-17T09:00:00Z');
+    expect(codeExpiry(now)).toEqual(new Date(now.getTime() + CODE_TTL_MS));
+  });
+});
+
+describe('isCodeValid', () => {
+  const stored = 'ABCD';
+  const expires = new Date('2026-08-17T10:00:00Z');
+  const during = new Date('2026-08-17T09:59:00Z');
+  const after = new Date('2026-08-17T10:00:01Z');
+
+  it('matches a live code, however it was typed', () => {
+    expect(isCodeValid('abcd', stored, expires, during)).toBe(true);
+  });
+
+  it('rejects a code past its expiry', () => {
+    expect(isCodeValid('ABCD', stored, expires, after)).toBe(false);
+  });
+
+  it('rejects the wrong code', () => {
+    expect(isCodeValid('ABCE', stored, expires, during)).toBe(false);
+  });
+
+  it('rejects when there is no code to match — a spent code is cleared, not kept', () => {
+    expect(isCodeValid('ABCD', null, null, during)).toBe(false);
+    expect(isCodeValid('ABCD', stored, null, during)).toBe(false);
+  });
+});

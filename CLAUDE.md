@@ -355,6 +355,67 @@ screen, streak beside the avatar, stars and sign-out behind a tap. That is where
 a child is deciding whether to practise, which is when a run of days is worth
 seeing; mid-question it is not.
 
+## Accounts
+
+There are two kinds of account, chosen once and then permanent. On first sign-in
+a user picks **parent** or **child** (`User.role`, null until they choose). The
+choice is a compare-and-set on `role IS NULL`, so it cannot be replayed into a
+change; every account that predates the column meets the chooser on its next
+sign-in, which is why the migration deliberately backfills nothing. A person is a
+better source for this than a heuristic over their data.
+
+A **parent does not play.** Their home screen is the dashboard instead of the
+level picker: a card per child with name, avatar and level, plus add, edit,
+remove and "Get code". The curriculum link sits under every signed-in branch, a
+parent's included — it is the one thing they would actually want to read.
+
+A **managed child** is a `User` row with `parentId` set, no email and no
+`Account` row — nothing OAuth about it. Because it is an ordinary user row,
+`LearningSession`, `Attempt`, `TopicSkill`, `records.ts` and the play actions all
+work on it unchanged. `parentId` is the only flag that matters downstream: it is
+what fixes the level. A managed child gets `SubjectCards` for their
+`selectedLevel` with no dropdown, and `/play` **redirects** a mismatched `level`
+parameter back to theirs — hiding the dropdown while leaving a typed URL open
+would not be enforcing anything.
+
+A child who signs in with their own Google account (`role: 'child'`,
+`parentId: null`) behaves exactly as before, dropdown and all.
+
+**Login codes.** A parent generates a 4-character code
+(`src/lib/login-code.ts`) that a child types on the sign-in screen. The charset
+excludes `0/O` and `1/I/L` — a code is read off one screen and typed into
+another, so the pairs that get confused in that handoff are not in the alphabet.
+Randomness is injected, as everywhere in `src/lib`, but the caller must pass
+`crypto.randomInt` and **not** the seeded `Rng`: replayability is exactly the
+property a login code must not have.
+
+**The short-lived thing is the code, not the login.** A code lasts an hour and is
+spent at redemption — `UPDATE ... RETURNING` clears it and identifies its owner in
+one statement, so two taps arriving together cannot both get a session, and
+issuing a new code invalidates the old one by overwriting it. The session it
+creates then does not expire on a schedule. Those are two halves of one decision:
+the window protects the handoff from parent to child, and once the child is in
+they stay in. Being locked out of a maths app mid-term and having to find a parent
+to get back in is the friction this feature exists to remove. `Session.expires` is
+not nullable, so "does not expire" is spelled as a date far enough out never to
+arrive.
+
+Redemption is **not** a NextAuth provider. Auth.js refuses to combine a
+Credentials provider with database sessions (`UnsupportedStrategy`), and moving
+the app to JWT sessions to get around that would cost server-side session state
+for nothing. Instead `redeemLoginCode` writes the same `Session` row the Prisma
+adapter would and the action sets the same cookie — `auth()` cannot tell the two
+paths apart. That only works if both agree on the cookie, so `auth.ts` pins
+`SESSION_COOKIE_NAME`/`SESSION_COOKIE_OPTIONS` explicitly rather than leaving
+Auth.js to switch the `__Secure-` prefix implicitly, and exports them.
+
+`src/lib/accounts.ts` holds the Prisma side, following `records.ts`: every child
+mutation scopes its `where` by `parentId` as well as `id`, because the child id
+round-trips through the browser. Unlike `records.ts` these are **not**
+best-effort — a silently failed answer costs history and the child plays on, but
+a silently failed login is a child locked out and a silently failed removal is a
+parent lied to, so the mutations report whether they worked.
+
 ## Setup
 
 Copy `.env.example` to `.env` and fill in:
@@ -375,5 +436,6 @@ client is generated to `src/generated/prisma` (gitignored) and constructed with 
 
 - TDD, lean tests. Test behaviour through the public function, not internals.
 - Work on `master` and push when a piece of work is done. Not a stable release yet.
-- Parent login and controls are a **future** feature. Keep session settings
-  configurable, but do not build for it yet.
+- Parent-facing **analytics** are a future feature. The library is written
+  (`src/lib/analytics`) and the parent dashboard now exists to hang it off, but
+  nothing renders a report yet.
