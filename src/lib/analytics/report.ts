@@ -3,6 +3,7 @@ import {
   accuracy,
   averageTimeMs,
   buildProfile,
+  localDay,
   reviewDueAt,
   skillStatus,
   type Observation,
@@ -258,5 +259,108 @@ export function summarise(
       (latest, observation) => (latest === null ? observation.answeredAt : Math.max(latest, observation.answeredAt)),
       null,
     ),
+  };
+}
+
+/**
+ * The offset the child last answered at. Their days are what this report is
+ * about, and the server has no timezone of its own — nor does it know the
+ * parent's, who may well be reading this from another one. Every attempt
+ * already carries the offset it was given at, so the most recent one is the
+ * best answer available and needs no extra read.
+ */
+export function latestOffsetMinutes(observations: readonly Observation[]): number {
+  let at = -Infinity;
+  let offset = 0;
+
+  for (const observation of observations) {
+    if (observation.answeredAt >= at) {
+      at = observation.answeredAt;
+      offset = observation.offsetMinutes ?? 0;
+    }
+  }
+
+  return offset;
+}
+
+export interface PeriodOptions {
+  now: number;
+  /** Local days per window, counting the one `now` falls in. */
+  days?: number;
+  /** Minutes east of UTC, e.g. 600 for Sydney in winter. */
+  offsetMinutes?: number;
+}
+
+export interface Periods {
+  current: Observation[];
+  previous: Observation[];
+}
+
+/**
+ * The last `days` days, and the `days` before those, so a figure can be shown
+ * against the one it is meant to be read against. A bare "142 questions" says
+ * nothing; "up from 98" is the whole point.
+ *
+ * Rolling rather than calendar-aligned on purpose: a Monday-aligned week reads
+ * "0 questions this week" every Monday morning, which is exactly when a parent
+ * is most likely to look.
+ */
+export function periods(
+  observations: readonly Observation[],
+  { now, days = 7, offsetMinutes = 0 }: PeriodOptions,
+): Periods {
+  const today = localDay(now, offsetMinutes);
+  const opened = today - days + 1;
+  const previouslyOpened = opened - days;
+
+  const current: Observation[] = [];
+  const previous: Observation[] = [];
+
+  for (const observation of observations) {
+    const day = localDay(observation.answeredAt, offsetMinutes);
+    if (day >= opened && day <= today) current.push(observation);
+    else if (day >= previouslyOpened && day < opened) previous.push(observation);
+  }
+
+  return { current, previous };
+}
+
+export interface Headline {
+  /** Time on questions, rounded. Capped per answer by the session engine before it was stored. */
+  minutes: number;
+  questions: number;
+  /** 0..1, or null when nothing was answered in the window. */
+  accuracy: number | null;
+  minutesDelta: number;
+  questionsDelta: number;
+  /** Points on the same 0..1 scale, or null when there is nothing to compare against. */
+  accuracyDelta: number | null;
+}
+
+/**
+ * The three figures at the top of the parents' screen. Arithmetic, so it lives
+ * here and is tested, rather than being worked out inside a component where
+ * nothing would ever check it.
+ */
+export function headline(observations: readonly Observation[], options: PeriodOptions): Headline {
+  const { now, offsetMinutes = 0 } = options;
+  const { current, previous } = periods(observations, options);
+
+  const thisWindow = summarise(current, { now, offsetMinutes });
+  const lastWindow = summarise(previous, { now, offsetMinutes });
+
+  const minutes = Math.round(thisWindow.totalTimeMs / 60_000);
+
+  return {
+    minutes,
+    questions: thisWindow.attempts,
+    accuracy: thisWindow.attempts === 0 ? null : thisWindow.accuracy,
+    minutesDelta: minutes - Math.round(lastWindow.totalTimeMs / 60_000),
+    questionsDelta: thisWindow.attempts - lastWindow.attempts,
+    // "Down 76 points" against a week the child did not practise is not a fact.
+    accuracyDelta:
+      thisWindow.attempts === 0 || lastWindow.attempts === 0
+        ? null
+        : thisWindow.accuracy - lastWindow.accuracy,
   };
 }

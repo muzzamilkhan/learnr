@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import {
   dueForReview,
+  headline,
+  latestOffsetMinutes,
+  periods,
   problemTopics,
   progressOverTime,
   summarise,
@@ -193,6 +196,115 @@ describe('summarise', () => {
       daysPracticed: 0,
       topics: 0,
       lastAnsweredAt: null,
+    });
+  });
+});
+
+describe('latestOffsetMinutes', () => {
+  it('is zero when there is no history to read one from', () => {
+    expect(latestOffsetMinutes([])).toBe(0);
+  });
+
+  it('takes the offset of the most recent answer, not the first', () => {
+    const history = [
+      { topic: 'addition', level: 'K' as YearLevel, correct: true, timeTakenMs: 5000, answeredAt: NOW - DAY, offsetMinutes: 60 },
+      { topic: 'addition', level: 'K' as YearLevel, correct: true, timeTakenMs: 5000, answeredAt: NOW - 2 * DAY, offsetMinutes: 600 },
+    ];
+
+    expect(latestOffsetMinutes(history)).toBe(60);
+  });
+
+  it('reads a missing offset as UTC', () => {
+    expect(latestOffsetMinutes(answers('addition', rights(2)))).toBe(0);
+  });
+});
+
+describe('periods', () => {
+  it('splits a history into this window and the one before it', () => {
+    const history = [
+      ...answers('addition', rights(3), { endedAt: NOW - DAY }),
+      ...answers('addition', rights(2), { endedAt: NOW - 9 * DAY }),
+      ...answers('addition', rights(4), { endedAt: NOW - 30 * DAY }),
+    ];
+
+    const { current, previous } = periods(history, { now: NOW, days: 7 });
+
+    expect(current).toHaveLength(3);
+    expect(previous).toHaveLength(2);
+  });
+
+  it('counts today and excludes the day the window opened on', () => {
+    // days: 7 means today and the six before it — day -6 is in, day -7 is not.
+    const history = [
+      ...answers('addition', rights(1), { endedAt: NOW }),
+      ...answers('addition', rights(1), { endedAt: NOW - 6 * DAY }),
+      ...answers('addition', rights(1), { endedAt: NOW - 7 * DAY }),
+    ];
+
+    const { current, previous } = periods(history, { now: NOW, days: 7 });
+
+    expect(current).toHaveLength(2);
+    expect(previous).toHaveLength(1);
+  });
+
+  it('buckets against the offset it is given, not the server', () => {
+    // 22:00 UTC is already the next day in Sydney (+600), so with that offset
+    // this answer falls a day later than it does in UTC.
+    const late = [
+      {
+        topic: 'addition',
+        level: 'K' as YearLevel,
+        correct: true,
+        timeTakenMs: 5000,
+        answeredAt: Date.UTC(2026, 7, 5, 22, 0),
+      },
+    ];
+
+    expect(periods(late, { now: NOW, days: 7, offsetMinutes: 0 }).current).toHaveLength(0);
+    expect(periods(late, { now: NOW, days: 7, offsetMinutes: 600 }).current).toHaveLength(1);
+  });
+});
+
+describe('headline', () => {
+  const history = [
+    ...answers('addition', [...rights(6), ...wrongs(2)], { endedAt: NOW - DAY, timeTakenMs: 30_000 }),
+    ...answers('addition', [...rights(2), ...wrongs(2)], { endedAt: NOW - 9 * DAY, timeTakenMs: 30_000 }),
+  ];
+
+  it('reports the window and how it compares with the one before', () => {
+    expect(headline(history, { now: NOW, days: 7 })).toMatchObject({
+      minutes: 4, // 8 answers x 30s
+      questions: 8,
+      accuracy: 0.75,
+      minutesDelta: 2, // against 4 answers x 30s = 2 minutes
+      questionsDelta: 4,
+    });
+  });
+
+  it('measures the accuracy delta in points on the same scale', () => {
+    const { accuracyDelta } = headline(history, { now: NOW, days: 7 });
+
+    expect(accuracyDelta).toBeCloseTo(0.25); // 0.75 this window against 0.5 last
+  });
+
+  it('has no accuracy to report when nothing was answered this window', () => {
+    const stale = answers('addition', rights(4), { endedAt: NOW - 30 * DAY });
+
+    expect(headline(stale, { now: NOW, days: 7 })).toMatchObject({
+      questions: 0,
+      accuracy: null,
+      accuracyDelta: null,
+    });
+  });
+
+  it('will not compare against a window the child did not practise in', () => {
+    const fresh = answers('addition', rights(4), { endedAt: NOW - DAY });
+
+    expect(headline(fresh, { now: NOW, days: 7 })).toMatchObject({
+      questions: 4,
+      accuracy: 1,
+      questionsDelta: 4,
+      accuracyDelta: null,
     });
   });
 });
