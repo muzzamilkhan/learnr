@@ -1,24 +1,22 @@
 import type { CalendarDay } from '@/lib/analytics/report';
 
 /**
- * Four weeks of days, one square each, filled by how much was answered.
+ * Four weeks of days, one cell each, filled by how much was answered.
  *
  * The gaps are the point. A weekly total hides a fortnight off; a row of empty
- * squares does not, and "are they actually using it" is the question a parent
+ * cells does not, and "are they actually using it" is the question a parent
  * opens this screen with.
  *
  * Rows are real Monday-to-Sunday weeks, so the weekday labels above them are a
  * claim the grid can actually keep. The tail of the current week is left blank
  * rather than drawn as an unpractised day — a Friday nobody has reached yet is
  * not a Friday nobody used.
+ *
+ * A CSS grid rather than an SVG, because the two axes want different things:
+ * the width is whatever the column gives it, while the height is a fixed 14px.
+ * Scaling one viewBox cannot do that without stretching the corner radii with
+ * it, and seven `1fr` columns get it exactly.
  */
-
-const COLUMNS = 7;
-const CELL = 14;
-const GAP = 4;
-const STEP = CELL + GAP;
-/** Room for the weekday row above the grid, in the same units as the cells. */
-const LABELS = 13;
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -56,54 +54,35 @@ export function PracticeCalendar({
   weeks: CalendarDay[][];
   offsetMinutes: number;
 }) {
-  const width = COLUMNS * STEP - GAP;
-  const height = LABELS + weeks.length * STEP - GAP;
-
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      // Scaled up to whatever it is given rather than drawn at a fixed size, so
-      // the squares grow with the column instead of huddling in one corner of it.
-      className="h-auto w-full"
+    <div
       role="img"
       aria-label={`Practised on ${practisedDays(weeks)} of the last ${elapsedDays(weeks)} days`}
+      className="grid grid-cols-7 gap-1"
     >
-      {WEEKDAYS.map((label, column) => (
-        <text
-          key={label}
-          x={column * STEP + CELL / 2}
-          y={LABELS - 5}
-          textAnchor="middle"
-          fontSize="7"
-          fill="var(--color-ink-soft)"
-        >
+      {WEEKDAYS.map((label) => (
+        <span key={label} className="text-center text-xs text-(--color-ink-soft)">
           {label}
-        </text>
+        </span>
       ))}
 
-      {weeks.map((week, row) =>
-        week.map((day, column) =>
-          // A day that has not happened gets no square at all.
-          day.future ? null : (
-            <rect
-              key={day.start}
-              x={column * STEP}
-              y={LABELS + row * STEP}
-              width={CELL}
-              height={CELL}
-              rx={3}
-              fill={shade(day.attempts)}
-            >
-              <title>
-                {dayLabel.format(new Date(day.start + offsetMinutes * 60_000))}
-                {day.attempts === 0
-                  ? ' — no practice'
-                  : ` — ${day.attempts} question${day.attempts === 1 ? '' : 's'}`}
-              </title>
-            </rect>
-          ),
+      {weeks.flat().map((day) =>
+        // A day that has not happened gets no cell at all, only its grid slot.
+        day.future ? (
+          <span key={day.start} />
+        ) : (
+          <span
+            key={day.start}
+            className="h-[14px] rounded-[3px]"
+            style={{ backgroundColor: shade(day.attempts) }}
+            title={`${dayLabel.format(new Date(day.start + offsetMinutes * 60_000))}${
+              day.attempts === 0
+                ? ' — no practice'
+                : ` — ${day.attempts} question${day.attempts === 1 ? '' : 's'}`
+            }`}
+          />
         ),
       )}
-    </svg>
+    </div>
   );
 }

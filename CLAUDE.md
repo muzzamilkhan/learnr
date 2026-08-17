@@ -522,8 +522,10 @@ carry weekday labels, since a column that is Monday one week and Thursday the
 next is not a column. The tail of the current week is `future` and gets **no
 square at all** — a Friday nobody has reached and a Friday nobody used must not
 look the same, and it is why the count reads "of the last 24 days" rather than
-28. The SVG scales to its container (`h-auto w-full`) on a proportional viewBox,
-so the cells grow with the width instead of huddling in a corner.
+28. It is a CSS grid of seven `1fr` columns rather than an SVG, because the two
+axes want different things: the width is whatever the column gives it, the
+height is a fixed 14px. One viewBox cannot scale to that without stretching the
+corner radii with it.
 
 **Each section of the report is a `Well`** — one bordered panel per question a
 parent is asking. Run together as bare headings they read as one long page to
