@@ -29,11 +29,12 @@ export default async function ProgressPage({
   const account = await readAccount(userId);
   if (account?.role !== 'parent') redirect('/');
 
-  // A parent doesn't play, so there are no stars to show.
+  // A parent doesn't play, so there is no run of days and no stars to show.
   const menu = (
     <ProfileMenu
       name={session?.user?.name ?? null}
       image={session?.user?.image ?? null}
+      streak={null}
       stars={null}
     >
       <SignOutButton />

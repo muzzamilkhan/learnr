@@ -8,7 +8,6 @@ import { LevelPicker } from '@/components/level-picker';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
-import { StreakBadge } from '@/components/streak-badge';
 import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readPlayStreak, readSelectedLevel, readStarTotal } from '@/lib/records';
@@ -109,6 +108,7 @@ export default async function HomePage() {
       <ProfileMenu
         name={session?.user?.name ?? null}
         image={session?.user?.image ?? null}
+        streak={null}
         stars={null}
       >
         <SignOutButton />
@@ -160,14 +160,12 @@ export default async function HomePage() {
             {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'Learnr'}
           </h1>
           <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
-          {/* The run of days lives here rather than on the play screen: this is
-              where a child is deciding whether to practise today. */}
-          {streak ? <StreakBadge streak={streak} /> : null}
         </div>
         {session?.user ? (
           <ProfileMenu
             name={session.user.name ?? null}
             image={session.user.image ?? null}
+            streak={streak}
             stars={stars}
           >
             <SignOutButton />

@@ -380,15 +380,17 @@ An hours rule was considered and rejected: practice after school one day and
 before school the next is twenty hours apart and would break a streak the child
 kept perfectly well.
 
-**The star total is the badge on the profile menu**, beside the avatar and on
-every child screen. It only ever goes up, it moves a whole round at a time, and
-nothing takes it away — so it reads as a collection rather than a score. Behind
-the tap there is only the name and the way out.
+**Both totals ride on the profile menu** — the run of days, then the stars, then
+the avatar, the same control on the home screen and the play screen so a child
+never looks in two places for the two numbers. Days sit left of the stars: the
+run is the thing that lapses if they stop. Behind the tap there is only the name
+and the way out.
 
-**The run of days is on the home screen only** (`StreakBadge`, under the
-greeting). That is where a child is deciding whether to practise, which is when
-a run of days is worth seeing; mid-question it is not, so the play screen shows
-it once as `StreakFlash` on the answer that extends it and never again.
+Neither is a score. The star total only ever goes up, a whole round at a time,
+and nothing a wrong answer does takes anything off either of them. A lapsed run
+renders as nothing rather than a zero — a 0 beside a flame reads as a
+telling-off, and the child is here to start a new one. The play screen still
+flashes the streak once (`StreakFlash`) on the answer that extends it.
 
 ## Accounts
 

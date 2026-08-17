@@ -1,22 +1,38 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import Image from 'next/image';
-import { StarIcon } from './star-icon';
+import { currentStreak, type PlayStreak } from '@/lib/rewards/streak';
+import { FlameIcon, StarIcon } from './star-icon';
 
 /**
- * The one thing in the top corner: how many stars the child has collected, whose
- * account this is, and — behind a tap — the way out.
+ * The one thing in the top corner: the run of days, the stars collected, whose
+ * account this is, and — behind a tap — the way out. The same control on the
+ * home screen and the play screen, so a child never has to look in two places
+ * for the two numbers.
  *
- * The total is a badge and never a score: it only ever goes up, it moves in
- * whole stars a round at a time, and there is nothing a wrong answer takes off
- * it. The run of days is not here at all — it belongs on the home screen, where
- * a child is deciding whether to practise (`StreakBadge`).
+ * Days first, then stars: the run is the thing that lapses if they stop, and it
+ * is what the home screen is trying to say. Neither is a score — the star total
+ * only ever goes up, in whole rounds, and nothing a wrong answer does takes
+ * anything off either of them.
  */
+
+/**
+ * Nothing to subscribe to: the day only turns over at midnight, and a child
+ * whose screen has been open since yesterday will reload it long before the
+ * stale number matters. Stable identity, so the store is never resubscribed.
+ */
+const subscribeToTheClock = () => () => {};
 
 interface Props {
   name: string | null;
   image: string | null;
+  /**
+   * As stored, and null for a parent — they don't play, so a run of days on
+   * their account is counting nothing. Whether a run is still live depends on
+   * the child's clock, not the server's.
+   */
+  streak: PlayStreak | null;
   /**
    * Stars collected in total, and null for a parent — they don't play, so a pile
    * of stars on their account would be counting nothing.
@@ -26,9 +42,24 @@ interface Props {
   children: ReactNode;
 }
 
-export function ProfileMenu({ name, image, stars, children }: Props) {
+export function ProfileMenu({ name, image, streak, stars, children }: Props) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
+
+  /**
+   * Whether the run is still alive is a question only the browser can answer —
+   * the server has no idea which day it is where the child is sitting. So the
+   * server renders the stored number and the client corrects it: a streak that
+   * quietly ended last week must not still be claimed, and it must not be a
+   * hydration mismatch either.
+   *
+   * The snapshot is the same number all day, so re-reading it costs nothing.
+   */
+  const days = useSyncExternalStore(
+    subscribeToTheClock,
+    () => (streak ? currentStreak(streak, Date.now(), -new Date().getTimezoneOffset()) : 0),
+    () => streak?.days ?? 0,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -56,10 +87,22 @@ export function ProfileMenu({ name, image, stars, children }: Props) {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={name ? `Account: ${name}` : 'Account'}
-        // The star count sits inside the button rather than beside it: it doubles
-        // the target, and there is nothing a child could tap here by mistake.
-        className={`no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 ${stars === null ? 'pl-1.5' : 'pl-3'} transition active:scale-95`}
+        // The counts sit inside the button rather than beside it: they double the
+        // target, and there is nothing a child could tap here by mistake.
+        className={`no-select flex items-center gap-2 rounded-full border-2 border-(--color-line) bg-(--color-card) py-1.5 pr-1.5 ${streak || stars !== null ? 'pl-3' : 'pl-1.5'} transition active:scale-95`}
       >
+        {/* A lapsed run shows nothing rather than a zero — a 0 beside a flame
+            reads as a telling-off, and the child is here to start a new one. */}
+        {streak && days > 0 ? (
+          <span
+            className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums"
+            title={`${days} day${days === 1 ? '' : 's'} in a row`}
+          >
+            <FlameIcon className="h-5 w-5" />
+            {days}
+          </span>
+        ) : null}
+
         {stars === null ? null : (
           <span
             className="flex items-center gap-1 text-lg font-bold text-(--color-star) tabular-nums"

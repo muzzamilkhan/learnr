@@ -7,8 +7,10 @@ import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
 import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
+import { localDay } from '@/lib/day';
 import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
 import { closedRound, type Round } from '@/lib/rewards/stars';
+import { noStreak, type PlayStreak } from '@/lib/rewards/streak';
 import {
   awardRoundAction,
   endRecordingAction,
@@ -52,7 +54,12 @@ interface Props {
   recentTopics: string[];
   recordingEnabled: boolean;
   /** Who's playing, and their totals as last read from the server. Null signed out. */
-  account: { name: string | null; image: string | null; stars: number } | null;
+  account: {
+    name: string | null;
+    image: string | null;
+    streak: PlayStreak;
+    stars: number;
+  } | null;
   /** The sign-out form, built on the server so it stays a server action. */
   signOutSlot: ReactNode;
 }
@@ -97,8 +104,9 @@ export function PlaySession({
   const [reward, setReward] = useState<Round | null>(null);
   /** The day streak, on the one answer of the day that extended it. */
   const [streak, setStreak] = useState<number | null>(null);
-  /** The star total on the profile menu — kept live as rounds are banked. */
+  /** The profile menu's two totals — kept live as answers land and rounds bank. */
   const [stars, setStars] = useState(account?.stars ?? 0);
+  const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -189,7 +197,10 @@ export function PlaySession({
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
         recordAttemptAction(id, attempt).then((result) => {
-          if (result?.streakAdvanced) setStreak(result.streak);
+          if (result) {
+            setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
+            if (result.streakAdvanced) setStreak(result.streak);
+          }
           // Banked *after* the answer is written, never alongside it: the server
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
@@ -285,7 +296,12 @@ export function PlaySession({
         </Link>
 
         {account ? (
-          <ProfileMenu name={account.name} image={account.image} stars={stars}>
+          <ProfileMenu
+            name={account.name}
+            image={account.image}
+            streak={playStreak}
+            stars={stars}
+          >
             {signOutSlot}
           </ProfileMenu>
         ) : null}

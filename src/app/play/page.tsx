@@ -5,9 +5,11 @@ import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
 import { SignOutButton } from '@/components/auth-buttons';
 import { emptyProfile } from '@/lib/analytics/profile';
+import { noStreak } from '@/lib/rewards/streak';
 import { readAccount } from '@/lib/accounts';
 import {
   readLearnerProfile,
+  readPlayStreak,
   readRecentTopics,
   readSelectedLevel,
   readStarTotal,
@@ -61,13 +63,14 @@ export default async function PlayPage({
   // What the child has shown before, so the first question of this sitting is
   // already weighted by it. Signed out there is no history, and an empty profile
   // is exactly what draws questions at random.
-  const [profile, recentTopics, stars] = userId
+  const [profile, recentTopics, streak, stars] = userId
     ? await Promise.all([
         readLearnerProfile(userId, subject),
         readRecentTopics(userId, subject, level, RECENT_MEMORY),
+        readPlayStreak(userId),
         readStarTotal(userId),
       ])
-    : [emptyProfile(), [], 0];
+    : [emptyProfile(), [], noStreak(), 0];
 
   // Seeded here rather than in the client so the first question is server
   // rendered and the child never sees an empty screen. The seed and the profile
@@ -86,7 +89,14 @@ export default async function PlayPage({
       recentTopics={recentTopics}
       recordingEnabled={Boolean(userId)}
       account={
-        session?.user ? { name: session.user.name ?? null, image: session.user.image ?? null, stars } : null
+        session?.user
+          ? {
+              name: session.user.name ?? null,
+              image: session.user.image ?? null,
+              streak,
+              stars,
+            }
+          : null
       }
       signOutSlot={session?.user ? <SignOutButton /> : null}
     />

@@ -27,12 +27,13 @@ export default async function ChildrenPage() {
 
   const profiles = await listChildren(userId);
 
-  // A parent doesn't play, so there are no stars to show — they would be
-  // counting nothing.
+  // A parent doesn't play, so there is no run of days and no stars to show —
+  // both would be counting nothing.
   const menu = (
     <ProfileMenu
       name={session?.user?.name ?? null}
       image={session?.user?.image ?? null}
+      streak={null}
       stars={null}
     >
       <SignOutButton />
