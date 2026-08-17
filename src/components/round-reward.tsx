@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import type { Round } from '@/lib/rewards/stars';
 import { ROUND_SIZE } from '@/lib/rewards/stars';
 import { StarIcon } from './star-icon';
+import { playSound } from './sounds';
 
 /**
  * The break after ten questions. It covers the screen because that is the point
@@ -26,6 +27,13 @@ const PRAISE: Record<number, string> = {
 };
 
 export function RoundReward({ round, onDone }: { round: Round; onDone: () => void }) {
+  // The same fanfare for one star as for three: finishing the round is what is
+  // being celebrated, and a quieter sound for a hard round would say the
+  // opposite of what the star floor is for.
+  useEffect(() => {
+    playSound('tada');
+  }, [round]);
+
   useEffect(() => {
     const timer = setTimeout(onDone, SHOWN_MS);
     return () => clearTimeout(timer);

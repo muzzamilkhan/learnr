@@ -313,6 +313,22 @@ simple enough for a child to pick up with no explanation.
   neither sits on the play screen where a child could watch it and worry. There
   is no per-question timer and nothing a wrong answer takes away.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
+- **Three sounds, and only on the play screen**: right, wrong, and a fanfare with
+  the stars. `src/components/sounds.ts` is the shim — it lives beside the
+  components, not in `src/lib`, because it touches `Audio` and could never be
+  pure. Playing is best-effort like recording an answer: a silent switch or an
+  autoplay refusal rejects the `play()` promise, and that is caught and dropped
+  rather than thrown into the middle of a question. One element per sound,
+  rewound rather than stacked — a child can answer faster than a clip finishes,
+  and the newest answer is the one worth hearing. The files are preloaded when
+  the screen mounts, since iOS gates *playback* on a gesture but not loading.
+- **The fanfare is the same for one star as for three.** Finishing the round is
+  what it marks; a thinner sound for a hard round would undo what the star floor
+  is for.
+- `public/sounds/*.m4a` — mono AAC at 48 kb/s, silence trimmed and peaks levelled
+  so the three sit at the same loudness. About 5–13 KB each, from 300 KB+
+  originals. AAC in `.m4a` rather than Opus because iPad Safari is the target and
+  it plays this everywhere, with no fallback source to maintain.
 
 ## Rewards
 

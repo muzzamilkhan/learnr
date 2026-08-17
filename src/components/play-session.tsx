@@ -26,6 +26,7 @@ import { HintIcon } from './hint-icon';
 import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
 import { StreakFlash } from './streak-flash';
+import { playSound, primeSounds } from './sounds';
 
 /**
  * How long a correct answer is celebrated before the next question. A wrong one
@@ -109,6 +110,10 @@ export function PlaySession({
   const mode = answerMode(question);
   const options = useMemo(() => answerOptions(question), [question]);
 
+  // Load the answer sounds up front, so the first one is heard on the answer that
+  // earns it rather than a round trip later.
+  useEffect(primeSounds, []);
+
   useEffect(() => {
     if (!recordingEnabled) return;
     startRecordingAction(subject, level, seed).then((id) => {
@@ -178,6 +183,7 @@ export function PlaySession({
 
       updateEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
+      playSound(correct ? 'correct' : 'incorrect');
 
       if (recordId.current) {
         const id = recordId.current;
