@@ -279,8 +279,11 @@ Standard iPad, landscape and portrait. Minimal and calm rather than playful —
 simple enough for a child to pick up with no explanation.
 
 - **Level is the home screen's top-level choice**: one dropdown labelled "Level",
-  then the subjects offering that level below it, each card listing its topics as
-  text. Switching level swaps the cards in place — no navigation. The choice is
+  then the subjects offering that level below it, each card carrying a coloured
+  glyph tile, the subject, its year, and its topics as **chips** (`MAX_CHIPS`,
+  then "+n more"). The topics used to be one run-on line of dots, which was the
+  only thing on the card saying what is inside and the least readable thing on
+  the screen. Switching level swaps the cards in place — no navigation. The choice is
   remembered on `User.selectedLevel` and the screen reopens on it; signed out or
   without a database there is nowhere to keep it, so it opens on Kindergarten.
   `resolveInitialLevel` falls back when a stored level has lost its content.
@@ -317,6 +320,15 @@ simple enough for a child to pick up with no explanation.
   neither sits on the play screen where a child could watch it and worry. There
   is no per-question timer and nothing a wrong answer takes away.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
+- **The logo's palette is scoped to the two screens someone is *choosing* on.**
+  `--color-grape`, `--color-berry`, `--color-leaf` and `--color-sun` are sampled
+  from `public/logo.PNG`, and only the landing page and the child's home screen
+  use them: a loud, warm mark sitting at the top of a cool blue page of boxes read
+  as two different products. `--color-brand` is deliberately unchanged, so the
+  play screen and the parent's report are untouched — a child answering a question
+  does not need more colour, and a parent reading a report needs less. Both
+  screens open on a soft gradient band (grape → paper → brand) with a blurred warm
+  disc behind it; that band is the decoration, and everything below it stays flat.
 - **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS —
   system font, system blue, its own rounding — so it is the one control the theme
   cannot reach, and on an iPad it lands a grey widget in the middle of a screen
@@ -523,6 +535,18 @@ underneath, where each gets a full row and a line of copy saying whose it is.
 `GetStarted` renders them **once** and re-lays them out in CSS — `sm:contents`
 dissolves the wrapper at the wider size — rather than shipping a phone copy and
 a desktop copy of the code box, which is how the two would drift apart.
+
+**The landing page says what this is and who it helps, not how it is built.** How
+the selector weights a topic, that questions are generated rather than stored, how
+long a code lives — all true, all the author's preoccupations, none of them what a
+parent deciding in thirty seconds is asking. They want to know whether their child
+will use it and whether they will learn anything, so the page is a hero, a panel
+each for *what your child gets* and *what you get*, three numbered steps, and the
+coverage. The single exception is the curriculum, which stays because it is the
+one claim on the page a parent can actually check — and it is rendered straight
+from the shipped templates (`subjectOverview`), so the page cannot promise more
+than the questions deliver. The one call to action is a parent's; a child's way
+in is the code box in the bar, and it stays there.
 
 **Login codes.** A parent generates a 4-character code
 (`src/lib/login-code.ts`) that a child types on the sign-in screen. The charset

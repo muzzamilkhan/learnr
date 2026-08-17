@@ -32,15 +32,21 @@ function CurriculumLink() {
   return (
     <Link
       href="/curriculum"
-      className="no-select mt-12 flex items-center gap-4 rounded-2xl border-2 border-(--color-line) bg-(--color-card) p-5 transition hover:border-(--color-brand) active:scale-[0.99]"
+      className="no-select mt-12 flex items-center gap-4 rounded-2xl border-2 border-(--color-line) bg-(--color-card) p-5 transition hover:border-(--color-grape) active:scale-[0.99]"
     >
+      <span
+        aria-hidden
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-(--color-grape-soft) text-xl text-(--color-grape)"
+      >
+        ✓
+      </span>
       <span className="min-w-0">
         <span className="block text-xl font-semibold">Curriculum sources</span>
         <span className="mt-1 block text-base text-(--color-ink-soft)">
           What the questions are written against — the Australian Curriculum, year by year.
         </span>
       </span>
-      <span aria-hidden className="ml-auto text-2xl text-(--color-brand)">
+      <span aria-hidden className="ml-auto text-2xl text-(--color-grape)">
         &rarr;
       </span>
     </Link>
@@ -144,26 +150,40 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-      <header className="mb-12 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-5">
-          <LogoMark size="lg" />
-          <div>
-            <h1 className="text-5xl font-bold tracking-tight">
-              {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
-            </h1>
-            <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
+      {/*
+        A welcome, drawn as a band rather than a line of type on bare paper. The
+        colour is the mark's own — a child arriving here has just seen the icon on
+        their home screen, and the screen behind it was the one thing in the app
+        with none of it. The tint is soft enough that the greeting is still the
+        loudest thing on it, which is the whole job: say who this is, then get out
+        of the way of the subject cards.
+      */}
+      <header className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-(--color-grape-soft) via-(--color-paper) to-(--color-brand-soft) px-6 py-7">
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -top-14 -right-8 size-44 rounded-full bg-(--color-sun-soft) opacity-70 blur-2xl"
+        />
+        <div className="relative flex items-start justify-between gap-4">
+          <div className="flex items-center gap-5">
+            <LogoMark size="lg" />
+            <div>
+              <h1 className="text-5xl font-bold tracking-tight">
+                {session?.user?.name ? `Hi ${session.user.name.split(' ')[0]}` : 'LearnR'}
+              </h1>
+              <p className="mt-2 text-2xl text-(--color-ink-soft)">What shall we practice?</p>
+            </div>
           </div>
+          {session?.user ? (
+            <ProfileMenu
+              name={session.user.name ?? null}
+              image={session.user.image ?? null}
+              streak={streak}
+              stars={stars}
+            >
+              <SignOutButton />
+            </ProfileMenu>
+          ) : null}
         </div>
-        {session?.user ? (
-          <ProfileMenu
-            name={session.user.name ?? null}
-            image={session.user.image ?? null}
-            streak={streak}
-            stars={stars}
-          >
-            <SignOutButton />
-          </ProfileMenu>
-        ) : null}
       </header>
 
       {/* Only a child reaches this far — a parent was routed away above. */}

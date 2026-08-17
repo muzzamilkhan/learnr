@@ -23,6 +23,26 @@
   --color-star-soft: #fdf1dc;
   --color-flame: #ee6c3f;
   --color-flame-soft: #fdece5;
+  /*
+   * The logo's palette, sampled from `public/logo.PNG` — the violet badge and the
+   * yellow, pink and green it is drawn with. The mark is loud and warm and the app
+   * around it was cool blue on near-white, which is why the two screens a person
+   * meets first read as plainer than the thing at the top of them.
+   *
+   * These are for the two screens someone is *choosing* on: the landing page and
+   * the child's home screen. `--color-brand` is deliberately unchanged, so the
+   * play screen, the parent's report and every control in them stay exactly as
+   * they were — a child answering a question does not need more colour, and a
+   * parent reading a report needs less.
+   */
+  --color-grape: #6c4de0;
+  --color-grape-soft: #efeaff;
+  --color-berry: #ee4d7d;
+  --color-berry-soft: #fdeaf1;
+  --color-leaf: #6fb52f;
+  --color-leaf-soft: #edf8e3;
+  --color-sun: #f5a623;
+  --color-sun-soft: #fdf1dc;
 }
 
 /* A star landing: overshoot, then settle. Each one is delayed a beat after the
