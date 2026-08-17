@@ -469,10 +469,14 @@ a gate: it does not re-run on a client-side hop, so `readParent` — which is
 where the sign-in and parent-role checks live — is called by the pages too, and
 `cache`d so the two calls in one request are one query.
 
-**Edit and remove are glyphs on the child card; the code button keeps its
-words.** The first two are on every card, say the same thing on every card, and
-were pushing the one a parent actually came for onto a second row on a narrow
-screen. The label they lose moves to `aria-label` and `title` — it is off the
+**The child card's buttons are all glyphs.** Every card carries the same three
+and every card says the same thing with them, so the words were only ever taking
+up width — and on a narrow screen they pushed the row onto a second line. The
+code button keeps its three states and gets a picture for each: a **key** when
+there is no live code, because that state is the one that changes something, and
+an **eye** — struck through once the code is on screen — for revealing and
+hiding what is already stored. Two pictures rather than one, because issuing and
+revealing are not the same act. The label they lose moves to `aria-label` and `title` — it is off the
 screen, not off the page — and the buttons stay the same height as the ones
 beside them so the row still lines up. Remove is a bin rather than a cross: a
 cross on a card reads as "close this", and dismissing the row is the one thing
@@ -483,6 +487,12 @@ browser dialog is unstyled, unreadable on an iPad, and — being synchronous —
 one thing on that screen that can freeze it. It also cannot say what is being
 lost, which is the only reason to ask: the row cascades, so the confirmation
 names the child and says the answers, progress and login code go with them.
+
+**A parent's screens say the level short**: `shortYearLabel`, so Kindergarten
+reads "Year K" beside every other "Year n". A row of short facts wrapping for
+the youngest child and nobody else is the thing to avoid, and it keeps a level
+dropdown from being sized by its one long option. The child's own screens keep
+`yearLabel` — there is room there, and it is their year being named.
 
 **Parent screens are not built to the child's scale.** The play and level screens
 are sized for a six-year-old holding an iPad at arm's length; a parent is reading

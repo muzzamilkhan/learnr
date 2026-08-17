@@ -43,11 +43,12 @@ export function yearLabel(level: YearLevel): string {
 
 /**
  * The same level said in the width of a chip: "Year K" rather than
- * "Kindergarten". For places where the level sits in a row beside other short
- * facts and the full word is three times the length of every year above it —
- * one long label makes that row wrap for the youngest child and nobody else.
+ * "Kindergarten". The parent screens use this throughout — the level sits in a
+ * row of short facts there, and a word three times the length of every year
+ * above it makes that row wrap for the youngest child and nobody else. It is
+ * also what keeps a level dropdown from being sized by its one long option.
  * The child's own screens still get `yearLabel`, where there is room to say it
- * properly.
+ * properly and it is their year being named.
  */
 export function shortYearLabel(level: YearLevel): string {
   return `Year ${level}`;

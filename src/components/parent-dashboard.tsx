@@ -3,11 +3,13 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
-import { yearLabel, type YearLevel } from '@/lib/curriculum';
+import { shortYearLabel, type YearLevel } from '@/lib/curriculum';
 import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
 import { AvatarIcon } from '@/components/avatar-icon';
 import { CopyIcon } from '@/components/copy-icon';
 import { EditIcon } from '@/components/edit-icon';
+import { EyeIcon } from '@/components/eye-icon';
+import { KeyIcon } from '@/components/key-icon';
 import { RemoveIcon } from '@/components/remove-icon';
 import { Select } from '@/components/select';
 import {
@@ -39,6 +41,9 @@ const PRIMARY =
  */
 const ICON_BUTTON =
   'no-select flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-(--color-line) transition hover:border-(--color-brand) disabled:opacity-50';
+/** The same square, filled: the card's one primary action when it is a glyph too. */
+const ICON_PRIMARY =
+  'no-select flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-transparent bg-(--color-brand) text-white transition active:scale-[0.98] disabled:opacity-50';
 
 /**
  * Managing the child profiles: add, edit, remove, and hand out a login code.
@@ -189,28 +194,39 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold">{child.name}</p>
           <p className="text-sm text-(--color-ink-soft)">
-            {child.level ? yearLabel(child.level as YearLevel) : 'No level set'}
+            {child.level ? shortYearLabel(child.level as YearLevel) : 'No level set'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {/* Three states, one button. Revealing a live code must not issue a new
-              one — the child may be halfway through typing the old one. */}
+          {/* Three states, one button, and a glyph for each: a key issues a code
+              the card doesn't have, an eye reveals the one it does. Revealing a
+              live code must not issue a new one — the child may be halfway
+              through typing the old one — so the two are not the same picture. */}
           {!code ? (
-            <button type="button" onClick={issue} disabled={pending} className={PRIMARY}>
-              Get code
+            <button
+              type="button"
+              onClick={issue}
+              disabled={pending}
+              aria-label={`Get a login code for ${child.name}`}
+              title="Get code"
+              className={ICON_PRIMARY}
+            >
+              <KeyIcon />
             </button>
           ) : (
             <button
               type="button"
               onClick={() => setShown((was) => !was)}
-              className={shown ? BUTTON : PRIMARY}
+              aria-label={shown ? "Hide this child's login code" : "Show this child's login code"}
+              title={shown ? 'Hide code' : 'Show code'}
+              className={shown ? ICON_BUTTON : ICON_PRIMARY}
             >
-              {shown ? 'Hide code' : 'Show code'}
+              <EyeIcon off={shown} />
             </button>
           )}
-          {/* Edit and remove are glyphs: they are on every card, they say the
-              same thing on every card, and the words were crowding out the code
-              button — the one thing a parent comes to this card for. */}
+          {/* The rest of the row is glyphs for the same reason: every card
+              carries them and every card says the same thing with them, so the
+              words were only ever taking up width. */}
           <button
             type="button"
             onClick={onEdit}
@@ -388,7 +404,7 @@ function ChildForm({
             id="child-level"
             size="md"
             value={level}
-            options={levels.map((option) => ({ value: option, label: yearLabel(option) }))}
+            options={levels.map((option) => ({ value: option, label: shortYearLabel(option) }))}
             onChange={setLevel}
           />
         </div>
