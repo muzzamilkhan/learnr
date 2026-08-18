@@ -35,7 +35,7 @@ src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
 src/lib/reinforcement/ which question to ask next
-src/lib/rewards/     stars for a round, and the day streak
+src/lib/rewards/     stars for a round, the day streak, and the daily target
 src/lib/curriculum.ts school years, labels and ordering
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
@@ -171,7 +171,8 @@ clock and no right-so-far tally, only the way out (a door icon, drawn for the
 same reason the Check key is a tick) and the profile menu. Both were things
 a child would watch instead of the question, and neither is theirs to worry
 about - the round's stars are the only reckoning, and they come between
-questions.
+questions. A daily target, if a parent has set one, adds a bar with no numbers
+on it; see **Daily targets** below for why it carries none.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
 correct/incorrect, the response as typed, and the UTC offset it was given at) and
@@ -401,13 +402,26 @@ and 3 stays worth aiming at. `RoundReward` covers the screen for a few seconds,
 dismissable by a tap, and the next question's clock restarts when it goes so the
 break never lands in that question's recorded time.
 
-Stars are cached on `LearningSession.stars` and totalled with one `SUM`, but they
-are still derived: `starsEarned` over a sitting's answers reproduces the column.
-The server **recounts from the stored answers** - the client says only *that* a
-round closed - and it **sets rather than increments**, so a repeated call is
-harmless and a dropped one repairs itself at the next round. It is banked after
-the tenth answer's write resolves; racing it would find nine answers and award
-nothing.
+**`User.stars` is the app's one star total, and it is banked rather than
+derived.** It used to be `SUM(LearningSession.stars)`, recounted from the stored
+answers every time - which was self-correcting, and had to go the moment the
+daily target arrived: a target is mutable, and a recount of a past day against
+today's setting would take stars off a child who had earned them. So the total
+is **incremented** by what is newly owed and never recomputed.
+
+What replaced the recount's idempotence is a guard on every increment. A round's
+stars are banked against `LearningSession.roundsBanked`, read under `SELECT ...
+FOR UPDATE` and moved up in the same transaction, so a repeated call, a retry or
+two tabs answering at once each pay for a round exactly once - the same row lock
+`updateTopicSkill` takes, for the same reason. The day's target uses a
+compare-and-set on `User.targetDay`. The server still **decides** what is owed by
+reading the stored answers; the client only says *that* a round closed, and the
+banking happens after the tenth answer's write resolves, since racing it would
+find nine answers and award nothing.
+
+The cost is stated plainly because it is real: a dropped award no longer heals
+itself. A total can fail to grow, but it can never shrink - which is the right
+way round for the only number a child watches.
 
 **The play streak counts days, not hours.** `User.playStreak` and
 `User.playStreakDay` - a day number, not a timestamp, because a day here is the
@@ -435,11 +449,75 @@ and corrected on the client, and a locale that disagrees across that boundary is
 a hydration mismatch. A star total has no ceiling, and "1,204" is a number to be
 pleased about where "1204" is one to decipher.
 
-Neither is a score. The star total only ever goes up, a whole round at a time,
-and nothing a wrong answer does takes anything off either of them. A lapsed run
+Neither is a score. The star total only ever goes up - a whole round or a whole
+day at a time - and nothing a wrong answer does takes anything off either of
+them. A lapsed run
 renders as nothing rather than a zero - a 0 beside a flame reads as a
 telling-off, and the child is here to start a new one. The play screen still
 flashes the streak once (`StreakFlash`) on the answer that extends it.
+
+## Daily targets
+
+`src/lib/rewards/target.ts` - optional, one per child, set by their parent. It is
+the one thing in the app that asks a child to commit to something, so it is a
+floor and never a cap: nothing stops them carrying on past it, nothing is taken
+away for missing it, and a missed day produces no value at all. The only thing
+the module ever says is that a day was met.
+
+**Questions or minutes a day, and not per subject** - a child who answers twenty
+questions has answered twenty whichever screen they were on, so every read behind
+a target is cross-subject where `readObservations` is scoped. `TARGET_LIMITS`:
+questions 10-60, minutes 5-30, in fives. The floors matter more than the
+ceilings - ten questions is exactly one round and five minutes is a real sitting
+at six, because the first thing this feature must not do is have a child fail at
+something their parent chose. The ceilings stop a well-meaning parent setting a
+bar nobody clears on a school night. `parseTarget` is the boundary normaliser,
+like `parseYearLevel`: a target off the step or outside the bounds is refused in
+that one place, so no caller has to know the bounds.
+
+**A minute is summed `timeTakenMs`** - already capped at `MAX_TIME_MS` per
+answer - and never wall clock. It is the same number the parent's report calls
+"time on questions", so an iPad left on the sofa cannot earn minutes and the
+target and the report can never disagree about how long a child practised.
+
+**Hitting it is worth `TARGET_STARS` (10), flat rather than scaled** to the size
+of the target. Scaling would make a child's star total a measure of how much
+their parent asked of them, and hand a parent a dial on their child's rewards.
+Ten is worth three or four clean rounds - clearly the day's biggest award,
+without making a round worth nothing.
+
+The award is one compare-and-set on `User.targetDay`, the shape the play streak
+already uses, so a repeated or raced call pays out once. `awardDailyTarget`
+recounts the day server-side before it writes; the client is trusted for the
+offset, not for the total.
+
+**Which answers are "today" is decided on the child's device**, because only it
+knows the offset. The server ships `TARGET_WINDOW_MS` (two days) of answers and
+the client folds them with `dayTotal` through `useSyncExternalStore` - the same
+reason `currentStreak` is computed in the browser, and the server snapshot says
+nothing rather than a number computed at UTC.
+
+**The play screen's bar carries no numbers**, for the same reason the header
+counts nothing. A minutes bar creeps during a question, capped at `MAX_TIME_MS`,
+so what is shown can never run ahead of what will be recorded. **The play bar
+goes once the goal is met and the home screen's stays**: on the play screen a bar
+that no longer moves is only something to look at instead of the question, while
+the home screen is where a child takes stock, and it is the one place that lasts
+- the celebration itself is over in four seconds.
+
+**The two celebrations queue, round first and day second** (`RoundReward`, then
+`TargetReward`), because one answer can finish both and one tap cannot dismiss
+two screens. `TargetReward` shares the round's shape and its fanfare
+deliberately: a child has learned what that screen and that sound mean, and this
+is the same kind of event, only bigger.
+
+**The parent's practice calendar judges past days against the *current* target**,
+since past targets are not stored, and the note under it says so rather than
+leaving a re-judged fortnight to be a surprise. `readRecentAnswers` returns
+`null` on a failed read, like `readObservations` and `readSittings`, and the
+calendar drops the goal along with it - four weeks drawn as four weeks of missed
+days is exactly the lie that convention exists to prevent. On the play path the
+same read is best-effort (`?? []`): an empty bar is only an empty bar.
 
 ## Accounts
 

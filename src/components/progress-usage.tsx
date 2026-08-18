@@ -99,7 +99,12 @@ export function ProgressUsage({
             ? `Green days met their goal of ${measured.value} ${
                 measured.kind === 'minutes' ? 'minutes' : 'questions'
               } a day. Part-filled days came close.`
-            : undefined
+            : target
+              ? // The goal is set but the read behind it failed. The panel says so
+                // rather than quietly losing the goal - "could not read" and
+                // "nothing recorded" have to look different to a parent.
+                'Couldn’t check these days against their goal just now.'
+              : undefined
         }
       >
         <PracticeCalendar
