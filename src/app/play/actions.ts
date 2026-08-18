@@ -2,6 +2,7 @@
 
 import { auth } from '@/auth';
 import {
+  awardDailyTarget,
   awardRoundStars,
   recordAttempt,
   recordSessionEnd,
@@ -54,4 +55,19 @@ export async function endRecordingAction(learningSessionId: string): Promise<voi
   const session = await auth();
   if (!session?.user?.id) return;
   await recordSessionEnd(session.user.id, learningSessionId);
+}
+
+/**
+ * Bank the day's target, if it has been reached. The server recounts today's
+ * answers itself, so this says only *that* an answer landed - never how far
+ * along the day is. The offset comes from the client because the server has no
+ * timezone, exactly as it does for every recorded answer.
+ */
+export async function awardTargetAction(
+  learningSessionId: string,
+  offsetMinutes: number,
+): Promise<{ awarded: boolean; stars: number } | null> {
+  const session = await auth();
+  if (!session?.user?.id) return null;
+  return awardDailyTarget(session.user.id, learningSessionId, { now: Date.now(), offsetMinutes });
 }

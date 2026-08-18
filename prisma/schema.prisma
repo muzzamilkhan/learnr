@@ -137,11 +137,11 @@ model LearningSession {
   seed      String
   startedAt DateTime  @default(now())
   endedAt   DateTime?
-  /// Stars earned this sitting, one closed round of ten questions at a time. A
-  /// cache of the attempts like TopicSkill is - `starsEarned` over this session's
-  /// answers reproduces it - kept here so the total is one SUM rather than a walk
-  /// through every answer a child has ever given.
-  stars     Int       @default(0)
+  /// How many closed rounds of this sitting have been paid for. The guard that
+  /// lets `User.stars` be incremented rather than recounted: banking reads this
+  /// under a row lock, pays for the rounds past it, and moves it up. It is a
+  /// count of events, not a cache of anything.
+  roundsBanked Int @default(0)
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   attempts Attempt[]

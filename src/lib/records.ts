@@ -9,7 +9,16 @@ import {
 import { parseYearLevel, type YearLevel } from './curriculum';
 import { prisma } from './db';
 import { nextPlayStreak, startedNewDay, noStreak, type PlayStreak } from './rewards/streak';
-import { starsEarned } from './rewards/stars';
+import { rounds } from './rewards/stars';
+import {
+  TARGET_STARS,
+  dayTotal,
+  parseTarget,
+  targetProgress,
+  type DailyTarget,
+  type TargetAnswer,
+} from './rewards/target';
+import { localDay } from './day';
 import type { Attempt } from './session/session';
 
 /**
@@ -237,50 +246,191 @@ export async function readPlayStreak(userId: string): Promise<PlayStreak> {
 }
 
 /**
- * Bank the stars for a sitting, recounted from that sitting's answers rather
- * than taken from the client. It is a *set*, not an increment, so calling it
- * twice for the same round is harmless - which matters, because the play screen
- * fires it best-effort and a retry is the cheapest way to survive a dropped one.
+ * Bank the stars for the rounds of a sitting that have not been paid for yet.
  *
- * Returns the session's running total, or null if nothing was written.
+ * The worth of a round is still read off the stored answers rather than taken
+ * from the client - 3, 2 or 1 depending on how it went, and the browser must not
+ * be the one saying which. What is *not* recounted is the total: `User.stars` is
+ * incremented by the new rounds only, because a total that can be recomputed is
+ * a total a changed daily target could retroactively reduce.
+ *
+ * `roundsBanked` is what makes that safe. It is read under `SELECT ... FOR
+ * UPDATE` and moved up in the same transaction, so a repeated call, a retry, or
+ * two tabs answering at once all pay for each round exactly once - the second
+ * one through the lock finds the counter already past the round it came to bank.
+ * It is the same row lock `updateTopicSkill` takes, for the same reason.
+ *
+ * Returns the child's new total, or null if nothing was banked.
  */
 export async function awardRoundStars(
   userId: string,
   learningSessionId: string,
 ): Promise<number | null> {
   if (!prisma) return null;
+  const db = prisma;
   try {
     if (!(await ownsSession(userId, learningSessionId))) return null;
 
-    const answers = await prisma.attempt.findMany({
+    const answers = await db.attempt.findMany({
       where: { learningSessionId },
-      // The same order the round chunking assumes: as they were answered, with the
-      // id settling a tie so a recount cannot chunk differently to the last one.
+      // The same order the round chunking assumes: as they were answered, with
+      // the id settling a tie so two calls cannot chunk the sitting differently.
       orderBy: [{ answeredAt: 'asc' }, { id: 'asc' }],
       select: { correct: true },
     });
+    const closed = rounds(answers.map((answer) => answer.correct));
 
-    const stars = starsEarned(answers.map((answer) => answer.correct));
-    await prisma.learningSession.updateMany({ where: { id: learningSessionId }, data: { stars } });
-    return stars;
+    return await db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ roundsBanked: number }[]>`
+        SELECT "roundsBanked"
+        FROM "LearningSession"
+        WHERE "id" = ${learningSessionId}
+        FOR UPDATE
+      `;
+
+      const banked = locked[0]?.roundsBanked;
+      if (banked === undefined || closed.length <= banked) return null;
+
+      const gained = closed.slice(banked).reduce((total, round) => total + round.stars, 0);
+
+      await tx.learningSession.update({
+        where: { id: learningSessionId },
+        data: { roundsBanked: closed.length },
+      });
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { stars: { increment: gained } },
+        select: { stars: true },
+      });
+
+      return user.stars;
+    });
   } catch (error) {
     console.error('Failed to award stars', error);
     return null;
   }
 }
 
-/** Every star the child has, across every sitting. */
+/**
+ * Every star the child has. One column now rather than a sum over their
+ * sittings: the total is banked as it is earned and never recounted, because a
+ * target is mutable and a recount of a past day against today's target would
+ * take stars off a child who earned them. See the daily targets spec.
+ */
 export async function readStarTotal(userId: string): Promise<number> {
   if (!prisma) return 0;
   try {
-    const totals = await prisma.learningSession.aggregate({
-      where: { userId },
-      _sum: { stars: true },
-    });
-    return totals._sum.stars ?? 0;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { stars: true } });
+    return user?.stars ?? 0;
   } catch (error) {
     console.error('Failed to read star total', error);
     return 0;
+  }
+}
+
+/** A child's target, and the last day its stars were banked. */
+export interface TargetSettings {
+  target: DailyTarget | null;
+  targetDay: number | null;
+}
+
+const noTarget = (): TargetSettings => ({ target: null, targetDay: null });
+
+export async function readTargetSettings(userId: string): Promise<TargetSettings> {
+  if (!prisma) return noTarget();
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { targetKind: true, targetValue: true, targetDay: true },
+    });
+    if (!user) return noTarget();
+    return { target: parseTarget(user.targetKind, user.targetValue), targetDay: user.targetDay };
+  } catch (error) {
+    console.error('Failed to read daily target', error);
+    return noTarget();
+  }
+}
+
+/**
+ * A child's answers since a moment, across every subject and sitting.
+ *
+ * Deliberately not scoped to a subject the way `readObservations` is: a target
+ * is the child's whole day, and a child who does twenty questions of maths has
+ * done twenty questions whichever screen they were on.
+ *
+ * It returns the answers rather than a total because the server does not know
+ * what day it is where the child is. The device does, so the fold into "today"
+ * happens there - the same reason `currentStreak` is computed in the browser.
+ */
+export async function readRecentAnswers(userId: string, sinceMs: number): Promise<TargetAnswer[]> {
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.attempt.findMany({
+      where: { learningSession: { userId }, answeredAt: { gte: new Date(sinceMs) } },
+      orderBy: { answeredAt: 'asc' },
+      select: { answeredAt: true, timeTakenMs: true },
+    });
+    return rows.map((row) => ({
+      answeredAt: row.answeredAt.getTime(),
+      timeTakenMs: row.timeTakenMs,
+    }));
+  } catch (error) {
+    console.error('Failed to read recent answers', error);
+    return [];
+  }
+}
+
+/**
+ * Two days of answers is all a target ever needs, whichever side of midnight the
+ * child's own clock is on. Exported because the screens that render a target
+ * read the same window, and two of them disagreeing about it would show a bar
+ * that disagreed with the award.
+ */
+export const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * Bank the day's target stars, if today's answers have reached the target.
+ *
+ * The recount is per child and per day rather than per sitting: a target is not
+ * subject-specific, and a child may well switch subject or level part way
+ * through an evening.
+ *
+ * The `where` on `targetDay` is the whole of the guard, in one statement, in the
+ * shape the play streak already uses. Two tabs answering at once, a retried call
+ * and a client that fires this on every answer of the evening all award exactly
+ * once - the second write matches no row and reports nothing awarded.
+ *
+ * Best-effort like every other write on the play path: a missed award costs ten
+ * stars and repairs itself on the child's next answer of the day, which is a far
+ * better failure than an interrupted question.
+ */
+export async function awardDailyTarget(
+  userId: string,
+  learningSessionId: string,
+  { now, offsetMinutes }: { now: number; offsetMinutes: number },
+): Promise<{ awarded: boolean; stars: number } | null> {
+  if (!prisma) return null;
+  try {
+    if (!(await ownsSession(userId, learningSessionId))) return null;
+
+    const { target } = await readTargetSettings(userId);
+    if (!target) return null;
+
+    const answers = await readRecentAnswers(userId, now - TARGET_WINDOW_MS);
+    if (!targetProgress(target, dayTotal(answers, { now, offsetMinutes })).complete) {
+      return { awarded: false, stars: await readStarTotal(userId) };
+    }
+
+    const today = localDay(now, offsetMinutes);
+    const written = await prisma.user.updateMany({
+      where: { id: userId, OR: [{ targetDay: null }, { targetDay: { lt: today } }] },
+      data: { targetDay: today, stars: { increment: TARGET_STARS } },
+    });
+
+    return { awarded: written.count > 0, stars: await readStarTotal(userId) };
+  } catch (error) {
+    console.error('Failed to award daily target', error);
+    return null;
   }
 }
 
