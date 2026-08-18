@@ -226,9 +226,14 @@ questions"** with **"12 done"** and the same gradient bar. It is what a child
 checks before they start, which is exactly when "how far off am I" is the
 question.
 
-It is gone once the target is met, for the same reason the play bar is: the
-day's goal is finished with, and a full bar all evening is a thing that no
-longer moves.
+**Unlike the play bar, it stays once the target is met** - full, ticked, and
+reading "Goal reached" for the rest of the day. The two screens differ because
+what they are protecting differs: the play screen is one question at arm's
+length, and a bar there that no longer moves is only something to look at
+instead of the question. The home screen is where a child arrives and takes
+stock, and arriving to find the day already done is worth seeing - it is also
+the only place that achievement persists, since the celebration is over in four
+seconds.
 
 Only a managed child ever sees it. A child signed in with their own Google
 account has no parent to set a target, gets no target columns set, and so gets
