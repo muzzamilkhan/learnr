@@ -15,11 +15,13 @@ import {
   dayTotal,
   targetUnits,
   totalFor,
+  TARGET_STARS,
   type DailyTarget,
   type TargetAnswer,
 } from '@/lib/rewards/target';
 import {
   awardRoundAction,
+  awardTargetAction,
   endRecordingAction,
   recordAttemptAction,
   startRecordingAction,
@@ -34,6 +36,7 @@ import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
 import { StreakFlash } from './streak-flash';
 import { TargetBar } from './target-bar';
+import { TargetReward } from './target-reward';
 import { playSound, primeSounds } from './sounds';
 
 /**
@@ -123,6 +126,8 @@ export function PlaySession({
   const [hintShown, setHintShown] = useState(false);
   /** The round of ten just finished, while its stars are on screen. */
   const [reward, setReward] = useState<Round | null>(null);
+  /** The day's goal, while its stars are on screen. Queued behind a round's. */
+  const [targetReward, setTargetReward] = useState<DailyTarget | null>(null);
   /** The day streak, on the one answer of the day that extended it. */
   const [streak, setStreak] = useState<number | null>(null);
   /** The profile menu's two totals - kept live as answers land and rounds bank. */
@@ -238,6 +243,17 @@ export function PlaySession({
     setSession((state) => ({ ...state, questionShownAt: Date.now() }));
   }, []);
 
+  /**
+   * Same as dismissing a round's stars: the next question has been waiting
+   * behind this screen rather than in front of the child, so its clock starts
+   * again here and the break never lands inside that question's recorded time.
+   */
+  const dismissTargetReward = useCallback(() => {
+    setTargetReward(null);
+    setTargetFinished(true);
+    setSession((state) => ({ ...state, questionShownAt: Date.now() }));
+  }, []);
+
   // Stable, so answering while the flash is up does not restart its timer and
   // leave a faded-out badge mounted over the screen.
   const dismissStreak = useCallback(() => setStreak(null), []);
@@ -288,6 +304,20 @@ export function PlaySession({
           // the tenth of them would find nine and award nothing. A dropped call
           // repairs itself at the next round, which recounts the sitting whole.
           if (closedRound(results)) awardRoundAction(id);
+
+          // The day's goal, asked for after the answer is written for the same
+          // reason the round's stars are: the server recounts from the stored
+          // answers, and a recount that raced this answer would find one fewer
+          // and award nothing. Asking on every answer is safe and is what makes
+          // a dropped call repair itself - the compare-and-set on the day means
+          // only one of them can ever pay out.
+          if (target && !targetFinished) {
+            awardTargetAction(id, offsetMinutes).then((result) => {
+              if (!result?.awarded) return;
+              setTargetReward(target.target);
+              setStars((total) => total + TARGET_STARS);
+            });
+          }
         });
       }
 
@@ -296,7 +326,7 @@ export function PlaySession({
       if (correct) advanceTimer.current = setTimeout(() => advance(next), CORRECT_MS);
       else setPending(next);
     },
-    [session, question, feedback, advance, updateEntry, target],
+    [session, question, feedback, advance, updateEntry, target, targetFinished],
   );
 
   // A physical keyboard should work as well as the on-screen pads.
@@ -305,10 +335,11 @@ export function PlaySession({
       const key = event.key;
 
       // The stars are over everything else, so nothing behind them may be answered.
-      if (reward) {
+      if (reward || targetReward) {
         if (key === 'Enter' || key === ' ') {
           event.preventDefault();
-          dismissReward();
+          if (reward) dismissReward();
+          else dismissTargetReward();
         }
         return;
       }
@@ -358,7 +389,19 @@ export function PlaySession({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [submit, feedback, mode, options, pending, advance, reward, dismissReward, updateEntry]);
+  }, [
+    submit,
+    feedback,
+    mode,
+    options,
+    pending,
+    advance,
+    reward,
+    dismissReward,
+    targetReward,
+    dismissTargetReward,
+    updateEntry,
+  ]);
 
   return (
     // Fixed to the viewport: everything must fit an iPad screen with no scrolling,
@@ -457,6 +500,14 @@ export function PlaySession({
 
       {streak !== null && <StreakFlash days={streak} onDone={dismissStreak} />}
       {reward !== null && <RoundReward round={reward} onDone={dismissReward} />}
+      {/* Queued rather than stacked: an answer can close a round and finish the
+          day at once, and two full-screen celebrations at the same moment would
+          share one tap between them. The round goes first because it is about
+          the ten questions just answered; the day is the bigger thing and comes
+          last. */}
+      {reward === null && targetReward !== null && (
+        <TargetReward target={targetReward} onDone={dismissTargetReward} />
+      )}
     </main>
   );
 }
