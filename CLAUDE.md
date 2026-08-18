@@ -512,12 +512,23 @@ deliberately: a child has learned what that screen and that sound mean, and this
 is the same kind of event, only bigger.
 
 **The parent's practice calendar judges past days against the *current* target**,
-since past targets are not stored, and the note under it says so rather than
-leaving a re-judged fortnight to be a surprise. `readRecentAnswers` returns
-`null` on a failed read, like `readObservations` and `readSittings`, and the
-calendar drops the goal along with it - four weeks drawn as four weeks of missed
-days is exactly the lie that convention exists to prevent. On the play path the
-same read is best-effort (`?? []`): an empty bar is only an empty bar.
+since past targets are not stored. The note under it names the goal it is
+judging by, so a fortnight that changes colour after the goal is raised has the
+number that changed it written underneath. `readRecentAnswers` returns `null` on
+a failed read, like `readObservations` and `readSittings`, and the calendar drops
+the goal along with it - four weeks drawn as four weeks of missed days is exactly
+the lie that convention exists to prevent, so the note says it could not check
+rather than saying nothing. On the play path the same read is best-effort
+(`?? []`): an empty bar is only an empty bar.
+
+**The offset is bounded at the action, not trusted** (`parseOffsetMinutes`). It
+is the browser's word, and the day it produces is *stored* - on `User.targetDay`
+and `User.playStreakDay` - behind guards that compare against the day being
+written. One absurd value written once would sit in the future and quietly
+refuse every real day after it, which is a child's stars gone with nothing on
+screen to say why. A refused offset declines the award; a recorded answer falls
+back to UTC rather than being thrown away, because history is worth more than a
+perfect day boundary.
 
 ## Accounts
 

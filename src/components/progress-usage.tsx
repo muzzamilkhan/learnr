@@ -92,8 +92,8 @@ export function ProgressUsage({
         title="Practice"
         aside={`${practisedDays(weeks)} of the last ${elapsedDays(weeks)} days`}
         // Past days are measured against the goal as it stands now - a goal that
-        // has been changed was not stored per day, and saying so is what keeps a
-        // re-judged fortnight from being a surprise.
+        // has been changed was not stored per day. The note names the current
+        // goal, which is what a parent needs to read the colours by.
         note={
           measured
             ? `Green days met their goal of ${measured.value} ${

@@ -11,6 +11,7 @@ import {
 } from '@/lib/records';
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
+import { parseOffsetMinutes } from '@/lib/day';
 
 /**
  * Recording only. These never affect what the child sees next - the session
@@ -38,7 +39,13 @@ export async function recordAttemptAction(
 ): Promise<AttemptResult | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  return recordAttempt(session.user.id, learningSessionId, attempt);
+  // The offset is the browser's word, and it ends up in a stored day number, so
+  // it is bounded here. An answer with a nonsense offset is still worth keeping;
+  // it is recorded at UTC rather than dropped.
+  return recordAttempt(session.user.id, learningSessionId, {
+    ...attempt,
+    offsetMinutes: parseOffsetMinutes(attempt.offsetMinutes) ?? 0,
+  });
 }
 
 /**
@@ -61,7 +68,9 @@ export async function endRecordingAction(learningSessionId: string): Promise<voi
  * Bank the day's target, if it has been reached. The server recounts today's
  * answers itself, so this says only *that* an answer landed - never how far
  * along the day is. The offset comes from the client because the server has no
- * timezone, exactly as it does for every recorded answer.
+ * timezone, exactly as it does for every recorded answer - and it is bounded
+ * before it is used, because the day it produces is written to `User.targetDay`
+ * and one absurd value would sit in the future refusing every real day after it.
  */
 export async function awardTargetAction(
   learningSessionId: string,
@@ -69,5 +78,12 @@ export async function awardTargetAction(
 ): Promise<{ awarded: boolean; stars: number } | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
-  return awardDailyTarget(session.user.id, learningSessionId, { now: Date.now(), offsetMinutes });
+
+  const offset = parseOffsetMinutes(offsetMinutes);
+  if (offset === null) return null;
+
+  return awardDailyTarget(session.user.id, learningSessionId, {
+    now: Date.now(),
+    offsetMinutes: offset,
+  });
 }
