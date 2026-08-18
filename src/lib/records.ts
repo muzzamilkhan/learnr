@@ -371,8 +371,17 @@ export async function readTargetSettings(userId: string): Promise<TargetSettings
  * It returns the answers rather than a total because the server does not know
  * what day it is where the child is. The device does, so the fold into "today"
  * happens there - the same reason `currentStreak` is computed in the browser.
+ *
+ * Not best-effort, for the parent's sake: `null` means the read failed and `[]`
+ * means nothing was recorded, because the calendar draws an empty read as a
+ * month of days that missed their goal. That is a lie a parent has no way to
+ * spot - the rest of that panel renders fine from a separate, successful read.
+ * The play screens, where an empty bar is only a bar, take `?? []`.
  */
-export async function readRecentAnswers(userId: string, sinceMs: number): Promise<TargetAnswer[]> {
+export async function readRecentAnswers(
+  userId: string,
+  sinceMs: number,
+): Promise<TargetAnswer[] | null> {
   if (!prisma) return [];
   try {
     const rows = await prisma.attempt.findMany({
@@ -386,7 +395,7 @@ export async function readRecentAnswers(userId: string, sinceMs: number): Promis
     }));
   } catch (error) {
     console.error('Failed to read recent answers', error);
-    return [];
+    return null;
   }
 }
 
@@ -426,7 +435,9 @@ export async function awardDailyTarget(
     const { target } = await readTargetSettings(userId);
     if (!target) return null;
 
-    const answers = await readRecentAnswers(userId, now - TARGET_WINDOW_MS);
+    // Best-effort on this side: a failed read means no award this call, and the
+    // child's next answer of the day tries again.
+    const answers = (await readRecentAnswers(userId, now - TARGET_WINDOW_MS)) ?? [];
     if (!targetProgress(target, dayTotal(answers, { now, offsetMinutes })).complete) {
       return { awarded: false, stars: await readStarTotal(userId) };
     }

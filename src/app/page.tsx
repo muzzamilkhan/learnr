@@ -84,11 +84,12 @@ export default async function HomePage() {
 
   // A parent has no goal of their own, so this is read on the same branch that
   // skips their streak and stars. The answers are only worth fetching once there
-  // is a target to measure them against.
+  // is a target to measure them against, and a failed read is best-effort here -
+  // an empty bar on the child's own screen, not a claim made to a parent.
   const settings = userId && !isParent ? await readTargetSettings(userId) : null;
   const targetAnswers =
     settings?.target && userId
-      ? await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)
+      ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
       : [];
 
   const initialLevel = resolveInitialLevel(stored, levels);

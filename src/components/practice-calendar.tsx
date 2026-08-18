@@ -67,9 +67,10 @@ export function PracticeCalendar({
   /**
    * Every day's answers across all subjects, keyed by day bucket. Cross-subject
    * because a goal is the child's whole day, while the rest of this screen is
-   * scoped to the subject in the dropdown.
+   * scoped to the subject in the dropdown. `null` is a failed read, and the
+   * caller drops the target with it rather than drawing every day as missed.
    */
-  totals?: Map<number, DayTotal>;
+  totals?: Map<number, DayTotal> | null;
 }) {
   return (
     <div
@@ -87,12 +88,12 @@ export function PracticeCalendar({
         // A day that has not happened gets no cell at all, only its grid slot.
         day.future ? (
           <span key={day.start} />
-        ) : target ? (
+        ) : target && totals ? (
           <TargetCell
             key={day.start}
             day={day}
             target={target}
-            total={totals?.get(day.start) ?? { questions: 0, timeMs: 0 }}
+            total={totals.get(day.start) ?? { questions: 0, timeMs: 0 }}
             offsetMinutes={offsetMinutes}
           />
         ) : (

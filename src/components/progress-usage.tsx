@@ -27,15 +27,20 @@ export function ProgressUsage({
   /**
    * The calendar's own read, across every subject - a daily goal is the child's
    * whole day, where everything else on this screen is scoped to one subject.
+   * `null` means that read failed: the goal is dropped from the calendar rather
+   * than every day being drawn as a day that missed it.
    */
-  targetAnswers: TargetAnswer[];
+  targetAnswers: TargetAnswer[] | null;
   target: DailyTarget | null;
   now: number;
   offsetMinutes: number;
 }) {
   const figures = headline(observations, { now, offsetMinutes });
   const weeks = calendarWeeks(observations, { now, weeks: CALENDAR_WEEKS, offsetMinutes });
-  const totals = dailyTotals(targetAnswers, { offsetMinutes });
+  const totals = targetAnswers === null ? null : dailyTotals(targetAnswers, { offsetMinutes });
+  // Without the day totals there is nothing to measure a goal against, so the
+  // calendar goes back to plain shading and the note stops claiming otherwise.
+  const measured = target !== null && totals !== null ? target : null;
 
   const reports = topicReports(observations, now);
   // The same topic can appear at two years once a child moves up, so the year is
@@ -90,9 +95,9 @@ export function ProgressUsage({
         // has been changed was not stored per day, and saying so is what keeps a
         // re-judged fortnight from being a surprise.
         note={
-          target
-            ? `Green days met their goal of ${target.value} ${
-                target.kind === 'minutes' ? 'minutes' : 'questions'
+          measured
+            ? `Green days met their goal of ${measured.value} ${
+                measured.kind === 'minutes' ? 'minutes' : 'questions'
               } a day. Part-filled days came close.`
             : undefined
         }
@@ -100,7 +105,7 @@ export function ProgressUsage({
         <PracticeCalendar
           weeks={weeks}
           offsetMinutes={offsetMinutes}
-          target={target}
+          target={measured}
           totals={totals}
         />
       </Well>

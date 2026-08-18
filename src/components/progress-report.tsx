@@ -43,8 +43,12 @@ export function ProgressReport({
   subject: string;
   observations: Observation[] | null;
   sittings: Sitting[] | null;
-  /** The calendar's cross-subject read, and the goal it measures each day against. */
-  targetAnswers: TargetAnswer[];
+  /**
+   * The calendar's cross-subject read, and the goal it measures each day
+   * against. `null` is a failed read, and the calendar falls back to plain
+   * shading rather than drawing a month of days as having missed their goal.
+   */
+  targetAnswers: TargetAnswer[] | null;
   target: DailyTarget | null;
   now: number;
 }) {

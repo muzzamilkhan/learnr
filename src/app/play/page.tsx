@@ -77,11 +77,13 @@ export default async function PlayPage({
     : [emptyProfile(), [], noStreak(), 0];
 
   // The server does not know what day it is where the child is, so it hands over
-  // a window of answers and the device decides which of them are today's.
+  // a window of answers and the device decides which of them are today's. A
+  // failed read is best-effort here, as everything on the play path is: the bar
+  // starts empty and the next question's read repairs it.
   const settings = userId ? await readTargetSettings(userId) : null;
   const targetAnswers =
     settings?.target && userId
-      ? await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)
+      ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
       : [];
 
   // Seeded here rather than in the client so the first question is server
