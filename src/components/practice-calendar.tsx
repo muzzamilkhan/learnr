@@ -1,4 +1,5 @@
 import type { CalendarDay } from '@/lib/analytics/report';
+import { targetCell, type DailyTarget, type DayTotal } from '@/lib/rewards/target';
 
 /**
  * Four weeks of days, one cell each, filled by how much was answered.
@@ -47,12 +48,28 @@ export function elapsedDays(weeks: readonly CalendarDay[][]): number {
   return weeks.flat().filter((day) => !day.future).length;
 }
 
+/** Without a target, and with one: a tick has to fit inside the second. */
+const CELL_HEIGHT = { plain: 14, target: 20 };
+
+/** Below this a fill is a smudge rather than a fraction; a practised day must look practised. */
+const MIN_VISIBLE = 0.12;
+
 export function PracticeCalendar({
   weeks,
   offsetMinutes,
+  target = null,
+  totals,
 }: {
   weeks: CalendarDay[][];
   offsetMinutes: number;
+  /** The child's goal, if their parent set one. Without it the grid is unchanged. */
+  target?: DailyTarget | null;
+  /**
+   * Every day's answers across all subjects, keyed by day bucket. Cross-subject
+   * because a goal is the child's whole day, while the rest of this screen is
+   * scoped to the subject in the dropdown.
+   */
+  totals?: Map<number, DayTotal>;
 }) {
   return (
     <div
@@ -70,11 +87,19 @@ export function PracticeCalendar({
         // A day that has not happened gets no cell at all, only its grid slot.
         day.future ? (
           <span key={day.start} />
+        ) : target ? (
+          <TargetCell
+            key={day.start}
+            day={day}
+            target={target}
+            total={totals?.get(day.start) ?? { questions: 0, timeMs: 0 }}
+            offsetMinutes={offsetMinutes}
+          />
         ) : (
           <span
             key={day.start}
-            className="h-[14px] rounded-[3px]"
-            style={{ backgroundColor: shade(day.attempts) }}
+            className="rounded-[3px]"
+            style={{ height: CELL_HEIGHT.plain, backgroundColor: shade(day.attempts) }}
             title={`${dayLabel.format(new Date(day.start + offsetMinutes * 60_000))}${
               day.attempts === 0
                 ? ' - no practice'
@@ -84,5 +109,65 @@ export function PracticeCalendar({
         ),
       )}
     </div>
+  );
+}
+
+/**
+ * One day measured against the goal: green with a tick for a day that met it,
+ * filled left to right by how far it got for a day that did not, and line grey
+ * for a day with nothing on it at all.
+ *
+ * The fill is a fraction of the width rather than a shade, because a parent
+ * reading this wants to know how close a short day came - and a row of four
+ * different blues does not say that. Grey still means untouched either way, so
+ * the gaps the calendar exists to show are still the loudest thing in it.
+ */
+function TargetCell({
+  day,
+  target,
+  total,
+  offsetMinutes,
+}: {
+  day: CalendarDay;
+  target: DailyTarget;
+  total: DayTotal;
+  offsetMinutes: number;
+}) {
+  const { state, fraction } = targetCell(total, target);
+  const date = dayLabel.format(new Date(day.start + offsetMinutes * 60_000));
+  const practised =
+    target.kind === 'minutes'
+      ? `${Math.floor(total.timeMs / 60_000)} of ${target.value} min`
+      : `${total.questions} of ${target.value} questions`;
+
+  return (
+    <span
+      className="relative flex items-center justify-center overflow-hidden rounded-[3px]"
+      style={{
+        height: CELL_HEIGHT.target,
+        backgroundColor: state === 'met' ? 'var(--color-right)' : 'var(--color-line)',
+      }}
+      title={`${date} - ${state === 'none' ? 'no practice' : practised}`}
+    >
+      {state === 'partial' ? (
+        <span
+          className="absolute inset-y-0 left-0 bg-(--color-brand)"
+          style={{ width: `${Math.max(MIN_VISIBLE, fraction) * 100}%` }}
+        />
+      ) : null}
+
+      {state === 'met' ? (
+        <svg viewBox="0 0 24 24" aria-hidden className="relative h-3 w-3 text-white">
+          <path
+            d="M5 13l4 4L19 7"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={3.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ) : null}
+    </span>
   );
 }

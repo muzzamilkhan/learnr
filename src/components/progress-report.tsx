@@ -2,6 +2,7 @@ import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes } from '@/lib/analytics/report';
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
+import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import { AvatarIcon } from './avatar-icon';
 import { ChildPicker } from './child-picker';
 import { ProgressTopics } from './progress-topics';
@@ -32,6 +33,8 @@ export function ProgressReport({
   subject,
   observations,
   sittings,
+  targetAnswers,
+  target,
   now,
 }: {
   child: ProgressChild;
@@ -40,6 +43,9 @@ export function ProgressReport({
   subject: string;
   observations: Observation[] | null;
   sittings: Sitting[] | null;
+  /** The calendar's cross-subject read, and the goal it measures each day against. */
+  targetAnswers: TargetAnswer[];
+  target: DailyTarget | null;
   now: number;
 }) {
   const offsetMinutes = latestOffsetMinutes(observations ?? []);
@@ -72,7 +78,13 @@ export function ProgressReport({
         </p>
       ) : (
         <div className="space-y-4">
-          <ProgressUsage observations={observations} now={now} offsetMinutes={offsetMinutes} />
+          <ProgressUsage
+            observations={observations}
+            targetAnswers={targetAnswers}
+            target={target}
+            now={now}
+            offsetMinutes={offsetMinutes}
+          />
           <ProgressTopics
             observations={observations}
             sittings={sittings}

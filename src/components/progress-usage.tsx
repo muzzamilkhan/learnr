@@ -1,5 +1,6 @@
-import { calendarWeeks, headline, topicReports } from '@/lib/analytics/report';
+import { calendarWeeks, dailyTotals, headline, topicReports } from '@/lib/analytics/report';
 import type { Observation } from '@/lib/analytics/profile';
+import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import { yearLabel } from '@/lib/curriculum';
 import { PracticeCalendar, elapsedDays, practisedDays } from './practice-calendar';
 import { TopicBars, type TopicBar } from './topic-bars';
@@ -17,15 +18,24 @@ const MAX_BARS = 8;
  */
 export function ProgressUsage({
   observations,
+  targetAnswers,
+  target,
   now,
   offsetMinutes,
 }: {
   observations: Observation[];
+  /**
+   * The calendar's own read, across every subject - a daily goal is the child's
+   * whole day, where everything else on this screen is scoped to one subject.
+   */
+  targetAnswers: TargetAnswer[];
+  target: DailyTarget | null;
   now: number;
   offsetMinutes: number;
 }) {
   const figures = headline(observations, { now, offsetMinutes });
   const weeks = calendarWeeks(observations, { now, weeks: CALENDAR_WEEKS, offsetMinutes });
+  const totals = dailyTotals(targetAnswers, { offsetMinutes });
 
   const reports = topicReports(observations, now);
   // The same topic can appear at two years once a child moves up, so the year is
@@ -76,8 +86,23 @@ export function ProgressUsage({
       <Well
         title="Practice"
         aside={`${practisedDays(weeks)} of the last ${elapsedDays(weeks)} days`}
+        // Past days are measured against the goal as it stands now - a goal that
+        // has been changed was not stored per day, and saying so is what keeps a
+        // re-judged fortnight from being a surprise.
+        note={
+          target
+            ? `Green days met their goal of ${target.value} ${
+                target.kind === 'minutes' ? 'minutes' : 'questions'
+              } a day. Part-filled days came close.`
+            : undefined
+        }
       >
-        <PracticeCalendar weeks={weeks} offsetMinutes={offsetMinutes} />
+        <PracticeCalendar
+          weeks={weeks}
+          offsetMinutes={offsetMinutes}
+          target={target}
+          totals={totals}
+        />
       </Well>
 
       {bars.length > 0 ? (

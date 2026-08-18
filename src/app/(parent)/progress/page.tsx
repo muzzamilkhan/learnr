@@ -2,12 +2,19 @@ import Link from 'next/link';
 import { listSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
 import { resolveChild } from '@/lib/children';
-import { readObservations, readSittings } from '@/lib/records';
+import { readObservations, readRecentAnswers, readSittings } from '@/lib/records';
 import { readParent } from '../parent';
 import { requestNow } from './now';
 
 // Per-parent and per-child, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
+
+/**
+ * Four weeks and a margin, across every subject: the calendar measures the
+ * child's whole day against their goal, while everything else on this screen is
+ * scoped to the subject being looked at.
+ */
+const CALENDAR_WINDOW_MS = 29 * 24 * 60 * 60 * 1000;
 
 export default async function ProgressPage({
   searchParams,
@@ -49,9 +56,12 @@ export default async function ProgressPage({
   const subjects = listSubjects().map((summary) => summary.subject);
   const subject = subjects.find((option) => option === subjectParam) ?? subjects[0] ?? 'maths';
 
-  const [observations, sittings] = await Promise.all([
+  const now = requestNow();
+
+  const [observations, sittings, targetAnswers] = await Promise.all([
     readObservations(child.id, subject),
     readSittings(child.id, subject),
+    readRecentAnswers(child.id, now - CALENDAR_WINDOW_MS),
   ]);
 
   return (
@@ -62,7 +72,9 @@ export default async function ProgressPage({
       subject={subject}
       observations={observations}
       sittings={sittings}
-      now={requestNow()}
+      targetAnswers={targetAnswers}
+      target={child.target}
+      now={now}
     />
   );
 }

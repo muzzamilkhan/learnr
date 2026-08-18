@@ -1,4 +1,5 @@
 import { compareYearLevels, type YearLevel } from '../curriculum';
+import type { DayTotal, TargetAnswer } from '../rewards/target';
 import {
   accuracy,
   averageTimeMs,
@@ -317,6 +318,34 @@ export function calendarWeeks(
   const grid = days.map((bucket) => ({ ...bucket, future: bucket.start > today }));
 
   return Array.from({ length: weeks }, (_, week) => grid.slice(week * 7, week * 7 + 7));
+}
+
+/**
+ * Every day's answers, in both units, keyed by the same day bucket
+ * `calendarWeeks` builds its grid from - so a cell can be measured against a
+ * daily target without the two disagreeing about where a day starts.
+ *
+ * It takes bare answers rather than `Observation`s because a target is not
+ * subject-specific: the calendar is measuring the child's whole day, while the
+ * rest of that screen is scoped to one subject.
+ */
+export function dailyTotals(
+  answers: readonly TargetAnswer[],
+  { offsetMinutes = 0 }: { offsetMinutes?: number },
+): Map<number, DayTotal> {
+  const offsetMs = offsetMinutes * 60_000;
+  const totals = new Map<number, DayTotal>();
+
+  for (const answer of answers) {
+    const key = bucketStart(answer.answeredAt, 'day', offsetMs);
+    const total = totals.get(key) ?? { questions: 0, timeMs: 0 };
+    totals.set(key, {
+      questions: total.questions + 1,
+      timeMs: total.timeMs + answer.timeTakenMs,
+    });
+  }
+
+  return totals;
 }
 
 export interface Summary {

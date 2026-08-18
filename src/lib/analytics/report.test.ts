@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calendarWeeks,
   coverage,
+  dailyTotals,
   dueForReview,
   headline,
   latestOffsetMinutes,
@@ -429,5 +430,53 @@ describe('coverage', () => {
     const reports = topicReports(answers('addition', rights(3), { level: 'K' }), NOW);
 
     expect(coverage(reports, offered, '1')).toMatchObject({ practised: 0, offered: 4 });
+  });
+});
+
+describe('dailyTotals', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const at = (day: number, hour = 12) => day * DAY + hour * 60 * 60 * 1000;
+
+  it('keys each day by the same bucket the calendar draws', () => {
+    const totals = dailyTotals(
+      [
+        { answeredAt: at(100, 9), timeTakenMs: 20_000 },
+        { answeredAt: at(100, 20), timeTakenMs: 40_000 },
+        { answeredAt: at(101), timeTakenMs: 10_000 },
+      ],
+      {},
+    );
+
+    expect(totals.get(100 * DAY)).toEqual({ questions: 2, timeMs: 60_000 });
+    expect(totals.get(101 * DAY)).toEqual({ questions: 1, timeMs: 10_000 });
+    expect(totals.get(99 * DAY)).toBeUndefined();
+  });
+
+  it('buckets by the child\u2019s day, not the server\u2019s', () => {
+    // 8pm UTC is 6am the next day in Sydney, so this answer belongs to day 101.
+    // A key is the instant that local day begins, which is ten hours before UTC
+    // midnight - the same key `calendarWeeks` gives the cell, so the two line up.
+    const sydney = 10 * 60;
+    const localStart = (day: number) => day * DAY - sydney * 60_000;
+    const totals = dailyTotals([{ answeredAt: at(100, 20), timeTakenMs: 5_000 }], {
+      offsetMinutes: sydney,
+    });
+
+    expect(totals.get(localStart(101))).toEqual({ questions: 1, timeMs: 5_000 });
+    expect(totals.get(localStart(100))).toBeUndefined();
+  });
+
+  it('keys days the way the calendar grid does', () => {
+    const sydney = 10 * 60;
+    const answer = { answeredAt: at(100, 9), timeTakenMs: 5_000 };
+    const totals = dailyTotals([answer], { offsetMinutes: sydney });
+    const grid = calendarWeeks(
+      [{ ...answer, topic: 'counting', level: '1', correct: true, offsetMinutes: sydney }],
+      { now: at(101, 20), weeks: 4, offsetMinutes: sydney },
+    );
+
+    const practised = grid.flat().filter((day) => day.attempts > 0);
+    expect(practised).toHaveLength(1);
+    expect(totals.get(practised[0].start)).toEqual({ questions: 1, timeMs: 5_000 });
   });
 });
