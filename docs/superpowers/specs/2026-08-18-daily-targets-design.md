@@ -104,7 +104,7 @@ value that arrives from a form or a URL is normalised in exactly one place.
 
 ## Schema
 
-Four columns on `User`, all null or zero for everyone who has no target:
+Three columns on `User` for the target itself:
 
 ```prisma
 /// The daily target a parent set: "questions" or "minutes", and how many. Both
@@ -117,32 +117,65 @@ targetValue Int?
 /// child first hits a target. This is the compare-and-set that makes the award
 /// happen once a day however many times it is asked for.
 targetDay   Int?
-
-/// Stars banked for hitting daily targets. Unlike `LearningSession.stars` this
-/// is NOT a cache of anything - see the design note in the spec.
-targetStars Int @default(0)
 ```
 
-The migration backfills nothing: no target is the correct state for every
-existing child, and a target is a thing a parent chooses.
+And a fourth that this feature makes the app's only star total:
 
-### Why `targetStars` is stored rather than recounted
+```prisma
+/// Every star this child has. Only ever incremented, and never recounted - see
+/// below for why the sum it replaces could not survive this feature.
+stars Int @default(0)
+```
 
-Every other total in this app is derived. `LearningSession.stars` is a cache
-that `starsEarned` over the sitting's answers reproduces exactly, which is why
-the server recounts it and *sets* rather than increments.
+The migration backfills the target columns with nothing: no target is the correct
+state for every existing child, and a target is a thing a parent chooses. `stars`
+is backfilled from the existing history.
 
-Target stars cannot work that way, because **the target itself is mutable**. A
-child hits a 10-question target on Monday; on Tuesday their parent raises it to
-40. A recount of Monday against the stored target would find it unmet and take
-ten stars off a child who earned them - a total that goes down, for something
-they did not do. Storing the day's target on every attempt to make the recount
-honest would put a parent's setting into the history of every answer, for one
-number.
+## Stars become one incremented column
 
-So the award is banked at the moment it is earned and never re-derived, and
-this is the one column that is a fact rather than a cache. The star total shown
-to a child is `SUM(LearningSession.stars) + User.targetStars`.
+Before this feature, a child's star total was `SUM(LearningSession.stars)`, and
+that column was a **cache**: `awardRoundStars` re-read the sitting's answers, ran
+`starsEarned` over them and *set* it. Being a set rather than an increment is
+what made it safe to fire best-effort - a repeated call was harmless, and a
+dropped one repaired itself at the next round.
+
+That works because a round's worth can be re-derived from the answers forever.
+**A target's cannot**, because the target itself is mutable. A child hits a
+10-question target on Monday; on Tuesday their parent raises it to 40. Recounting
+Monday against the stored target would find it unmet and take ten stars off a
+child who earned them - a total that goes down, for something they did not do.
+Storing the day's target on every attempt to make that recount honest would put a
+parent's setting into the history of every answer, for one number.
+
+So the total stops being derived, for both sources at once rather than growing a
+second mechanism beside the first. **`User.stars` is incremented on the event and
+never recomputed.** What replaces the recount's safety is a guard per event, so
+each award can still only fire once:
+
+- **A round** is guarded by `LearningSession.roundsBanked` - how many closed
+  rounds of that sitting have been paid for. Banking is a read of that counter
+  under `SELECT ... FOR UPDATE`, then an increment of `User.stars` by the worth of
+  the rounds past it, in one transaction. It is the same row lock
+  `updateTopicSkill` already takes, for the same reason: two answers landing at
+  once must queue rather than both read the same counter.
+- **A day's target** is guarded by `User.targetDay`, in one compare-and-set
+  statement. The second write matches no row and pays nothing.
+
+The answers are still read when banking a round - a round's worth is 3, 2 or 1
+depending on how it went, and the client must not be the one saying which. But
+they are read to value *the new rounds only*; the total is never rebuilt from
+them. `LearningSession.stars` goes, replaced by `roundsBanked`.
+
+**What this costs**, stated plainly: a dropped award no longer heals itself. Under
+the old scheme a failed write was recovered by the next round's recount; now ten
+questions' stars are simply gone. That is the price of a total that a changed
+target cannot retroactively reduce, and it is paid in the direction that matters
+- a child never loses stars they were shown, they only ever miss stars they were
+never shown.
+
+The migration backfills `User.stars` by **recounting every sitting's answers**,
+not by summing the old column - so any award dropped before this migration is
+paid at last, and the numbers only go up.
 
 ## Awarding
 
@@ -161,7 +194,7 @@ write resolves, exactly like `awardRoundAction`. `awardDailyTarget` in
 ```
 updateMany
   where { id: userId, OR: [{ targetDay: null }, { targetDay: { lt: today } }] }
-  data  { targetDay: today, targetStars: { increment: TARGET_STARS } }
+  data  { targetDay: today, stars: { increment: TARGET_STARS } }
 ```
 
 The `where` on `targetDay` is the whole of the guard, in one statement, in the

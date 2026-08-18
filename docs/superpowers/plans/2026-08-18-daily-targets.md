@@ -4,7 +4,7 @@
 
 **Goal:** Let a parent set an optional daily target on a child - a number of questions or a number of minutes - shown as a progress bar on the play and home screens, worth 10 stars the day it is met, and reflected in the parent's practice calendar.
 
-**Architecture:** All the arithmetic goes in one new pure module, `src/lib/rewards/target.ts`, beside `stars.ts` and `streak.ts` - no clock, no database, `now` and the UTC offset passed in. Four columns on `User` hold the setting and the banked award. The award is a single compare-and-set on a day number, exactly like the play streak. Because only the child's device knows what day it is where they are, the server ships the child's last 48 hours of answers to the client and the client picks out "today" with its own offset - the same reason `currentStreak` is computed in the browser.
+**Architecture:** All the arithmetic goes in one new pure module, `src/lib/rewards/target.ts`, beside `stars.ts` and `streak.ts` - no clock, no database, `now` and the UTC offset passed in. Stars stop being a recounted cache and become one incremented `User.stars`, with a guard per event so each award still fires exactly once. The award is a single compare-and-set on a day number, exactly like the play streak. Because only the child's device knows what day it is where they are, the server ships the child's last 48 hours of answers to the client and the client picks out "today" with its own offset - the same reason `currentStreak` is computed in the browser.
 
 **Tech Stack:** Next.js App Router (server components + server actions), Prisma 7 with hand-written SQL migrations, Tailwind v4 with CSS variables, Vitest.
 
@@ -16,6 +16,7 @@
 - **Levels are strings** (`'K'`, `'1'`..`'6'`), never integers. Not relevant to this feature, but do not "fix" any level handling you pass through.
 - **Play-path writes are best-effort.** Everything in `records.ts` called while a child is answering swallows its failures and never blocks or interrupts play. Everything in `accounts.ts` does the opposite - it reports whether it worked.
 - **Days are the child's, never the server's.** Every day question goes through `localDay(at, offsetMinutes)` in `src/lib/day.ts`.
+- **`User.stars` is only ever incremented**, never recomputed. Every increment sits behind a guard that makes the event fire once: `LearningSession.roundsBanked` under a row lock for a round, `User.targetDay` compare-and-set for a day's target.
 - **`TARGET_STARS` is 10.** Question targets run 10-60 in steps of 5; minute targets run 5-30 in steps of 5.
 - **A minute is summed capped `timeTakenMs`**, the same number the parent's report calls "time on questions". Never wall-clock time.
 - **Prose style in comments:** explain *why*, in full sentences, matching the surrounding files. Use `-` and never an em dash. Australian spelling.
@@ -472,27 +473,112 @@ In `prisma/schema.prisma`, inside `model User`, after the `playStreak`/`playStre
   /// however many times it is asked for.
   targetDay Int?
 
-  /// Stars banked for hitting daily targets. Unlike `LearningSession.stars` this
-  /// is NOT a cache of anything that could be recounted: the target itself is
-  /// mutable, so recounting a past day against today's setting would take stars
-  /// off a child who earned them. It is banked when earned and never re-derived.
-  targetStars Int @default(0)
+  /// Every star this child has, from finished rounds and from days they hit
+  /// their target. Only ever incremented, never recounted: a target is mutable,
+  /// so recounting a past day against today's setting would take stars off a
+  /// child who earned them. What replaces the old recount's safety is a guard
+  /// per event - `LearningSession.roundsBanked` for a round, `targetDay` above
+  /// for a day - so an award can still only ever be paid once.
+  stars Int @default(0)
 ```
+
+And on `LearningSession`, replace the `stars` column entirely:
+
+```prisma
+  /// How many closed rounds of this sitting have been paid for. The guard that
+  /// lets `User.stars` be incremented rather than recounted: banking reads this
+  /// under a row lock, pays for the rounds past it, and moves it up. It is a
+  /// count of events, not a cache of anything.
+  roundsBanked Int @default(0)
+```
+
+Delete the existing `stars Int @default(0)` line from `LearningSession` and its doc comment.
 
 - [ ] **Step 2: Hand-write the migration**
 
 Create `prisma/migrations/20260818090000_daily_targets/migration.sql`:
 
 ```sql
--- The optional daily target a parent sets on a child, and the stars for hitting
--- it. Nothing is backfilled: no target is the correct state for every child that
--- already exists, and a target is a decision a parent makes rather than one that
--- can be guessed from their child's history.
+-- The optional daily target a parent sets on a child, and the move that makes
+-- room for its stars: one incremented total per child, in place of a sum over
+-- sittings that was recounted from the answers.
+--
+-- The sum had to go because a target is mutable. A child who hits a 10-question
+-- target on Monday and has it raised to 40 on Tuesday would fail a recount of
+-- Monday, and lose stars they had already been shown. So the total is banked as
+-- it is earned, and each award is guarded instead of being made repeatable:
+-- "roundsBanked" for a round of ten, "targetDay" for a day's target.
 
+-- Nothing is backfilled into the target columns: no target is the correct state
+-- for every child that already exists, and a target is a decision a parent
+-- makes rather than one that can be guessed from their child's history.
 ALTER TABLE "User" ADD COLUMN     "targetKind" TEXT,
                   ADD COLUMN     "targetValue" INTEGER,
                   ADD COLUMN     "targetDay" INTEGER,
-                  ADD COLUMN     "targetStars" INTEGER NOT NULL DEFAULT 0;
+                  ADD COLUMN     "stars" INTEGER NOT NULL DEFAULT 0;
+
+ALTER TABLE "LearningSession" ADD COLUMN "roundsBanked" INTEGER NOT NULL DEFAULT 0;
+
+-- Every closed round of every sitting, valued the way `starsEarned` values one:
+-- 3 for a clean round, 1 for a round with nothing right, 2 for anything between.
+-- A part-finished round at the end of a sitting is worth nothing, which is why
+-- the ordering matters - rounds chunk from the *first* answer.
+WITH numbered AS (
+  SELECT
+    "learningSessionId",
+    "correct",
+    (row_number() OVER (PARTITION BY "learningSessionId" ORDER BY "answeredAt", "id") - 1) / 10 AS round
+  FROM "Attempt"
+),
+scored AS (
+  SELECT "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
+  FROM numbered
+  GROUP BY "learningSessionId", round
+  HAVING COUNT(*) = 10
+),
+totals AS (
+  SELECT "learningSessionId",
+         COUNT(*) AS rounds,
+         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
+  FROM scored
+  GROUP BY "learningSessionId"
+)
+UPDATE "LearningSession" ls
+SET "roundsBanked" = totals.rounds
+FROM totals
+WHERE ls."id" = totals."learningSessionId";
+
+-- The child's total is recounted from the answers one last time rather than
+-- summed from the old column, so any award that was dropped before today is
+-- paid at last. This migration can only move a total up.
+WITH numbered AS (
+  SELECT
+    a."learningSessionId",
+    ls."userId",
+    a."correct",
+    (row_number() OVER (PARTITION BY a."learningSessionId" ORDER BY a."answeredAt", a."id") - 1) / 10 AS round
+  FROM "Attempt" a
+  JOIN "LearningSession" ls ON ls."id" = a."learningSessionId"
+),
+scored AS (
+  SELECT "userId", "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
+  FROM numbered
+  GROUP BY "userId", "learningSessionId", round
+  HAVING COUNT(*) = 10
+),
+per_user AS (
+  SELECT "userId",
+         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
+  FROM scored
+  GROUP BY "userId"
+)
+UPDATE "User" u
+SET "stars" = per_user.stars
+FROM per_user
+WHERE u."id" = per_user."userId";
+
+-- The sum this replaces. Its data has been carried into "User"."stars" above.
+ALTER TABLE "LearningSession" DROP COLUMN "stars";
 ```
 
 - [ ] **Step 3: Apply it and regenerate the client**
@@ -544,7 +630,7 @@ In `createChild`'s `data`, and in `updateChild`'s `data`, add:
         targetValue: input.target?.value ?? null,
 ```
 
-`targetDay` and `targetStars` are deliberately untouched by an edit: changing a target must not take back stars already earned, and must not let today's award be claimed twice by lowering the bar.
+`targetDay` and `stars` are deliberately untouched by an edit: changing a target must not take back stars already earned, and must not let today's award be claimed twice by lowering the bar.
 
 - [ ] **Step 5: Carry it through the server actions**
 
@@ -636,7 +722,7 @@ git commit -m "Store the daily target a parent sets on a child"
 
 ---
 
-### Task 3: The reads and the award
+### Task 3: One star column, two guards, and the target's award
 
 **Files:**
 - Modify: `src/lib/records.ts`
@@ -656,6 +742,9 @@ export async function awardDailyTarget(
   learningSessionId: string,
   at: { now: number; offsetMinutes: number },
 ): Promise<{ awarded: boolean; stars: number } | null>;
+// `awardRoundStars(userId, learningSessionId)` keeps its signature and its
+// `Promise<number | null>` return - the child's new total, or null if nothing
+// was banked. Only its mechanism changes.
 
 // play/actions.ts
 export async function awardTargetAction(
@@ -664,32 +753,109 @@ export async function awardTargetAction(
 ): Promise<{ awarded: boolean; stars: number } | null>;
 ```
 
-- [ ] **Step 1: Teach `readStarTotal` about the banked target stars**
+- [ ] **Step 1: Make the star total one column read**
 
 In `src/lib/records.ts`, replace the body of `readStarTotal`:
 
 ```ts
 /**
- * Every star the child has: the sittings' rounds, plus the days they hit their
- * target. The two are summed rather than kept in one column because they are
- * different kinds of number - round stars are a cache the server recounts from
- * the answers, and target stars are a banked fact that cannot be recounted once
- * the target has changed. See the design note in the daily targets spec.
+ * Every star the child has. One column now rather than a sum over their
+ * sittings: the total is banked as it is earned and never recounted, because a
+ * target is mutable and a recount of a past day against today's target would
+ * take stars off a child who earned them. See the daily targets spec.
  */
 export async function readStarTotal(userId: string): Promise<number> {
   if (!prisma) return 0;
   try {
-    const [sittings, user] = await Promise.all([
-      prisma.learningSession.aggregate({ where: { userId }, _sum: { stars: true } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { targetStars: true } }),
-    ]);
-    return (sittings._sum.stars ?? 0) + (user?.targetStars ?? 0);
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { stars: true } });
+    return user?.stars ?? 0;
   } catch (error) {
     console.error('Failed to read star total', error);
     return 0;
   }
 }
 ```
+
+- [ ] **Step 1b: Bank a round by incrementing, behind a row lock**
+
+Replace `awardRoundStars` in `src/lib/records.ts`. It keeps its name, its
+signature and its best-effort manner; what changes is that it pays for the
+rounds nobody has paid for yet instead of setting a recounted cache.
+
+```ts
+/**
+ * Bank the stars for the rounds of a sitting that have not been paid for yet.
+ *
+ * The worth of a round is still read off the stored answers rather than taken
+ * from the client - 3, 2 or 1 depending on how it went, and the browser must not
+ * be the one saying which. What is *not* recounted is the total: `User.stars` is
+ * incremented by the new rounds only, because a total that can be recomputed is
+ * a total a changed daily target could retroactively reduce.
+ *
+ * `roundsBanked` is what makes that safe. It is read under `SELECT ... FOR
+ * UPDATE` and moved up in the same transaction, so a repeated call, a retry, or
+ * two tabs answering at once all pay for each round exactly once - the second
+ * one through the lock finds the counter already past the round it came to bank.
+ * It is the same row lock `updateTopicSkill` takes, for the same reason.
+ *
+ * Returns the child's new total, or null if nothing was banked.
+ */
+export async function awardRoundStars(
+  userId: string,
+  learningSessionId: string,
+): Promise<number | null> {
+  if (!prisma) return null;
+  const db = prisma;
+  try {
+    if (!(await ownsSession(userId, learningSessionId))) return null;
+
+    const answers = await db.attempt.findMany({
+      where: { learningSessionId },
+      // The same order the round chunking assumes: as they were answered, with
+      // the id settling a tie so two calls cannot chunk the sitting differently.
+      orderBy: [{ answeredAt: 'asc' }, { id: 'asc' }],
+      select: { correct: true },
+    });
+    const closed = rounds(answers.map((answer) => answer.correct));
+
+    return await db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<{ roundsBanked: number }[]>`
+        SELECT "roundsBanked"
+        FROM "LearningSession"
+        WHERE "id" = ${learningSessionId}
+        FOR UPDATE
+      `;
+
+      const banked = locked[0]?.roundsBanked;
+      if (banked === undefined || closed.length <= banked) return null;
+
+      const gained = closed
+        .slice(banked)
+        .reduce((total, round) => total + round.stars, 0);
+
+      await tx.learningSession.update({
+        where: { id: learningSessionId },
+        data: { roundsBanked: closed.length },
+      });
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { stars: { increment: gained } },
+        select: { stars: true },
+      });
+
+      return user.stars;
+    });
+  } catch (error) {
+    console.error('Failed to award stars', error);
+    return null;
+  }
+}
+```
+
+Change the `starsEarned` import from `@/lib/rewards/stars` to `rounds` - the
+total is no longer computed anywhere on the server. If `starsEarned` now has no
+importer outside its own tests, leave it exported: it is the definition of what a
+run of answers is worth and the tests read it as such.
 
 - [ ] **Step 2: Add the two reads and the award**
 
@@ -801,7 +967,7 @@ export async function awardDailyTarget(
     const today = localDay(now, offsetMinutes);
     const written = await prisma.user.updateMany({
       where: { id: userId, OR: [{ targetDay: null }, { targetDay: { lt: today } }] },
-      data: { targetDay: today, targetStars: { increment: TARGET_STARS } },
+      data: { targetDay: today, stars: { increment: TARGET_STARS } },
     });
 
     return { awarded: written.count > 0, stars: await readStarTotal(userId) };
@@ -838,11 +1004,18 @@ export async function awardTargetAction(
 Run: `npm run typecheck && npm test`
 Expected: no type errors, all existing tests pass.
 
+Then, with a database, check the guard by hand - it is the whole reason an
+increment is safe here. `npm run dev`, play ten questions, and confirm the star
+total went up by the round's worth exactly once. Then call the round action twice
+in a row for the same sitting (two tabs on the play screen will do it, or a
+second `awardRoundAction` from the browser console) and confirm the total does
+not move the second time.
+
 - [ ] **Step 5: Commit**
 
 ```bash
 git add src/lib/records.ts src/app/play/actions.ts
-git commit -m "Bank the day's target stars with a compare-and-set"
+git commit -m "Bank stars by incrementing one total, guarded per event"
 ```
 
 ---
@@ -1981,10 +2154,12 @@ git commit -m "Measure the practice calendar against the child's goal"
 
 Add a `## Daily targets` section to `CLAUDE.md`, after `## Rewards`, covering, in the file's existing voice:
 
+- **Revise the existing `## Rewards` section as well**, which currently says stars are derived, that `starsEarned` over a sitting's answers reproduces `LearningSession.stars`, and that the server sets rather than increments. None of that is true after this work. Replace it with the incremented `User.stars` and its two guards, and keep the reasoning for why the change was made.
 - A parent may set one optional target per child - questions or minutes a day, not per subject. Questions 10-60, minutes 5-30, in fives; the floors are so a young child's first target can be an easy one, the ceilings so a parent cannot set a bar nobody clears.
 - A minute is summed capped `timeTakenMs`, the same number the report calls "time on questions" - never wall clock.
 - Hitting it is worth `TARGET_STARS` (10), flat rather than scaled, so a child's star total never becomes a measure of what their parent asked for.
-- `User.targetStars` is the one total in the app that is a stored fact rather than a cache: the target is mutable, so recounting a past day against today's setting would take stars off a child who earned them.
+- `User.stars` is the app's only star total, and it is a banked fact rather than a cache. It replaced `SUM(LearningSession.stars)` because the old sum was recounted from the answers, and a target is mutable - recounting a past day against today's setting would take stars off a child who earned them.
+- Every increment sits behind a guard, which is what replaced the recount's idempotence: `LearningSession.roundsBanked` read under `SELECT ... FOR UPDATE` for a round, `User.targetDay` compare-and-set for a day's target. The cost, stated in the spec, is that a dropped award no longer heals itself - a total can only fail to grow, never shrink.
 - The award is one compare-and-set on `targetDay`, the shape the play streak uses, so a repeated or raced call pays out once.
 - Which answers are "today" is decided on the child's device, because only it knows the offset - the server ships two days of answers and the client folds them, the same reason `currentStreak` is computed in the browser.
 - The play screen's bar carries no numbers, for the same reason the header counts nothing, and a minutes bar creeps during a question capped at `MAX_TIME_MS` so what is shown can never run ahead of what is recorded.
@@ -2004,7 +2179,7 @@ git push
 
 ## Self-Review
 
-**Spec coverage.** Numbers and rationale → Task 1. Library → Task 1. Schema and the `targetStars` decision → Task 2 (columns, comments) and Task 3 (the sum). Awarding → Task 3. Play screen bar, including the minutes creep and the `MAX_TIME_MS` cap → Task 6. Celebration and queueing → Task 7. Home screen → Task 8. Parent's screens → Task 4. Practice calendar → Task 9. Testing → Task 1 and Task 9 Step 1. Documentation → Task 10.
+**Spec coverage.** Numbers and rationale → Task 1. Library → Task 1. Schema, the migration's recount-and-backfill, and the move to one incremented `User.stars` → Task 2 (columns, migration) and Task 3 (both guards). Awarding → Task 3. Play screen bar, including the minutes creep and the `MAX_TIME_MS` cap → Task 6. Celebration and queueing → Task 7. Home screen → Task 8. Parent's screens → Task 4. Practice calendar → Task 9. Testing → Task 1 and Task 9 Step 1. Documentation → Task 10.
 
 **Known follow-on, deliberately not in scope:** `readObservations` stays subject-scoped, and only the calendar reads across subjects. That is the honest grain for topic analysis and the correct grain for a target, and the spec's "targets are not subject specific" is satisfied by the cross-subject read in Tasks 3 and 9.
 
