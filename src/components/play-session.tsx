@@ -465,6 +465,18 @@ export function PlaySession({
           <ExitIcon />
         </button>
 
+        {/* The only thing on this screen that keeps a running count of anything,
+            and it does it as a picture rather than a number for exactly the
+            reason the header does not: a figure is something to watch instead of
+            the question. It rides in the header's own row, between the way out
+            and the profile menu, so the top of the screen is one line rather
+            than two. It goes entirely once the day's goal has been celebrated. */}
+        <div className="flex min-w-0 flex-1 justify-center">
+          {target !== null && targetDone !== null && !targetFinished ? (
+            <TargetBar fraction={targetFraction} className="w-full max-w-sm" />
+          ) : null}
+        </div>
+
         {account ? (
           <ProfileMenu
             name={account.name}
@@ -476,17 +488,6 @@ export function PlaySession({
           </ProfileMenu>
         ) : null}
       </header>
-
-      {/* Top centre, above the question and below nothing. The only thing on this
-          screen that keeps a running count of anything, and it does it as a
-          picture rather than a number for exactly the reason the header does
-          not: a figure is something to watch instead of the question. It goes
-          entirely once the day's goal has been celebrated. */}
-      {target !== null && targetDone !== null && !targetFinished ? (
-        <div className="flex shrink-0 justify-center pt-2 sm:pt-3">
-          <TargetBar fraction={targetFraction} className="w-2/3 max-w-sm" />
-        </div>
-      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
         <Prompt key={session.askedCount} prompt={question.prompt} />
