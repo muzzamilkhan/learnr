@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AVATARS, DEFAULT_AVATAR, type Avatar } from '@/lib/avatars';
 import { shortYearLabel, type YearLevel } from '@/lib/curriculum';
 import { CODE_TTL_MS, isCodeLive, minutesLeft } from '@/lib/login-code';
+import { targetOptions, type DailyTarget, type TargetKind } from '@/lib/rewards/target';
 import { AvatarIcon } from '@/components/avatar-icon';
 import { CopyIcon } from '@/components/copy-icon';
 import { EditIcon } from '@/components/edit-icon';
@@ -25,6 +26,7 @@ export interface ChildRow {
   name: string;
   avatar: Avatar;
   level: string | null;
+  target: DailyTarget | null;
   code: string | null;
   codeExpiresAt: string | null;
 }
@@ -120,6 +122,14 @@ export function ParentDashboard({
   );
 }
 
+/**
+ * A target in a parent's words. Short, because it sits in a row of short facts
+ * beside the level - the same reason that row says "Year K" rather than
+ * "Kindergarten".
+ */
+export const targetLabel = (target: DailyTarget): string =>
+  `${target.value} ${target.kind === 'minutes' ? 'min' : 'questions'} a day`;
+
 function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
   // Read once, at mount: a code's hour does not turn over while a parent looks
   // at the row, and reading the clock during render is not something a component
@@ -195,6 +205,9 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
           <p className="truncate text-base font-semibold">{child.name}</p>
           <p className="text-sm text-(--color-ink-soft)">
             {child.level ? shortYearLabel(child.level as YearLevel) : 'No level set'}
+            {/* Only ever an addition. A card reading "No daily goal" would put an
+                absence on every card of every parent who never wanted one. */}
+            {child.target ? ` · Goal: ${targetLabel(child.target)}` : ''}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -363,7 +376,21 @@ function ChildForm({
   const [name, setName] = useState(initial?.name ?? '');
   const [avatar, setAvatar] = useState<Avatar>(initial?.avatar ?? DEFAULT_AVATAR);
   const [level, setLevel] = useState<string>(initial?.level ?? levels[0] ?? 'K');
+  // "none" is a real choice here rather than an absence, so the dropdown has
+  // something to show for the child who has no goal.
+  const [targetKind, setTargetKind] = useState<TargetKind | 'none'>(initial?.target?.kind ?? 'none');
+  const [targetValue, setTargetValue] = useState<string>(
+    String(initial?.target?.value ?? targetOptions(initial?.target?.kind ?? 'questions')[0]),
+  );
   const [pending, startTransition] = useTransition();
+
+  // When the kind changes the value has to move with it - twenty questions and
+  // twenty minutes are not the same range.
+  const changeKind = (next: string) => {
+    const kind = next as TargetKind | 'none';
+    setTargetKind(kind);
+    if (kind !== 'none') setTargetValue(String(targetOptions(kind)[0]));
+  };
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -371,8 +398,8 @@ function ChildForm({
 
     startTransition(async () => {
       const saved = initial
-        ? await updateChildAction(initial.id, name, avatar, level, 'none', '')
-        : await createChildAction(name, avatar, level, 'none', '');
+        ? await updateChildAction(initial.id, name, avatar, level, targetKind, targetValue)
+        : await createChildAction(name, avatar, level, targetKind, targetValue);
       if (saved) onDone();
     });
   };
@@ -409,6 +436,49 @@ function ChildForm({
           />
         </div>
       </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label htmlFor="child-target-kind" className="mb-1 block text-sm font-semibold">
+            Daily goal
+          </label>
+          <Select
+            id="child-target-kind"
+            size="md"
+            value={targetKind}
+            options={[
+              { value: 'none', label: 'No goal' },
+              { value: 'questions', label: 'Questions' },
+              { value: 'minutes', label: 'Minutes' },
+            ]}
+            onChange={changeKind}
+          />
+        </div>
+
+        {targetKind !== 'none' ? (
+          <div>
+            <label htmlFor="child-target-value" className="mb-1 block text-sm font-semibold">
+              How many
+            </label>
+            <Select
+              id="child-target-value"
+              size="md"
+              value={targetValue}
+              options={targetOptions(targetKind).map((option) => ({
+                value: String(option),
+                label: String(option),
+              }))}
+              onChange={setTargetValue}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      {/* The one thing a parent needs told, and the reason the ceilings are where
+          they are: a goal is a floor to reach, never a limit to stop at. */}
+      <p className="text-sm text-(--color-ink-soft)">
+        Optional. Reaching it is worth 10 stars, and nothing stops them carrying on past it.
+      </p>
 
       <fieldset>
         <legend className="mb-2 text-sm font-semibold">Picture</legend>

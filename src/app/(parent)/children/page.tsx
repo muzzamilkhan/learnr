@@ -29,6 +29,7 @@ export default async function ChildrenPage() {
     name: child.name,
     avatar: child.avatar,
     level: child.level,
+    target: child.target,
     code: child.code,
     codeExpiresAt: child.codeExpiresAt?.toISOString() ?? null,
   }));
