@@ -650,12 +650,17 @@ deliberately, and without that line a parent reads 76% as a C.
 `recharts` draws the topic bars and is the project's only UI dependency. Height
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
-of failures. **Its labels are turned on their side**: a topic name is several
-words and a year's worth of topics puts a dozen bars across a panel, so flat
-labels collided however they were wrapped. Vertical they cannot collide at all,
-and what limits them is the height reserved below the axis - one number, the
-same for every bar, with anything longer elided (the tooltip still names the
-topic in full). The practice calendar is hand-rolled SVG and server-rendered - no
+of failures. **Its labels lie flat where there is room and turn on their side
+where there isn't**: a topic name is several words and a year's worth of topics
+puts a dozen bars across a panel, so on a phone flat labels collided however
+they were wrapped. Vertical they cannot collide at all, and what limits them is
+the height reserved below the axis - one number, the same for every bar. Flat
+is the better read where it fits, so from `md` up they lie down, and what limits
+them there is the bar's own width, measured with a `ResizeObserver` rather than
+declared - a label is only ever as wide as the band it sits under. When even
+that leaves nothing legible (`MIN_CHARS`) they turn back on their side, because
+a row of stumps is worse than a tilted head. Anything longer than its budget is
+elided either way, and the tooltip still names the topic in full. The practice calendar is hand-rolled SVG and server-rendered - no
 library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
 (`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
 carry weekday labels, since a column that is Monday one week and Thursday the
