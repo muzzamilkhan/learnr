@@ -17,9 +17,9 @@ const shapeName = (i: Expr): Expr =>
  * Maths course, Kindergarten to Year 6.
  *
  * Content is written against the Australian Curriculum v9.0 (ACARA), using the
- * official "Mathematics scope and sequence F–10" as the source. Every template
- * carries the content description code it practises in `tags` — e.g.
- * `AC9M4N02`, "explain and use the properties of odd and even numbers" — so the
+ * official "Mathematics scope and sequence F-10" as the source. Every template
+ * carries the content description code it practises in `tags` - e.g.
+ * `AC9M4N02`, "explain and use the properties of odd and even numbers" - so the
  * mapping from curriculum to question is checkable rather than asserted. The
  * codes read as AC9 M <year> <strand> <number>, where the strands are N number,
  * A algebra, M measurement, SP space, ST statistics and P probability.
@@ -1651,7 +1651,7 @@ export const mathsTemplates: QuestionTemplate[] = [
     topic: 'decimals',
     level: '4',
     // Built from whole tenths so the arithmetic stays exact and the options read
-    // cleanly — floating point noise in a distractor gives the answer away.
+    // cleanly - floating point noise in a distractor gives the answer away.
     prompt: 'What is {a} + {b}?',
     vars: [
       { name: 'na', kind: 'int', min: '11', max: '99' },

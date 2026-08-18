@@ -1,6 +1,6 @@
 /**
  * Two sheets, one behind the other: copy this to the clipboard. Turns into a
- * tick once it has, which is the only feedback a copy gets — nothing visibly
+ * tick once it has, which is the only feedback a copy gets - nothing visibly
  * happens otherwise, and a button that looks the same before and after leaves a
  * parent tapping it twice.
  *

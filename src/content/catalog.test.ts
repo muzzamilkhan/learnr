@@ -247,7 +247,7 @@ describe('subjectOverview', () => {
     expect(overview.topicCount).toBe(listTopics('maths').length);
   });
 
-  // A topic recurring across years is one topic, not one per year — counting it
+  // A topic recurring across years is one topic, not one per year - counting it
   // twice would overstate the breadth on the one page nobody can check yet.
   it('counts a topic once however many years it spans', () => {
     const overview = subjectOverview('maths', [

@@ -1,7 +1,7 @@
 /**
  * A bin: remove this child.
  *
- * A bin rather than a cross, because a cross on a card reads as "close this" —
+ * A bin rather than a cross, because a cross on a card reads as "close this" -
  * and the one thing this button must not be mistaken for is dismissing the row.
  * It only opens the confirmation, which is where the card says what is actually
  * lost. See `EditIcon` for why these two are glyphs at all.

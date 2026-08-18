@@ -6,7 +6,7 @@ import { Select } from '@/components/select';
 
 /**
  * Which child this screen is about. The choice goes in the URL rather than in
- * component state so a refresh keeps it — a parent who reloads should still be
+ * component state so a refresh keeps it - a parent who reloads should still be
  * looking at the same child.
  *
  * Not named `children`: that belongs to React, and a list of child profiles

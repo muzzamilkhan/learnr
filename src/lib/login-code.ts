@@ -4,7 +4,7 @@
  * Pure, like the rest of `src/lib`: `now` and the source of randomness are passed
  * in. The randomness is injected for the usual testability reason, but note the
  * caller must pass `crypto.randomInt` and *not* the seeded `Rng` used for
- * questions — that determinism exists so a session can be replayed from its seed,
+ * questions - that determinism exists so a session can be replayed from its seed,
  * which is precisely the property a login code must not have.
  *
  * The short-lived thing here is the code, not the login it grants. A code is good
@@ -30,7 +30,7 @@ export const CODE_LENGTH = 4;
 export const CODE_TTL_MS = 60 * 60 * 1000;
 
 /**
- * `randomInt(max)` must return a whole number in `[0, max)` — the contract of
+ * `randomInt(max)` must return a whole number in `[0, max)` - the contract of
  * `crypto.randomInt`, which is what production passes.
  */
 export type RandomInt = (max: number) => number;
@@ -48,7 +48,7 @@ export function codeExpiry(now: Date): Date {
 }
 
 /**
- * What the child typed, as a code — or null if it could never be one. Case and
+ * What the child typed, as a code - or null if it could never be one. Case and
  * surrounding space are the child's typing, not their answer, so they are
  * forgiven; a character outside the charset means they have misread something,
  * and there is no code it could match.
@@ -69,7 +69,7 @@ export function normaliseCode(input: string): string | null {
 /**
  * Whether the stored code is still worth showing. This is what decides between
  * "Show code" and "Get code" on the children screen: a code that is still live
- * can be revealed again, and revealing it must not issue a new one — a child may
+ * can be revealed again, and revealing it must not issue a new one - a child may
  * be halfway through typing the old one.
  */
 export function isCodeLive(
@@ -83,7 +83,7 @@ export function isCodeLive(
 
 /**
  * How long a code has left, rounded down. Shown to a parent, who needs the gist
- * rather than the second — and rounding down never promises time that isn't there.
+ * rather than the second - and rounding down never promises time that isn't there.
  */
 export function minutesLeft(expiresAt: Date, now: Date): number {
   return Math.max(0, Math.floor((expiresAt.getTime() - now.getTime()) / 60_000));

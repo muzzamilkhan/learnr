@@ -7,7 +7,7 @@ export interface ParentContext {
   userId: string;
   name: string | null;
   image: string | null;
-  /** Null means the read failed — different from a parent with no children yet. */
+  /** Null means the read failed - different from a parent with no children yet. */
   profiles: ChildProfile[] | null;
 }
 

@@ -60,7 +60,7 @@ export function ProgressUsage({
           <Tile label="Questions" value={String(figures.questions)} delta={figures.questionsDelta} />
           <Tile
             label="Correct"
-            value={figures.accuracy === null ? '—' : `${Math.round(figures.accuracy * 100)}%`}
+            value={figures.accuracy === null ? '-' : `${Math.round(figures.accuracy * 100)}%`}
             delta={figures.accuracyDelta === null ? null : Math.round(figures.accuracyDelta * 100)}
             unit="pts"
           />
@@ -68,7 +68,7 @@ export function ProgressUsage({
         {/* Without this a parent reads 76% as a C. The selector mixes hard topics
             in deliberately, so a healthy child sits in the seventies. */}
         <p className="mt-2 text-sm text-(--color-ink-soft)">
-          Over the last 7 days, against the 7 before. Questions are picked to stretch — around
+          Over the last 7 days, against the 7 before. Questions are picked to stretch - around
           three in four right means it&rsquo;s working.
         </p>
       </div>

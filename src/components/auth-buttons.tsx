@@ -3,7 +3,7 @@ import { signIn, signOut } from '@/auth';
 /**
  * `lg` is the child's scale; `bar` is the landing page's top bar, where it sits
  * beside the code box rather than alone on a screen of its own; `hero` is the
- * landing page's one call to action, which is a parent's — big enough to be the
+ * landing page's one call to action, which is a parent's - big enough to be the
  * thing on the screen to press, but not blown up to the child's scale.
  */
 const SIZES = {

@@ -8,7 +8,7 @@ export type SelectOption = { value: string; label: string };
  * A dropdown drawn by us rather than by the browser.
  *
  * A native `<select>` is the one control on these screens the theme can't reach:
- * iPad Safari draws its own popup — system font, system blue, its own rounding —
+ * iPad Safari draws its own popup - system font, system blue, its own rounding -
  * so a screen otherwise built from `--color-*` gets a grey OS widget in the
  * middle of it. This is a button and a listbox, so it looks like everything
  * beside it, and the options can be sized for a six-year-old's thumb.

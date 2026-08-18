@@ -49,7 +49,7 @@ describe('nextPlayStreak', () => {
 
 /**
  * A day number is whole days since the epoch, not a calendar date, so the end of
- * a month is not a special case — it cannot be. These are here because it is a
+ * a month is not a special case - it cannot be. These are here because it is a
  * fair thing to doubt, and the cost of being wrong is a child's streak.
  */
 describe('nextPlayStreak across calendar boundaries', () => {

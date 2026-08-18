@@ -167,7 +167,7 @@ describe('skill status', () => {
     const monday = answers('counting', rights(4), { from: 0 });
     const tuesday = answers('counting', rights(4), { from: DAY });
 
-    // Folded as they arrive rather than as they happened — two writes landing at
+    // Folded as they arrive rather than as they happened - two writes landing at
     // once, or a retry overtaking. Alternating days must not read as eight.
     const jumbled = [tuesday[0], monday[0], tuesday[1], monday[1], tuesday[2], monday[2]].reduce(
       applyObservation,

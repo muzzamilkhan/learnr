@@ -6,7 +6,7 @@ import { FlameIcon } from './star-icon';
 
 /**
  * Shown once, on the first answer of a day: the streak the child has just
- * extended. It is deliberately a flash and not a fixture — a number that sits on
+ * extended. It is deliberately a flash and not a fixture - a number that sits on
  * the play screen all session is one more thing to worry about, and this app
  * does not put anything on screen for a child to lose.
  *

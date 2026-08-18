@@ -19,7 +19,7 @@ import {
 } from '@/lib/accounts';
 
 /**
- * The home screen's level picker is usable before this resolves — remembering the
+ * The home screen's level picker is usable before this resolves - remembering the
  * choice is a convenience, so a signed-out child or a failed write costs the
  * memory, not the pick.
  */
@@ -50,7 +50,7 @@ export async function chooseRoleAction(role: Role): Promise<void> {
 /**
  * Every parent action goes through this first. The child id arrives from the
  * browser, so the parent's identity has to come from the session and the
- * ownership check has to happen in the query — which is why the `accounts`
+ * ownership check has to happen in the query - which is why the `accounts`
  * functions all take `parentId` rather than trusting a check made up here.
  */
 async function requireParentId(): Promise<string | null> {
@@ -129,7 +129,7 @@ export async function issueLoginCodeAction(childId: string): Promise<string | nu
 export async function redeemLoginCodeAction(code: string): Promise<{ error: string } | null> {
   const redeemed = await redeemLoginCode(code);
   if (!redeemed) {
-    return { error: "That code doesn't work — ask your grown-up for a new one." };
+    return { error: "That code doesn't work - ask your grown-up for a new one." };
   }
 
   const store = await cookies();

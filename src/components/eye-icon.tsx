@@ -3,7 +3,7 @@
  * already stored, or put it away again. One component so the two can never
  * drift apart, and so the button's two states are visibly the same button.
  *
- * Revealing is not issuing — see `KeyIcon`, which is the state that hands out a
+ * Revealing is not issuing - see `KeyIcon`, which is the state that hands out a
  * new code.
  */
 export function EyeIcon({ off }: { off: boolean }) {

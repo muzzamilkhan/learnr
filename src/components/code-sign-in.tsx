@@ -7,7 +7,7 @@ import { CODE_LENGTH } from '@/lib/login-code';
 
 /**
  * Where the code box is standing. The redemption is the same either way, which is
- * why this is a variant rather than a second component — two copies of "spend the
+ * why this is a variant rather than a second component - two copies of "spend the
  * code, then refresh" is how the two drift.
  *
  * `hero` is the child's own screen: one thing to do, drawn at the scale the rest
@@ -18,7 +18,7 @@ export type CodeSignInVariant = 'hero' | 'bar';
 
 /**
  * The child's way in, beside the Google button. Four characters read off a
- * parent's screen — no email, no password, nothing a child has to remember
+ * parent's screen - no email, no password, nothing a child has to remember
  * between one day and the next.
  *
  * A wrong code is answered inline rather than by navigating: getting it wrong is

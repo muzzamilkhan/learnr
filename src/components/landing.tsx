@@ -8,7 +8,7 @@ import { shortYearLabel, yearLabel } from '@/lib/curriculum';
 import { formatCount } from '@/lib/format';
 
 /**
- * What someone sees before they sign in — the app's only public page.
+ * What someone sees before they sign in - the app's only public page.
  *
  * Drawn at the parent scale rather than the child's. Nobody has signed in yet, so
  * the reader is almost always a grown-up deciding whether to use this; a child
@@ -16,16 +16,16 @@ import { formatCount } from '@/lib/format';
  * prose blown up to fill an iPad.
  *
  * Both ways in live in the top bar, as peers. A grown-up signs in with Google, a
- * child types their code — neither is the fallback for the other, and putting one
+ * child types their code - neither is the fallback for the other, and putting one
  * in a bar and the other at the bottom of the page would say otherwise.
  *
  * **The copy says what this is and who it helps, not how it is built.** How the
  * selector weights a topic, that questions are generated rather than stored, how
- * long a code lives — those are true and they are on this page's author's mind,
+ * long a code lives - those are true and they are on this page's author's mind,
  * but a parent deciding in thirty seconds is asking whether their child will use
  * it and whether they will learn anything. What the machinery buys them is the
  * claim; the machinery itself is not. The one technical thing that stays is the
- * curriculum, because that is the claim a parent would actually want to check —
+ * curriculum, because that is the claim a parent would actually want to check -
  * and it is listed straight from the shipped questions, so it cannot be
  * flattering.
  *
@@ -66,7 +66,7 @@ function TopBar() {
 }
 
 /**
- * A section heading. Small and coloured rather than another 24px bold line — the
+ * A section heading. Small and coloured rather than another 24px bold line - the
  * page is a run of panels, and what separates them should be lighter than what
  * is inside them, not heavier.
  */
@@ -138,11 +138,11 @@ export function Landing() {
     <>
       <TopBar />
       <main className="mx-auto max-w-5xl px-6 pt-10 pb-20">
-        {/* The hero is a tinted panel rather than bare paper — the mark's own
+        {/* The hero is a tinted panel rather than bare paper - the mark's own
             violet, at the strength a background can be read over. The lockup is
             the hero's other half rather than a band above it: it carries the
             wordmark and the tagline, so stacking it over a headline saying much
-            the same thing would be saying it twice. On a phone it goes first —
+            the same thing would be saying it twice. On a phone it goes first -
             column-reverse, so the source order still leads with the headline for
             anything reading the page rather than looking at it. */}
         <section className="relative overflow-hidden rounded-3xl border border-(--color-line) bg-gradient-to-br from-(--color-grape-soft) via-(--color-paper) to-(--color-brand-soft) px-6 py-10 sm:px-10 sm:py-12">
@@ -171,10 +171,14 @@ export function Landing() {
                 Maths practice that meets your child where they are.
               </h1>
               <p className="mt-4 max-w-prose text-lg leading-relaxed text-(--color-ink-soft)">
-                Short rounds of maths at their own school year, in a place with nothing to lose —
+                Short rounds of maths at their own school year, in a place with nothing to lose -
                 and a straight weekly read for you on how it is really going.
               </p>
-              <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+              {/* The one call to action on the page, centred under the copy it
+                  follows rather than tucked against the left margin - a single
+                  button in a column of left-aligned text reads as another line
+                  of that text, and this is the thing the page is asking for. */}
+              <div className="mt-6 flex flex-col items-center gap-2 text-center">
                 <SignInButton size="hero" />
                 <p className="text-sm text-(--color-ink-soft)">
                   Free to set up. Your child needs no email and no password.
@@ -186,8 +190,8 @@ export function Landing() {
         </section>
 
         {/* Two panels rather than one row of six cards, because the reader is
-            asking two separate questions — will my child use it, and will I know
-            whether it worked — and the answers should not be shuffled together. */}
+            asking two separate questions - will my child use it, and will I know
+            whether it worked - and the answers should not be shuffled together. */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <Panel>
             <Eyebrow tone="text-(--color-grape)">For your child</Eyebrow>
@@ -207,7 +211,7 @@ export function Landing() {
                 title="More of what&rsquo;s wobbly, without the drilling"
               >
                 LearnR notices the topics that aren&rsquo;t sticking and brings them round more
-                often — enough to shift them, never so much that it starts to feel like being
+                often - enough to shift them, never so much that it starts to feel like being
                 picked on.
               </Point>
               <Point
@@ -216,7 +220,7 @@ export function Landing() {
                 title="Nothing to lose"
               >
                 No timer on a question and no score to protect. A wrong answer shows the right one
-                and waits. Stars come for finishing a round — even a hard one.
+                and waits. Stars come for finishing a round - even a hard one.
               </Point>
             </ul>
           </Panel>
@@ -231,7 +235,7 @@ export function Landing() {
                 title="A weekly read, not a wall of numbers"
               >
                 Which topics need a hand, which are solid, and how much practice actually happened
-                — in the words you would use to ask a teacher.
+                - in the words you would use to ask a teacher.
               </Point>
               <Point
                 glyph="▦"
@@ -245,7 +249,7 @@ export function Landing() {
                 tone="bg-(--color-sun-soft) text-(--color-sun)"
                 title="Choosing the level is yours"
               >
-                Left to pick their own year, a child picks the one that feels easiest — and the
+                Left to pick their own year, a child picks the one that feels easiest - and the
                 whole point of this is the questions that don&rsquo;t.
               </Point>
             </ul>
@@ -277,7 +281,7 @@ export function Landing() {
         </Panel>
 
         {/* The curriculum is the one claim on this page a parent can check, so it
-            is shown rather than asserted — every year, with its real topics,
+            is shown rather than asserted - every year, with its real topics,
             read straight out of the questions that ship. */}
         <Panel className="mt-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -315,7 +319,7 @@ export function Landing() {
             <span className="min-w-0">
               <span className="block text-sm font-semibold">Where the questions come from</span>
               <span className="mt-0.5 block text-sm text-(--color-ink-soft)">
-                The Australian Curriculum, year by year — and the part of it behind each question.
+                The Australian Curriculum, year by year - and the part of it behind each question.
               </span>
             </span>
             <span aria-hidden className="ml-auto text-lg text-(--color-grape)">

@@ -1,7 +1,7 @@
 /**
  * A door with an arrow leaving it to the left: the way out of a sitting.
  *
- * Drawn rather than written, for the same reason as the tick on the Check key —
+ * Drawn rather than written, for the same reason as the tick on the Check key -
  * a child who cannot yet read "Done" can still see where the exit is, and the
  * glyph frees the corner of the header the counts used to fill.
  *

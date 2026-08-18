@@ -24,14 +24,14 @@ export interface Observation {
   answeredAt: number;
   /**
    * Minutes east of UTC where the answer was given, e.g. 600 for Sydney in
-   * winter. Only "which day was this?" depends on it, and left out it is UTC —
+   * winter. Only "which day was this?" depends on it, and left out it is UTC -
    * the same default the report takes. Carried per observation rather than per
    * fold so a family that crosses daylight saving keeps honest days.
    */
   offsetMinutes?: number;
 }
 
-/** One topic at one year level — the grain everything here is measured at. */
+/** One topic at one year level - the grain everything here is measured at. */
 export interface TopicSkill {
   topic: string;
   level: YearLevel;
@@ -40,7 +40,7 @@ export interface TopicSkill {
   /**
    * Recency-weighted accuracy in [0, 1]: what the child can do *now*. Lifetime
    * accuracy would let a bad first week outvote a good month, and hide the
-   * opposite too — a topic that has quietly slipped.
+   * opposite too - a topic that has quietly slipped.
    */
   strength: number;
   /** Correct answers in a row. One right answer is luck; a run is the signal. */
@@ -81,7 +81,7 @@ export const SECURE_STREAK = 3;
 /**
  * Mastery is not the same question as "are they struggling?", and it needs more
  * than the bare minimum to answer. `MIN_OBSERVATIONS` is the point at which we
- * will say a topic is *hard* — the cost of being wrong there is a few extra
+ * will say a topic is *hard* - the cost of being wrong there is a few extra
  * questions on something they can do. Calling a topic *known* is the expensive
  * mistake: it steps the topic down to a fraction of the questions and puts it
  * away for days.
@@ -103,7 +103,7 @@ export { localDay };
  * How long a secure topic is left alone before it is worth asking again. The
  * gap grows with the number of separate days it has been got right on: known
  * on two days needs confirming within a couple more, known on five keeps for a
- * month. Coming back to it *after* it has started to fade is the point — that
+ * month. Coming back to it *after* it has started to fade is the point - that
  * is what makes the recall stick rather than just filling the screen with
  * things they can already do.
  *
@@ -124,7 +124,7 @@ export function reviewDueAt(skill: TopicSkill): number {
 }
 
 /**
- * `new` means "not enough answers to say" — the honest answer for most topics
+ * `new` means "not enough answers to say" - the honest answer for most topics
  * most of the time, and the reason a child who has just started gets random
  * questions rather than a diagnosis built out of two data points.
  */
@@ -156,7 +156,7 @@ export function findSkill(
 
 /**
  * One answer folded into one skill. Exported on its own because the database
- * keeps a running skill row per child and needs exactly this step — the stored
+ * keeps a running skill row per child and needs exactly this step - the stored
  * profile and the in-memory one are then the same arithmetic, not two guesses
  * that drift.
  */
@@ -181,7 +181,7 @@ export function nextSkill(previous: TopicSkill | undefined, observation: Observa
 
   // A day counts once, and only when something was got right on it. The test is
   // "later than the last day counted" rather than "different from" so the count
-  // cannot be inflated by answers arriving out of order — two writes landing at
+  // cannot be inflated by answers arriving out of order - two writes landing at
   // once, or a retry overtaking. `buildProfile` sorts, so a fold over a whole
   // history is exact; a live fold that is handed an older answer late will
   // undercount, which delays calling a topic known and never fakes it.
@@ -222,7 +222,7 @@ export function buildProfile(observations: readonly Observation[]): LearnerProfi
 
 /**
  * Whether the answers say anything yet. Until one topic has been answered enough
- * times to be judged, there is no pattern to act on and questions stay random —
+ * times to be judged, there is no pattern to act on and questions stay random -
  * steering off two answers would be superstition, not teaching.
  */
 export function hasPattern(profile: LearnerProfile): boolean {

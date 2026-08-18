@@ -2,7 +2,7 @@
 
 /**
  * The input for questions that are tapped rather than typed: true/false and
- * multiple choice. One tap answers — there is no Check button to press, because
+ * multiple choice. One tap answers - there is no Check button to press, because
  * a child has nothing to review before committing.
  *
  * At most four options (`MAX_CHOICES`), so every target stays thumb-sized on an

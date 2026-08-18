@@ -19,7 +19,7 @@ export const BOOLEAN_OPTIONS: readonly AnswerOption[] = [
 export type AnswerMode = 'number' | 'text' | 'tap';
 
 /**
- * `tap` answers commit on the first touch — there is nothing to review, so no
+ * `tap` answers commit on the first touch - there is nothing to review, so no
  * Check button. `number` and `text` are typed and then checked.
  */
 export function answerMode(question: Question): AnswerMode {

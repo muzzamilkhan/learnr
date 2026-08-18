@@ -12,7 +12,7 @@ import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 
 /**
- * Recording only. These never affect what the child sees next — the session
+ * Recording only. These never affect what the child sees next - the session
  * engine runs entirely client side, so a failed write costs history, not play.
  */
 

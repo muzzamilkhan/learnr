@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 /**
  * The two ways in, on the landing page's top bar.
  *
- * Above `sm` they sit in the bar as peers — a grown-up signs in with Google, a
+ * Above `sm` they sit in the bar as peers - a grown-up signs in with Google, a
  * child types their code, and neither is the fallback for the other. On a phone
  * there is no room to say that: a four-character box read off another screen has
  * a floor on how small it can get, and beside a Google button it left the bar
@@ -13,11 +13,11 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
  * button and opens as a panel underneath, where each gets a full row.
  *
  * It is the *same* pair either way, rendered once and re-laid-out in CSS rather
- * than duplicated behind a breakpoint — two copies of the code box is how the
+ * than duplicated behind a breakpoint - two copies of the code box is how the
  * two of them drift apart. `sm:contents` dissolves this wrapper at the wider
  * size so the bar's own flex row lays the children out directly.
  *
- * Closes on an outside pointerdown or Escape, never on blur — same as `Select`
+ * Closes on an outside pointerdown or Escape, never on blur - same as `Select`
  * and `ProfileMenu`, and for the same reason: a tap on a control inside moves
  * focus off the button first.
  */

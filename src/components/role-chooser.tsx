@@ -9,7 +9,7 @@ import { chooseRoleAction } from '@/app/actions';
  * once rather than guessed at and corrected later.
  *
  * Every account that existed before this feature lands here on its next sign-in,
- * which is why there is no backfill in the migration — a person is a better source
+ * which is why there is no backfill in the migration - a person is a better source
  * for this than a heuristic over their data.
  */
 export function RoleChooser() {

@@ -1,8 +1,8 @@
 /**
  * Numbers as a child reads them.
  *
- * The star total is the one number in this app with no ceiling — ten questions
- * at a time, every sitting, for as long as they keep coming back — and "1204"
+ * The star total is the one number in this app with no ceiling - ten questions
+ * at a time, every sitting, for as long as they keep coming back - and "1204"
  * is a number to decipher where "1,204" is one to be pleased about. Grouping is
  * the whole point of the separator here.
  *

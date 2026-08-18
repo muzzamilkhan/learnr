@@ -18,7 +18,7 @@ npm run db:studio   # browse the data
 
 `npm run build` runs `db:deploy` first, so a deploy applies its own migrations.
 Without `DATABASE_URL` (or with the placeholder from `.env.example`) that step
-prints a line and succeeds — a build must not be the one thing insisting on
+prints a line and succeeds - a build must not be the one thing insisting on
 Postgres when the app itself plays fine without it.
 
 Run `npm test` and `npm run typecheck` before pushing.
@@ -26,7 +26,7 @@ Run `npm test` and `npm run typecheck` before pushing.
 ## Architecture
 
 **All logic lives in `src/lib` as pure functions.** Nothing in there touches React,
-the network, the clock or the database — callers pass in `now` and an RNG. This is
+the network, the clock or the database - callers pass in `now` and an RNG. This is
 the rule that keeps the app testable; don't break it for convenience.
 
 ```
@@ -45,7 +45,7 @@ src/app/             routes and server actions
 ```
 
 - `src/lib/expr` is a small Pratt-parsed expression language. It exists because
-  templates are authored **outside the app by AI** and are therefore untrusted —
+  templates are authored **outside the app by AI** and are therefore untrusted -
   `eval` is not an option. Variable and function lookups use `Object.hasOwn` on
   null-prototype tables so `constructor`/`__proto__` can't resolve to anything.
 - Randomness is always injected (`Rng`), never called directly in engine code, so
@@ -54,12 +54,12 @@ src/app/             routes and server actions
 
 ## Levels and topics
 
-**Levels are Australian school years**: `'K'` then `'1'` to `'6'`, as strings —
+**Levels are Australian school years**: `'K'` then `'1'` to `'6'`, as strings -
 primary school is the whole scope. Never an integer: `'K'` has to sort first, and
 strings keep the door open for years beyond single digits if the scope ever
 widens. Use `compareYearLevels` to sort, `yearLabel` to display
 ("Kindergarten", "Year 3"), and `parseYearLevel` at every boundary (URLs,
-imported files) — it normalises `'k'` and `'03'` and returns null for anything
+imported files) - it normalises `'k'` and `'03'` and returns null for anything
 else.
 
 **A topic is what a question practises** ("counting numbers", "even and odd").
@@ -67,7 +67,7 @@ else.
 **Levels and topics are many-to-many, and neither owns the other.** A year offers
 several topics; a topic recurs across years, harder each time. Counting numbers
 runs from Kindergarten into Year 1; even and odd from Kindergarten into Year 2.
-The pairing lives on the template — one year, one topic — so the curriculum is
+The pairing lives on the template - one year, one topic - so the curriculum is
 *derived from content*, not declared. Adding a Year 4 division template is all it
 takes to put division into Year 4.
 
@@ -105,14 +105,14 @@ Design rules that keep this flexible:
 - Variable kinds: `int`, `number` (decimals), `pick` (from a list, optionally
   weighted), `expr` (derived, never random).
 - Optional `choices` turns a template into multiple choice, with authored
-  `distractors` and a `jitter` fallback. **At most 4 options** (`MAX_CHOICES`) —
+  `distractors` and a `jitter` fallback. **At most 4 options** (`MAX_CHOICES`) -
   more than that stops being thumb-sized on an iPad.
 - **`answerType` is inferred from what `answer` evaluates to** and rarely needs
   declaring: a boolean gives `boolean` (true/false), a number gives `number`,
   anything else gives `text`. Declare it only for `choice`, or for a numeric
   answer you want typed as text.
 - A boolean answer makes it a true/false question whatever the template says, and
-  `choices` alongside one are meaningless — the play screen draws its own two
+  `choices` alongside one are meaningless - the play screen draws its own two
   buttons. `validateTemplate` rejects that pairing.
 - **Authoring mistakes are reported by `validateTemplate`, never thrown by
   `generateQuestion`.** Generation runs mid-session with a child waiting, so it
@@ -135,8 +135,8 @@ and checks the rest of what makes content usable: an id shaped
 `subject.level.topic.variant`, a curriculum content description in `tags`, at
 least 20 templates per year, and no typed answer the number pad cannot enter.
 
-Content ships for K–6, 200 templates, written against ACARA's *Mathematics: Scope
-and sequence F–10 (v9.0)*. Every template cites the content description it
+Content ships for K-6, 200 templates, written against ACARA's *Mathematics: Scope
+and sequence F-10 (v9.0)*. Every template cites the content description it
 practises (e.g. `AC9M4N02`) in `tags`, so the curriculum link is checkable rather
 than claimed.
 
@@ -145,18 +145,18 @@ the pad can express**:
 
 | `answerType` | how it is answered | what it can express |
 | --- | --- | --- |
-| `number` | number pad, then Check | digits and one decimal point — **no minus key** |
-| `text` | on-screen A–Z pad, then Check | letters only, no spaces or digits, ≤ 16 chars |
+| `number` | number pad, then Check | digits and one decimal point - **no minus key** |
+| `text` | on-screen A-Z pad, then Check | letters only, no spaces or digits, ≤ 16 chars |
 | `boolean` | two buttons, True / False | one tap answers |
-| `choice` | 2–4 buttons | one tap answers; anything the other types cannot express |
+| `choice` | 2-4 buttons | one tap answers; anything the other types cannot express |
 
-A negative answer has to be multiple choice, because the pad has no minus key —
+A negative answer has to be multiple choice, because the pad has no minus key -
 that is why the Year 6 integer questions are `choice`. A distractor a child would
 find nonsensical is still bad content, so keep them plausible.
 
 **`text` is a last resort, and never below Year 4.** A word answer makes the child
-spell before they can answer, which tests literacy rather than maths — a
-Kindergartener knows a triangle long before they can spell it. Word answers in K–3
+spell before they can answer, which tests literacy rather than maths - a
+Kindergartener knows a triangle long before they can spell it. Word answers in K-3
 are `choice` instead, and `catalog.test.ts` enforces that. Any answer drawn from a
 small closed set ("red or blue?", "metres or centimetres?") is a `choice` question
 at any level; a two-option `choices` with both literals as distractors is the
@@ -170,13 +170,13 @@ the reinforcement selector deciding which. **The header counts nothing**: no
 clock and no right-so-far tally, only the way out (a door icon, drawn for the
 same reason the Check key is a tick) and the profile menu. Both were things
 a child would watch instead of the question, and neither is theirs to worry
-about — the round's stars are the only reckoning, and they come between
+about - the round's stars are the only reckoning, and they come between
 questions.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
 correct/incorrect, the response as typed, and the UTC offset it was given at) and
 folded into that child's `TopicSkill` for the topic. Attempts are the history; the
-skill row is that history rolled forward, and a cache of it — never a second
+skill row is that history rolled forward, and a cache of it - never a second
 truth, so `buildProfile` over the attempts has to reproduce the row.
 
 Keeping that true costs a **row lock**: `updateTopicSkill` reads with
@@ -185,10 +185,10 @@ and each folds onto the one before. Two tabs will do it, and so will one child
 answering faster than the round trip. The lock is there rather than a merge in SQL
 so `nextSkill` stays the only place the arithmetic is written down. The row cannot
 be locked before it exists, so the first answer on a topic can still collide on
-insert — hence the retry, and one time round is enough.
+insert - hence the retry, and one time round is enough.
 
 **Time taken is capped** (`MAX_TIME_MS`) before it is recorded. An abandoned
-question — the iPad put down and picked up after dinner — is not a measurement,
+question - the iPad put down and picked up after dinner - is not a measurement,
 and the total is per topic and never trimmed, so one of them would otherwise sit
 in that topic's average for good. That average is what a parent is shown.
 
@@ -199,12 +199,12 @@ client, so every write verifies the session belongs to the signed-in user first.
 ## Reinforcement and analytics
 
 Two libraries over one model. `src/lib/analytics/profile.ts` folds attempts into a
-`LearnerProfile` — per topic and level: attempts, correct, a recency-weighted
+`LearnerProfile` - per topic and level: attempts, correct, a recency-weighted
 `strength`, the current `streak`, the separate days it has been got right on
 (`correctDays`) and when it was last answered.
 `src/lib/reinforcement/select.ts` reads that profile to pick the next template;
 `src/lib/analytics/report.ts` reads the same history to say where a child needs
-help. Neither owns the other, and both are pure — `now` and the RNG are passed in.
+help. Neither owns the other, and both are pure - `now` and the RNG are passed in.
 
 The profile is built by folding, one answer at a time (`nextSkill`), so the same
 arithmetic serves the stored `TopicSkill` row and the in-session profile that
@@ -213,13 +213,13 @@ questions is being mixed in more heavily by the twentieth.
 
 **Status is what everything keys off** (`skillStatus`), and it refuses to guess:
 under `MIN_OBSERVATIONS` answers a topic is `new`, never a weakness. Then
-`struggling` (strength under 0.6), `developing`, `secure` and `review-due` —
+`struggling` (strength under 0.6), `developing`, `secure` and `review-due` -
 secure, but left alone long enough to be worth confirming.
 
 **The two bars are not the same height, deliberately.** Calling a topic hard costs
 a few extra questions on something the child can do, so `MIN_OBSERVATIONS` is
-enough for it. Calling a topic *known* is the expensive mistake — it drops the
-topic to a fraction of the questions and puts it away for days — so it needs a
+enough for it. Calling a topic *known* is the expensive mistake - it drops the
+topic to a fraction of the questions and puts it away for days - so it needs a
 strong run *and* `SECURE_OBSERVATIONS` answers *and* right answers on
 `SECURE_DAYS` separate days. A run inside one sitting is one memory answering
 several times; the answer that survives a night's sleep is the one that means
@@ -234,15 +234,15 @@ started to fade is the point.
 Days are the child's, not the server's: each attempt carries the UTC offset it was
 given at, so an evening's practice in Sydney counts as that evening. `correctDays`
 only ever counts a day later than the last one counted, so answers arriving out of
-order undercount rather than inflate — mastery is delayed, never faked.
+order undercount rather than inflate - mastery is delayed, never faked.
 
-Selection rules, in order — all three matter, and none of them ever rules a
+Selection rules, in order - all three matter, and none of them ever rules a
 template out entirely:
 
 - **No pattern, no steering.** Until one topic has `MIN_OBSERVATIONS` answers the
   weights are flat and questions are drawn at random, exactly as before.
 - **Weight by status**, so hard topics come up more and mastered ones get out of
-  the way without disappearing — a child should still get things right.
+  the way without disappearing - a child should still get things right.
 - **Weight the topic, not the template.** A topic's weight is divided across
   however many templates it has, because template count is a fact about how much
   content got written and must never decide how much practice a child gets. Years
@@ -256,26 +256,26 @@ template out entirely:
 - **Cool down what was just asked**, so the mix is spread through the session
   rather than clumped.
 
-`weightTemplates` is exported because it *is* the policy — read it in a test, or
+`weightTemplates` is exported because it *is* the policy - read it in a test, or
 to explain a choice later. Tests assert shares over a few hundred seeded draws
 rather than exact sequences; the RNG is deterministic, so they don't flake.
 
-**Selection is driven by correctness alone — time taken is reported, never acted
+**Selection is driven by correctness alone - time taken is reported, never acted
 on.** It is tempting signal: fast and right is fluency, slow and right is working
 it out. But slow is also distracted, or asking a parent, and one number cannot
 tell those apart. Marking a child down for being slow is exactly the punitive
 thing this app does not do. If that changes, the honest version is to gate
-*mastery* on fluency — a slow correct answer still counts as correct but does not
-advance a topic towards `secure` — never to weight a topic up for slowness.
+*mastery* on fluency - a slow correct answer still counts as correct but does not
+advance a topic towards `secure` - never to weight a topic up for slowness.
 
 The analytics side is a library only: `topicReports`, `problemTopics`,
 `dueForReview`, `progressOverTime` and `summarise`. `/progress` is the screen that
-consumes them — see **Parent analytics** below. Buckets take a UTC offset from the
+consumes them - see **Parent analytics** below. Buckets take a UTC offset from the
 caller so a Sydney evening's practice doesn't land on the next day.
 
 ## UI
 
-Standard iPad, landscape and portrait. Minimal and calm rather than playful —
+Standard iPad, landscape and portrait. Minimal and calm rather than playful -
 simple enough for a child to pick up with no explanation.
 
 - **Level is the home screen's top-level choice**: one dropdown labelled "Level",
@@ -283,24 +283,24 @@ simple enough for a child to pick up with no explanation.
   glyph tile, the subject, its year, and its topics as **chips** (`MAX_CHIPS`,
   then "+n more"). The topics used to be one run-on line of dots, which was the
   only thing on the card saying what is inside and the least readable thing on
-  the screen. Switching level swaps the cards in place — no navigation. The choice is
+  the screen. Switching level swaps the cards in place - no navigation. The choice is
   remembered on `User.selectedLevel` and the screen reopens on it; signed out or
   without a database there is nowhere to keep it, so it opens on Kindergarten.
   `resolveInitialLevel` falls back when a stored level has lost its content.
 - **The play screen must fit the viewport with no scrolling.** It's `h-[100dvh]`
   with `overflow-hidden`; the answer pad is fixed-height and the question area
   flexes. Check both orientations after changing that layout, and check a phone
-  as well as an iPad — a phone is where it runs out of height first.
+  as well as an iPad - a phone is where it runs out of height first.
 - **Height, not width, is what the play screen is short of.** The pad takes about
   40% of a phone and 43% of an iPad, and the question is sized in `vh` rather than
   by breakpoint, stepping down again for a long prompt (`promptSize`). Sizing the
   question by width alone let a wordy Year 6 prompt push up under the header.
-- **Every answer is given on-screen, never with the iPad keyboard** — it keeps the
+- **Every answer is given on-screen, never with the iPad keyboard** - it keeps the
   question visible and the targets large and fixed. `answerMode` in
   `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,
   `LetterPad` or `ChoicePad`); all three occupy the same fixed slot.
 - Tapped answers (choice, true/false) commit on the first touch, with no Check
-  button — there is nothing for a child to review. Typed answers keep a Check
+  button - there is nothing for a child to review. Typed answers keep a Check
   key, drawn as a tick (`CheckIcon`) rather than the word, so a child who cannot
   read yet still knows it.
 - After a wrong tap, the right option turns green and the child's turns red, so
@@ -308,10 +308,10 @@ simple enough for a child to pick up with no explanation.
 - **A right answer moves on by itself after a moment; a wrong one waits.** The
   pad gives way to a Continue button and the right answer stays on screen until
   the child taps it, so nothing is missed by being slow to read. Tapped
-  questions keep their pad while waiting — the buttons are what shows which
-  option was right — and Continue sits beneath them.
+  questions keep their pad while waiting - the buttons are what shows which
+  option was right - and Continue sits beneath them.
 - **A template's `hint` sits behind a lightbulb** under the question, so help is
-  asked for rather than pushed — a child who doesn't want the method isn't given
+  asked for rather than pushed - a child who doesn't want the method isn't given
   it. Tapping swaps the bulb for the hint; it resets with each question, and goes
   once the question is answered. Templates without a hint just leave the row
   empty, which keeps the question from jumping.
@@ -325,55 +325,55 @@ simple enough for a child to pick up with no explanation.
   from `public/logo.PNG`, and only the landing page and the child's home screen
   use them: a loud, warm mark sitting at the top of a cool blue page of boxes read
   as two different products. `--color-brand` is deliberately unchanged, so the
-  play screen and the parent's report are untouched — a child answering a question
+  play screen and the parent's report are untouched - a child answering a question
   does not need more colour, and a parent reading a report needs less. Both
   screens open on a soft gradient band (grape → paper → brand) with a blurred warm
   disc behind it; that band is the decoration, and everything below it stays flat.
-- **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS —
-  system font, system blue, its own rounding — so it is the one control the theme
+- **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS -
+  system font, system blue, its own rounding - so it is the one control the theme
   cannot reach, and on an iPad it lands a grey widget in the middle of a screen
   built from `--color-*`. `src/components/select.tsx` is a button plus a listbox
   with the same look as everything beside it, and options sized for a thumb.
   It comes in `lg` for the child's screens and `sm`/`md` for a parent's, matching
   the two scales above. The trigger is sized to its **widest** option rather than
-  its current one — every label renders into one grid cell with all but the chosen
-  one hidden — so picking "Year 3" after "Kindergarten" doesn't shrink the control
+  its current one - every label renders into one grid cell with all but the chosen
+  one hidden - so picking "Year 3" after "Kindergarten" doesn't shrink the control
   and shift what sits beside it. It closes on an outside pointerdown or Escape,
   never on blur: a tap on an option moves focus off the button first, and closing
   there would remove the option before the tap could land on it.
 - **Three sounds, and only on the play screen**: right, wrong, and a fanfare with
-  the stars. `src/components/sounds.ts` is the shim — it lives beside the
+  the stars. `src/components/sounds.ts` is the shim - it lives beside the
   components, not in `src/lib`, because it touches `Audio` and could never be
   pure. Playing is best-effort like recording an answer: a silent switch or an
   autoplay refusal rejects the `play()` promise, and that is caught and dropped
   rather than thrown into the middle of a question. One element per sound,
-  rewound rather than stacked — a child can answer faster than a clip finishes,
+  rewound rather than stacked - a child can answer faster than a clip finishes,
   and the newest answer is the one worth hearing. The files are preloaded when
   the screen mounts, since iOS gates *playback* on a gesture but not loading.
 - **The fanfare is the same for one star as for three.** Finishing the round is
   what it marks; a thinner sound for a hard round would undo what the star floor
   is for.
-- `public/sounds/*.m4a` — mono AAC at 48 kb/s, silence trimmed and peaks levelled
-  so the three sit at the same loudness. About 5–13 KB each, from 300 KB+
+- `public/sounds/*.m4a` - mono AAC at 48 kb/s, silence trimmed and peaks levelled
+  so the three sit at the same loudness. About 5-13 KB each, from 300 KB+
   originals. AAC in `.m4a` rather than Opus because iPad Safari is the target and
   it plays this everywhere, with no fallback source to maintain.
 
 ## The logo
 
-`public/logo.PNG` is the artwork as delivered — the badge, the wordmark and the
+`public/logo.PNG` is the artwork as delivered - the badge, the wordmark and the
 tagline, drawn on a white page. Everything else is cut from it and committed
 beside it, so the derived files are the ones the app loads and the original stays
 the thing to re-cut from:
 
-- `public/logo-mark.png` — the badge alone, for headers.
-- `public/logo-lockup.png` — the whole thing, for the landing hero.
+- `public/logo-mark.png` - the badge alone, for headers.
+- `public/logo-lockup.png` - the whole thing, for the landing hero.
 - `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico`,
-  `src/app/opengraph-image.png` — Next wires these up by filename, so the only
+  `src/app/opengraph-image.png` - Next wires these up by filename, so the only
   thing `layout.tsx` adds is a `metadataBase` for their absolute URLs.
 
 **The white page is flood-filled to transparency from the edges inwards**, not
-keyed off luminance: the white *inside* the mark — the book's pages, the pencil's
-eyes, the sparkles — has to survive, and only a fill that starts at the border
+keyed off luminance: the white *inside* the mark - the book's pages, the pencil's
+eyes, the sparkles - has to survive, and only a fill that starts at the border
 leaves it alone. Without it the mark would sit on `--color-paper` as a faintly
 paler square, `#ffffff` against `#f7f9fc`. The apple icon is the one that keeps
 an opaque background, because iOS composites its own rounded mask over a square
@@ -385,17 +385,17 @@ is only used where nothing else is saying what this is.
 
 **Not on the play screen.** That screen is one question at arm's length with
 nothing else to look at, and a logo in the corner is exactly the sort of thing a
-child watches instead of the question — the same reason the header counts no time
+child watches instead of the question - the same reason the header counts no time
 and no score.
 
 ## Rewards
 
-`src/lib/rewards` — pure, like the rest of `lib`, and read by nothing that
+`src/lib/rewards` - pure, like the rest of `lib`, and read by nothing that
 decides what to ask next. Reinforcement is driven by the profile alone; stars and
 streaks would make it reward-seeking rather than teaching.
 
 **Stars come every `ROUND_SIZE` (10) questions**: 3 for a clean round, 2 for some
-right, 1 for a round with none. The floor is the point — sitting through ten hard
+right, 1 for a round with none. The floor is the point - sitting through ten hard
 questions is the behaviour worth rewarding, so a bad round still earns something,
 and 3 stays worth aiming at. `RoundReward` covers the screen for a few seconds,
 dismissable by a tap, and the next question's clock restarts when it goes so the
@@ -403,19 +403,19 @@ break never lands in that question's recorded time.
 
 Stars are cached on `LearningSession.stars` and totalled with one `SUM`, but they
 are still derived: `starsEarned` over a sitting's answers reproduces the column.
-The server **recounts from the stored answers** — the client says only *that* a
-round closed — and it **sets rather than increments**, so a repeated call is
+The server **recounts from the stored answers** - the client says only *that* a
+round closed - and it **sets rather than increments**, so a repeated call is
 harmless and a dropped one repairs itself at the next round. It is banked after
 the tenth answer's write resolves; racing it would find nine answers and award
 nothing.
 
 **The play streak counts days, not hours.** `User.playStreak` and
-`User.playStreakDay` — a day number, not a timestamp, because a day here is the
+`User.playStreakDay` - a day number, not a timestamp, because a day here is the
 child's (`src/lib/day.ts`) and a timestamp would need the offset re-applied at
 every read. A missed day restarts at 1, not 0: the child is answering right now.
 The write is a compare-and-set on the stored day, so two answers landing together
-advance it once. `currentStreak` decides whether a stored run is still alive —
-yesterday still counts, the day before does not — and it is computed in the
+advance it once. `currentStreak` decides whether a stored run is still alive -
+yesterday still counts, the day before does not - and it is computed in the
 browser via `useSyncExternalStore`, since only the child's device knows what day
 it is where they are.
 
@@ -423,21 +423,21 @@ An hours rule was considered and rejected: practice after school one day and
 before school the next is twenty hours apart and would break a streak the child
 kept perfectly well.
 
-**Both totals ride on the profile menu** — the run of days, then the stars, then
+**Both totals ride on the profile menu** - the run of days, then the stars, then
 the avatar, the same control on the home screen and the play screen so a child
 never looks in two places for the two numbers. Days sit left of the stars: the
 run is the thing that lapses if they stop. Behind the tap there is only the name
 and the way out.
 
 Both are drawn through `formatCount` (`src/lib/format.ts`), which pins `en-AU`
-rather than reading the browser's locale — the totals are rendered on the server
+rather than reading the browser's locale - the totals are rendered on the server
 and corrected on the client, and a locale that disagrees across that boundary is
 a hydration mismatch. A star total has no ceiling, and "1,204" is a number to be
 pleased about where "1204" is one to decipher.
 
 Neither is a score. The star total only ever goes up, a whole round at a time,
 and nothing a wrong answer does takes anything off either of them. A lapsed run
-renders as nothing rather than a zero — a 0 beside a flame reads as a
+renders as nothing rather than a zero - a 0 beside a flame reads as a
 telling-off, and the child is here to start a new one. The play screen still
 flashes the streak once (`StreakFlash`) on the answer that extends it.
 
@@ -456,14 +456,14 @@ setting a profile up happens once, reading how a child is going happens every
 week, so `/` **redirects a parent to `/progress`** rather than rebuilding the
 report there. Only a parent with no children yet gets a screen at `/`: a sentence
 and an "Add a child" button pointing at the other screen. A failed read is not
-"no children" and is not redirected — it says so and stays put.
+"no children" and is not redirected - it says so and stays put.
 
 `/children` is that other screen: a card per child with name, avatar and level,
 plus add, edit, remove and the login code. It does not link to the report: the
 nav above it already goes there and the report picks its own child, so a second
 way in was a button per card saying what one dropdown already says. Both screens sit in
 `ParentShell`, which carries the title, the two-item nav between them, the
-profile menu and the curriculum link — the last of which follows every signed-in
+profile menu and the curriculum link - the last of which follows every signed-in
 branch, a parent's included, because it is the one thing they would actually want
 to read. That link is a panel rather than a footnote: a line of small print under
 a page of boxed sections is the shape of something nobody is meant to click.
@@ -473,29 +473,29 @@ the `src/app/(parent)` route group and `layout.tsx` renders `ParentShell` around
 them, so hopping between the report and the profiles replaces only what differs:
 the logo, the profile menu and the nav stay mounted rather than being torn down
 and rebuilt, which is what made the hop flicker. A layout is never told which
-page it is wrapping, so the two things that vary — the title and which nav item
-is current — read the URL from the client (`ParentHeading`, `ParentNav`), and
+page it is wrapping, so the two things that vary - the title and which nav item
+is current - read the URL from the client (`ParentHeading`, `ParentNav`), and
 `resolveChild` picks the child the `?child=` parameter names so the heading and
 the report can't disagree about who is on screen. The layout is a frame and not
-a gate: it does not re-run on a client-side hop, so `readParent` — which is
-where the sign-in and parent-role checks live — is called by the pages too, and
+a gate: it does not re-run on a client-side hop, so `readParent` - which is
+where the sign-in and parent-role checks live - is called by the pages too, and
 `cache`d so the two calls in one request are one query.
 
 **The child card's buttons are all glyphs.** Every card carries the same three
 and every card says the same thing with them, so the words were only ever taking
-up width — and on a narrow screen they pushed the row onto a second line. The
+up width - and on a narrow screen they pushed the row onto a second line. The
 code button keeps its three states and gets a picture for each: a **key** when
 there is no live code, because that state is the one that changes something, and
-an **eye** — struck through once the code is on screen — for revealing and
+an **eye** - struck through once the code is on screen - for revealing and
 hiding what is already stored. Two pictures rather than one, because issuing and
-revealing are not the same act. The label they lose moves to `aria-label` and `title` — it is off the
-screen, not off the page — and the buttons stay the same height as the ones
+revealing are not the same act. The label they lose moves to `aria-label` and `title` - it is off the
+screen, not off the page - and the buttons stay the same height as the ones
 beside them so the row still lines up. Remove is a bin rather than a cross: a
 cross on a card reads as "close this", and dismissing the row is the one thing
 that button must not be mistaken for.
 
 **Removing a child is confirmed in the card, never with `confirm()`.** The
-browser dialog is unstyled, unreadable on an iPad, and — being synchronous — the
+browser dialog is unstyled, unreadable on an iPad, and - being synchronous - the
 one thing on that screen that can freeze it. It also cannot say what is being
 lost, which is the only reason to ask: the row cascades, so the confirmation
 names the child and says the answers, progress and login code go with them.
@@ -504,60 +504,60 @@ names the child and says the answers, progress and login code go with them.
 reads "Year K" beside every other "Year n". A row of short facts wrapping for
 the youngest child and nobody else is the thing to avoid, and it keeps a level
 dropdown from being sized by its one long option. The child's own screens keep
-`yearLabel` — there is room there, and it is their year being named.
+`yearLabel` - there is room there, and it is their year being named.
 
 **Parent screens are not built to the child's scale.** The play and level screens
 are sized for a six-year-old holding an iPad at arm's length; a parent is reading
 a report on a laptop, and blowing that up only means more scrolling and less on
 screen. So `ParentShell` and everything under it run denser: `text-sm`/`text-base`
 body, single-width borders, `rounded-xl`, `px-3 py-1.5` buttons. The one
-exception is the login code itself, which is still drawn large — it is read off
+exception is the login code itself, which is still drawn large - it is read off
 this screen by eye and typed into another device.
 
 A **managed child** is a `User` row with `parentId` set, no email and no
-`Account` row — nothing OAuth about it. Because it is an ordinary user row,
+`Account` row - nothing OAuth about it. Because it is an ordinary user row,
 `LearningSession`, `Attempt`, `TopicSkill`, `records.ts` and the play actions all
 work on it unchanged. `parentId` is the only flag that matters downstream: it is
 what fixes the level. A managed child gets `SubjectCards` for their
 `selectedLevel` with no dropdown, and `/play` **redirects** a mismatched `level`
-parameter back to theirs — hiding the dropdown while leaving a typed URL open
+parameter back to theirs - hiding the dropdown while leaving a typed URL open
 would not be enforcing anything.
 
 A child who signs in with their own Google account (`role: 'child'`,
 `parentId: null`) behaves exactly as before, dropdown and all.
 
-**Signed out, both ways in live in the landing page's top bar as peers** — a
+**Signed out, both ways in live in the landing page's top bar as peers** - a
 grown-up signs in with Google, a child types their code, and neither is the
 fallback for the other. On a phone there is no room to say that side by side:
 four characters read off another screen have a floor on how small they get, so
 below `sm` the pair goes behind one "Get started" button and opens as a panel
 underneath, where each gets a full row and a line of copy saying whose it is.
-`GetStarted` renders them **once** and re-lays them out in CSS — `sm:contents`
-dissolves the wrapper at the wider size — rather than shipping a phone copy and
+`GetStarted` renders them **once** and re-lays them out in CSS - `sm:contents`
+dissolves the wrapper at the wider size - rather than shipping a phone copy and
 a desktop copy of the code box, which is how the two would drift apart.
 
 **The landing page says what this is and who it helps, not how it is built.** How
 the selector weights a topic, that questions are generated rather than stored, how
-long a code lives — all true, all the author's preoccupations, none of them what a
+long a code lives - all true, all the author's preoccupations, none of them what a
 parent deciding in thirty seconds is asking. They want to know whether their child
 will use it and whether they will learn anything, so the page is a hero, a panel
 each for *what your child gets* and *what you get*, three numbered steps, and the
 coverage. The single exception is the curriculum, which stays because it is the
-one claim on the page a parent can actually check — and it is rendered straight
+one claim on the page a parent can actually check - and it is rendered straight
 from the shipped templates (`subjectOverview`), so the page cannot promise more
 than the questions deliver. The one call to action is a parent's; a child's way
 in is the code box in the bar, and it stays there.
 
 **Login codes.** A parent generates a 4-character code
 (`src/lib/login-code.ts`) that a child types on the sign-in screen. The charset
-excludes `0/O` and `1/I/L` — a code is read off one screen and typed into
+excludes `0/O` and `1/I/L` - a code is read off one screen and typed into
 another, so the pairs that get confused in that handoff are not in the alphabet.
 Randomness is injected, as everywhere in `src/lib`, but the caller must pass
 `crypto.randomInt` and **not** the seeded `Rng`: replayability is exactly the
 property a login code must not have.
 
 **The short-lived thing is the code, not the login.** A code lasts an hour and is
-spent at redemption — `UPDATE ... RETURNING` clears it and identifies its owner in
+spent at redemption - `UPDATE ... RETURNING` clears it and identifies its owner in
 one statement, so two taps arriving together cannot both get a session, and
 issuing a new code invalidates the old one by overwriting it. The session it
 creates then does not expire on a schedule. Those are two halves of one decision:
@@ -569,26 +569,26 @@ arrive.
 
 **Showing a code and issuing one are different actions**, and the child card
 keeps them apart. One button carries three states: "Get code" when there is no
-live code, "Show code" when there is one (revealing what is already stored — a
+live code, "Show code" when there is one (revealing what is already stored - a
 child may be halfway through typing it, and re-issuing here would break the code
 in their hand), and "Hide code" once it is on screen. Regenerating is its own
 button under the revealed code. That code is centred in its panel with a copy
 button right beside the digits, since copying is the other way it reaches the
-child's device — read aloud across a room, or pasted into a message. The copy
+child's device - read aloud across a room, or pasted into a message. The copy
 turns into a tick for a moment: a clipboard write is otherwise invisible, and a
 button that looks unchanged gets tapped twice. The write is best-effort like
-playing a sound — an insecure context rejects it, and a code still sitting on
+playing a sound - an insecure context rejects it, and a code still sitting on
 screen to be typed is not worth throwing over.
 
 `isCodeLive` is the pure test that picks between the first two states, and the
-hour is counted down in an effect rather than at render — reading the clock
+hour is counted down in an effect rather than at render - reading the clock
 while rendering is not something a component gets to do.
 
 Redemption is **not** a NextAuth provider. Auth.js refuses to combine a
 Credentials provider with database sessions (`UnsupportedStrategy`), and moving
 the app to JWT sessions to get around that would cost server-side session state
 for nothing. Instead `redeemLoginCode` writes the same `Session` row the Prisma
-adapter would and the action sets the same cookie — `auth()` cannot tell the two
+adapter would and the action sets the same cookie - `auth()` cannot tell the two
 paths apart. That only works if both agree on the cookie, so `auth.ts` pins
 `SESSION_COOKIE_NAME`/`SESSION_COOKIE_OPTIONS` explicitly rather than leaving
 Auth.js to switch the `__Secure-` prefix implicitly, and exports them.
@@ -596,26 +596,26 @@ Auth.js to switch the `__Secure-` prefix implicitly, and exports them.
 `src/lib/accounts.ts` holds the Prisma side, following `records.ts`: every child
 mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**
-best-effort — a silently failed answer costs history and the child plays on, but
+best-effort - a silently failed answer costs history and the child plays on, but
 a silently failed login is a child locked out and a silently failed removal is a
 parent lied to, so the mutations report whether they worked.
 
 ## Parent analytics
 
-`/progress?child=<id>&subject=maths` — a parent picks a child and sees how they
+`/progress?child=<id>&subject=maths` - a parent picks a child and sees how they
 are going. It reads and renders; nothing on it writes. It is also **where a
-parent lands**, since `/` redirects them here as soon as they have one child —
+parent lands**, since `/` redirects them here as soon as they have one child -
 see **Accounts** above.
 
 **The child id is never trusted.** `listChildren(parentId)` returns both the
 dropdown's options and the set of ids this parent may look at, and the parameter
 is resolved against that list. There is no separate ownership check to drift out
-of step with the query — the same reason `accounts.ts` puts `parentId` in every
+of step with the query - the same reason `accounts.ts` puts `parentId` in every
 `where`.
 
 **Whose days these are is the child's question, not the parent's.** The server
 has no timezone and does not know the browser's, so the offset comes from
-`latestOffsetMinutes` — the offset the child last answered at, which every
+`latestOffsetMinutes` - the offset the child last answered at, which every
 `Attempt` already stores. A parent reading this from another timezone still sees
 their child's evenings as evenings.
 
@@ -631,10 +631,10 @@ for each.
 rather than listing something built from two data points. A child who has never
 played gets a sentence, not empty charts.
 
-`headline` holds the arithmetic behind the three tiles — a rolling 7 days
+`headline` holds the arithmetic behind the three tiles - a rolling 7 days
 against the 7 before, because a Monday-aligned week reads "0 questions" every
 Monday morning. It lives in `lib` and is tested, like everything else that
-counts, and the `now` it runs on is read once, at the request boundary —
+counts, and the `now` it runs on is read once, at the request boundary -
 `requestNow()` in `src/app/progress/now.ts`, rather than a bare `Date.now()` in
 the component, which `react-hooks/purity` flags as impure. `strengths` mirrors
 `problemTopics`, ordered by `correctDays` because that is the evidence that means
@@ -642,7 +642,7 @@ something; it excludes `review-due` so no topic appears in two sections at once.
 
 Two framing decisions the copy depends on. The tile says **"time on questions"**,
 not "minutes spent": it is summed `timeTakenMs`, already capped per answer, so
-it can't be inflated by an iPad left on the sofa — and it undercounts, which the
+it can't be inflated by an iPad left on the sofa - and it undercounts, which the
 label has to be honest about. And a line under the tiles explains that **around
 three in four right is the system working**; the selector mixes hard topics in
 deliberately, and without that line a parent reads 76% as a C.
@@ -653,26 +653,26 @@ than `--color-wrong`, because it is "the rest of the questions" and not a column
 of failures. **Its labels are turned on their side**: a topic name is several
 words and a year's worth of topics puts a dozen bars across a panel, so flat
 labels collided however they were wrapped. Vertical they cannot collide at all,
-and what limits them is the height reserved below the axis — one number, the
+and what limits them is the height reserved below the axis - one number, the
 same for every bar, with anything longer elided (the tooltip still names the
-topic in full). The practice calendar is hand-rolled SVG and server-rendered — no
+topic in full). The practice calendar is hand-rolled SVG and server-rendered - no
 library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
 (`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
 carry weekday labels, since a column that is Monday one week and Thursday the
 next is not a column. The tail of the current week is `future` and gets **no
-square at all** — a Friday nobody has reached and a Friday nobody used must not
+square at all** - a Friday nobody has reached and a Friday nobody used must not
 look the same, and it is why the count reads "of the last 24 days" rather than
 28. It is a CSS grid of seven `1fr` columns rather than an SVG, because the two
 axes want different things: the width is whatever the column gives it, the
 height is a fixed 14px. One viewBox cannot scale to that without stretching the
 corner radii with it.
 
-**Each section of the report is a `Well`** — one bordered panel per question a
+**Each section of the report is a `Well`** - one bordered panel per question a
 parent is asking. Run together as bare headings they read as one long page to
 parse; boxed, the boundaries are visible in a skim, which is how a weekly read
 actually happens. The three headline tiles are already boxed and stay as they
 are, with the "three in four" line as their caption. Inside a well, lists are
-`divide-y` rows rather than cards — a card in a well reads as double-boxed.
+`divide-y` rows rather than cards - a card in a well reads as double-boxed.
 
 **Subject is a dropdown, not tabs** (`SubjectPicker`, alongside `ChildPicker`
 and URL-backed the same way), and it renders even though maths is the only
@@ -688,12 +688,12 @@ parent rather than reading numbers it won't show.
 
 Copy `.env.example` to `.env` and fill in:
 
-- `DATABASE_URL` — Neon Postgres via the Vercel Marketplace
-- `AUTH_SECRET` — `npx auth secret`
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` — Google Cloud console, with redirect
+- `DATABASE_URL` - Neon Postgres via the Vercel Marketplace
+- `AUTH_SECRET` - `npx auth secret`
+- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, with redirect
   URI `http://localhost:3000/api/auth/callback/google`
 
-Without these the app still runs and plays — auth and recording are skipped
+Without these the app still runs and plays - auth and recording are skipped
 (`isAuthConfigured`, `isDatabaseConfigured`) so the engines and UI stay workable.
 
 Prisma 7: the connection URL lives in `prisma.config.ts`, not the schema, and the

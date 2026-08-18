@@ -17,7 +17,7 @@ function hashSeed(seed: string | number): number {
   return h >>> 0;
 }
 
-/** mulberry32 — small, fast, good enough for question shuffling. */
+/** mulberry32 - small, fast, good enough for question shuffling. */
 export function createRng(seed: string | number): Rng {
   let state = hashSeed(seed);
 

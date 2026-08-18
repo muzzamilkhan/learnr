@@ -5,13 +5,13 @@ import { yearLabel, type YearLevel } from '@/lib/curriculum';
 /**
  * The subjects offering one year, each listing its topics. Shared by the two ways
  * a child arrives at a level: choosing it themselves with the picker, or being
- * given it by a parent on a managed profile. The cards are the same either way —
+ * given it by a parent on a managed profile. The cards are the same either way -
  * only the presence of the dropdown above them differs.
  *
  * A card is the biggest thing a child taps outside the play screen, so it is
  * drawn as one: a coloured tile they can aim at, the subject in the largest type
  * on the page, and its topics as chips rather than one long run-on line. The line
- * was the plainest thing here and the least readable — a dozen topics separated
+ * was the plainest thing here and the least readable - a dozen topics separated
  * by dots is a wall of grey a six-year-old skips, and it is the only thing on the
  * card actually saying what is inside.
  *

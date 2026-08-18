@@ -4,8 +4,8 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
 
 /**
- * Google is the only NextAuth provider. The other way in — a child redeeming a
- * code their parent generated — is deliberately *not* a provider: Auth.js refuses
+ * Google is the only NextAuth provider. The other way in - a child redeeming a
+ * code their parent generated - is deliberately *not* a provider: Auth.js refuses
  * to combine a Credentials provider with database sessions
  * (`UnsupportedStrategy`), and moving the whole app to JWT sessions to get around
  * that would cost server-side session state for no gain. Instead

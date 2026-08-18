@@ -3,7 +3,7 @@
 -- next reads either of them.
 
 -- Counted in the child's local days, so the "when" column is a day number rather
--- than a timestamp — see `src/lib/day.ts` for why a day is never the server's.
+-- than a timestamp - see `src/lib/day.ts` for why a day is never the server's.
 ALTER TABLE "User" ADD COLUMN     "playStreak" INTEGER NOT NULL DEFAULT 0,
                   ADD COLUMN     "playStreakDay" INTEGER;
 
@@ -15,7 +15,7 @@ ALTER TABLE "LearningSession" ADD COLUMN     "stars" INTEGER NOT NULL DEFAULT 0;
 -- One row per session: ten answers is a closed round, and its stars are 3 for a
 -- clean round, 1 for a round with nothing right, 2 for anything between. The
 -- part-finished round at the end of a sitting earns nothing, which is why the
--- ordering column matters — `starsEarned` chunks from the *first* answer.
+-- ordering column matters - `starsEarned` chunks from the *first* answer.
 WITH numbered AS (
   SELECT
     "learningSessionId",

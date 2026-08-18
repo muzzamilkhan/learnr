@@ -23,7 +23,7 @@ import type { Attempt } from './session/session';
  * so the stored profile and the played one cannot drift apart.
  */
 
-/** The year the child last chose, as stored — the caller resolves it against content. */
+/** The year the child last chose, as stored - the caller resolves it against content. */
 export async function readSelectedLevel(userId: string): Promise<string | null> {
   if (!prisma) return null;
   try {
@@ -75,7 +75,7 @@ async function ownsSession(userId: string, learningSessionId: string): Promise<b
   return found !== null;
 }
 
-/** Postgres' unique violation, as Prisma reports it — someone else created the row first. */
+/** Postgres' unique violation, as Prisma reports it - someone else created the row first. */
 const isUniqueViolation = (error: unknown): boolean =>
   typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 
@@ -83,7 +83,7 @@ const isUniqueViolation = (error: unknown): boolean =>
 type StoredSkill = Parameters<typeof toSkill>[0] & { id: string };
 
 /**
- * Only the very first answer on a topic can lose its race — after that the row
+ * Only the very first answer on a topic can lose its race - after that the row
  * exists and the lock does the queueing. One retry would do; a couple is slack.
  */
 const WRITE_ATTEMPTS = 3;
@@ -95,7 +95,7 @@ const WRITE_ATTEMPTS = 3;
  *
  * The read takes a row lock, so answers arriving at once queue up and each folds
  * onto the one before. Without it two writes both read the same row and the
- * second silently overwrites the first — an answer lost, and this row no longer
+ * second silently overwrites the first - an answer lost, and this row no longer
  * the fold of the attempts it claims to be. Two tabs will do it, and so will one
  * child answering faster than the round trip.
  *
@@ -153,7 +153,7 @@ async function updateTopicSkill(userId: string, attempt: Attempt): Promise<void>
   throw new Error(`Gave up folding an answer into ${attempt.topic} after ${WRITE_ATTEMPTS} tries`);
 }
 
-/** What a recorded answer hands back to the play screen. Rewards only — never play. */
+/** What a recorded answer hands back to the play screen. Rewards only - never play. */
 export interface AttemptResult {
   /** Days in a row including today. */
   streak: number;
@@ -200,7 +200,7 @@ export async function recordAttempt(
  * The write is a compare-and-set rather than a lock: it only lands if the day
  * stored is still the one that was read, so two answers arriving together can
  * advance the streak once between them. The loser reports the same number
- * without claiming the day — a streak counted twice would be worse than one
+ * without claiming the day - a streak counted twice would be worse than one
  * counted late.
  */
 async function foldPlayStreak(userId: string, attempt: Attempt): Promise<AttemptResult | null> {
@@ -239,7 +239,7 @@ export async function readPlayStreak(userId: string): Promise<PlayStreak> {
 /**
  * Bank the stars for a sitting, recounted from that sitting's answers rather
  * than taken from the client. It is a *set*, not an increment, so calling it
- * twice for the same round is harmless — which matters, because the play screen
+ * twice for the same round is harmless - which matters, because the play screen
  * fires it best-effort and a retry is the cheapest way to survive a dropped one.
  *
  * Returns the session's running total, or null if nothing was written.
@@ -286,7 +286,7 @@ export async function readStarTotal(userId: string): Promise<number> {
 
 /**
  * A stored skill row as the engines see it. A level that is no longer a school
- * year is dropped rather than guessed at — content is the source of truth, and a
+ * year is dropped rather than guessed at - content is the source of truth, and a
  * row from a level that has gone is not worth steering questions with.
  */
 function toSkill(row: {
@@ -339,8 +339,8 @@ export async function readLearnerProfile(userId: string, subject: string): Promi
  * of them.
  *
  * Filtered on the *session's* subject and level rather than the attempt's. They
- * are the same thing — a sitting is one subject and one year, and its attempts
- * can be no other — but putting the whole predicate on one side lets the planner
+ * are the same thing - a sitting is one subject and one year, and its attempts
+ * can be no other - but putting the whole predicate on one side lets the planner
  * narrow to a handful of that child's sessions first and walk their attempts in
  * order, instead of sifting every child's attempts for the subject.
  */

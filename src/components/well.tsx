@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 /**
  * One section of a parent screen, boxed.
  *
- * The report is a list of separate questions — is she using it, what is hard,
- * what is known — and run together as bare headings they read as one long page
+ * The report is a list of separate questions - is she using it, what is hard,
+ * what is known - and run together as bare headings they read as one long page
  * a parent has to parse. A box per question makes the boundaries visible at a
  * glance, which is how a weekly skim actually happens.
  *

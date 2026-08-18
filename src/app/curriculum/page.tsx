@@ -47,13 +47,13 @@ export default function CurriculumPage() {
       <section className="space-y-4 text-lg leading-relaxed">
         <p>
           The maths questions in LearnR are written against the{' '}
-          <strong>Australian Curriculum Version 9.0 — Mathematics (Foundation to Year 10)</strong>,
+          <strong>Australian Curriculum Version 9.0 - Mathematics (Foundation to Year 10)</strong>,
           published by the Australian Curriculum, Assessment and Reporting Authority (ACARA).
         </p>
         <p>
           The specific document the Kindergarten to Year 6 content was written from is ACARA’s{' '}
           <a href={SOURCE_URL} className="text-(--color-brand) underline">
-            Mathematics: Scope and sequence F–10 (v9.0)
+            Mathematics: Scope and sequence F-10 (v9.0)
           </a>
           , downloaded from the{' '}
           <a href="https://www.australiancurriculum.edu.au" className="text-(--color-brand) underline">
@@ -64,7 +64,7 @@ export default function CurriculumPage() {
         <p>
           Every question template records the content description it practises, so any question can
           be traced back to the curriculum. The codes read as <code>AC9M</code> + year + strand +
-          number — for example <code>AC9M4N02</code>, Year 4 Number: <em>“explain and use the
+          number - for example <code>AC9M4N02</code>, Year 4 Number: <em>“explain and use the
           properties of odd and even numbers”</em>. Foundation is <code>F</code>, which this app
           calls Kindergarten.
         </p>
@@ -88,7 +88,7 @@ export default function CurriculumPage() {
                     <span className="text-(--color-ink-soft)">{strandOf(code)}</span>
                   ) : null}
                   <span className="text-(--color-ink-soft)">
-                    {topics.join(' · ')} — {templateCount}{' '}
+                    {topics.join(' · ')} - {templateCount}{' '}
                     {templateCount === 1 ? 'question type' : 'question types'}
                   </span>
                 </li>

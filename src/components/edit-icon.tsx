@@ -2,10 +2,10 @@
  * A pencil: change this child's name, picture or level.
  *
  * Drawn rather than written for a different reason from the tick on the Check
- * key — a parent can read perfectly well. Here it is room: the card's buttons
+ * key - a parent can read perfectly well. Here it is room: the card's buttons
  * sit in one row beside the child's name, and the two that are always there and
- * never explain anything ("Edit", "Remove") were pushing the two that matter —
- * the report and the login code — onto a second line on a narrow screen.
+ * never explain anything ("Edit", "Remove") were pushing the two that matter -
+ * the report and the login code - onto a second line on a narrow screen.
  *
  * Sized to the parent's scale, like everything under `ParentShell`.
  */

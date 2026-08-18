@@ -3,7 +3,7 @@
  * stars at the end of a round.
  *
  * This is a browser shim, not logic, which is why it sits beside the components
- * rather than in `src/lib` — it touches `Audio`, so it could never be pure.
+ * rather than in `src/lib` - it touches `Audio`, so it could never be pure.
  *
  * Playing is deliberately best-effort, like recording an answer: an iPad that
  * refuses to play (silent switch, autoplay policy, a file that didn't load) must
@@ -21,7 +21,7 @@ export type SoundName = keyof typeof SOURCES;
 
 /**
  * One element per sound, made once and rewound on each play. A child can answer
- * faster than a sound finishes, so restarting the same element is the point —
+ * faster than a sound finishes, so restarting the same element is the point -
  * the newest answer is the one worth hearing, and a pile of overlapping clips is
  * noise rather than feedback.
  */
@@ -41,7 +41,7 @@ function element(name: SoundName): HTMLAudioElement | null {
 
 /**
  * Fetch the files before they are needed. Playback needs a user gesture on iOS,
- * but loading does not — so doing this when the play screen mounts means the
+ * but loading does not - so doing this when the play screen mounts means the
  * first right answer is heard at once instead of after a round trip.
  */
 export function primeSounds() {

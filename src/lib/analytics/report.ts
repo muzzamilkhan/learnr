@@ -15,8 +15,8 @@ import {
  * hand, which are coming along, and whether the last few weeks went anywhere.
  *
  * It is written to be read by someone deciding what to sit down and help with,
- * so everything here answers one of two questions — *where do I help?* and *is
- * it working?* — and it is honest about not knowing: a topic with three answers
+ * so everything here answers one of two questions - *where do I help?* and *is
+ * it working?* - and it is honest about not knowing: a topic with three answers
  * behind it is reported as `new`, never as a weakness.
  *
  * Days are bucketed against a caller-supplied UTC offset. The engine has no
@@ -38,12 +38,12 @@ export interface TopicReport {
   status: SkillStatus;
   attempts: number;
   correct: number;
-  /** Lifetime accuracy — what a parent counts. */
+  /** Lifetime accuracy - what a parent counts. */
   accuracy: number;
-  /** Recency-weighted accuracy — what the selector acts on. */
+  /** Recency-weighted accuracy - what the selector acts on. */
   strength: number;
   streak: number;
-  /** Separate days it has been got right on — the evidence behind calling it known. */
+  /** Separate days it has been got right on - the evidence behind calling it known. */
   correctDays: number;
   /** Average over answers, with abandoned questions capped by the session engine. */
   averageTimeMs: number;
@@ -81,7 +81,7 @@ const share = (observations: readonly Observation[]): number =>
 
 /**
  * Which way a topic is going: the older half of its answers against the newer
- * half. Crude on purpose — a parent wants to know whether last week's help
+ * half. Crude on purpose - a parent wants to know whether last week's help
  * landed, not a regression coefficient.
  */
 export function trendFor(observations: readonly Observation[]): Trend {
@@ -157,7 +157,7 @@ export function dueForReview(reports: readonly TopicReport[], limit = 3): TopicR
 
 /**
  * The mirror of `problemTopics`: what to say well done about. Ordered by
- * `correctDays`, because that is the evidence that means something — four right
+ * `correctDays`, because that is the evidence that means something - four right
  * in a row is one memory answering four times, the same topic known again a week
  * later is not.
  *
@@ -246,7 +246,7 @@ export interface ProgressOptions {
 }
 
 /**
- * Practice over time, one bucket per day or week, including the empty ones —
+ * Practice over time, one bucket per day or week, including the empty ones -
  * the gaps are half the story a parent is reading the chart for.
  */
 export function progressOverTime(
@@ -280,7 +280,7 @@ export function progressOverTime(
 
 export interface CalendarDay extends ProgressBucket {
   /**
-   * Later than `now` — a day that has not happened yet. A Friday nobody has
+   * Later than `now` - a day that has not happened yet. A Friday nobody has
    * reached and a Friday nobody practised on are different things, and a grid
    * that drew them the same would report a gap that isn't there.
    */
@@ -292,7 +292,7 @@ export interface CalendarDay extends ProgressBucket {
  * contains today.
  *
  * Runs of seven ending today would need no alignment, but they also cannot
- * carry weekday labels — a column that is Monday one week and Thursday the next
+ * carry weekday labels - a column that is Monday one week and Thursday the next
  * is not a column. So the weeks are real calendar weeks and the tail of the
  * current one is marked `future` rather than left off, which keeps every row
  * seven cells wide.
@@ -361,7 +361,7 @@ export function summarise(
 
 /**
  * The offset the child last answered at. Their days are what this report is
- * about, and the server has no timezone of its own — nor does it know the
+ * about, and the server has no timezone of its own - nor does it know the
  * parent's, who may well be reading this from another one. Every attempt
  * already carries the offset it was given at, so the most recent one is the
  * best answer available and needs no extra read.

@@ -24,7 +24,7 @@ export type VarSpec =
 export type Expr = string;
 
 /**
- * How the child answers. `boolean` is true/false — the answer expression evaluates
+ * How the child answers. `boolean` is true/false - the answer expression evaluates
  * to a boolean and the play screen renders two fixed buttons, so it needs no
  * `choices` of its own.
  */
@@ -50,7 +50,7 @@ export interface QuestionTemplate {
   subject: string;
   /**
    * What this question practises, e.g. "counting numbers". Topics are shared
-   * across years — the same topic reappears at a harder level — so a topic is a
+   * across years - the same topic reappears at a harder level - so a topic is a
    * tag on the template, never a property of the level.
    */
   topic: string;

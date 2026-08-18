@@ -8,8 +8,8 @@ import { playSound } from './sounds';
 
 /**
  * The break after ten questions. It covers the screen because that is the point
- * — the child stops, sees what the round was worth, and starts the next one
- * fresh — but it never traps them: a tap anywhere goes on, and it leaves by
+ * - the child stops, sees what the round was worth, and starts the next one
+ * fresh - but it never traps them: a tap anywhere goes on, and it leaves by
  * itself if they just watch it.
  */
 

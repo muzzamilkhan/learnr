@@ -9,7 +9,7 @@ import type { CalendarDay } from '@/lib/analytics/report';
  *
  * Rows are real Monday-to-Sunday weeks, so the weekday labels above them are a
  * claim the grid can actually keep. The tail of the current week is left blank
- * rather than drawn as an unpractised day — a Friday nobody has reached yet is
+ * rather than drawn as an unpractised day - a Friday nobody has reached yet is
  * not a Friday nobody used.
  *
  * A CSS grid rather than an SVG, because the two axes want different things:
@@ -42,7 +42,7 @@ export function practisedDays(weeks: readonly CalendarDay[][]): number {
   return weeks.flat().filter((day) => day.attempts > 0).length;
 }
 
-/** Days the grid covers that have actually happened — the denominator for the above. */
+/** Days the grid covers that have actually happened - the denominator for the above. */
 export function elapsedDays(weeks: readonly CalendarDay[][]): number {
   return weeks.flat().filter((day) => !day.future).length;
 }
@@ -77,8 +77,8 @@ export function PracticeCalendar({
             style={{ backgroundColor: shade(day.attempts) }}
             title={`${dayLabel.format(new Date(day.start + offsetMinutes * 60_000))}${
               day.attempts === 0
-                ? ' — no practice'
-                : ` — ${day.attempts} question${day.attempts === 1 ? '' : 's'}`
+                ? ' - no practice'
+                : ` - ${day.attempts} question${day.attempts === 1 ? '' : 's'}`
             }`}
           />
         ),

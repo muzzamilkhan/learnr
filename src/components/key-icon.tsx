@@ -1,6 +1,6 @@
 /**
  * A key: hand this child a way in. It marks the one state of the code button
- * that changes something — issuing a code the card doesn't have yet — where the
+ * that changes something - issuing a code the card doesn't have yet - where the
  * other two only reveal or hide what is already stored.
  *
  * A key rather than an eye for that reason: an eye on all three would say the

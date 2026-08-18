@@ -5,11 +5,11 @@ import { mathsTemplates } from './maths';
 /**
  * The in-repo course catalog. Once courses are authored by AI and stored in the
  * database this becomes the fallback/seed source, and the lookups below move to
- * queries — the shape of the API stays the same.
+ * queries - the shape of the API stays the same.
  *
  * Levels and topics are many-to-many: a year offers several topics, and a topic
  * recurs across years at increasing difficulty. Neither owns the other, so the
- * catalog can be walked from either end — `topicsForLevel` and `levelsForTopic`.
+ * catalog can be walked from either end - `topicsForLevel` and `levelsForTopic`.
  */
 export const allTemplates: QuestionTemplate[] = [...mathsTemplates];
 
@@ -45,7 +45,7 @@ export function listSubjects(templates: QuestionTemplate[] = allTemplates): Subj
     });
 }
 
-/** Every year with content, across all subjects — the home screen's level list. */
+/** Every year with content, across all subjects - the home screen's level list. */
 export function listLevels(templates: QuestionTemplate[] = allTemplates): YearLevel[] {
   return unique(templates.map((t) => t.level)).sort(compareYearLevels);
 }
@@ -67,7 +67,7 @@ export function topicsForLevel(
   return unique(templatesFor(subject, level, templates).map((t) => t.topic)).sort();
 }
 
-/** The years a topic appears in — the same topic recurs, harder each time. */
+/** The years a topic appears in - the same topic recurs, harder each time. */
 export function levelsForTopic(
   subject: string,
   topic: string,
@@ -80,7 +80,7 @@ export function levelsForTopic(
 
 /**
  * An Australian Curriculum content description code, as cited in a template's
- * `tags` — `AC9M` + year (`F` for Foundation) + strand + number, e.g. `AC9M4N02`.
+ * `tags` - `AC9M` + year (`F` for Foundation) + strand + number, e.g. `AC9M4N02`.
  */
 const CURRICULUM_CODE = /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/;
 
@@ -131,7 +131,7 @@ export interface SubjectOverview {
   levels: LevelSummary[];
   /** How many templates ship for the subject, across every year. */
   templateCount: number;
-  /** Distinct topics — a topic recurring across years is one topic, not several. */
+  /** Distinct topics - a topic recurring across years is one topic, not several. */
   topicCount: number;
 }
 
@@ -143,7 +143,7 @@ export interface SubjectOverview {
  * It exists so that page can be *derived* rather than written beside the content.
  * A stranger reading "counting, shapes, addition…" has no way to check it against
  * what a child is actually asked, which is exactly why it must not be a list
- * maintained by hand — the same reason `/curriculum` reads `curriculumCodes`.
+ * maintained by hand - the same reason `/curriculum` reads `curriculumCodes`.
  */
 export function subjectOverview(
   subject: string,

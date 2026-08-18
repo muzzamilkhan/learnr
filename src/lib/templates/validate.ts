@@ -6,7 +6,7 @@ import { MAX_CHOICES, type QuestionTemplate, type VarSpec } from './types';
 
 /**
  * Templates are authored outside the app, so they are untrusted input. Validation
- * runs at author/import time — never mid-session with a child waiting.
+ * runs at author/import time - never mid-session with a child waiting.
  */
 
 export interface ValidationResult {
@@ -170,7 +170,7 @@ export function validateTemplate(input: unknown): ValidationResult {
     }
   }
 
-  // Static checks passed — prove it can actually produce questions. `answerType`
+  // Static checks passed - prove it can actually produce questions. `answerType`
   // is usually inferred, so this is also the only place that can tell what kind of
   // question the template really is.
   if (errors.length === 0) {

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A `/progress` screen where a parent picks one of their children from a dropdown and sees how that child is going — usage, per-topic performance, and where to help.
+**Goal:** A `/progress` screen where a parent picks one of their children from a dropdown and sees how that child is going - usage, per-topic performance, and where to help.
 
 **Architecture:** All arithmetic goes into `src/lib/analytics/report.ts` as pure functions taking `now` from the caller, tested with vitest. `src/lib/records.ts` gains one new Prisma read and one contract change. The screen is a server component that guards, reads, and hands serialised data to presentation components; only the child dropdown and the Recharts bar chart are client islands.
 
@@ -13,18 +13,18 @@
 ## Global Constraints
 
 - **All logic lives in `src/lib` as pure functions.** Nothing in `src/lib/analytics` may touch React, the network, the clock or the database. `now` and any offset are passed in.
-- **Year levels are strings**, `'K'` then `'1'`–`'6'`. Never integers. Sort with `compareYearLevels`, display with `yearLabel`, parse at every boundary with `parseYearLevel`.
+- **Year levels are strings**, `'K'` then `'1'`-`'6'`. Never integers. Sort with `compareYearLevels`, display with `yearLabel`, parse at every boundary with `parseYearLevel`.
 - **Colours are CSS variables** from `src/app/globals.css`, used in Tailwind as `text-(--color-ink)` and in SVG as `fill="var(--color-right)"`. Never hardcode a hex value. Available: `--color-ink`, `--color-ink-soft`, `--color-paper`, `--color-card`, `--color-brand`, `--color-brand-soft`, `--color-right`, `--color-right-soft`, `--color-wrong`, `--color-wrong-soft`, `--color-line`, `--color-star`, `--color-star-soft`, `--color-flame`, `--color-flame-soft`. There is no dark mode.
 - **Tests are lib tests only.** Every test in this repo lives beside a `src/lib` or `src/content` module. Do not add component tests, a test renderer, or a browser harness.
-- **Never name a prop `children`** for a list of child profiles — that name belongs to React. Use `profiles`.
+- **Never name a prop `children`** for a list of child profiles - that name belongs to React. Use `profiles`.
 - **This feature writes nothing.** No mutations, no server actions, no schema change, no migration.
 - Run `npm test` and `npm run typecheck` before any commit that touches TypeScript.
 
 ## Timezone: whose days are these?
 
-The spec says day bucketing takes a caller-supplied `offsetMinutes`. It does not say where the server gets one — and the server cannot know the parent's browser timezone.
+The spec says day bucketing takes a caller-supplied `offsetMinutes`. It does not say where the server gets one - and the server cannot know the parent's browser timezone.
 
-**Resolution: use the offset the child last answered at.** Every `Attempt` already stores `offsetMinutes` (the UTC offset the answer was given at) and `readObservations` already selects it. The report is about the child's days, so the child's own offset is the right one — more correct than the parent's browser, since a parent travelling should not shift their child's practice calendar. Task 1 adds `latestOffsetMinutes` for this, defaulting to `0` when there is no history.
+**Resolution: use the offset the child last answered at.** Every `Attempt` already stores `offsetMinutes` (the UTC offset the answer was given at) and `readObservations` already selects it. The report is about the child's days, so the child's own offset is the right one - more correct than the parent's browser, since a parent travelling should not shift their child's practice calendar. Task 1 adds `latestOffsetMinutes` for this, defaulting to `0` when there is no history.
 
 ---
 
@@ -64,7 +64,7 @@ The spec says day bucketing takes a caller-supplied `offsetMinutes`. It does not
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `src/lib/analytics/report.test.ts`. The file already defines `DAY`, `NOW`, `answers`, `rights` and `wrongs` at the top — reuse them, do not redefine them. Add `latestOffsetMinutes`, `periods` and `headline` to the existing `import { ... } from './report';` block at the top of the file.
+Append to `src/lib/analytics/report.test.ts`. The file already defines `DAY`, `NOW`, `answers`, `rights` and `wrongs` at the top - reuse them, do not redefine them. Add `latestOffsetMinutes`, `periods` and `headline` to the existing `import { ... } from './report';` block at the top of the file.
 
 ```ts
 describe('latestOffsetMinutes', () => {
@@ -101,7 +101,7 @@ describe('periods', () => {
   });
 
   it('counts today and excludes the day the window opened on', () => {
-    // days: 7 means today and the six before it — day -6 is in, day -7 is not.
+    // days: 7 means today and the six before it - day -6 is in, day -7 is not.
     const history = [
       ...answers('addition', rights(1), { endedAt: NOW }),
       ...answers('addition', rights(1), { endedAt: NOW - 6 * DAY }),
@@ -180,7 +180,7 @@ describe('headline', () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/analytics/report.test.ts`
-Expected: FAIL — `latestOffsetMinutes is not a function` (and the same for `periods`, `headline`).
+Expected: FAIL - `latestOffsetMinutes is not a function` (and the same for `periods`, `headline`).
 
 - [ ] **Step 3: Implement**
 
@@ -189,7 +189,7 @@ Add to `src/lib/analytics/report.ts`. Add `localDay` to the existing import from
 ```ts
 /**
  * The offset the child last answered at. Their days are what this report is
- * about, and the server has no timezone of its own — nor does it know the
+ * about, and the server has no timezone of its own - nor does it know the
  * parent's, who may well be reading this from another one. Every attempt
  * already carries the offset it was given at, so the most recent one is the
  * best answer available and needs no extra read.
@@ -319,7 +319,7 @@ git commit -m "Add practice windows and the parents' headline figures"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `src/lib/analytics/report.test.ts`, adding `strengths` and `coverage` to the existing import block. Reuse the file's existing `answers`, `rights`, `wrongs` and `known` helpers — `known(topic, days)` produces four right answers on each of `days` separate days, which is what makes a topic `secure`.
+Append to `src/lib/analytics/report.test.ts`, adding `strengths` and `coverage` to the existing import block. Reuse the file's existing `answers`, `rights`, `wrongs` and `known` helpers - `known(topic, days)` produces four right answers on each of `days` separate days, which is what makes a topic `secure`.
 
 ```ts
 describe('strengths', () => {
@@ -360,7 +360,7 @@ describe('coverage', () => {
     });
   });
 
-  it('counts a single attempt as tried — this is not a question about mastery', () => {
+  it('counts a single attempt as tried - this is not a question about mastery', () => {
     const reports = topicReports(answers('counting', wrongs(1), { level: '1' }), NOW);
 
     expect(coverage(reports, offered, '1').practised).toBe(1);
@@ -377,7 +377,7 @@ describe('coverage', () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/lib/analytics/report.test.ts`
-Expected: FAIL — `strengths is not a function`.
+Expected: FAIL - `strengths is not a function`.
 
 - [ ] **Step 3: Implement**
 
@@ -386,7 +386,7 @@ Add to `src/lib/analytics/report.ts`, directly after `dueForReview`.
 ```ts
 /**
  * The mirror of `problemTopics`: what to say well done about. Ordered by
- * `correctDays`, because that is the evidence that means something — four right
+ * `correctDays`, because that is the evidence that means something - four right
  * in a row is one memory answering four times, the same topic known again a week
  * later is not.
  *
@@ -461,12 +461,12 @@ git commit -m "Report a child's strengths and how much of the year they have tri
 - Modify: `src/lib/records.ts` (`readObservations` at ~line 376; add `readSittings` after it)
 
 **Interfaces:**
-- Consumes: `prisma` from `./db`, `parseYearLevel`/`YearLevel` from `./curriculum`, `Observation` from `./analytics/profile` — all already imported in the file.
+- Consumes: `prisma` from `./db`, `parseYearLevel`/`YearLevel` from `./curriculum`, `Observation` from `./analytics/profile` - all already imported in the file.
 - Produces:
   - `readObservations(userId: string, subject: string, limit?: number): Promise<Observation[] | null>` (**changed** return type)
   - `readSittings(userId: string, subject: string, limit?: number): Promise<Sitting[] | null>` where `Sitting = { id: string; startedAt: number; level: YearLevel; attempts: number; correct: number; timeMs: number }`
 
-There are no unit tests in this task. Everything in `records.ts` touches Prisma and none of it is unit tested — that is the established convention in this repo, and `npm run typecheck` is the gate. Do not add a Prisma mock.
+There are no unit tests in this task. Everything in `records.ts` touches Prisma and none of it is unit tested - that is the established convention in this repo, and `npm run typecheck` is the gate. Do not add a Prisma mock.
 
 - [ ] **Step 1: Change the `readObservations` contract**
 
@@ -495,7 +495,7 @@ export async function readObservations(
 ): Promise<Observation[] | null> {
 ```
 
-Leave `if (!prisma) return [];` as it is — no database configured is not a failure, it is genuinely nothing recorded.
+Leave `if (!prisma) return [];` as it is - no database configured is not a failure, it is genuinely nothing recorded.
 
 Change only the catch at the end of the function:
 
@@ -596,10 +596,10 @@ git commit -m "Read a child's history and sittings for the parents' report"
 - Create: `src/components/practice-calendar.tsx`
 
 **Interfaces:**
-- Consumes: `ProgressBucket` from `@/lib/analytics/report` — `{ start: number; unit: 'day' | 'week'; attempts: number; correct: number; accuracy: number | null }`.
+- Consumes: `ProgressBucket` from `@/lib/analytics/report` - `{ start: number; unit: 'day' | 'week'; attempts: number; correct: number; accuracy: number | null }`.
 - Produces: `PracticeCalendar({ buckets, offsetMinutes }: { buckets: ProgressBucket[]; offsetMinutes: number })`, and `practisedDays(buckets: readonly ProgressBucket[]): number`.
 
-This is a **server component** — no `'use client'`. It renders plain SVG, so it costs nothing in the client bundle.
+This is a **server component** - no `'use client'`. It renders plain SVG, so it costs nothing in the client bundle.
 
 - [ ] **Step 1: Write the component**
 
@@ -614,7 +614,7 @@ import type { ProgressBucket } from '@/lib/analytics/report';
  * opens this screen with.
  *
  * Rows are runs of seven ending today rather than calendar weeks, so there are
- * no weekday labels — claiming a Monday column that does not line up would be
+ * no weekday labels - claiming a Monday column that does not line up would be
  * worse than not claiming one.
  */
 
@@ -677,8 +677,8 @@ export function PracticeCalendar({
           <title>
             {dayLabel.format(new Date(bucket.start + offsetMinutes * 60_000))}
             {bucket.attempts === 0
-              ? ' — no practice'
-              : ` — ${bucket.attempts} question${bucket.attempts === 1 ? '' : 's'}`}
+              ? ' - no practice'
+              : ` - ${bucket.attempts} question${bucket.attempts === 1 ? '' : 's'}`}
           </title>
         </rect>
       ))}
@@ -708,7 +708,7 @@ git commit -m "Draw eight weeks of practice as a grid of days"
 - Create: `src/components/topic-bars.tsx`
 
 **Interfaces:**
-- Produces: `TopicBars({ data }: { data: TopicBar[] })` and `export interface TopicBar { label: string; correct: number; wrong: number }`. Labels arrive already distinct — Task 7 appends the year when a topic recurs across levels — so there is no separate key field.
+- Produces: `TopicBars({ data }: { data: TopicBar[] })` and `export interface TopicBar { label: string; correct: number; wrong: number }`. Labels arrive already distinct - Task 7 appends the year when a topic recurs across levels - so there is no separate key field.
 
 - [ ] **Step 1: Install Recharts**
 
@@ -738,7 +738,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 export interface TopicBar {
   /**
    * The topic, with its year appended when the child has practised that topic at
-   * more than one — the same topic recurs across years, so it is the caller's job
+   * more than one - the same topic recurs across years, so it is the caller's job
    * to hand these over already distinct.
    */
   label: string;
@@ -879,7 +879,7 @@ import { useRouter } from 'next/navigation';
 
 /**
  * Which child this screen is about. The choice goes in the URL rather than in
- * component state so a refresh keeps it — a parent who reloads should still be
+ * component state so a refresh keeps it - a parent who reloads should still be
  * looking at the same child.
  *
  * Not named `children`: that belongs to React, and a list of child profiles
@@ -944,7 +944,7 @@ git commit -m "Switch the progress screen between children"
 
 - [ ] **Step 1: Write the component**
 
-Server component — no `'use client'`. It renders `<TopicBars>`, which is the client island.
+Server component - no `'use client'`. It renders `<TopicBars>`, which is the client island.
 
 ```tsx
 import { headline, progressOverTime, topicReports } from '@/lib/analytics/report';
@@ -1013,7 +1013,7 @@ export function ProgressUsage({
           <Tile label="Questions" value={String(figures.questions)} delta={figures.questionsDelta} />
           <Tile
             label="Correct"
-            value={figures.accuracy === null ? '—' : `${Math.round(figures.accuracy * 100)}%`}
+            value={figures.accuracy === null ? '-' : `${Math.round(figures.accuracy * 100)}%`}
             delta={figures.accuracyDelta === null ? null : Math.round(figures.accuracyDelta * 100)}
             unit="pts"
           />
@@ -1021,7 +1021,7 @@ export function ProgressUsage({
         {/* Without this a parent reads 76% as a C. The selector mixes hard topics
             in deliberately, so a healthy child sits in the seventies. */}
         <p className="mt-3 text-base text-(--color-ink-soft)">
-          Over the last 7 days, against the 7 before. Questions are picked to stretch — around
+          Over the last 7 days, against the 7 before. Questions are picked to stretch - around
           three in four right means it&rsquo;s working.
         </p>
       </div>
@@ -1104,7 +1104,7 @@ git commit -m "Show a child's practice figures, days and topic totals"
 
 - [ ] **Step 1: Write the component**
 
-Server component — no `'use client'`.
+Server component - no `'use client'`.
 
 ```tsx
 import { templatesFor, topicsForLevel } from '@/content/catalog';
@@ -1314,7 +1314,7 @@ function TopicLine({ report, now }: { report: TopicReport; now: number }) {
 - [ ] **Step 2: Verify it compiles**
 
 Run: `npm run typecheck`
-Expected: no errors. If `generateQuestion`'s return type does not expose `.prompt`, read `src/lib/templates/generate.ts` and use the correct property — do not cast to `any`.
+Expected: no errors. If `generateQuestion`'s return type does not expose `.prompt`, read `src/lib/templates/generate.ts` and use the correct property - do not cast to `any`.
 
 - [ ] **Step 3: Commit**
 
@@ -1332,12 +1332,12 @@ git commit -m "List where a child needs help, what they know, and what they have
 - Create: `src/app/progress/page.tsx`
 
 **Interfaces:**
-- Consumes: everything from Tasks 1–8, plus `auth`/`isAuthConfigured` from `@/auth`, `listChildren`/`readAccount` from `@/lib/accounts`, `readObservations`/`readSittings` from `@/lib/records`, `listSubjects` from `@/content/catalog`, `parseYearLevel` from `@/lib/curriculum`, `latestOffsetMinutes` from `@/lib/analytics/report`.
+- Consumes: everything from Tasks 1-8, plus `auth`/`isAuthConfigured` from `@/auth`, `listChildren`/`readAccount` from `@/lib/accounts`, `readObservations`/`readSittings` from `@/lib/records`, `listSubjects` from `@/content/catalog`, `parseYearLevel` from `@/lib/curriculum`, `latestOffsetMinutes` from `@/lib/analytics/report`.
 - Produces: the `/progress` route.
 
 - [ ] **Step 1: Write the report shell**
 
-`src/components/progress-report.tsx` — a server component.
+`src/components/progress-report.tsx` - a server component.
 
 ```tsx
 import Link from 'next/link';
@@ -1361,7 +1361,7 @@ export interface ProgressChild {
 /**
  * The frame around both halves of the report, and the place that decides there
  * is nothing to report. A failed read and a child who has never played are
- * different things and must not look the same — one is our problem, the other
+ * different things and must not look the same - one is our problem, the other
  * is just true.
  */
 export function ProgressReport({
@@ -1570,7 +1570,7 @@ interface Props {
   name: string | null;
   image: string | null;
   /**
-   * As stored, and null for a parent — they don't play, so a run of days and a
+   * As stored, and null for a parent - they don't play, so a run of days and a
    * pile of stars on their account are counting nothing. Whether a run is still
    * live depends on the child's clock, not the server's.
    */
@@ -1581,7 +1581,7 @@ interface Props {
 }
 ```
 
-The `useSyncExternalStore` call must stay unconditional — hooks cannot be skipped — so give it a fallback and gate only the rendering. Change the hook to:
+The `useSyncExternalStore` call must stay unconditional - hooks cannot be skipped - so give it a fallback and gate only the rendering. Change the hook to:
 
 ```ts
   const days = useSyncExternalStore(
@@ -1591,7 +1591,7 @@ The `useSyncExternalStore` call must stay unconditional — hooks cannot be skip
   );
 ```
 
-Wrap the flame `<span>` inside the button so it renders only when there is a streak — replace the whole `<span className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums" ...>...</span>` block with:
+Wrap the flame `<span>` inside the button so it renders only when there is a streak - replace the whole `<span className="flex items-center gap-1 text-lg font-bold text-(--color-flame) tabular-nums" ...>...</span>` block with:
 
 ```tsx
         {streak ? (
@@ -1605,7 +1605,7 @@ Wrap the flame `<span>` inside the button so it renders only when there is a str
         ) : null}
 ```
 
-Then change the button's className so it stays balanced with nothing on the left — replace `py-1.5 pr-1.5 pl-3` with:
+Then change the button's className so it stays balanced with nothing on the left - replace `py-1.5 pr-1.5 pl-3` with:
 
 ```
 py-1.5 pr-1.5 ${streak ? 'pl-3' : 'pl-1.5'}
@@ -1652,7 +1652,7 @@ with:
   const isParent = account?.role === 'parent';
 
   // A parent doesn't play, so there is no level to reopen on, no run of days and
-  // no stars — reading them would only put numbers on their screen that are
+  // no stars - reading them would only put numbers on their screen that are
   // counting nothing.
   const [stored, streak, stars] = userId && !isParent
     ? await Promise.all([readSelectedLevel(userId), readPlayStreak(userId), readStarTotal(userId)])
@@ -1661,7 +1661,7 @@ with:
   const initialLevel = resolveInitialLevel(stored, levels);
 ```
 
-`noStreak` is now unused in this file — remove it from the `import { noStreak } from '@/lib/rewards/streak';` line, deleting the import entirely if nothing else in the file uses it. The existing `<ProfileMenu ... streak={streak} stars={stars} />` call needs no change now that both props accept null.
+`noStreak` is now unused in this file - remove it from the `import { noStreak } from '@/lib/rewards/streak';` line, deleting the import entirely if nothing else in the file uses it. The existing `<ProfileMenu ... streak={streak} stars={stars} />` call needs no change now that both props accept null.
 
 - [ ] **Step 4: Verify**
 
@@ -1684,10 +1684,10 @@ git commit -m "Link a parent to each child's progress, and drop the rewards they
 
 - [ ] **Step 1: Replace the stale claim in "Reinforcement and analytics"**
 
-The last paragraph of that section currently ends with "**There is no parent-facing screen yet** — that is a separate piece of design work, and these functions exist to be consumed by it when it happens." That is no longer true. Replace that sentence with:
+The last paragraph of that section currently ends with "**There is no parent-facing screen yet** - that is a separate piece of design work, and these functions exist to be consumed by it when it happens." That is no longer true. Replace that sentence with:
 
 ```markdown
-`/progress` is the screen that consumes them — see **Parent analytics** below.
+`/progress` is the screen that consumes them - see **Parent analytics** below.
 Buckets take a UTC offset from the caller so a Sydney evening's practice doesn't
 land on the next day.
 ```
@@ -1699,18 +1699,18 @@ land on the next day.
 ```markdown
 ## Parent analytics
 
-`/progress?child=<id>&subject=maths` — a parent picks a child and sees how they
+`/progress?child=<id>&subject=maths` - a parent picks a child and sees how they
 are going. It reads and renders; nothing on it writes.
 
 **The child id is never trusted.** `listChildren(parentId)` returns both the
 dropdown's options and the set of ids this parent may look at, and the parameter
 is resolved against that list. There is no separate ownership check to drift out
-of step with the query — the same reason `accounts.ts` puts `parentId` in every
+of step with the query - the same reason `accounts.ts` puts `parentId` in every
 `where`.
 
 **Whose days these are is the child's question, not the parent's.** The server
 has no timezone and does not know the browser's, so the offset comes from
-`latestOffsetMinutes` — the offset the child last answered at, which every
+`latestOffsetMinutes` - the offset the child last answered at, which every
 `Attempt` already stores. A parent reading this from another timezone still sees
 their child's evenings as evenings.
 
@@ -1726,7 +1726,7 @@ for each.
 rather than listing something built from two data points. A child who has never
 played gets a sentence, not empty charts.
 
-`headline` holds the arithmetic behind the three tiles — a rolling 7 days
+`headline` holds the arithmetic behind the three tiles - a rolling 7 days
 against the 7 before, because a Monday-aligned week reads "0 questions" every
 Monday morning. It lives in `lib` and is tested, like everything else that
 counts. `strengths` mirrors `problemTopics`, ordered by `correctDays` because
@@ -1735,7 +1735,7 @@ appears in two sections at once.
 
 Two framing decisions the copy depends on. The tile says **"time on questions"**,
 not "minutes spent": it is summed `timeTakenMs`, already capped per answer, so
-it can't be inflated by an iPad left on the sofa — and it undercounts, which the
+it can't be inflated by an iPad left on the sofa - and it undercounts, which the
 label has to be honest about. And a line under the tiles explains that **around
 three in four right is the system working**; the selector mixes hard topics in
 deliberately, and without that line a parent reads 76% as a C.
@@ -1743,7 +1743,7 @@ deliberately, and without that line a parent reads 76% as a C.
 `recharts` draws the topic bars and is the project's only UI dependency. Height
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
-of failures. The practice calendar is hand-rolled SVG and server-rendered — no
+of failures. The practice calendar is hand-rolled SVG and server-rendered - no
 library ships one worth the bytes.
 
 **A parent's profile menu has no stars and no streak.** They don't play, so both
@@ -1753,7 +1753,7 @@ parent rather than reading numbers it won't show.
 
 - [ ] **Step 3: Update the architecture tree**
 
-In the `src/lib` tree near the top of "Architecture", no change is needed — `src/lib/analytics/` is already listed. Leave it.
+In the `src/lib` tree near the top of "Architecture", no change is needed - `src/lib/analytics/` is already listed. Leave it.
 
 - [ ] **Step 4: Verify and commit**
 
@@ -1769,8 +1769,8 @@ git commit -m "Document the parent analytics screen"
 
 ## Self-Review
 
-**Spec coverage:** Route and access → Task 9. Subjects → Task 9 (tabs) + Task 7/8. `readObservations` contract + `readSittings` → Task 3. `periods`, `headline` → Task 1. `strengths`, `coverage` → Task 2. Existing functions reused → Tasks 7, 8. Screen layout → Tasks 7, 8, 9. "Time on questions" wording → Task 7. Accuracy framing line → Task 7. Example question → Task 8. Components list → Tasks 4–9. Recharts notes (fixed height, CSS vars, grey remainder, topic+level keying, top 8) → Tasks 5, 7. Empty and honest states → Tasks 8, 9. Testing → Tasks 1, 2. Non-goals → nothing implements them, correctly.
+**Spec coverage:** Route and access → Task 9. Subjects → Task 9 (tabs) + Task 7/8. `readObservations` contract + `readSittings` → Task 3. `periods`, `headline` → Task 1. `strengths`, `coverage` → Task 2. Existing functions reused → Tasks 7, 8. Screen layout → Tasks 7, 8, 9. "Time on questions" wording → Task 7. Accuracy framing line → Task 7. Example question → Task 8. Components list → Tasks 4-9. Recharts notes (fixed height, CSS vars, grey remainder, topic+level keying, top 8) → Tasks 5, 7. Empty and honest states → Tasks 8, 9. Testing → Tasks 1, 2. Non-goals → nothing implements them, correctly.
 
 Two additions beyond the spec, both flagged above: `latestOffsetMinutes` (the spec did not say where the offset comes from) and Task 10's parent profile-menu change (requested separately).
 
-**Type consistency:** `Observation`, `TopicReport`, `ProgressBucket`, `Sitting`, `TopicBar`, `Periods`, `Headline`, `Coverage`, `ProgressChild` — each defined once and referenced by the same name throughout. `readObservations`/`readSittings` return `T[] | null` in Task 3 and are handled as nullable in Task 9. `practisedDays` is exported from Task 4 and consumed in Task 7. `latestOffsetMinutes` is produced in Task 1 and consumed in Task 9.
+**Type consistency:** `Observation`, `TopicReport`, `ProgressBucket`, `Sitting`, `TopicBar`, `Periods`, `Headline`, `Coverage`, `ProgressChild` - each defined once and referenced by the same name throughout. `readObservations`/`readSittings` return `T[] | null` in Task 3 and are handled as nullable in Task 9. `practisedDays` is exported from Task 4 and consumed in Task 7. `latestOffsetMinutes` is produced in Task 1 and consumed in Task 9.

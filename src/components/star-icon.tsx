@@ -1,6 +1,6 @@
 /**
  * A star. Drawn hollow when it was not earned, so a child can see what the round
- * was worth as well as what they got — three outlines is a target, not a rebuke.
+ * was worth as well as what they got - three outlines is a target, not a rebuke.
  */
 export function StarIcon({
   filled,
@@ -28,7 +28,7 @@ export function StarIcon({
   );
 }
 
-/** A flame for the day streak — the one thing on screen that is about coming back. */
+/** A flame for the day streak - the one thing on screen that is about coming back. */
 export function FlameIcon({ className = '' }: { className?: string }) {
   return (
     <svg

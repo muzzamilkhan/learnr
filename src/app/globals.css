@@ -2,7 +2,7 @@
 
 /*
  * Design brief: standard iPad (1024x768 landscape, 768x1024 portrait), used by a
- * child. Minimal and calm rather than playful — big type, big targets, few things
+ * child. Minimal and calm rather than playful - big type, big targets, few things
  * on screen at once, nothing that needs reading instructions to understand.
  */
 
@@ -18,13 +18,13 @@
   --color-wrong: #e2705a;
   --color-wrong-soft: #fdeeea;
   --color-line: #dfe6ef;
-  /* Rewards. Warm rather than loud — a reward, not a slot machine. */
+  /* Rewards. Warm rather than loud - a reward, not a slot machine. */
   --color-star: #f0a92b;
   --color-star-soft: #fdf1dc;
   --color-flame: #ee6c3f;
   --color-flame-soft: #fdece5;
   /*
-   * The logo's palette, sampled from `public/logo.PNG` — the violet badge and the
+   * The logo's palette, sampled from `public/logo.PNG` - the violet badge and the
    * yellow, pink and green it is drawn with. The mark is loud and warm and the app
    * around it was cool blue on near-white, which is why the two screens a person
    * meets first read as plainer than the thing at the top of them.
@@ -32,7 +32,7 @@
    * These are for the two screens someone is *choosing* on: the landing page and
    * the child's home screen. `--color-brand` is deliberately unchanged, so the
    * play screen, the parent's report and every control in them stay exactly as
-   * they were — a child answering a question does not need more colour, and a
+   * they were - a child answering a question does not need more colour, and a
    * parent reading a report needs less.
    */
   --color-grape: #6c4de0;

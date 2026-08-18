@@ -306,7 +306,7 @@ describe('periods', () => {
   });
 
   it('counts today and excludes the day the window opened on', () => {
-    // days: 7 means today and the six before it — day -6 is in, day -7 is not.
+    // days: 7 means today and the six before it - day -6 is in, day -7 is not.
     const history = [
       ...answers('addition', rights(1), { endedAt: NOW }),
       ...answers('addition', rights(1), { endedAt: NOW - 6 * DAY }),
@@ -419,7 +419,7 @@ describe('coverage', () => {
     });
   });
 
-  it('counts a single attempt as tried — this is not a question about mastery', () => {
+  it('counts a single attempt as tried - this is not a question about mastery', () => {
     const reports = topicReports(answers('counting', wrongs(1), { level: '1' }), NOW);
 
     expect(coverage(reports, offered, '1').practised).toBe(1);

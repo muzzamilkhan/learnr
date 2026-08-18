@@ -205,7 +205,7 @@ describe('what it asks next', () => {
 
   it('eases off once the child has got the hang of it', () => {
     // The same sitting twice over, differing only in whether the child gets
-    // counting right — so the change in the mix is the engine's doing.
+    // counting right - so the change in the mix is the engine's doing.
     const session = () =>
       startSession({
         templates: wider,

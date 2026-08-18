@@ -9,7 +9,7 @@ import { resolveChild } from '@/lib/children';
  * from whichever page is on screen.
  *
  * The two parent screens share one shell, and the shell lives in a layout so
- * that moving between them re-renders only the page below it — a header that
+ * that moving between them re-renders only the page below it - a header that
  * came from the page would be torn down and rebuilt on every hop, which is the
  * flicker this avoids. A layout can't be told which page is showing, so the
  * pieces that change per screen read the URL instead: the title, and which of
@@ -25,7 +25,7 @@ export function ParentHeading({
   fallbackSubtitle,
 }: {
   profiles: { id: string; name: string }[];
-  /** What to say when there is no child to name — the empty `/` screen. */
+  /** What to say when there is no child to name - the empty `/` screen. */
   fallbackTitle: string;
   fallbackSubtitle?: string;
 }) {

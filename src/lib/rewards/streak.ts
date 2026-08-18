@@ -4,7 +4,7 @@ import { localDay } from '../day';
  * The play streak: how many days in a row the child has answered something.
  *
  * Deliberately counted in *days*, not in hours since the last answer. An hours
- * rule punishes the ordinary case — practice after school one day and before
+ * rule punishes the ordinary case - practice after school one day and before
  * school the next is twenty hours apart, and would break a streak the child
  * kept perfectly well. Days are also the unit the child understands, and the
  * unit mastery is already counted in, so there is one idea of a day in the app.
@@ -30,7 +30,7 @@ export const noStreak = (): PlayStreak => ({ days: 0, lastDay: null });
  * question right now, and today is a day. Zero would show them nothing for
  * having come back, which is the moment a streak is meant to reward most.
  *
- * An answer from a day already behind us leaves the streak alone — writes that
+ * An answer from a day already behind us leaves the streak alone - writes that
  * land out of order can only undercount, never invent a day, the same rule
  * `correctDays` follows.
  */
@@ -49,14 +49,14 @@ export function nextPlayStreak(
     : { days: 1, lastDay: day };
 }
 
-/** Whether that fold was the first answer of a new day — the cue to celebrate it. */
+/** Whether that fold was the first answer of a new day - the cue to celebrate it. */
 export const startedNewDay = (previous: PlayStreak | undefined, next: PlayStreak): boolean =>
   previous?.lastDay !== next.lastDay;
 
 /**
  * The streak as it stands *now*, which is not always the number that was stored.
  * A streak of five last played a week ago is over; showing it would be a lie the
- * child can check. Yesterday still counts — the day is not finished with, and
+ * child can check. Yesterday still counts - the day is not finished with, and
  * the run is theirs to keep by playing today.
  */
 export function currentStreak(streak: PlayStreak, now: number, offsetMinutes = 0): number {

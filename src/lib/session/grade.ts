@@ -2,7 +2,7 @@ import type { Question } from '../templates/types';
 
 export interface Grade {
   correct: boolean;
-  /** The child's response, trimmed — recorded as typed for later analysis. */
+  /** The child's response, trimmed - recorded as typed for later analysis. */
   response: string;
 }
 
@@ -12,7 +12,7 @@ const EPSILON = 1e-9;
 /**
  * What a child may have tapped or typed for a true/false question. The play screen
  * sends "true"/"false", but a template could label the buttons yes/no, and a
- * physical keyboard could type either — so accept both spellings.
+ * physical keyboard could type either - so accept both spellings.
  */
 const TRUTHY = new Set(['true', 'yes', 't', 'y']);
 const FALSY = new Set(['false', 'no', 'f', 'n']);

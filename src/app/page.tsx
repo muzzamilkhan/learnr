@@ -43,7 +43,7 @@ function CurriculumLink() {
       <span className="min-w-0">
         <span className="block text-xl font-semibold">Curriculum sources</span>
         <span className="mt-1 block text-base text-(--color-ink-soft)">
-          What the questions are written against — the Australian Curriculum, year by year.
+          What the questions are written against - the Australian Curriculum, year by year.
         </span>
       </span>
       <span aria-hidden className="ml-auto text-2xl text-(--color-grape)">
@@ -67,7 +67,7 @@ export default async function HomePage() {
   const isParent = account?.role === 'parent';
 
   // A parent doesn't play, so there is no level to reopen on, no run of days and
-  // no stars — reading them would only put numbers on their screen that are
+  // no stars - reading them would only put numbers on their screen that are
   // counting nothing.
   const [stored, streak, stars] = userId && !isParent
     ? await Promise.all([readSelectedLevel(userId), readPlayStreak(userId), readStarTotal(userId)])
@@ -77,7 +77,7 @@ export default async function HomePage() {
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
 
   // Signed in but hasn't said what kind of account this is. Asked once, kept
-  // forever — including for every account that predates the choice existing.
+  // forever - including for every account that predates the choice existing.
   if (account && account.role === null) {
     return (
       <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
@@ -95,7 +95,7 @@ export default async function HomePage() {
 
   // A parent opens this app to see how their children are going, so that is what
   // their home screen is. The report lives at `/progress` and is not rebuilt here
-  // — with children to report on, this screen's whole job is to get out of the
+  // - with children to report on, this screen's whole job is to get out of the
   // way. Setting the profiles up is the other screen, and only the parent with no
   // children yet is sent there.
   if (isParent && userId) {
@@ -111,7 +111,7 @@ export default async function HomePage() {
       </ProfileMenu>
     );
 
-    // A failed read is not "no children", so it is not redirected anywhere — it
+    // A failed read is not "no children", so it is not redirected anywhere - it
     // says what went wrong and leaves the parent where they are.
     if (profiles === null) {
       return (
@@ -152,7 +152,7 @@ export default async function HomePage() {
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
       {/*
         A welcome, drawn as a band rather than a line of type on bare paper. The
-        colour is the mark's own — a child arriving here has just seen the icon on
+        colour is the mark's own - a child arriving here has just seen the icon on
         their home screen, and the screen behind it was the one thing in the app
         with none of it. The tint is soft enough that the greeting is still the
         loudest thing on it, which is the whole job: say who this is, then get out
@@ -186,7 +186,7 @@ export default async function HomePage() {
         </div>
       </header>
 
-      {/* Only a child reaches this far — a parent was routed away above. */}
+      {/* Only a child reaches this far - a parent was routed away above. */}
       {!initialLevel ? (
         <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
       ) : isManagedChild ? (

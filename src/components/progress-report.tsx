@@ -19,7 +19,7 @@ interface ProgressChild {
 /**
  * The frame around both halves of the report, and the place that decides there
  * is nothing to report. A failed read and a child who has never played are
- * different things and must not look the same — one is our problem, the other
+ * different things and must not look the same - one is our problem, the other
  * is just true.
  *
  * The page title and nav come from `ParentShell`; what belongs here is the one

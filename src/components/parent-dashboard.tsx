@@ -29,7 +29,7 @@ export interface ChildRow {
   codeExpiresAt: string | null;
 }
 
-/** Shared by every small button on the parent screens — a mouse target, not a thumb one. */
+/** Shared by every small button on the parent screens - a mouse target, not a thumb one. */
 const BUTTON =
   'no-select rounded-lg border border-(--color-line) px-3 py-1.5 text-sm font-semibold transition hover:border-(--color-brand) disabled:opacity-50';
 const PRIMARY =
@@ -47,7 +47,7 @@ const ICON_PRIMARY =
 
 /**
  * Managing the child profiles: add, edit, remove, and hand out a login code.
- * This is the parent's second screen — their first is the report, because that
+ * This is the parent's second screen - their first is the report, because that
  * is what they open the app to look at once the profiles exist.
  *
  * A child's level is set here and nowhere else. That is the point of the managed
@@ -58,7 +58,7 @@ export function ParentDashboard({
   profiles,
   levels,
 }: {
-  // Not `children` — that name belongs to React, and passing this list under it
+  // Not `children` - that name belongs to React, and passing this list under it
   // reads as nested JSX to every tool that looks at the file.
   profiles: ChildRow[];
   levels: YearLevel[];
@@ -153,7 +153,7 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
   };
 
   // Asked for in the card rather than through `confirm()`: the browser dialog
-  // is unstyled, unreadable on an iPad, and — being synchronous — the one thing
+  // is unstyled, unreadable on an iPad, and - being synchronous - the one thing
   // on this screen that can freeze it. It also cannot say what is actually
   // being lost, which is the only reason to ask at all.
   if (confirming) {
@@ -200,8 +200,8 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
         <div className="flex flex-wrap gap-2">
           {/* Three states, one button, and a glyph for each: a key issues a code
               the card doesn't have, an eye reveals the one it does. Revealing a
-              live code must not issue a new one — the child may be halfway
-              through typing the old one — so the two are not the same picture. */}
+              live code must not issue a new one - the child may be halfway
+              through typing the old one - so the two are not the same picture. */}
           {!code ? (
             <button
               type="button"
@@ -258,7 +258,7 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
 
 /**
  * The code itself, big enough to read out across a room even though everything
- * else on this screen is sized for a grown-up — it is the one thing here that
+ * else on this screen is sized for a grown-up - it is the one thing here that
  * gets copied by eye onto another device.
  */
 function CodePanel({
@@ -281,7 +281,7 @@ function CodePanel({
       await navigator.clipboard.writeText(code.value);
       setCopied(true);
     } catch {
-      // Nothing to say — the code is right there to be typed.
+      // Nothing to say - the code is right there to be typed.
     }
   };
 
@@ -309,7 +309,7 @@ function CodePanel({
   return (
     // The code is the thing on this panel, so it sits in the middle of it with
     // everything else stacked underneath. Copying is the other way it reaches
-    // the child's device — read aloud across a room, or pasted into a message —
+    // the child's device - read aloud across a room, or pasted into a message -
     // so that button goes right beside the digits, where the thing it copies is.
     // The letter-spacing puts a gap after the last character, so the copy button
     // is nudged back by half of it to sit where it looks equally spaced.
@@ -334,7 +334,7 @@ function CodePanel({
           ? 'Good once only.'
           : left > 0
             ? `${left} min left, and good once only.`
-            : 'This one has run out — get a new code.'}
+            : 'This one has run out - get a new code.'}
       </p>
 
       <button

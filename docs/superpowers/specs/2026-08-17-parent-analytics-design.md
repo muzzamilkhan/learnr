@@ -6,8 +6,8 @@
 and nothing renders it. This is the screen it was written for: a parent picks
 one of their children from a dropdown and sees how that child is going.
 
-The page answers two questions a parent actually has — **are they using it?**
-and **where do they need help?** — and it is built to refuse to answer either
+The page answers two questions a parent actually has - **are they using it?**
+and **where do they need help?** - and it is built to refuse to answer either
 one when the evidence isn't there. A topic with three answers behind it is
 `new`, not a weakness, and the screen says so in words rather than drawing a
 chart over it.
@@ -19,7 +19,7 @@ or email. Nothing here writes.
 ## Route and access
 
 New route `/progress?child=<id>&subject=maths`, a server component with
-`export const dynamic = 'force-dynamic'` for the same reason `/` has it — the
+`export const dynamic = 'force-dynamic'` for the same reason `/` has it - the
 content is per-parent and must never be prerendered and shared.
 
 The guard runs in one order, and authorisation falls out of it rather than
@@ -34,7 +34,7 @@ being a separate check alongside it:
 
 Step 3 is the whole of the ownership check, deliberately. The child id arrives
 from the browser, so it is matched against a query already scoped by
-`parentId` — the same reason `accounts.ts` puts `parentId` in every `where`
+`parentId` - the same reason `accounts.ts` puts `parentId` in every `where`
 rather than checking ownership separately and then querying by id. There is no
 second place for the two to drift apart.
 
@@ -49,7 +49,7 @@ a refresh keeps the child you were looking at.
 ## Subjects
 
 `Observation` gains no `subject` field. `readObservations(userId, subject)`
-already scopes to one subject, and topics only mean anything within one — a
+already scopes to one subject, and topics only mean anything within one - a
 history per subject is the honest grain, and it costs nothing because the page
 reads only the selected subject.
 
@@ -59,13 +59,13 @@ single pointless tab.
 
 ## Reads
 
-### `readObservations` — one contract change
+### `readObservations` - one contract change
 
 `records.ts` reads are best-effort: they swallow the error and return `[]`.
 That is right for play, where a failed read costs a little steering and the
 child answers on regardless. It is wrong here. An empty array renders as *"your
 child has never practised"*, which is a lie when the database merely hiccuped
-— and it is exactly the failure `accounts.ts` already refuses to make, on the
+- and it is exactly the failure `accounts.ts` already refuses to make, on the
 grounds that a silently failed removal is a parent lied to.
 
 So:
@@ -78,11 +78,11 @@ export async function readObservations(
 ): Promise<Observation[] | null>
 ```
 
-`null` **only** on a caught error. No database configured stays `[]` — nothing
+`null` **only** on a caught error. No database configured stays `[]` - nothing
 has been recorded, which is true and is not a failure. The function has no
 callers today, so the change costs nothing.
 
-### `readSittings` — new
+### `readSittings` - new
 
 ```ts
 export interface Sitting {
@@ -108,16 +108,16 @@ attempts selected and reduced to the three totals. The existing
 attempt fan-out small.
 
 `LearningSession.level` is a `String` in the schema, so it goes through
-`parseYearLevel` and a row that fails it is dropped — the same treatment
+`parseYearLevel` and a row that fails it is dropped - the same treatment
 `readObservations` already gives an unparseable level.
 
 Sessions with zero attempts are dropped. A sitting nobody answered a question
 in is not a sitting, and listing it would make a child look busier than they
-were — which is the one thing this section exists to get right.
+were - which is the one thing this section exists to get right.
 
 Same `null`-on-error contract as above.
 
-## New pure functions — `src/lib/analytics/report.ts`
+## New pure functions - `src/lib/analytics/report.ts`
 
 All four are pure, take `now` from the caller, and are unit tested. They sit in
 `report.ts` beside `problemTopics` and `dueForReview`, which they mirror.
@@ -188,7 +188,7 @@ The mirror of `problemTopics`: status `secure` only, ordered by `correctDays`
 descending, then `strength`, then `attempts`, then level and topic.
 
 `review-due` is deliberately excluded even though those topics are also
-mastered — `dueForReview` already lists them, and a topic appearing in two
+mastered - `dueForReview` already lists them, and a topic appearing in two
 sections reads as a bug.
 
 ### `coverage`
@@ -208,26 +208,26 @@ export function coverage(
 ```
 
 Filters `reports` to `level` internally rather than trusting the caller to do
-it — reports span every year a child has practised, and `offered` comes from
+it - reports span every year a child has practised, and `offered` comes from
 `topicsForLevel(subject, level)` for exactly one.
 
 Practised means `attempts > 0`. This is a question about what has been *tried*,
 not what has been learned; the status sections answer the other one.
 
 `level` is the child's `selectedLevel`, already returned by `listChildren`, so
-this costs no extra read. It is nullable on `ChildProfile` — a child whose
+this costs no extra read. It is nullable on `ChildProfile` - a child whose
 parent has not set a year has no denominator, and the coverage line is omitted
 rather than guessed at from their attempts.
 
 ## Existing functions, used as they are
 
-- `summarise` — inside `headline`, once per window.
-- `progressOverTime({ unit: 'day', count: 56 })` — the practice calendar,
+- `summarise` - inside `headline`, once per window.
+- `progressOverTime({ unit: 'day', count: 56 })` - the practice calendar,
   empty buckets included. The "21 of 56 days" count beside it is the buckets
   with `attempts > 0`; the empty ones are the gaps, which are half of what the
   calendar is being read for.
-- `topicReports` — re-sorted by `attempts` descending for the bar chart.
-- `problemTopics`, `dueForReview` — the two list sections, unchanged.
+- `topicReports` - re-sorted by `attempts` descending for the bar chart.
+- `problemTopics`, `dueForReview` - the two list sections, unchanged.
 
 ## The screen
 
@@ -239,12 +239,12 @@ Maths
 │ 38 min            │ │ 142       │ │ 76%     │
 │ ↑ 12 on last week │ │ ↑ 44      │ │ ↓ 3 pts │
 └───────────────────┘ └───────────┘ └─────────┘
-Questions are picked to stretch — around three in four right means it's working.
+Questions are picked to stretch - around three in four right means it's working.
 
 Practice · last 8 weeks                    21 of 56 days
 ▪▪▫▪▪▫▫  ▪▫▫▪▪▪▫  ▫▫▫▫▫▫▫  ▪▪▪▫▪▫▫ ...
 
-Topics                    [stacked bars — total height, correct filled]
+Topics                    [stacked bars - total height, correct filled]
 
 Needs a hand
   Fractions · Year 4 · 48% of 23 · slipping · last Tuesday
@@ -268,7 +268,7 @@ Recent sittings
 **"Time on questions", not "minutes spent".** The number is summed
 `timeTakenMs`, which the session engine has already capped at `MAX_TIME_MS` so
 an iPad left on the sofa isn't counted as practice. That cap is the reason the
-figure is trustworthy and also the reason it undercounts — it excludes reward
+figure is trustworthy and also the reason it undercounts - it excludes reward
 breaks and the pause before a question is read. The label says what is actually
 measured.
 
@@ -279,17 +279,17 @@ reads 76% as a C.
 
 **Every problem topic carries an example question.** Pulled from the catalog
 for that topic and level and generated with a `Rng` seeded from the template id
-— pure, stable across refreshes, cheap. It turns "fractions are hard" into
+- pure, stable across refreshes, cheap. It turns "fractions are hard" into
 something a parent can sit down and do. Wrapped in a `try`/`catch` that omits
 the example on failure: a report page must not 500 over a nicety.
 
 ## Components
 
-- `src/app/progress/page.tsx` — guard, reads, and nothing else.
-- `src/components/progress-report.tsx` — server component, the sections above.
-- `src/components/child-picker.tsx` — `'use client'`, pushes `?child=`.
-- `src/components/topic-bars.tsx` — `'use client'`, Recharts.
-- `src/components/practice-calendar.tsx` — server-rendered grid of `<rect>`s.
+- `src/app/progress/page.tsx` - guard, reads, and nothing else.
+- `src/components/progress-report.tsx` - server component, the sections above.
+- `src/components/child-picker.tsx` - `'use client'`, pushes `?child=`.
+- `src/components/topic-bars.tsx` - `'use client'`, Recharts.
+- `src/components/practice-calendar.tsx` - server-rendered grid of `<rect>`s.
 
 The calendar is hand-rolled on purpose: no charting library ships one worth
 depending on, it is a grid of squares, and rendering it on the server keeps it
@@ -305,7 +305,7 @@ one in the project.
 - **Fixed-height container.** `ResponsiveContainer` renders nothing until
   mount; without a declared height the whole page jumps on hydration.
 - Colours are passed as `fill="var(--color-right)"` and
-  `fill="var(--color-line)"` — SVG `fill` accepts `var()`, so the chart uses
+  `fill="var(--color-line)"` - SVG `fill` accepts `var()`, so the chart uses
   the app's variables directly rather than Recharts' defaults.
 - The unfilled portion is **line grey, not `--color-wrong`.** Height is
   questions and the fill is correct answers; the remainder is "the rest of the
@@ -339,18 +339,18 @@ that does not change here.
 
 Unit tests in `src/lib/analytics/report.test.ts`:
 
-- `periods` — window boundaries by local day, the offset applied, an
+- `periods` - window boundaries by local day, the offset applied, an
   observation on the boundary landing in exactly one window.
-- `headline` — the three figures and their deltas; `accuracy` null on an empty
+- `headline` - the three figures and their deltas; `accuracy` null on an empty
   window; `accuracyDelta` null when the previous window was empty; minutes
   rounding.
-- `strengths` — `secure` only, `review-due` excluded, ordered by `correctDays`.
-- `coverage` — filtered to the level, `untouched` correct, a topic with one
+- `strengths` - `secure` only, `review-due` excluded, ordered by `correctDays`.
+- `coverage` - filtered to the level, `untouched` correct, a topic with one
   attempt counted as practised.
 
 `readObservations` and `readSittings` touch Prisma and are not unit tested,
 consistent with the rest of `records.ts`. Components are not tested,
-consistent with every component already in the repo — which is why `headline`
+consistent with every component already in the repo - which is why `headline`
 exists as a lib function rather than as arithmetic inside a tile.
 
 Run `npm test` and `npm run typecheck` before pushing, per the working
@@ -361,7 +361,7 @@ agreements.
 - Comparing one child against another, or against any cohort.
 - Printable, exportable or emailed reports.
 - Time-of-day, session-length or pace analysis. Time taken is reported here and
-  still never acted on — the reinforcement selector does not read this page's
+  still never acted on - the reinforcement selector does not read this page's
   numbers, and adding a "too slow" signal is the punitive thing this app
   doesn't do.
 - Any write. The screen reads and renders; nothing on it changes a child's

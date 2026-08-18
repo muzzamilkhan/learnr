@@ -30,7 +30,7 @@ export default async function PlayPage({
   const account = userId ? await readAccount(userId) : null;
 
   // A managed child's year is the parent's decision, so it is enforced here and
-  // not only hidden in the UI — the level is a query parameter, and hiding the
+  // not only hidden in the UI - the level is a query parameter, and hiding the
   // dropdown would leave a typed URL as a way straight past it.
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
   const managedLevel = isManagedChild ? await readSelectedLevel(account.id) : null;

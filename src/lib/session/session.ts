@@ -12,7 +12,7 @@ import { gradeAnswer } from './grade';
  * caller supplies the clock, so the engine stays testable.
  *
  * Which template is drawn is the reinforcement selector's call, from the profile
- * the session carries — random until that profile says something, then weighted
+ * the session carries - random until that profile says something, then weighted
  * towards what needs work. The profile is updated as the child answers, so a
  * topic that falls apart in the first ten questions is being mixed in more
  * heavily by the twentieth, without waiting for the next sitting.
@@ -28,7 +28,7 @@ export interface Attempt {
   expected: string;
   response: string;
   correct: boolean;
-  /** Capped at `MAX_TIME_MS` — see there for why an uncapped one is not a measurement. */
+  /** Capped at `MAX_TIME_MS` - see there for why an uncapped one is not a measurement. */
   timeTakenMs: number;
   answeredAt: number;
   /** Minutes east of UTC when it was answered, so the day it counts towards is the child's. */
@@ -39,7 +39,7 @@ export interface SessionState {
   subject: string;
   level: YearLevel;
   startedAt: number;
-  /** When the current question was put on screen — the timer origin for this attempt. */
+  /** When the current question was put on screen - the timer origin for this attempt. */
   questionShownAt: number;
   current: Question;
   attempts: Attempt[];
@@ -50,7 +50,7 @@ export interface SessionState {
   templates: readonly QuestionTemplate[];
   /** What the child has shown so far, this sitting and every one before it. */
   profile: LearnerProfile;
-  /** Topics of the last few questions, newest first — what stops one topic clumping. */
+  /** Topics of the last few questions, newest first - what stops one topic clumping. */
   recentTopics: readonly string[];
 }
 
@@ -61,7 +61,7 @@ export interface SessionConfig {
   subject?: string;
   level?: YearLevel;
   /**
-   * History to start from. Left out — signed out, or a child's first sitting —
+   * History to start from. Left out - signed out, or a child's first sitting -
    * the session simply draws at random, which is what an empty profile means.
    */
   profile?: LearnerProfile;
@@ -71,7 +71,7 @@ export interface SessionConfig {
 
 /**
  * Each draw gets its own RNG seeded from (seed, draw index) so state stays
- * serialisable. The seed alone no longer fixes the sequence — a replay needs the
+ * serialisable. The seed alone no longer fixes the sequence - a replay needs the
  * profile the session started from as well, which is the price of questions that
  * respond to the child.
  */
@@ -122,7 +122,7 @@ export function startSession(config: SessionConfig): SessionState {
  *
  * It matters because the time is kept as a running total per topic and never
  * trimmed, so one abandoned question would otherwise sit in that topic's average
- * for good — and that average is what a parent is shown.
+ * for good - and that average is what a parent is shown.
  */
 export const MAX_TIME_MS = 5 * 60 * 1000;
 
@@ -170,7 +170,7 @@ export function submitAnswer(
 export const elapsedMs = (state: SessionState, now: number): number =>
   Math.max(0, now - state.startedAt);
 
-/** m:ss, counting up with no cap — sessions are open ended. */
+/** m:ss, counting up with no cap - sessions are open ended. */
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);

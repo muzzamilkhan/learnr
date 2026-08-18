@@ -15,7 +15,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 export interface TopicBar {
   /**
    * The topic, with its year appended when the child has practised that topic at
-   * more than one — the same topic recurs across years, so it is the caller's job
+   * more than one - the same topic recurs across years, so it is the caller's job
    * to hand these over already distinct.
    */
   label: string;
@@ -51,7 +51,7 @@ function elide(text: string, max = MAX_CHARS): string {
 function TopicTick({ x = 0, y = 0, payload }: { x?: number; y?: number; payload?: { value?: string } }) {
   return (
     // Rotated about the tick, anchored at its end, so the text runs downwards
-    // from the axis and reads bottom-to-top — the way an axis label is read.
+    // from the axis and reads bottom-to-top - the way an axis label is read.
     <g transform={`translate(${x},${y + 8})`}>
       <text
         transform="rotate(-90)"

@@ -6,7 +6,7 @@ describe('parseAvatar', () => {
     for (const avatar of AVATARS) expect(parseAvatar(avatar)).toBe(avatar);
   });
 
-  it('is null for anything else — the value arrives from a form', () => {
+  it('is null for anything else - the value arrives from a form', () => {
     expect(parseAvatar('dragon')).toBeNull();
     expect(parseAvatar('')).toBeNull();
     expect(parseAvatar(null)).toBeNull();

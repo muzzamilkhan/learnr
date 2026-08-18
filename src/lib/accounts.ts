@@ -29,7 +29,7 @@ export function parseRole(value: string | null | undefined): Role | null {
 export interface Account {
   id: string;
   role: Role | null;
-  /** Set only on a child profile a parent created — the flag that fixes the level. */
+  /** Set only on a child profile a parent created - the flag that fixes the level. */
   parentId: string | null;
   name: string | null;
   avatar: Avatar | null;
@@ -91,7 +91,7 @@ export interface ChildProfile {
 
 /**
  * A parent's children, newest-created last. `null` means *could not read* and
- * `[]` means *no children yet* — the same distinction `readObservations` and
+ * `[]` means *no children yet* - the same distinction `readObservations` and
  * `readSittings` make, and for the same reason: an empty dashboard and a failed
  * read must not render the same, or a database hiccup tells a parent their
  * children are gone.
@@ -132,7 +132,7 @@ export interface ChildInput {
 }
 
 /**
- * A child profile is a `User` row with no email and no `Account` — there is
+ * A child profile is a `User` row with no email and no `Account` - there is
  * nothing OAuth about it, so everything downstream (sessions, attempts, skills)
  * treats it as the ordinary user it is.
  */
@@ -158,7 +158,7 @@ export async function createChild(parentId: string, input: ChildInput): Promise<
 
 /**
  * Every child mutation scopes its `where` by `parentId` as well as `id`, so a
- * parent can only ever reach their own children — the child id round-trips
+ * parent can only ever reach their own children - the child id round-trips
  * through the browser and is never trusted on its own.
  */
 export async function updateChild(
@@ -179,7 +179,7 @@ export async function updateChild(
   }
 }
 
-/** Cascades to the child's sessions, sittings and skills — the profile goes entirely. */
+/** Cascades to the child's sessions, sittings and skills - the profile goes entirely. */
 export async function removeChild(parentId: string, childId: string): Promise<boolean> {
   if (!prisma) return false;
   try {
@@ -201,7 +201,7 @@ const isUniqueViolation = (error: unknown): boolean =>
 /**
  * Issue a fresh code for a child, replacing any code they already had. Generating
  * a second code invalidates the first by overwriting it, which is what a parent
- * means when they ask for a new one — the old slip of paper stops working.
+ * means when they ask for a new one - the old slip of paper stops working.
  */
 export async function issueLoginCode(
   parentId: string,
@@ -252,8 +252,8 @@ export interface RedeemedSession {
 /**
  * Exchange a code for a session.
  *
- * Spending the code and learning whose it was are one statement — `UPDATE ...
- * RETURNING` — rather than a read then a write. Two taps arriving together would
+ * Spending the code and learning whose it was are one statement - `UPDATE ...
+ * RETURNING` - rather than a read then a write. Two taps arriving together would
  * otherwise both find the code live and both get a session; here exactly one
  * update matches a row still holding that code, and the loser gets no row back.
  * A separate lookup after clearing could not identify the row at all, because the

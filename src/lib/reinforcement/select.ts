@@ -18,7 +18,7 @@ import {
  *
  * Three things keep the lean from becoming a swarm:
  *
- *  - a **status weight** per topic, which only tilts the odds — nothing is ever
+ *  - a **status weight** per topic, which only tilts the odds - nothing is ever
  *    ruled out, so a session never turns into twenty subtractions in a row;
  *  - a **share of the questions** that weak topics are held between, so a child
  *    with one bad topic still spends most of their time elsewhere, and one with
@@ -41,11 +41,11 @@ export const STATUS_WEIGHTS: Readonly<Record<SkillStatus, number>> = {
   struggling: 3,
   /** Known, but long enough ago to be worth confirming. */
   'review-due': 2,
-  /** Not enough answers to say — worth finding out about. */
+  /** Not enough answers to say - worth finding out about. */
   new: 1.4,
   /** On its way; keep it coming at roughly its natural rate. */
   developing: 1.2,
-  /** Known and fresh. Not silenced — a child should still get things right. */
+  /** Known and fresh. Not silenced - a child should still get things right. */
   secure: 0.35,
 };
 
@@ -55,14 +55,14 @@ const FOCUS: ReadonlySet<SkillStatus> = new Set<SkillStatus>(['struggling', 'rev
 /**
  * The healthy ratio. A fifth of the questions is enough for a weak topic to
  * improve; beyond a bit under half it stops feeling like practice and starts
- * feeling like being picked on — and there is more to a year than one topic.
+ * feeling like being picked on - and there is more to a year than one topic.
  */
 export const MIN_FOCUS_SHARE = 0.2;
 export const MAX_FOCUS_SHARE = 0.45;
 
 /**
  * How far a topic is held back for having just been asked: the last topic first.
- * Never zero — with a small pool the same topic sometimes has to come round
+ * Never zero - with a small pool the same topic sometimes has to come round
  * again, and it should be unlikely rather than impossible.
  */
 export const COOLDOWN: readonly number[] = [0.1, 0.4, 0.75];
@@ -94,7 +94,7 @@ const sum = (values: readonly number[]): number => values.reduce((a, b) => a + b
 /**
  * How many templates each topic has in this pool.
  *
- * The unit of the policy is the **topic** — that is what a status is about, what
+ * The unit of the policy is the **topic** - that is what a status is about, what
  * a share is measured in, and what `focusTopics` names. But the draw is over
  * templates, so a topic's weight has to be split across its own templates rather
  * than multiplied by them. Without this, template count quietly outvotes status:

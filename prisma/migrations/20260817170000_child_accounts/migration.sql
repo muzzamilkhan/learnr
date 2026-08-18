@@ -2,7 +2,7 @@
 -- a short-lived code to sign in with; a child who signs in with their own Google
 -- account is unaffected.
 --
--- All of it is columns on "User" — a managed child is still just a User row, so
+-- All of it is columns on "User" - a managed child is still just a User row, so
 -- LearningSession, Attempt and TopicSkill need no changes and every existing read
 -- of a child's history keeps working.
 
@@ -24,5 +24,5 @@ CREATE INDEX "User_parentId_idx" ON "User"("parentId");
 
 -- Unique so redemption can look a code up directly and two live codes can never
 -- collide. Postgres treats nulls as distinct, so the many rows with no live code
--- — every parent, and every child between codes — do not contend for the value.
+-- - every parent, and every child between codes - do not contend for the value.
 CREATE UNIQUE INDEX "User_loginCode_key" ON "User"("loginCode");

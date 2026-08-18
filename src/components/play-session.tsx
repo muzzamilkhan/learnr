@@ -30,7 +30,7 @@ import { playSound, primeSounds } from './sounds';
 
 /**
  * How long a correct answer is celebrated before the next question. A wrong one
- * is never on a timer — the child reads the right answer and taps Continue.
+ * is never on a timer - the child reads the right answer and taps Continue.
  */
 const CORRECT_MS = 700;
 
@@ -48,7 +48,7 @@ interface Props {
   startedAt: number;
   /**
    * What the child has shown before. It steers which templates come up, and is
-   * carried forward as they answer — so it must match on the server and the
+   * carried forward as they answer - so it must match on the server and the
    * client, like the seed.
    */
   profile: LearnerProfile;
@@ -86,7 +86,7 @@ export function PlaySession({
    * `entry` mirrored outside React state. The keyboard listener below is a
    * plain `addEventListener`, so between a keystroke and the effect below
    * re-running with a fresh closure, it is still holding the *previous*
-   * render's `entry` — typing the last digit of an answer and hitting Enter
+   * render's `entry` - typing the last digit of an answer and hitting Enter
    * in the same breath reliably lands inside that window, on real hardware,
    * not just as a theoretical race. Reading the ref instead of the closure
    * variable when Enter is pressed means Check always sees what's on screen.
@@ -100,13 +100,13 @@ export function PlaySession({
   const [feedback, setFeedback] = useState<Feedback>(null);
   /** The next question, held back until the child taps Continue. */
   const [pending, setPending] = useState<SessionState | null>(null);
-  /** Hints are asked for, never pushed — and only for the question in hand. */
+  /** Hints are asked for, never pushed - and only for the question in hand. */
   const [hintShown, setHintShown] = useState(false);
   /** The round of ten just finished, while its stars are on screen. */
   const [reward, setReward] = useState<Round | null>(null);
   /** The day streak, on the one answer of the day that extended it. */
   const [streak, setStreak] = useState<number | null>(null);
-  /** The profile menu's two totals — kept live as answers land and rounds bank. */
+  /** The profile menu's two totals - kept live as answers land and rounds bank. */
   const [stars, setStars] = useState(account?.stars ?? 0);
   const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
   const recordId = useRef<string | null>(null);
@@ -149,7 +149,7 @@ export function PlaySession({
 
     // Ten answers closes a round. Which stars it is worth is read off the answers
     // themselves, so the celebration and the server's recount cannot disagree.
-    // Banking them is `submit`'s job — it has to wait for the write.
+    // Banking them is `submit`'s job - it has to wait for the write.
     const round = closedRound(next.attempts.map((attempt) => attempt.correct));
     if (round) {
       setReward(round);
@@ -248,7 +248,7 @@ export function PlaySession({
         const typed = key.toLowerCase();
         // Typing the option itself wins over its position, so "2" picks the option
         // labelled 2 rather than the second one. Otherwise 1-4 pick by position,
-        // and a first letter picks by name — t and f for true/false.
+        // and a first letter picks by name - t and f for true/false.
         const match =
           options.find((o) => o.label.toLowerCase() === typed) ??
           options[Number(key) - 1] ??
@@ -267,7 +267,7 @@ export function PlaySession({
         // Read the ref, not the closure's `entry`: this listener is replaced by
         // a fresh one each render, but that replacement happens after React
         // commits, and typing a last digit then hitting Enter can land the
-        // keydown before that commit — the closure here would still be holding
+        // keydown before that commit - the closure here would still be holding
         // the previous render's `entry`. The ref is updated synchronously by
         // `updateEntry`, so it is never behind a keystroke that already landed.
         submit(entryRef.current);
@@ -286,7 +286,7 @@ export function PlaySession({
     <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-4 py-3 sm:px-10 sm:py-5">
       {/* Nothing here counts anything. A clock and a running score are both things
           a child would watch instead of the question, and neither is theirs to
-          worry about — the round's stars are the only reckoning, and they come
+          worry about - the round's stars are the only reckoning, and they come
           between questions. What is left is the way out and whose screen it is. */}
       <header className="flex shrink-0 items-center justify-between gap-4">
         {/* A button rather than a link, and an icon rather than the word: it is
@@ -337,7 +337,7 @@ export function PlaySession({
         )}
       </div>
 
-      {/* The pad's slot. After a wrong answer the pad gives way to Continue —
+      {/* The pad's slot. After a wrong answer the pad gives way to Continue -
           except for tapped questions, where the buttons themselves are showing
           which option was right, so they stay and Continue sits under them.
 
@@ -372,7 +372,7 @@ export function PlaySession({
 
 /**
  * How big the question is set. The screen is a fixed height that may not scroll,
- * and the height left over is what the question has to fit in — so it is sized in
+ * and the height left over is what the question has to fit in - so it is sized in
  * `vh` rather than by breakpoint, which is what stopped a wordy Year 6 prompt
  * fitting a phone or a landscape iPad. Longer prompts take a smaller step again;
  * length is a good enough proxy for lines, as prompts are one plain sentence.

@@ -5,7 +5,7 @@
  * gives large fixed targets, and stops a child wandering into other keys.
  *
  * Laid out like a calculator, with the tick down the right-hand side. The decimal
- * point is always offered rather than shown only for questions that need one —
+ * point is always offered rather than shown only for questions that need one -
  * a key that appeared exactly when the answer was fractional would give the
  * answer away.
  */

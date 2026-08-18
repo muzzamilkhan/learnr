@@ -1,11 +1,11 @@
 // LearnR data model.
 //
 // Two halves: the Auth.js tables (User/Account/Session), and the learning record
-// (LearningSession/Attempt/TopicSkill). Attempts are the history — every answer,
+// (LearningSession/Attempt/TopicSkill). Attempts are the history - every answer,
 // as given. TopicSkill is that history folded forward into what the child can do
 // now: the reinforcement selector reads it to decide what to ask next, and the
 // parents' report is written from it. It is a cache of the attempts, never a
-// second truth — `buildProfile` over the Attempt rows reproduces it exactly.
+// second truth - `buildProfile` over the Attempt rows reproduces it exactly.
 
 generator client {
   provider = "prisma-client"
@@ -27,7 +27,7 @@ model User {
   selectedLevel String?
 
   /// Chosen once at first sign-in and then permanent: "parent" or "child". Null
-  /// means the choice hasn't been made yet, which is what routes to the chooser —
+  /// means the choice hasn't been made yet, which is what routes to the chooser -
   /// including for every account that already existed before this column did.
   role String?
 
@@ -43,12 +43,12 @@ model User {
   avatar String?
 
   /// The code a parent hands to a child, and when it stops working. Both null when
-  /// there is no live code — redeeming clears them, so a code is spent at use
+  /// there is no live code - redeeming clears them, so a code is spent at use
   /// rather than left to run down its hour. Only ever set on a managed child.
   loginCode          String?   @unique
   loginCodeExpiresAt DateTime?
 
-  /// Days in a row with at least one answer on them. Reward only — nothing about
+  /// Days in a row with at least one answer on them. Reward only - nothing about
   /// what to ask next reads it.
   playStreak    Int  @default(0)
   /// The last local day counted towards the streak, as a day number rather than a
@@ -117,8 +117,8 @@ model LearningSession {
   startedAt DateTime  @default(now())
   endedAt   DateTime?
   /// Stars earned this sitting, one closed round of ten questions at a time. A
-  /// cache of the attempts like TopicSkill is — `starsEarned` over this session's
-  /// answers reproduces it — kept here so the total is one SUM rather than a walk
+  /// cache of the attempts like TopicSkill is - `starsEarned` over this session's
+  /// answers reproduces it - kept here so the total is one SUM rather than a walk
   /// through every answer a child has ever given.
   stars     Int       @default(0)
 
@@ -146,7 +146,7 @@ model TopicSkill {
 
   attempts Int @default(0)
   correct  Int @default(0)
-  /// Recency-weighted accuracy in [0, 1] — what the child can do now, not on average.
+  /// Recency-weighted accuracy in [0, 1] - what the child can do now, not on average.
   strength Float @default(0)
   /// Correct answers in a row. A run, not a single right answer, is what mastery looks like.
   streak   Int @default(0)
@@ -162,7 +162,7 @@ model TopicSkill {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// One row per child, subject, topic and year — and the lookup the session start does.
+  /// One row per child, subject, topic and year - and the lookup the session start does.
   @@unique([userId, subject, topic, level])
 }
 
@@ -181,7 +181,7 @@ model Attempt {
   expected          String
   response          String
   correct           Boolean
-  /// Capped by the session engine — an abandoned question is not a measurement.
+  /// Capped by the session engine - an abandoned question is not a measurement.
   timeTakenMs       Int
   answeredAt        DateTime @default(now())
   /// Minutes east of UTC when it was answered. Stored so rebuilding a profile from
@@ -190,7 +190,7 @@ model Attempt {
 
   learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
 
-  /// "This session's answers, newest first" — the shape both history reads take once
+  /// "This session's answers, newest first" - the shape both history reads take once
   /// the planner has narrowed to a child's sessions. Covers the plain FK lookup too.
   @@index([learningSessionId, answeredAt])
 }

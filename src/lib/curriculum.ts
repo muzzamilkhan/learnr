@@ -1,11 +1,11 @@
 /**
- * Levels are Australian school years: Kindergarten, then Year 1 to Year 6 —
+ * Levels are Australian school years: Kindergarten, then Year 1 to Year 6 -
  * primary school, which is as far as the course goes.
  *
  * A level and a topic are independent axes, related many-to-many. "Counting
  * numbers" belongs to Kindergarten *and* Year 1; Kindergarten also carries
- * "even and odd". The pairing lives on each template — a template names the one
- * year and the one topic it was written for — so the curriculum is derived from
+ * "even and odd". The pairing lives on each template - a template names the one
+ * year and the one topic it was written for - so the curriculum is derived from
  * content rather than declared up front. Adding a Year 1 counting template is all
  * it takes to put counting into Year 1.
  */
@@ -43,7 +43,7 @@ export function yearLabel(level: YearLevel): string {
 
 /**
  * The same level said in the width of a chip: "Year K" rather than
- * "Kindergarten". The parent screens use this throughout — the level sits in a
+ * "Kindergarten". The parent screens use this throughout - the level sits in a
  * row of short facts there, and a word three times the length of every year
  * above it makes that row wrap for the youngest child and nobody else. It is
  * also what keeps a level dropdown from being sized by its one long option.
@@ -63,7 +63,7 @@ export function compareYearLevels(a: YearLevel, b: YearLevel): number {
  * The level the home screen opens on: the one the child last chose, if it is
  * still a year with content behind it. Content is the source of truth, so a
  * stored level that has since lost its templates falls back rather than landing
- * the child on an empty screen — to Kindergarten, or the earliest year offered.
+ * the child on an empty screen - to Kindergarten, or the earliest year offered.
  */
 export function resolveInitialLevel(
   stored: string | null | undefined,

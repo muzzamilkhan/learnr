@@ -77,7 +77,7 @@ describe('isCodeValid', () => {
     expect(isCodeValid('ABCE', stored, expires, during)).toBe(false);
   });
 
-  it('rejects when there is no code to match — a spent code is cleared, not kept', () => {
+  it('rejects when there is no code to match - a spent code is cleared, not kept', () => {
     expect(isCodeValid('ABCD', null, null, during)).toBe(false);
     expect(isCodeValid('ABCD', stored, null, during)).toBe(false);
   });
@@ -94,7 +94,7 @@ describe('isCodeLive', () => {
     expect(isCodeLive('ABCD', expires, new Date('2026-08-17T10:00:00Z'))).toBe(false);
   });
 
-  it('is false when there is no code — spent and never issued look the same', () => {
+  it('is false when there is no code - spent and never issued look the same', () => {
     expect(isCodeLive(null, expires, new Date('2026-08-17T09:00:00Z'))).toBe(false);
     expect(isCodeLive('ABCD', null, new Date('2026-08-17T09:00:00Z'))).toBe(false);
   });

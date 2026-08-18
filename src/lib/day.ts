@@ -1,8 +1,8 @@
 /**
  * Which day a moment falls in, in the child's terms.
  *
- * Everything in this app that counts days — mastery on separate days, a play
- * streak, the report's buckets — has to agree on where a day starts, and it is
+ * Everything in this app that counts days - mastery on separate days, a play
+ * streak, the report's buckets - has to agree on where a day starts, and it is
  * never the server's midnight. An evening's practice in Sydney is that evening,
  * not the next morning UTC, so the offset the answer was given at travels with
  * it and every day question is asked through here.

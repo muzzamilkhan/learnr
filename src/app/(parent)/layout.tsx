@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export default async function ParentLayout({ children }: { children: ReactNode }) {
   const { name, image, profiles } = await readParent();
 
-  // A parent doesn't play, so there is no run of days and no stars to show —
+  // A parent doesn't play, so there is no run of days and no stars to show -
   // both would be counting nothing.
   const menu = (
     <ProfileMenu name={name} image={image} streak={null} stars={null}>

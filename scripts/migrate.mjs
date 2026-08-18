@@ -17,13 +17,13 @@ try {
   config({ path: '.env.local', quiet: true });
   config({ quiet: true });
 } catch {
-  // No dotenv here — process.env is the whole story.
+  // No dotenv here - process.env is the whole story.
 }
 
 const url = process.env.DATABASE_URL;
 
 if (!url || url.includes('user:password@host')) {
-  console.log('No DATABASE_URL configured — skipping migrations.');
+  console.log('No DATABASE_URL configured - skipping migrations.');
   process.exit(0);
 }
 
@@ -34,7 +34,7 @@ if (!url || url.includes('user:password@host')) {
  * and then times out against a fixed 10s it gives no way to raise (P1002).
  *
  * That is a cold database, not a broken migration, and the answer is to knock
- * again. Only this one error is retried — a migration that actually fails
+ * again. Only this one error is retried - a migration that actually fails
  * should fail now, on the first attempt, and say why.
  */
 const COLD = /P1002|advisory lock/i;
@@ -58,7 +58,7 @@ for (let attempt = 1; ; attempt += 1) {
   if (attempt >= ATTEMPTS || !COLD.test(output)) process.exit(result.status ?? 1);
 
   console.log(
-    `Database was still waking up — retrying migrations in ${BACKOFF_MS / 1000}s ` +
+    `Database was still waking up - retrying migrations in ${BACKOFF_MS / 1000}s ` +
       `(attempt ${attempt + 1} of ${ATTEMPTS}).`,
   );
   await sleep(BACKOFF_MS);

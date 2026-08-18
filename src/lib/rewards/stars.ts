@@ -1,7 +1,7 @@
 /**
  * Stars: what a child gets for finishing ten questions.
  *
- * This is a reward, not a measurement — the analytics side already says what a
+ * This is a reward, not a measurement - the analytics side already says what a
  * child can do, and it says it carefully. Stars exist to make coming back feel
  * worth it, so the floor matters more than the ceiling: a round where nothing
  * went right still earns one, because sitting through ten hard questions is the
@@ -18,7 +18,7 @@ export const ROUND_SIZE = 10;
 export type Stars = 1 | 2 | 3;
 
 export interface Round {
-  /** 1-based — the child's first ten questions are round 1. */
+  /** 1-based - the child's first ten questions are round 1. */
   index: number;
   correct: number;
   stars: Stars;
@@ -48,7 +48,7 @@ export function rounds(results: readonly boolean[]): Round[] {
 
 /**
  * The round the last answer just closed, or null if it did not close one. This
- * is the celebration's cue, so it has to fire on the boundary answer alone —
+ * is the celebration's cue, so it has to fire on the boundary answer alone -
  * asking "is the count a multiple of ten?" of any other answer says no.
  */
 export function closedRound(results: readonly boolean[]): Round | null {
