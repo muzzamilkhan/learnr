@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
-import { startSession, submitAnswer, type SessionState } from '@/lib/session/session';
+import { MAX_TIME_MS, startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
 import { localDay } from '@/lib/day';
 import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/session/answers';
 import { closedRound, type Round } from '@/lib/rewards/stars';
 import { noStreak, type PlayStreak } from '@/lib/rewards/streak';
+import {
+  dayTotal,
+  targetUnits,
+  totalFor,
+  type DailyTarget,
+  type TargetAnswer,
+} from '@/lib/rewards/target';
 import {
   awardRoundAction,
   endRecordingAction,
@@ -26,6 +33,7 @@ import { HintIcon } from './hint-icon';
 import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
 import { StreakFlash } from './streak-flash';
+import { TargetBar } from './target-bar';
 import { playSound, primeSounds } from './sounds';
 
 /**
@@ -61,6 +69,16 @@ interface Props {
     streak: PlayStreak;
     stars: number;
   } | null;
+  /**
+   * The daily target, if the child's parent set one. Null for a child with no
+   * target and for one signed in with their own account, and the screen then
+   * looks exactly as it did before this feature.
+   */
+  target: {
+    target: DailyTarget;
+    answers: TargetAnswer[];
+    awardedDay: number | null;
+  } | null;
   /** The sign-out form, built on the server so it stays a server action. */
   signOutSlot: ReactNode;
 }
@@ -75,6 +93,7 @@ export function PlaySession({
   recentTopics,
   recordingEnabled,
   account,
+  target,
   signOutSlot,
 }: Props) {
   const router = useRouter();
@@ -109,6 +128,16 @@ export function PlaySession({
   /** The profile menu's two totals - kept live as answers land and rounds bank. */
   const [stars, setStars] = useState(account?.stars ?? 0);
   const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
+  /**
+   * How much of today's target is done, in the target's own unit. Null until the
+   * effect below works it out: which answers count as "today" depends on the
+   * offset of the device this is running on, and that is not known while
+   * rendering on the server - the same reason the streak is settled in the
+   * browser. The bar simply does not exist until it is.
+   */
+  const [targetDone, setTargetDone] = useState<number | null>(null);
+  /** Set once today's target is done, which is what takes the bar off this screen. */
+  const [targetFinished, setTargetFinished] = useState(false);
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -119,6 +148,45 @@ export function PlaySession({
   // Load the answer sounds up front, so the first one is heard on the answer that
   // earns it rather than a round trip later.
   useEffect(primeSounds, []);
+
+  // Today is the child's day, so it is worked out here rather than on the
+  // server: the offset is the device's, and only the device has it.
+  useEffect(() => {
+    if (!target) return;
+    const now = Date.now();
+    const offsetMinutes = -new Date(now).getTimezoneOffset();
+    setTargetDone(totalFor(dayTotal(target.answers, { now, offsetMinutes }), target.target.kind));
+    // A child who hit their goal this morning and came back after school has
+    // nothing left to fill, and a bar sitting full all evening is a thing to
+    // look at that says nothing.
+    setTargetFinished(target.awardedDay === localDay(now, offsetMinutes));
+  }, [target]);
+
+  /**
+   * A minutes bar has to move while the child is thinking, or it would sit still
+   * through the one thing it is measuring. So it shows the time this question has
+   * taken so far - capped at exactly the cap the answer will be recorded with, so
+   * what is shown can never run ahead of what is counted. It settles onto the
+   * real total when the answer lands.
+   */
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!target || target.target.kind !== 'minutes' || feedback !== null) {
+      setElapsed(0);
+      return;
+    }
+    const tick = () =>
+      setElapsed(Math.min(MAX_TIME_MS, Math.max(0, Date.now() - session.questionShownAt)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [target, feedback, session.questionShownAt]);
+
+  const targetFraction =
+    target === null || targetDone === null
+      ? 0
+      : Math.min(1, (targetDone + elapsed) / targetUnits(target.target));
 
   useEffect(() => {
     if (!recordingEnabled) return;
@@ -187,6 +255,18 @@ export function PlaySession({
       const offsetMinutes = -new Date(now).getTimezoneOffset();
       const next = submitAnswer(session, value, now, offsetMinutes);
 
+      // The target's own view of the answer. Questions step by one; minutes take
+      // the time the answer was actually recorded with, cap and all, so the bar
+      // and the parent's report can never disagree.
+      if (target) {
+        const attempt = next.attempts[next.attempts.length - 1];
+        setTargetDone((done) =>
+          done === null
+            ? done
+            : done + (target.target.kind === 'questions' ? 1 : attempt.timeTakenMs),
+        );
+      }
+
       updateEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
       playSound(correct ? 'correct' : 'incorrect');
@@ -216,7 +296,7 @@ export function PlaySession({
       if (correct) advanceTimer.current = setTimeout(() => advance(next), CORRECT_MS);
       else setPending(next);
     },
-    [session, question, feedback, advance, updateEntry],
+    [session, question, feedback, advance, updateEntry, target],
   );
 
   // A physical keyboard should work as well as the on-screen pads.
@@ -312,6 +392,17 @@ export function PlaySession({
           </ProfileMenu>
         ) : null}
       </header>
+
+      {/* Top centre, above the question and below nothing. The only thing on this
+          screen that keeps a running count of anything, and it does it as a
+          picture rather than a number for exactly the reason the header does
+          not: a figure is something to watch instead of the question. It goes
+          entirely once the day's goal has been celebrated. */}
+      {target !== null && targetDone !== null && !targetFinished ? (
+        <div className="flex shrink-0 justify-center pt-2 sm:pt-3">
+          <TargetBar fraction={targetFraction} className="w-2/3 max-w-sm" />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
         <h1

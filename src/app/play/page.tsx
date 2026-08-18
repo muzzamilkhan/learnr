@@ -8,11 +8,14 @@ import { emptyProfile } from '@/lib/analytics/profile';
 import { noStreak } from '@/lib/rewards/streak';
 import { readAccount } from '@/lib/accounts';
 import {
+  TARGET_WINDOW_MS,
   readLearnerProfile,
   readPlayStreak,
+  readRecentAnswers,
   readRecentTopics,
   readSelectedLevel,
   readStarTotal,
+  readTargetSettings,
 } from '@/lib/records';
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
@@ -72,6 +75,12 @@ export default async function PlayPage({
       ])
     : [emptyProfile(), [], noStreak(), 0];
 
+  // The server does not know what day it is where the child is, so it hands over
+  // a window of answers and the device decides which of them are today's.
+  const settings = userId ? await readTargetSettings(userId) : null;
+  const targetAnswers =
+    settings?.target && userId ? await readRecentAnswers(userId, Date.now() - TARGET_WINDOW_MS) : [];
+
   // Seeded here rather than in the client so the first question is server
   // rendered and the child never sees an empty screen. The seed and the profile
   // are deterministic input to the engine, so server and client render the same
@@ -88,6 +97,11 @@ export default async function PlayPage({
       profile={profile}
       recentTopics={recentTopics}
       recordingEnabled={Boolean(userId)}
+      target={
+        settings?.target
+          ? { target: settings.target, answers: targetAnswers, awardedDay: settings.targetDay }
+          : null
+      }
       account={
         session?.user
           ? {
