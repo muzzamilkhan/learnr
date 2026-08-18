@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
+import { DailyGoal } from '@/components/daily-goal';
 import { Landing } from '@/components/landing';
 import { LevelPicker } from '@/components/level-picker';
 import { LogoMark } from '@/components/logo';
@@ -11,8 +12,16 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
 import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
-import { readPlayStreak, readSelectedLevel, readStarTotal } from '@/lib/records';
+import {
+  readPlayStreak,
+  readRecentAnswers,
+  readSelectedLevel,
+  readStarTotal,
+  readTargetSettings,
+  TARGET_WINDOW_MS,
+} from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
+import { requestNow } from './now';
 
 // The screen is per-child: it opens on the level that child last chose, so it
 // must never be prerendered and shared.
@@ -72,6 +81,15 @@ export default async function HomePage() {
   const [stored, streak, stars] = userId && !isParent
     ? await Promise.all([readSelectedLevel(userId), readPlayStreak(userId), readStarTotal(userId)])
     : [null, null, null];
+
+  // A parent has no goal of their own, so this is read on the same branch that
+  // skips their streak and stars. The answers are only worth fetching once there
+  // is a target to measure them against.
+  const settings = userId && !isParent ? await readTargetSettings(userId) : null;
+  const targetAnswers =
+    settings?.target && userId
+      ? await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)
+      : [];
 
   const initialLevel = resolveInitialLevel(stored, levels);
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
@@ -193,6 +211,16 @@ export default async function HomePage() {
           ) : null}
         </div>
       </header>
+
+      {/* Under the band and above the cards: what the day asks for, before the
+          child picks what to practise. */}
+      {settings?.target ? (
+        <DailyGoal
+          target={settings.target}
+          answers={targetAnswers}
+          awardedDay={settings.targetDay}
+        />
+      ) : null}
 
       {/* Only a child reaches this far - a parent was routed away above. */}
       {!initialLevel ? (
