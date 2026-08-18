@@ -254,6 +254,31 @@ export function PlaySession({
     setSession((state) => ({ ...state, questionShownAt: Date.now() }));
   }, []);
 
+  /**
+   * Whether the day's goal may show its screen yet. Four conditions rather than
+   * one, because the goal's stars are the last thing to happen on an answer and
+   * each clause is one way that answer is not finished with:
+   *
+   * - `targetReward` - the server has actually said the goal was met just now.
+   * - `reward === null` - the round's stars go first when one answer does both,
+   *   and are never covered by this.
+   * - `pending === null` - a wrong answer is still on screen with the right one
+   *   beside it, waiting for Continue, and covering that is the one thing this
+   *   screen must not do.
+   * - `feedback === null` - a right answer is still showing its tick, and the
+   *   round's stars have not had their chance to be set yet.
+   *
+   * The award is asked for as soon as the answer is written, so it can resolve
+   * well before `advance` runs - it is behind a timer on a right answer and
+   * behind a tap on a wrong one. Without the last two clauses the goal's screen
+   * would appear first, then be torn down mid-animation when the round's stars
+   * arrived, then mount again from zero. `advance` clears `feedback` and
+   * `pending` and sets `reward` in one commit, so reading all four here gives
+   * the one order this is meant to have, on every path.
+   */
+  const showTargetReward =
+    targetReward !== null && reward === null && pending === null && feedback === null;
+
   // Stable, so answering while the flash is up does not restart its timer and
   // leave a faded-out badge mounted over the screen.
   const dismissStreak = useCallback(() => setStreak(null), []);
@@ -335,7 +360,7 @@ export function PlaySession({
       const key = event.key;
 
       // The stars are over everything else, so nothing behind them may be answered.
-      if (reward || targetReward) {
+      if (reward || showTargetReward) {
         if (key === 'Enter' || key === ' ') {
           event.preventDefault();
           if (reward) dismissReward();
@@ -398,7 +423,7 @@ export function PlaySession({
     advance,
     reward,
     dismissReward,
-    targetReward,
+    showTargetReward,
     dismissTargetReward,
     updateEntry,
   ]);
@@ -505,7 +530,7 @@ export function PlaySession({
           share one tap between them. The round goes first because it is about
           the ten questions just answered; the day is the bigger thing and comes
           last. */}
-      {reward === null && targetReward !== null && (
+      {showTargetReward && targetReward !== null && (
         <TargetReward target={targetReward} onDone={dismissTargetReward} />
       )}
     </main>
