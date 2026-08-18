@@ -41,6 +41,16 @@ import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
 import { ExitIcon } from './exit-icon';
 import { HintIcon } from './hint-icon';
+import { SpeakerIcon } from './speaker-icon';
+import { questionNarration, spokenText } from '@/lib/speech/narration';
+import {
+  narrationOff,
+  narrationOn,
+  setNarration,
+  speak,
+  stopSpeaking,
+  subscribeNarration,
+} from './speech';
 import { ProfileMenu } from './profile-menu';
 import { RoundReward } from './round-reward';
 import { StreakFlash } from './streak-flash';
@@ -160,6 +170,58 @@ export function PlaySession({
   // Load the answer sounds up front, so the first one is heard on the answer that
   // earns it rather than a round trip later.
   useEffect(primeSounds, []);
+
+  /**
+   * Whether the question is read aloud, which is this device's setting rather
+   * than this child's. A child who cannot read the question today cannot read it
+   * on the next sitting either, so it outlives the session - and it is kept on
+   * the device rather than the child's profile because the person who needs to
+   * turn it on is the one who cannot read the screen that would otherwise hold
+   * it. Read as a store, like the streak and the day's total: only the browser
+   * knows it, so the server renders nothing rather than guessing.
+   */
+  const narrating = useSyncExternalStore(subscribeNarration, narrationOn, narrationOff);
+
+  /**
+   * Read each question as it arrives. Keyed on the question itself, so the stars
+   * between rounds and a revealed hint do not start it over.
+   *
+   * iOS will not speak without a gesture, which is why the switch that turns
+   * this on is a button the child taps: that tap is the gesture, and the sticky
+   * activation it leaves lasts the rest of the document. A screen reloaded with
+   * the setting already on is the one case with no gesture behind it - there the
+   * first question is silent until the speaker is tapped, and tapping it is what
+   * a child does when the question does not come.
+   */
+  useEffect(() => {
+    if (!narrating) return;
+    speak(questionNarration(question));
+  }, [narrating, question]);
+
+  // Nothing should still be talking about a question that is no longer on screen.
+  useEffect(() => stopSpeaking, []);
+
+  const toggleNarration = useCallback(() => {
+    setNarration(!narrating);
+    // Turning it on is left to the effect above, which is what says the question
+    // - so the button reads whatever is on screen without knowing what it is.
+    if (narrating) stopSpeaking();
+  }, [narrating]);
+
+  /**
+   * The question, again. A child who missed it taps the words themselves, which
+   * needs no icon and no explaining - and it does nothing when nothing is being
+   * read aloud, so a child who can read never finds a tappable question.
+   */
+  const repeatQuestion = useCallback(() => {
+    if (narrating) speak(questionNarration(question));
+  }, [narrating, question]);
+
+  /** Asking for the hint is a tap, so it is also the gesture that may say it. */
+  const showHint = useCallback(() => {
+    setHintShown(true);
+    if (narrating && question.hint) speak(spokenText(question.hint));
+  }, [narrating, question]);
 
   /**
    * The answers the server handed over that turn out to be today's - which is a
@@ -326,6 +388,9 @@ export function PlaySession({
 
       updateEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
+      // The question has been answered, so reading it out is over - and a voice
+      // still going under the right-or-wrong sound is two things at once.
+      stopSpeaking();
       playSound(correct ? 'correct' : 'incorrect');
 
       if (recordId.current) {
@@ -451,19 +516,45 @@ export function PlaySession({
       {/* Nothing here counts anything. A clock and a running score are both things
           a child would watch instead of the question, and neither is theirs to
           worry about - the round's stars are the only reckoning, and they come
-          between questions. What is left is the way out and whose screen it is. */}
+          between questions. What is left is the way out, whether the question is
+          read aloud, and whose screen it is. */}
       <header className="flex shrink-0 items-center justify-between gap-4">
-        {/* A button rather than a link, and an icon rather than the word: it is
-            the one control on this screen a child might reach for without being
-            able to read, and it sits opposite the profile menu it now matches. */}
-        <button
-          type="button"
-          onClick={() => router.push('/')}
-          aria-label="Finish and go back"
-          className="rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
-        >
-          <ExitIcon />
-        </button>
+        {/* The two controls a child reaches for, both drawn rather than written:
+            the way out, and whether the question is read to them. They sit
+            together on the left because they are the child's own controls, and
+            opposite the profile menu that says whose screen this is. */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* A button rather than a link, and an icon rather than the word: it is
+              the one control on this screen a child might reach for without being
+              able to read, and it sits opposite the profile menu it now matches. */}
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            aria-label="Finish and go back"
+            className="rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
+          >
+            <ExitIcon />
+          </button>
+
+          {/* The way in for a child who cannot read the question. It is on their
+              screen rather than behind a parent's sign-in for two reasons: the
+              person who needs it is the one who cannot read the setting, and iOS
+              refuses to speak without a gesture - so the tap that turns it on is
+              also what lets it talk at all. */}
+          <button
+            type="button"
+            onClick={toggleNarration}
+            aria-pressed={narrating}
+            aria-label={narrating ? 'Stop reading the question aloud' : 'Read the question aloud'}
+            className={`rounded-full border-2 p-2.5 transition active:scale-95 ${
+              narrating
+                ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
+                : 'border-(--color-line) bg-(--color-card) text-(--color-ink-soft)'
+            }`}
+          >
+            <SpeakerIcon off={!narrating} />
+          </button>
+        </div>
 
         {/* The only thing on this screen that keeps a running count of anything,
             and it does it as a picture rather than a number for exactly the
@@ -490,13 +581,18 @@ export function PlaySession({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
-        <Prompt key={session.askedCount} prompt={question.prompt} />
+        <Prompt
+          key={session.askedCount}
+          prompt={question.prompt}
+          onRepeat={repeatQuestion}
+          repeatable={narrating}
+        />
 
         <Hint
           hint={question.hint}
           shown={hintShown}
           answered={feedback !== null}
-          onShow={() => setHintShown(true)}
+          onShow={showHint}
         />
 
         {mode === 'tap' ? (
@@ -609,7 +705,15 @@ function useElapsed(active: boolean, since: number): number {
 const MIN_PROMPT_PX = 14;
 const FALLBACK_PROMPT_MAX_PX = 96;
 
-function Prompt({ prompt }: { prompt: string }) {
+function Prompt({
+  prompt,
+  onRepeat,
+  repeatable,
+}: {
+  prompt: string;
+  onRepeat: () => void;
+  repeatable: boolean;
+}) {
   const boxRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLHeadingElement>(null);
 
@@ -661,6 +765,15 @@ function Prompt({ prompt }: { prompt: string }) {
   return (
     <div
       ref={boxRef}
+      // Tapping the question repeats it, but only while it is being read aloud:
+      // a child who missed it reaches for the words themselves, which needs no
+      // icon and no explaining, and a child who can read never finds a button
+      // where the question is. It is the box and not the text that takes the
+      // tap, since the text is only as big as it needs to be and a child aiming
+      // at a short question would otherwise be aiming at very little.
+      onClick={repeatable ? onRepeat : undefined}
+      role={repeatable ? 'button' : undefined}
+      aria-label={repeatable ? 'Read the question again' : undefined}
       className="flex min-h-0 w-full flex-1 items-center justify-center [--prompt-max:clamp(1.375rem,4.5vh,3rem)] sm:[--prompt-max:6rem]"
     >
       {/* Sized by the class until the fit runs, so a prompt rendered on the

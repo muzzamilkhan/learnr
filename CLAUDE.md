@@ -36,6 +36,7 @@ src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
 src/lib/reinforcement/ which question to ask next
 src/lib/rewards/     stars for a round, the day streak, and the daily target
+src/lib/speech/      turning a question into words worth hearing
 src/lib/curriculum.ts school years, labels and ordering
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
@@ -373,6 +374,56 @@ simple enough for a child to pick up with no explanation.
   so the three sit at the same loudness. About 5-13 KB each, from 300 KB+
   originals. AAC in `.m4a` rather than Opus because iPad Safari is the target and
   it plays this everywhere, with no fallback source to maintain.
+
+## Narration
+
+A child who cannot read yet cannot use the app at all: every question is a
+sentence, and the door, the lightbulb and the tick were the only things on the
+play screen that needed no reading. A speaker button beside the door makes the
+question one of them.
+
+**The switch is on the child's screen, not the parent's.** A column beside the
+daily target would be the tidy home for it, and it is the wrong one twice over:
+the person who needs narration is the one who cannot read a settings screen, and
+iOS will not speak without a gesture, so the tap that turns it on has to be the
+thing that lets it talk at all. The preference is `localStorage`, read through
+`useSyncExternalStore` like the streak and the day's total - only the browser
+knows it, so the server renders silence rather than guessing. A shared family
+iPad is the cost, and it is one tap either way.
+
+**Tapping the question repeats it**, and only while narration is on. A child who
+missed it reaches for the words themselves, which needs no icon and no
+explaining, and a child who can read never finds a button where the question is.
+A revealed hint is read as it appears - asking for it is a tap, so it is also a
+gesture that may speak - and answering stops the voice mid-sentence, since the
+question is over and a voice under the right-or-wrong sound is two things at
+once.
+
+**Speaking a question is not reading its characters.** Prompts are generated, so
+there is nothing to record, and once the holes are filled they still hold
+`+ − × ÷ = / % ° $`, abbreviated units, and a bare `?` standing for the gap in
+"12, 13, ?, 15". Handed over as they are, "What is 7 − 3?" is spoken "What is
+7 3?", which is worse than silence. `src/lib/speech/narration.ts` is the
+translation and is pure like the rest of `lib`: `spokenText` for the symbols,
+`questionNarration` for a whole question. A `?` is the gap when nothing wordlike
+precedes it and the sentence's own punctuation when something does - which is
+what tells the two apart in "What goes in the box? 4 + ? = 9". Every `/` in the
+shipped content is a fraction, because division is written `÷`.
+
+**Word options are read out; numbers are not.** A word answer below Year 4 is a
+`choice` question precisely because the child cannot spell it, so three unread
+buttons would leave that question as unanswerable as it was. Numerals are read
+long before words and four of them said back is noise. Options the prompt has
+already named are left alone - "Which ribbon is longer, red or blue?" does not
+need "Is it red or blue?" after it.
+
+`src/components/speech.ts` is the browser shim, beside `sounds.ts` and for the
+same reason: it touches `speechSynthesis`, so it could never be pure. Speaking is
+best-effort, a new utterance cancels the one before it, and an en-AU voice is
+preferred where the device has one. It is also the seam - the alternative was a
+cloud voice, which buys consistency for an API key, a cache keyed by prompt and a
+round trip in front of a waiting child. Swapping one in is a change to `speak`
+and nothing above it.
 
 ## The logo
 
