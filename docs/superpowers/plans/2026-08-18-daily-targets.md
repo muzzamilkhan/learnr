@@ -482,103 +482,26 @@ In `prisma/schema.prisma`, inside `model User`, after the `playStreak`/`playStre
   stars Int @default(0)
 ```
 
-And on `LearningSession`, replace the `stars` column entirely:
-
-```prisma
-  /// How many closed rounds of this sitting have been paid for. The guard that
-  /// lets `User.stars` be incremented rather than recounted: banking reads this
-  /// under a row lock, pays for the rounds past it, and moves it up. It is a
-  /// count of events, not a cache of anything.
-  roundsBanked Int @default(0)
-```
-
-Delete the existing `stars Int @default(0)` line from `LearningSession` and its doc comment.
+Leave `LearningSession` alone in this task. Its `stars` column is still read by
+`records.ts`, so swapping it out here would leave the tree failing `typecheck`
+between two commits - it goes in Task 3 with the code that reads it.
 
 - [ ] **Step 2: Hand-write the migration**
 
 Create `prisma/migrations/20260818090000_daily_targets/migration.sql`:
 
 ```sql
--- The optional daily target a parent sets on a child, and the move that makes
--- room for its stars: one incremented total per child, in place of a sum over
--- sittings that was recounted from the answers.
---
--- The sum had to go because a target is mutable. A child who hits a 10-question
--- target on Monday and has it raised to 40 on Tuesday would fail a recount of
--- Monday, and lose stars they had already been shown. So the total is banked as
--- it is earned, and each award is guarded instead of being made repeatable:
--- "roundsBanked" for a round of ten, "targetDay" for a day's target.
+-- The optional daily target a parent sets on a child, and the column that will
+-- become the app's only star total. Nothing is backfilled into the target
+-- columns: no target is the correct state for every child that already exists,
+-- and a target is a decision a parent makes rather than one that can be guessed
+-- from their child's history. `stars` is filled by the next migration, which is
+-- where the total it replaces is retired.
 
--- Nothing is backfilled into the target columns: no target is the correct state
--- for every child that already exists, and a target is a decision a parent
--- makes rather than one that can be guessed from their child's history.
 ALTER TABLE "User" ADD COLUMN     "targetKind" TEXT,
                   ADD COLUMN     "targetValue" INTEGER,
                   ADD COLUMN     "targetDay" INTEGER,
                   ADD COLUMN     "stars" INTEGER NOT NULL DEFAULT 0;
-
-ALTER TABLE "LearningSession" ADD COLUMN "roundsBanked" INTEGER NOT NULL DEFAULT 0;
-
--- Every closed round of every sitting, valued the way `starsEarned` values one:
--- 3 for a clean round, 1 for a round with nothing right, 2 for anything between.
--- A part-finished round at the end of a sitting is worth nothing, which is why
--- the ordering matters - rounds chunk from the *first* answer.
-WITH numbered AS (
-  SELECT
-    "learningSessionId",
-    "correct",
-    (row_number() OVER (PARTITION BY "learningSessionId" ORDER BY "answeredAt", "id") - 1) / 10 AS round
-  FROM "Attempt"
-),
-scored AS (
-  SELECT "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
-  FROM numbered
-  GROUP BY "learningSessionId", round
-  HAVING COUNT(*) = 10
-),
-totals AS (
-  SELECT "learningSessionId",
-         COUNT(*) AS rounds,
-         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
-  FROM scored
-  GROUP BY "learningSessionId"
-)
-UPDATE "LearningSession" ls
-SET "roundsBanked" = totals.rounds
-FROM totals
-WHERE ls."id" = totals."learningSessionId";
-
--- The child's total is recounted from the answers one last time rather than
--- summed from the old column, so any award that was dropped before today is
--- paid at last. This migration can only move a total up.
-WITH numbered AS (
-  SELECT
-    a."learningSessionId",
-    ls."userId",
-    a."correct",
-    (row_number() OVER (PARTITION BY a."learningSessionId" ORDER BY a."answeredAt", a."id") - 1) / 10 AS round
-  FROM "Attempt" a
-  JOIN "LearningSession" ls ON ls."id" = a."learningSessionId"
-),
-scored AS (
-  SELECT "userId", "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
-  FROM numbered
-  GROUP BY "userId", "learningSessionId", round
-  HAVING COUNT(*) = 10
-),
-per_user AS (
-  SELECT "userId",
-         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
-  FROM scored
-  GROUP BY "userId"
-)
-UPDATE "User" u
-SET "stars" = per_user.stars
-FROM per_user
-WHERE u."id" = per_user."userId";
-
--- The sum this replaces. Its data has been carried into "User"."stars" above.
-ALTER TABLE "LearningSession" DROP COLUMN "stars";
 ```
 
 - [ ] **Step 3: Apply it and regenerate the client**
@@ -725,6 +648,8 @@ git commit -m "Store the daily target a parent sets on a child"
 ### Task 3: One star column, two guards, and the target's award
 
 **Files:**
+- Modify: `prisma/schema.prisma` (the `LearningSession` model)
+- Create: `prisma/migrations/20260818090100_stars_on_the_user/migration.sql`
 - Modify: `src/lib/records.ts`
 - Modify: `src/app/play/actions.ts`
 
@@ -752,6 +677,108 @@ export async function awardTargetAction(
   offsetMinutes: number,
 ): Promise<{ awarded: boolean; stars: number } | null>;
 ```
+
+- [ ] **Step 0: Retire `LearningSession.stars` for `roundsBanked`**
+
+This is one task with the code below because the column and its only readers
+have to move together - dropping it in an earlier commit would leave the tree
+failing `typecheck`.
+
+In `prisma/schema.prisma`, on `model LearningSession`, delete the `stars` column
+and its doc comment and put this in its place:
+
+```prisma
+  /// How many closed rounds of this sitting have been paid for. The guard that
+  /// lets `User.stars` be incremented rather than recounted: banking reads this
+  /// under a row lock, pays for the rounds past it, and moves it up. It is a
+  /// count of events, not a cache of anything.
+  roundsBanked Int @default(0)
+```
+
+Create `prisma/migrations/20260818090100_stars_on_the_user/migration.sql`:
+
+```sql
+-- Stars move from a sum over sittings, recounted from the answers, to one
+-- incremented total on the child.
+--
+-- The sum had to go because a daily target is mutable. A child who hits a
+-- 10-question target on Monday and has it raised to 40 on Tuesday would fail a
+-- recount of Monday, and lose stars they had already been shown. So the total is
+-- banked as it is earned, and each award is guarded instead of being made
+-- repeatable: "roundsBanked" for a round of ten, "targetDay" for a day's target.
+
+ALTER TABLE "LearningSession" ADD COLUMN "roundsBanked" INTEGER NOT NULL DEFAULT 0;
+
+-- Every closed round of every sitting, valued the way `starsEarned` values one:
+-- 3 for a clean round, 1 for a round with nothing right, 2 for anything between.
+-- A part-finished round at the end of a sitting is worth nothing, which is why
+-- the ordering matters - rounds chunk from the *first* answer.
+WITH numbered AS (
+  SELECT
+    a."learningSessionId",
+    ls."userId",
+    a."correct",
+    (row_number() OVER (PARTITION BY a."learningSessionId" ORDER BY a."answeredAt", a."id") - 1) / 10 AS round
+  FROM "Attempt" a
+  JOIN "LearningSession" ls ON ls."id" = a."learningSessionId"
+),
+scored AS (
+  SELECT "userId", "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
+  FROM numbered
+  GROUP BY "userId", "learningSessionId", round
+  HAVING COUNT(*) = 10
+),
+per_session AS (
+  SELECT "learningSessionId", COUNT(*) AS rounds
+  FROM scored
+  GROUP BY "learningSessionId"
+),
+per_user AS (
+  SELECT "userId",
+         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
+  FROM scored
+  GROUP BY "userId"
+)
+UPDATE "LearningSession" ls
+SET "roundsBanked" = per_session.rounds
+FROM per_session
+WHERE ls."id" = per_session."learningSessionId";
+
+-- The child's total is recounted from the answers one last time rather than
+-- summed from the old column, so any award that was dropped before today is paid
+-- at last. This migration can only move a total up.
+WITH numbered AS (
+  SELECT
+    a."learningSessionId",
+    ls."userId",
+    a."correct",
+    (row_number() OVER (PARTITION BY a."learningSessionId" ORDER BY a."answeredAt", a."id") - 1) / 10 AS round
+  FROM "Attempt" a
+  JOIN "LearningSession" ls ON ls."id" = a."learningSessionId"
+),
+scored AS (
+  SELECT "userId", "learningSessionId", round, COUNT(*) FILTER (WHERE "correct") AS correct
+  FROM numbered
+  GROUP BY "userId", "learningSessionId", round
+  HAVING COUNT(*) = 10
+),
+per_user AS (
+  SELECT "userId",
+         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
+  FROM scored
+  GROUP BY "userId"
+)
+UPDATE "User" u
+SET "stars" = per_user.stars
+FROM per_user
+WHERE u."id" = per_user."userId";
+
+-- The sum this replaces. Its data has been carried onto "User"."stars" above.
+ALTER TABLE "LearningSession" DROP COLUMN "stars";
+```
+
+Then run `npm run db:deploy && npx prisma generate` (or `npx prisma generate`
+alone if there is no `DATABASE_URL`).
 
 - [ ] **Step 1: Make the star total one column read**
 
@@ -928,8 +955,13 @@ export async function readRecentAnswers(userId: string, sinceMs: number): Promis
   }
 }
 
-/** Two days of answers is all a target ever needs, whichever side of midnight the child is on. */
-const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+/**
+ * Two days of answers is all a target ever needs, whichever side of midnight the
+ * child's own clock is on. Exported because the screens that render a target
+ * read the same window, and two of them disagreeing about it would show a bar
+ * that disagreed with the award.
+ */
+export const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
 
 /**
  * Bank the day's target stars, if today's answers have reached the target.
@@ -1307,16 +1339,14 @@ git commit -m "Draw the daily target as one bar"
 In `src/app/play/page.tsx`, import:
 
 ```ts
-import { readRecentAnswers, readTargetSettings } from '@/lib/records';
+import { TARGET_WINDOW_MS, readRecentAnswers, readTargetSettings } from '@/lib/records';
 ```
 
 (add them to the existing `@/lib/records` import), and after the profile reads:
 
 ```ts
-  // Two days of answers is everything a target can need, whichever side of
-  // midnight the child's own clock is on. The server does not know what day it
-  // is where they are, so it hands over the answers and the device decides.
-  const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+  // The server does not know what day it is where the child is, so it hands over
+  // a window of answers and the device decides which of them are today's.
   const settings = userId ? await readTargetSettings(userId) : null;
   const targetAnswers =
     settings?.target && userId ? await readRecentAnswers(userId, Date.now() - TARGET_WINDOW_MS) : [];
@@ -1340,7 +1370,6 @@ In `src/components/play-session.tsx`, add the imports:
 import { MAX_TIME_MS } from '@/lib/session/session';
 import {
   dayTotal,
-  targetProgress,
   targetUnits,
   totalFor,
   type DailyTarget,
@@ -1784,15 +1813,13 @@ export function DailyGoal({
 
 - [ ] **Step 2: Read it on the home screen**
 
-In `src/app/page.tsx`, add `readRecentAnswers` and `readTargetSettings` to the `@/lib/records` import and `import { DailyGoal } from '@/components/daily-goal';`.
+In `src/app/page.tsx`, add `TARGET_WINDOW_MS`, `readRecentAnswers` and `readTargetSettings` to the `@/lib/records` import and `import { DailyGoal } from '@/components/daily-goal';`.
 
 Beside the existing streak and star reads (the branch guarded by `userId && !isParent`), read the target as well:
 
 ```ts
-  // Two days of answers covers today whichever side of midnight the child's own
-  // clock is on. A parent has no goal of their own, so this is read on the same
-  // branch that skips their streak and stars.
-  const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+  // A parent has no goal of their own, so this is read on the same branch that
+  // skips their streak and stars.
   const settings = userId && !isParent ? await readTargetSettings(userId) : null;
   const targetAnswers =
     settings?.target && userId ? await readRecentAnswers(userId, Date.now() - TARGET_WINDOW_MS) : [];
@@ -1896,8 +1923,11 @@ Expected: FAIL - `dailyTotals is not a function`.
 In `src/lib/analytics/report.ts`, import the types and add the function beside `calendarWeeks`:
 
 ```ts
-import type { DayTotal, TargetAnswer } from '@/lib/rewards/target';
+import type { DayTotal, TargetAnswer } from '../rewards/target';
 ```
+
+(relative, like every other import in that file - the `@/` alias is used from
+`src/app` and `src/components`, not from inside `src/lib`.)
 
 ```ts
 /**
