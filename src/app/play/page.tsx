@@ -20,6 +20,7 @@ import {
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
+import { requestNow } from './now';
 
 export default async function PlayPage({
   searchParams,
@@ -79,7 +80,9 @@ export default async function PlayPage({
   // a window of answers and the device decides which of them are today's.
   const settings = userId ? await readTargetSettings(userId) : null;
   const targetAnswers =
-    settings?.target && userId ? await readRecentAnswers(userId, Date.now() - TARGET_WINDOW_MS) : [];
+    settings?.target && userId
+      ? await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)
+      : [];
 
   // Seeded here rather than in the client so the first question is server
   // rendered and the child never sees an empty screen. The seed and the profile

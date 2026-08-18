@@ -1,6 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
@@ -134,15 +142,13 @@ export function PlaySession({
   const [stars, setStars] = useState(account?.stars ?? 0);
   const [playStreak, setPlayStreak] = useState<PlayStreak>(account?.streak ?? noStreak());
   /**
-   * How much of today's target is done, in the target's own unit. Null until the
-   * effect below works it out: which answers count as "today" depends on the
-   * offset of the device this is running on, and that is not known while
-   * rendering on the server - the same reason the streak is settled in the
-   * browser. The bar simply does not exist until it is.
+   * What this sitting has added to today's total, in the target's own unit.
+   * Ordinary state with no clock anywhere in it: these are answers given since
+   * this screen opened, so they are today's whatever day it turns out to be.
    */
-  const [targetDone, setTargetDone] = useState<number | null>(null);
-  /** Set once today's target is done, which is what takes the bar off this screen. */
-  const [targetFinished, setTargetFinished] = useState(false);
+  const [addedToday, setAddedToday] = useState(0);
+  /** Set when the goal's own celebration has been seen and dismissed. */
+  const [targetCelebrated, setTargetCelebrated] = useState(false);
   const recordId = useRef<string | null>(null);
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -154,18 +160,39 @@ export function PlaySession({
   // earns it rather than a round trip later.
   useEffect(primeSounds, []);
 
-  // Today is the child's day, so it is worked out here rather than on the
-  // server: the offset is the device's, and only the device has it.
-  useEffect(() => {
-    if (!target) return;
-    const now = Date.now();
-    const offsetMinutes = -new Date(now).getTimezoneOffset();
-    setTargetDone(totalFor(dayTotal(target.answers, { now, offsetMinutes }), target.target.kind));
-    // A child who hit their goal this morning and came back after school has
-    // nothing left to fill, and a bar sitting full all evening is a thing to
-    // look at that says nothing.
-    setTargetFinished(target.awardedDay === localDay(now, offsetMinutes));
-  }, [target]);
+  /**
+   * The answers the server handed over that turn out to be today's - which is a
+   * question only this device can answer, since the day boundary depends on an
+   * offset the server does not have. Read the way the profile menu reads the
+   * streak: the server snapshot is null, so the bar does not exist at all until
+   * the browser has said what day it is, and there is no hydration mismatch to
+   * dodge with an effect.
+   */
+  const doneBefore = useSyncExternalStore(
+    subscribeToTheClock,
+    () => (target === null ? null : totalToday(target.answers, target.target.kind)),
+    () => null,
+  );
+
+  /** Today's total: what was already there, plus what this sitting has added. */
+  const targetDone = doneBefore === null ? null : doneBefore + addedToday;
+
+  /**
+   * Whether the goal is done with for today, which is what takes the bar off
+   * this screen. Two halves for the same reason as the total: whether the day
+   * the server banked is *this* day is the device's question, and whether the
+   * celebration has been seen is plain state. A child who hit their goal this
+   * morning and came back after school has nothing left to fill, and a bar
+   * sitting full all evening is a thing to look at that says nothing.
+   */
+  const awardedToday = useSyncExternalStore(
+    subscribeToTheClock,
+    () =>
+      target?.awardedDay != null &&
+      target.awardedDay === localDay(Date.now(), -new Date().getTimezoneOffset()),
+    () => false,
+  );
+  const targetFinished = awardedToday || targetCelebrated;
 
   /**
    * A minutes bar has to move while the child is thinking, or it would sit still
@@ -174,19 +201,10 @@ export function PlaySession({
    * what is shown can never run ahead of what is counted. It settles onto the
    * real total when the answer lands.
    */
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!target || target.target.kind !== 'minutes' || feedback !== null) {
-      setElapsed(0);
-      return;
-    }
-    const tick = () =>
-      setElapsed(Math.min(MAX_TIME_MS, Math.max(0, Date.now() - session.questionShownAt)));
-    tick();
-    const timer = setInterval(tick, 1000);
-    return () => clearInterval(timer);
-  }, [target, feedback, session.questionShownAt]);
+  const elapsed = useElapsed(
+    target?.target.kind === 'minutes' && feedback === null,
+    session.questionShownAt,
+  );
 
   const targetFraction =
     target === null || targetDone === null
@@ -250,7 +268,7 @@ export function PlaySession({
    */
   const dismissTargetReward = useCallback(() => {
     setTargetReward(null);
-    setTargetFinished(true);
+    setTargetCelebrated(true);
     setSession((state) => ({ ...state, questionShownAt: Date.now() }));
   }, []);
 
@@ -301,11 +319,8 @@ export function PlaySession({
       // and the parent's report can never disagree.
       if (target) {
         const attempt = next.attempts[next.attempts.length - 1];
-        setTargetDone((done) =>
-          done === null
-            ? done
-            : done + (target.target.kind === 'questions' ? 1 : attempt.timeTakenMs),
-        );
+        const unit = target.target.kind === 'questions' ? 1 : attempt.timeTakenMs;
+        setAddedToday((added) => added + unit);
       }
 
       updateEntry(value);
@@ -534,6 +549,46 @@ export function PlaySession({
         <TargetReward target={targetReward} onDone={dismissTargetReward} />
       )}
     </main>
+  );
+}
+
+/**
+ * Nothing to subscribe to: the day turns over at midnight, and a child whose
+ * screen has been open since yesterday will reload it long before the stale
+ * number matters. Stable identity, so the store is never resubscribed.
+ */
+const subscribeToTheClock = () => () => {};
+
+/** A tick a second, which is as often as the creep below has anything to say. */
+function subscribeToSeconds(onChange: () => void) {
+  const timer = setInterval(onChange, 1000);
+  return () => clearInterval(timer);
+}
+
+/** What of these answers belongs to today, in the unit the target counts in. */
+function totalToday(answers: TargetAnswer[], kind: DailyTarget['kind']): number {
+  const now = Date.now();
+  const offsetMinutes = -new Date(now).getTimezoneOffset();
+  return totalFor(dayTotal(answers, { now, offsetMinutes }), kind);
+}
+
+/**
+ * How long the question in hand has taken, for a minutes bar that would
+ * otherwise sit still through the one thing it measures. The clock is an
+ * external store rather than an interval writing state, so the value is read
+ * during render and never rendered on the server - and it is read to the whole
+ * second, because a snapshot that changed every millisecond would be a new
+ * value on every render rather than only on the ticks that move the bar.
+ */
+function useElapsed(active: boolean, since: number): number {
+  return useSyncExternalStore(
+    active ? subscribeToSeconds : subscribeToTheClock,
+    () => {
+      if (!active) return 0;
+      const whole = Math.floor((Date.now() - since) / 1000) * 1000;
+      return Math.min(MAX_TIME_MS, Math.max(0, whole));
+    },
+    () => 0,
   );
 }
 
