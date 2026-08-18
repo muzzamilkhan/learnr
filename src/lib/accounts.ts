@@ -4,6 +4,7 @@ import { prisma } from './db';
 import { parseAvatar, type Avatar } from './avatars';
 import { codeExpiry, generateLoginCode, normaliseCode } from './login-code';
 import type { YearLevel } from './curriculum';
+import { parseTarget, type DailyTarget } from '@/lib/rewards/target';
 
 /**
  * Accounts: who a signed-in user is, the child profiles a parent manages, and the
@@ -84,6 +85,8 @@ export interface ChildProfile {
   avatar: Avatar;
   /** Set by the parent at creation and only ever changed by them. */
   level: string | null;
+  /** The daily target the parent set, or null for the child who has none. */
+  target: DailyTarget | null;
   /** The live code, if one has been generated and not yet used or expired. */
   code: string | null;
   codeExpiresAt: Date | null;
@@ -107,6 +110,8 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
         name: true,
         avatar: true,
         selectedLevel: true,
+        targetKind: true,
+        targetValue: true,
         loginCode: true,
         loginCodeExpiresAt: true,
       },
@@ -116,6 +121,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
       name: row.name ?? '',
       avatar: parseAvatar(row.avatar) ?? 'fox',
       level: row.selectedLevel,
+      target: parseTarget(row.targetKind, row.targetValue),
       code: row.loginCode,
       codeExpiresAt: row.loginCodeExpiresAt,
     }));
@@ -129,6 +135,8 @@ export interface ChildInput {
   name: string;
   avatar: Avatar;
   level: YearLevel;
+  /** Null clears the target, which is what "No goal" on the form means. */
+  target: DailyTarget | null;
 }
 
 /**
@@ -146,6 +154,8 @@ export async function createChild(parentId: string, input: ChildInput): Promise<
         name: input.name,
         avatar: input.avatar,
         selectedLevel: input.level,
+        targetKind: input.target?.kind ?? null,
+        targetValue: input.target?.value ?? null,
       },
       select: { id: true },
     });
@@ -170,7 +180,13 @@ export async function updateChild(
   try {
     const written = await prisma.user.updateMany({
       where: { id: childId, parentId },
-      data: { name: input.name, avatar: input.avatar, selectedLevel: input.level },
+      data: {
+        name: input.name,
+        avatar: input.avatar,
+        selectedLevel: input.level,
+        targetKind: input.target?.kind ?? null,
+        targetValue: input.target?.value ?? null,
+      },
     });
     return written.count > 0;
   } catch (error) {

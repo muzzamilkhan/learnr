@@ -56,6 +56,27 @@ model User {
   /// need the offset re-applied at every read to mean anything. Null until they play.
   playStreakDay Int?
 
+  /// The daily target a parent set on this child: "questions" or "minutes", and
+  /// how many. Both null when there is no target, which is where every child
+  /// starts - a target is optional and is a thing a parent chooses.
+  targetKind  String?
+  targetValue Int?
+
+  /// The last local day the target's stars were banked, as a day number rather
+  /// than a timestamp - a day here is the child's, and a timestamp would need
+  /// the offset re-applied at every read. Null until they first hit a target.
+  /// This column is the compare-and-set that makes the award happen once a day
+  /// however many times it is asked for.
+  targetDay Int?
+
+  /// Every star this child has, from finished rounds and from days they hit
+  /// their target. Only ever incremented, never recounted: a target is mutable,
+  /// so recounting a past day against today's setting would take stars off a
+  /// child who earned them. What replaces the old recount's safety is a guard
+  /// per event - `LearningSession.roundsBanked` for a round, `targetDay` above
+  /// for a day - so an award can still only ever be paid once.
+  stars Int @default(0)
+
   accounts         Account[]
   sessions         Session[]
   learningSessions LearningSession[]

@@ -371,8 +371,8 @@ function ChildForm({
 
     startTransition(async () => {
       const saved = initial
-        ? await updateChildAction(initial.id, name, avatar, level)
-        : await createChildAction(name, avatar, level);
+        ? await updateChildAction(initial.id, name, avatar, level, 'none', '')
+        : await createChildAction(name, avatar, level, 'none', '');
       if (saved) onDone();
     });
   };

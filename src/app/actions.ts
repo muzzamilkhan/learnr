@@ -6,6 +6,7 @@ import { auth, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/auth';
 import { writeSelectedLevel } from '@/lib/records';
 import { parseYearLevel } from '@/lib/curriculum';
 import { parseAvatar } from '@/lib/avatars';
+import { parseTarget } from '@/lib/rewards/target';
 import {
   chooseRole,
   createChild,
@@ -63,21 +64,36 @@ async function requireParentId(): Promise<string | null> {
 }
 
 /** A child's details as the dashboard form submits them, before they are trusted. */
-function parseChildInput(name: string, avatar: string, level: string): ChildInput | null {
+function parseChildInput(
+  name: string,
+  avatar: string,
+  level: string,
+  targetKind: string,
+  targetValue: string,
+): ChildInput | null {
   const trimmed = name.trim();
   const parsedAvatar = parseAvatar(avatar);
   const parsedLevel = parseYearLevel(level);
   if (!trimmed || trimmed.length > 40 || !parsedAvatar || !parsedLevel) return null;
-  return { name: trimmed, avatar: parsedAvatar, level: parsedLevel };
+
+  // "No goal" is a choice a parent makes, so it is a valid input that clears the
+  // target - and a target that fails to parse is refused outright rather than
+  // quietly saved as no target, which would tell a parent they set one.
+  const target = targetKind === 'none' ? null : parseTarget(targetKind, targetValue);
+  if (targetKind !== 'none' && target === null) return null;
+
+  return { name: trimmed, avatar: parsedAvatar, level: parsedLevel, target };
 }
 
 export async function createChildAction(
   name: string,
   avatar: string,
   level: string,
+  targetKind: string,
+  targetValue: string,
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue);
   if (!parentId || !input) return false;
 
   const created = await createChild(parentId, input);
@@ -90,9 +106,11 @@ export async function updateChildAction(
   name: string,
   avatar: string,
   level: string,
+  targetKind: string,
+  targetValue: string,
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue);
   if (!parentId || !input) return false;
 
   const updated = await updateChild(parentId, childId, input);
