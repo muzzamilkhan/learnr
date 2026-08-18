@@ -21,7 +21,13 @@
 - **A minute is summed capped `timeTakenMs`**, the same number the parent's report calls "time on questions". Never wall-clock time.
 - **Prose style in comments:** explain *why*, in full sentences, matching the surrounding files. Use `-` and never an em dash. Australian spelling.
 - **Parent screens run dense** (`text-sm`/`text-base`, `rounded-xl`, `px-3 py-1.5` buttons); child screens run large. Do not mix the two scales.
-- Run `npm test` and `npm run typecheck` before every commit.
+- Run `npm test`, `npm run typecheck` and `npm run lint` before every commit. Lint is not
+  optional here: `react-hooks/purity` forbids a bare `Date.now()` in a component body (use a
+  `requestNow`-style request boundary, as `src/app/(parent)/progress/now.ts` and
+  `src/app/play/now.ts` do) and `react-hooks/set-state-in-effect` forbids settling a
+  clock-dependent value with `setState` in an effect (use `useSyncExternalStore`, as
+  `ProfileMenu` does for the play streak). One pre-existing error in
+  `src/components/parent-dashboard.tsx` predates this branch and is not yours to fix.
 
 ---
 
@@ -633,7 +639,7 @@ export async function updateChildAction(
 
 - [ ] **Step 6: Verify**
 
-Run: `npm run typecheck && npm test`
+Run: `npm run typecheck && npm test && npm run lint`
 Expected: no type errors, all existing tests pass.
 
 - [ ] **Step 7: Commit**
@@ -1033,7 +1039,7 @@ export async function awardTargetAction(
 
 - [ ] **Step 4: Verify**
 
-Run: `npm run typecheck && npm test`
+Run: `npm run typecheck && npm test && npm run lint`
 Expected: no type errors, all existing tests pass.
 
 Then, with a database, check the guard by hand - it is the whole reason an
@@ -1189,7 +1195,7 @@ Add the row after the name/level row and before the `Picture` fieldset:
 
 - [ ] **Step 4: Verify**
 
-Run: `npm run typecheck && npm test && npm run build`
+Run: `npm run typecheck && npm test && npm run lint && npm run build`
 Expected: clean. Then `npm run dev`, sign in as a parent, and check on `/children`: adding a child with a goal, editing one to change the kind (the value list must change with it), editing one to "No goal", and that the card line appears and disappears with it.
 
 - [ ] **Step 5: Commit**
@@ -1302,7 +1308,7 @@ export function TargetBar({ fraction, className = '' }: { fraction: number; clas
 
 - [ ] **Step 3: Verify**
 
-Run: `npm run typecheck && npm run build`
+Run: `npm run typecheck && npm run lint && npm run build`
 Expected: clean.
 
 - [ ] **Step 4: Commit**
@@ -1498,7 +1504,7 @@ In the JSX, between the `<header>` and the question `<div>`:
 
 - [ ] **Step 6: Verify**
 
-Run: `npm run typecheck && npm test && npm run build`
+Run: `npm run typecheck && npm test && npm run lint && npm run build`
 Expected: clean.
 
 Then `npm run dev`. As a parent, set a child a goal of 10 questions; sign in as that child and play. Check: the bar appears above the question, steps forward on each answer, and both orientations of an iPad and a narrow phone still fit with no scrolling (the play screen is `h-[100dvh]` with `overflow-hidden` - this is the one change in this plan that can break that). Then set a 5-minute goal and check the bar creeps while a question sits unanswered and stops the moment it is answered.
@@ -1686,7 +1692,7 @@ Render it last, only once the round's stars are gone - which is the whole of the
 
 - [ ] **Step 4: Verify**
 
-Run: `npm run typecheck && npm test && npm run build`
+Run: `npm run typecheck && npm test && npm run lint && npm run build`
 Expected: clean.
 
 Then `npm run dev` and check three things by hand, as a child with a goal of 10 questions - which is deliberately the same as `ROUND_SIZE`, so the tenth answer fires both:
@@ -1839,7 +1845,7 @@ Render it in the child's branch, immediately after the closing `</header>` of th
 
 - [ ] **Step 3: Verify**
 
-Run: `npm run typecheck && npm test && npm run build`
+Run: `npm run typecheck && npm test && npm run lint && npm run build`
 Expected: clean.
 
 Then `npm run dev`: as a child with a goal, the line sits under the band and above the cards and reads the same count the play screen's bar shows. After hitting the goal it stays, turns green and reads "Goal reached!" with a full bar - and answering on past the goal keeps pushing the count up while the bar stays full. A child with no goal sees no change at all.
@@ -2161,7 +2167,7 @@ import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 
 - [ ] **Step 7: Verify**
 
-Run: `npm test && npm run typecheck && npm run build`
+Run: `npm test && npm run typecheck && npm run lint && npm run build`
 Expected: clean.
 
 Then `npm run dev` and look at `/progress` for a child with a goal: met days green with a tick, part days filled proportionally, untouched days grey, and days beyond today still blank. Remove the goal and confirm the grid returns to the four-step blue shading exactly as before.
