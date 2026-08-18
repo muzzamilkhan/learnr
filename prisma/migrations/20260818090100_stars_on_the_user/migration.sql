@@ -32,12 +32,6 @@ per_session AS (
   SELECT "learningSessionId", COUNT(*) AS rounds
   FROM scored
   GROUP BY "learningSessionId"
-),
-per_user AS (
-  SELECT "userId",
-         SUM(CASE WHEN correct = 10 THEN 3 WHEN correct > 0 THEN 2 ELSE 1 END) AS stars
-  FROM scored
-  GROUP BY "userId"
 )
 UPDATE "LearningSession" ls
 SET "roundsBanked" = per_session.rounds

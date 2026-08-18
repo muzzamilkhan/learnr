@@ -260,6 +260,16 @@ export async function readPlayStreak(userId: string): Promise<PlayStreak> {
  * one through the lock finds the counter already past the round it came to bank.
  * It is the same row lock `updateTopicSkill` takes, for the same reason.
  *
+ * The limit of that guard is that the answers are read before the lock, and the
+ * counter only ever says how many rounds have been paid for - not which answers
+ * were in them. An attempt landing with an `answeredAt` earlier than answers that
+ * have already been banked would therefore shuffle itself into a round somebody
+ * has been paid for, and because the total is incremented rather than recounted,
+ * that round keeps the valuation it was paid at. The old recount corrected itself
+ * in that case; this does not. It is accepted because answers are written as they
+ * are given and a child plays one question at a time, so a late-dated attempt is
+ * not something ordinary play produces.
+ *
  * Returns the child's new total, or null if nothing was banked.
  */
 export async function awardRoundStars(
