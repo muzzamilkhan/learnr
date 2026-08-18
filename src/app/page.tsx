@@ -158,11 +158,19 @@ export default async function HomePage() {
         loudest thing on it, which is the whole job: say who this is, then get out
         of the way of the subject cards.
       */}
-      <header className="relative mb-10 overflow-hidden rounded-3xl bg-gradient-to-br from-(--color-grape-soft) via-(--color-paper) to-(--color-brand-soft) px-6 py-7">
+      <header className="relative mb-10 rounded-3xl bg-gradient-to-br from-(--color-grape-soft) via-(--color-paper) to-(--color-brand-soft) px-6 py-7">
+        {/*
+          The clipping belongs to the disc, not to the band: the profile menu
+          opens downwards out of this header, and an `overflow-hidden` here cut
+          the bottom half of it off. So the decoration gets its own rounded,
+          clipping layer and the header stays open at the edges.
+        */}
         <span
           aria-hidden
-          className="pointer-events-none absolute -top-14 -right-8 size-44 rounded-full bg-(--color-sun-soft) opacity-70 blur-2xl"
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl"
+        >
+          <span className="absolute -top-14 -right-8 size-44 rounded-full bg-(--color-sun-soft) opacity-70 blur-2xl" />
+        </span>
         <div className="relative flex items-start justify-between gap-4">
           <div className="flex items-center gap-5">
             <LogoMark size="lg" />
