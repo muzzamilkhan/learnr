@@ -293,9 +293,24 @@ simple enough for a child to pick up with no explanation.
   flexes. Check both orientations after changing that layout, and check a phone
   as well as an iPad - a phone is where it runs out of height first.
 - **Height, not width, is what the play screen is short of.** The pad takes about
-  40% of a phone and 43% of an iPad, and the question is sized in `vh` rather than
-  by breakpoint, stepping down again for a long prompt (`promptSize`). Sizing the
-  question by width alone let a wordy Year 6 prompt push up under the header.
+  40% of a phone and 43% of an iPad, and what is left over is the question's.
+- **The question is measured and fitted, not declared** (`Prompt`). The room it
+  has depends on the device, the orientation, whether a target bar is showing and
+  how long the prompt is, so the box is measured and the largest whole pixel size
+  that still fits is searched for - re-run by a `ResizeObserver` when the box
+  changes. A declared size can only be the one that survives the worst case,
+  which is what left a short question small in the middle of a large screen.
+  `--prompt-max` is the ceiling, and it is where the two scales live: a phone
+  keeps the `vh` ceiling it always had, and from `sm` up it is twice that, since
+  a tablet or a laptop has the height to spend. It is registered with `@property`
+  as a `<length>` in `globals.css` - an unregistered custom property computes to
+  the word `clamp(...)` rather than a number, and the search needs a number.
+  `promptSize` is still what the server renders, so a prompt arrives about the
+  right size rather than snapping into place, and it is what a browser without
+  JavaScript keeps. A viewport too short to leave the question any room at all -
+  a phone held sideways - collapses the box to nothing, and there the fit stands
+  aside and lets the declared size overrun, exactly as it did before: the
+  question overflowing is bad, and the question hidden is worse.
 - **Every answer is given on-screen, never with the iPad keyboard** - it keeps the
   question visible and the targets large and fixed. `answerMode` in
   `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,

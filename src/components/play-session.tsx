@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -488,12 +489,7 @@ export function PlaySession({
       ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
-        <h1
-          key={session.askedCount}
-          className={`max-w-3xl text-center leading-snug font-semibold text-balance ${promptSize(question.prompt)}`}
-        >
-          {question.prompt}
-        </h1>
+        <Prompt key={session.askedCount} prompt={question.prompt} />
 
         <Hint
           hint={question.hint}
@@ -515,12 +511,14 @@ export function PlaySession({
           except for tapped questions, where the buttons themselves are showing
           which option was right, so they stay and Continue sits under them.
 
-          A phone has far less height to give than an iPad, so the pad takes 40%
-          of it there rather than the ~46% it took everywhere before, leaving the
-          question the room it was short of. The bounds are part of the same
-          expression: a fixed 16rem floor would quietly take that 6% back on a
-          short phone. */}
-      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 sm:h-[clamp(16rem,43vh,22rem)] sm:gap-3">
+          The pad takes 40% of the height it is given, phone or tablet. It used
+          to take ~46% everywhere and then 43% on a tablet, and both of those
+          were the question's room: a landscape iPad is the shortest screen this
+          runs on, and every percent the pad gives back there is a percent the
+          question can be set in. The bounds are part of the same expression: a
+          fixed 16rem floor would quietly take those percent back on a short
+          phone. */}
+      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 sm:h-[clamp(16rem,40vh,22rem)] sm:gap-3">
         {(pending === null || mode === 'tap') && (
           <div className="min-h-0 flex-1">
             <AnswerInput
@@ -593,11 +591,102 @@ function useElapsed(active: boolean, since: number): number {
 }
 
 /**
- * How big the question is set. The screen is a fixed height that may not scroll,
- * and the height left over is what the question has to fit in - so it is sized in
- * `vh` rather than by breakpoint, which is what stopped a wordy Year 6 prompt
- * fitting a phone or a landscape iPad. Longer prompts take a smaller step again;
- * length is a good enough proxy for lines, as prompts are one plain sentence.
+ * The question, set as large as the room it has allows. The screen is a fixed
+ * height that may not scroll, so the size cannot simply be declared: the space
+ * left over between the header and the pad is what the prompt has to fit in, and
+ * that space differs by device, by orientation and by whether a target bar is
+ * showing. So the box is measured and the size is searched for - the largest
+ * whole pixel size at which the prompt still fits, and never larger than the
+ * ceiling `--prompt-max` sets.
+ *
+ * The ceiling is where the two scales live: a phone keeps the `vh` ceiling it
+ * always had, and from `sm` up it is twice the old one, because a tablet or a
+ * laptop was leaving the question small in the middle of a large screen. What
+ * stops that being a clipped prompt on a landscape iPad - the shortest screen
+ * this runs on - is that it is a ceiling and not a size.
+ */
+const MIN_PROMPT_PX = 14;
+const FALLBACK_PROMPT_MAX_PX = 96;
+
+function Prompt({ prompt }: { prompt: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLHeadingElement>(null);
+
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    const text = textRef.current;
+    if (!box || !text) return;
+
+    const fit = () => {
+      const height = box.clientHeight;
+      const width = box.clientWidth;
+      // A viewport too short to leave the question any room at all - a phone held
+      // sideways - collapses the box to nothing. There is no size that fits, so
+      // the declared one is left alone and allowed to overrun, which is what it
+      // did before there was a fit at all. Hiding the overrun would hide the
+      // question.
+      if (height <= 0 || width <= 0) return;
+
+      const max = readPromptMax(box);
+      let low = MIN_PROMPT_PX;
+      let high = Math.max(MIN_PROMPT_PX, Math.round(max));
+      let best = MIN_PROMPT_PX;
+
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        text.style.fontSize = `${mid}px`;
+        // A long word can overrun the line at a size whose lines still fit, so
+        // width is checked as well as height.
+        if (text.offsetHeight <= height && text.scrollWidth <= text.clientWidth) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      text.style.fontSize = `${best}px`;
+    };
+
+    fit();
+
+    // The box changes height when the target bar appears or goes, and width when
+    // the iPad is turned, and neither is a re-render of this component.
+    const observer = new ResizeObserver(fit);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [prompt]);
+
+  return (
+    <div
+      ref={boxRef}
+      className="flex min-h-0 w-full flex-1 items-center justify-center [--prompt-max:clamp(1.375rem,4.5vh,3rem)] sm:[--prompt-max:6rem]"
+    >
+      {/* Sized by the class until the fit runs, so a prompt rendered on the
+          server is already about the right size rather than snapping into
+          place. Wider than a page of prose on a big screen: a short question is
+          one line, and a line it can grow along is what lets it grow at all. */}
+      <h1
+        ref={textRef}
+        className={`w-full max-w-3xl text-center leading-snug font-semibold text-balance sm:max-w-5xl ${promptSize(prompt)}`}
+      >
+        {prompt}
+      </h1>
+    </div>
+  );
+}
+
+/** The ceiling in pixels, resolved from whatever `--prompt-max` came out as. */
+function readPromptMax(box: HTMLElement): number {
+  const declared = getComputedStyle(box).getPropertyValue('--prompt-max').trim();
+  const px = declared.endsWith('px') ? Number.parseFloat(declared) : Number.NaN;
+  return Number.isFinite(px) && px > 0 ? px : FALLBACK_PROMPT_MAX_PX;
+}
+
+/**
+ * The size before the fit runs: what the server renders and what a browser
+ * without JavaScript keeps. Longer prompts take a smaller step; length is a good
+ * enough proxy for lines, as prompts are one plain sentence.
  */
 function promptSize(prompt: string) {
   if (prompt.length > 90) return 'text-[clamp(1rem,2.8vh,1.875rem)]';

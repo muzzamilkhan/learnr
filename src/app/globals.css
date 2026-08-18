@@ -45,6 +45,18 @@
   --color-sun-soft: #fdf1dc;
 }
 
+/*
+ * The ceiling on the play screen's question, declared as a length so it computes
+ * to pixels: the size itself is measured and searched for in the browser, and an
+ * unregistered custom property would hand that search the word "clamp(...)"
+ * rather than a number. Set per breakpoint on the question's box, never here.
+ */
+@property --prompt-max {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
 /* A star landing: overshoot, then settle. Each one is delayed a beat after the
    last so three stars arrive as three events and not as one flash. */
 @keyframes star-land {
