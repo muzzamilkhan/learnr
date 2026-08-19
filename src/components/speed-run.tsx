@@ -157,6 +157,17 @@ export function SpeedRun({ op, bests, homeHref, recordsHref, recordingEnabled }:
     // record, and the result screen then says nothing about a best rather than
     // claiming one that was never stored.
     if (!recordingEnabled) return;
+
+    // A run nobody answered leaves no row behind. This looks like a saving and
+    // is not: a first-ever run banks whatever it scored, so an abandoned one
+    // would bank a nought and become the baseline every later run is measured
+    // against - and the first *real* run would then beat it, fire the record
+    // celebration and put a personal-best banner in front of a parent. That is
+    // exactly what "a first run is not a record" exists to prevent, laundered
+    // through a run that never happened. The guard is on the answer count and
+    // never on the score: nought out of eight is a real run and a real
+    // baseline, and it is banked like any other.
+    if (ended.answered === 0) return;
     submitRunAction(modeKey(state.mode), ended.correct, ended.answered)
       .then(setOutcome)
       .catch(() => {});
@@ -338,14 +349,22 @@ export function SpeedRun({ op, bests, homeHref, recordsHref, recordingEnabled }:
           {run.next.prompt}
         </p>
 
-        {/* Dropping into place from where its preview was, so the line above
-            reads as the next question rather than as a second one. */}
-        <h1
-          key={`current-${run.draw}`}
-          className="animate-[speed-drop_200ms_ease-out_both] text-center text-[clamp(2rem,7vh,4.5rem)] leading-none font-bold tabular-nums"
-        >
-          {run.current.prompt}
-        </h1>
+        {/* The live region is the wrapper and not the question, because the
+            question is keyed on the draw and so is a new element every time: a
+            region that arrives already holding its text is not a change, and
+            several screen readers say nothing about it. The preview above stays
+            hidden - announcing both would read every question twice, once as a
+            guess and once as the real thing. */}
+        <div aria-live="polite" className="w-full">
+          {/* Dropping into place from where its preview was, so the line above
+              reads as the next question rather than as a second one. */}
+          <h1
+            key={`current-${run.draw}`}
+            className="animate-[speed-drop_200ms_ease-out_both] text-center text-[clamp(2rem,7vh,4.5rem)] leading-none font-bold tabular-nums"
+          >
+            {run.current.prompt}
+          </h1>
+        </div>
 
         <output
           aria-live="polite"
