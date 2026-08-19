@@ -57,7 +57,7 @@ import { ProfileFace } from './profile-face';
 
 const SCALES = {
   child: {
-    grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6',
+    grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-64 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-bold text-white',
     glyph: 'text-base leading-none',
@@ -75,7 +75,7 @@ const SCALES = {
     empty: 'text-xl text-(--color-ink-soft)',
   },
   parent: {
-    grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6',
+    grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-56 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-white',
     glyph: 'text-sm leading-none',
