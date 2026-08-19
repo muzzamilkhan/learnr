@@ -127,6 +127,24 @@
   }
 }
 
+/*
+  The speed run's heartbeat. One shape at three speeds rather than three
+  animations, so what changes as the clock empties is only the tempo - a bar that
+  changed its behaviour at every step would be four things to learn instead of
+  one thing getting more urgent.
+*/
+@keyframes speed-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scaleY(1.35);
+  }
+}
+
 html,
 body {
   height: 100%;
