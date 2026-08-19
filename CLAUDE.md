@@ -753,30 +753,36 @@ first, which is the only thing that honestly separates them. The cut is at three
 Only modes somebody has run appear - the cabinet's rule above, for the
 cabinet's reason.
 
-**A mode is a card, and its result is a podium.** First sits at the top with a
-crown above the circle, second below to the left, third below to the right and
-dropped a little further so the two lower places are not one flat row; each
-place is its face and then its score, in that order, because the face is what
-the board is scanned for and the number reads as a caption to it. It replaced five operation sections
-of stacked rows, where first, second and third were three lines of the same size
-told apart by a badge - position says who won before anything is decoded, and it
-is the same thing the faces are there for. The operation headings went with the
-sections because the card now carries both halves of the name itself
-("Multiply", then "7 times table"). The crown is drawn *above* the circle and
-never across it: covering any part of the photograph would cost the board the
-one thing a pre-literate child reads it for. The podium is laid out by *place*
-rather than by list position, so a shared first puts both faces on the top step
-rather than demoting one of them to the left. **A card wears its operation's
-colour** - `OPERATION_ACCENT`'s wash across the whole panel, its border and a
-solid glyph tile - because twenty-seven identical white boxes are told apart
-only by reading their headings, and Multiply here is the same pink as the card
-that starts the run. That accent gained a `line` alongside `border`, since
-`border` was only ever a hover. Six across on a desktop, four on a tablet, two
-on a phone, and **every card a fixed height**: a card is three faces and two
-short lines, so a wide one is mostly empty, and a grid row stretching its cards
-to whichever of them wrapped its mode label is what makes the next row a
-different size. The podium centres itself in whatever the header leaves, so a
-mode with one place and a mode with three are the same box.
+**A mode is a collectible card, and its result is a podium.** One card per
+mode, twenty-seven of them: a coloured title bar naming the operation, the mode
+as its subtitle, and the podium as the picture in the middle - a child reads a
+wall of them the way they read a wall of cards, by colour and by who is on the
+front. The frame is tall and portrait because a podium needs height more than
+width, and a card wider than it is tall is a row wearing a border.
+
+First sits at the top with a crown above the circle, second below it to the
+left, third lower again to the right, so no two of the three sit on one line.
+Each place is a face with its score beneath it: **both the crown and the score
+are captions to the face, and neither may cover it** - the board shows faces
+instead of names precisely so a pre-literate child can find themselves, and
+covering the picture would cost it the one thing it is read for. It replaced
+five operation sections of stacked rows, where first, second and third were
+three lines of the same size told apart by a badge; position says who won
+before anything is decoded. The operation headings went with the sections
+because the card's own title bar carries them.
+
+The podium is laid out by *place* rather than by list position, so a shared
+first puts both faces on the top step rather than demoting one of them to the
+left. **A card wears its operation's colour** - `OPERATION_ACCENT`'s solid in
+the title bar, its wash behind the podium and its border around the lot -
+because twenty-seven identical white boxes are told apart only by reading their
+titles, and Multiply here is the same pink as the card that starts the run.
+That accent gained a `line` alongside `border`, since `border` was only ever a
+hover. Six across on a desktop, four on a tablet, two on a phone, and **every
+card a fixed height**: a grid row stretching its cards to whichever of them
+wrapped its mode label is what makes the next row a different size. The podium
+centres itself in whatever the title leaves, so a mode with one place and a mode
+with three are the same card.
 
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody
@@ -1082,8 +1088,9 @@ a name; there it replaces one. The board is the screen a pre-literate child
 reads for themselves, which is the reason the avatars exist in the first place,
 and a photograph is found faster than a name by someone who is not reading
 either. The name moves to the face's `alt` and `title`, so a hover and a screen
-reader still have it, and the `you` chip stays - it is the only visible text
-telling the rows apart. A grown-up in the household with no Google picture is a
+reader still have it. There is no "you" chip either: on a card of three faces
+the viewer's own is the one they already know by sight, and a label naming it
+was a word on a screen built to need none. A grown-up in the household with no Google picture is a
 lettered circle among photographs; that is the honest cost of the trade and not
 worth an upload path of its own yet.
 

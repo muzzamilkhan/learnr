@@ -48,11 +48,7 @@ export default async function SpeedLeaderboardPage() {
             : 'Sign in to see how your family is going.'}
         </p>
       ) : (
-        <FamilyLeaderboard
-          records={await readFamilyRecords(household)}
-          youId={userId}
-          scale="child"
-        />
+        <FamilyLeaderboard records={await readFamilyRecords(household)} scale="child" />
       )}
     </main>
   );

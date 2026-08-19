@@ -24,7 +24,7 @@ export default async function ParentSpeedLeaderboardPage() {
 
   return (
     <Well title="Family leaderboard" note="Everyone's best score in each mode - your runs included.">
-      <FamilyLeaderboard records={await readFamilyRecords(userId)} youId={userId} scale="parent" />
+      <FamilyLeaderboard records={await readFamilyRecords(userId)} scale="parent" />
     </Well>
   );
 }
