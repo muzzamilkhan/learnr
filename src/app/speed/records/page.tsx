@@ -12,16 +12,20 @@ export const dynamic = 'force-dynamic';
  * wins over `/speed/[op]` in Next's routing, and `parseOperation('records')`
  * returns null besides, so the two can never collide.
  *
- * Signed out is "nothing recorded" rather than "could not be read" - there is
- * no player to have a failed read about, and a database error is the only
- * thing `readSpeedRecords` itself reports as `null`. Reaching this page
- * signed out only happens by typing the URL: the link to it is never shown
- * until a child is signed in, same as the cards above it.
+ * Signed out is neither of `SpeedRecordsCabinet`'s two states - there is no
+ * player to have a failed read about (`null`), and there is no row to be
+ * honestly empty either (`[]`), because signed out is not a player with
+ * nothing recorded, it is nowhere to record anything at all: nothing is ever
+ * banked without a `userId` to bank it against (`submitSpeedRun`). Rendering
+ * twenty-seven greyed dashes here would say "play and it'll show up", which
+ * is false until this visitor signs in - so this page says that instead,
+ * rather than asking the cabinet to guess a third meaning for `[]`. Reaching
+ * this page signed out only happens by typing the URL: the link to it is
+ * never shown until a child is signed in, same as the cards above it.
  */
 export default async function SpeedRecordsPage() {
   const session = isAuthConfigured ? await auth() : null;
   const userId = session?.user?.id;
-  const bests = userId ? await readSpeedRecords(userId) : [];
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
@@ -36,7 +40,13 @@ export default async function SpeedRecordsPage() {
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Your records</h1>
       </header>
 
-      <SpeedRecordsCabinet bests={bests} scale="child" />
+      {userId ? (
+        <SpeedRecordsCabinet bests={await readSpeedRecords(userId)} scale="child" />
+      ) : (
+        <p className="text-xl text-(--color-ink-soft)">
+          Sign in to keep records of your runs.
+        </p>
+      )}
     </main>
   );
 }
