@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
 import { AcceptShare } from '@/components/accept-share';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
-import { AvatarIcon } from '@/components/avatar-icon';
+import { ProfileFace } from '@/components/profile-face';
 import { LogoMark } from '@/components/logo';
 import { readAccount } from '@/lib/accounts';
 import { yearLabel, parseYearLevel } from '@/lib/curriculum';
@@ -128,9 +128,13 @@ function Children({ invite }: { invite: InviteDetails }) {
         const level = parseYearLevel(child.level ?? '');
         return (
           <li key={child.id} className="flex items-center gap-3 px-4 py-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-(--color-brand-soft) text-(--color-brand)">
-              <AvatarIcon avatar={child.avatar} className="size-6" />
-            </span>
+            <ProfileFace
+              photo={child.photo}
+              avatar={child.avatar}
+              name={child.name}
+              className="size-9"
+              px={36}
+            />
             <span className="text-base font-semibold">{child.name}</span>
             {level && (
               <span className="ml-auto text-sm text-(--color-ink-soft)">{yearLabel(level)}</span>

@@ -111,6 +111,11 @@ export default async function PlayPage({
           ? {
               name: session.user.name ?? null,
               image: session.user.image ?? null,
+              // A managed child has no Google picture, so their face is the one
+              // their parent set and the animal they picked - both already on the
+              // account read above, rather than a second query for one column.
+              photo: account?.photo ?? null,
+              avatar: account?.avatar ?? null,
               streak: player?.streak ?? noStreak(),
               stars: player?.stars ?? 0,
             }

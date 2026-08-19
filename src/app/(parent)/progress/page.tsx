@@ -101,7 +101,13 @@ export default async function ProgressPage({
     <>
       {banner}
       <ProgressReport
-        child={{ id: child.id, name: child.name, avatar: child.avatar, level: child.level }}
+        child={{
+          id: child.id,
+          name: child.name,
+          avatar: child.avatar,
+          photo: child.photo,
+          level: child.level,
+        }}
         profiles={viewable.map(({ id, name, sharedBy }) => ({ id, name, sharedBy }))}
         subjects={subjects}
         subject={subject}

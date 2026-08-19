@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
+import type { Avatar } from '@/lib/avatars';
 import { MAX_TIME_MS, startSession, submitAnswer, type SessionState } from '@/lib/session/session';
 import { gradeAnswer } from '@/lib/session/grade';
 import { localDay } from '@/lib/day';
@@ -89,6 +90,9 @@ interface Props {
   account: {
     name: string | null;
     image: string | null;
+    /** Their own face: the photo a parent cropped, then the animal they picked. */
+    photo: string | null;
+    avatar: Avatar | null;
     streak: PlayStreak;
     stars: number;
   } | null;
@@ -574,6 +578,8 @@ export function PlaySession({
           <ProfileMenu
             name={account.name}
             image={account.image}
+            photo={account.photo}
+            avatar={account.avatar}
             streak={playStreak}
             stars={stars}
           >

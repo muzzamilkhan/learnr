@@ -6,6 +6,7 @@ import { listChildren, type ChildProfile } from './accounts';
 import { mergeViewable, groupViewers, type ChildAccess, type SharedViewer } from './children';
 import { generateShareToken, inviteExpiry, normaliseToken } from './share-link';
 import { parseTarget } from '@/lib/rewards/target';
+import { parsePhoto } from '@/lib/photo/photo';
 
 /**
  * Sharing a child with a second grown-up: a separated parent, a grandparent, a
@@ -79,6 +80,7 @@ async function listSharedWithMe(
             id: true,
             name: true,
             avatar: true,
+            photo: { select: { dataUrl: true } },
             selectedLevel: true,
             targetKind: true,
             targetValue: true,
@@ -92,6 +94,9 @@ async function listSharedWithMe(
       id: child.id,
       name: child.name ?? '',
       avatar: parseAvatar(child.avatar) ?? 'fox',
+      // A viewer sees the face the owner set, for the reason they see the name:
+      // it is how a grown-up reading two families' children tells them apart.
+      photo: parsePhoto(child.photo?.dataUrl),
       level: child.selectedLevel,
       target: parseTarget(child.targetKind, child.targetValue),
       // Never shown to a viewer, and never read either.
@@ -213,7 +218,13 @@ export interface InviteDetails {
   /** Who is offering, for a page whose whole job is to say "accept this?". */
   ownerId: string;
   ownerName: string | null;
-  children: { id: string; name: string; avatar: Avatar; level: string | null }[];
+  children: {
+    id: string;
+    name: string;
+    avatar: Avatar;
+    photo: string | null;
+    level: string | null;
+  }[];
   expiresAt: Date;
   /** False once it has been accepted or has run out of its week. */
   live: boolean;
@@ -252,7 +263,13 @@ export async function readShareInvite(
     const children = await prisma.user.findMany({
       where: { parentId: invite.ownerId, id: { in: invite.childIds } },
       orderBy: { createdAt: 'asc' },
-      select: { id: true, name: true, avatar: true, selectedLevel: true },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        photo: { select: { dataUrl: true } },
+        selectedLevel: true,
+      },
     });
 
     return {
@@ -262,6 +279,7 @@ export async function readShareInvite(
         id: child.id,
         name: child.name ?? '',
         avatar: parseAvatar(child.avatar) ?? 'fox',
+        photo: parsePhoto(child.photo?.dataUrl),
         level: child.selectedLevel,
       })),
       expiresAt: invite.expiresAt,

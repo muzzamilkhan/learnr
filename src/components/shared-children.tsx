@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Avatar } from '@/lib/avatars';
 import { shortYearLabel, type YearLevel } from '@/lib/curriculum';
-import { AvatarIcon } from '@/components/avatar-icon';
+import { ProfileFace } from '@/components/profile-face';
 import { leaveShareAction } from '@/app/actions';
 
 /** A child another parent has shared, as the server hands it over. */
@@ -13,6 +13,8 @@ export interface SharedChildRow {
   id: string;
   name: string;
   avatar: Avatar;
+  /** The photograph the owning parent set - a viewer sees the face they chose. */
+  photo: string | null;
   level: string | null;
   /** Who shared them. Null only if that parent has neither a name nor an email. */
   sharedBy: string | null;
@@ -106,9 +108,12 @@ function SharedChildCard({ child }: { child: SharedChildRow }) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-(--color-line) bg-(--color-card) p-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-(--color-grape-soft) text-(--color-grape)">
-        <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
-      </span>
+      <ProfileFace
+        photo={child.photo}
+        avatar={child.avatar}
+        name={child.name}
+        tone="bg-(--color-grape-soft) text-(--color-grape)"
+      />
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="truncate text-base font-semibold">{child.name}</span>

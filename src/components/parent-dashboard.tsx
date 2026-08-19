@@ -12,6 +12,8 @@ import { EditIcon } from '@/components/edit-icon';
 import { EyeIcon } from '@/components/eye-icon';
 import { KeyIcon } from '@/components/key-icon';
 import { RemoveIcon } from '@/components/remove-icon';
+import { PhotoCrop } from '@/components/photo-crop';
+import { ProfileFace } from '@/components/profile-face';
 import { Select } from '@/components/select';
 import {
   createChildAction,
@@ -25,6 +27,8 @@ export interface ChildRow {
   id: string;
   name: string;
   avatar: Avatar;
+  /** The cropped photograph, if their parent has given them one. */
+  photo: string | null;
   level: string | null;
   target: DailyTarget | null;
   code: string | null;
@@ -198,9 +202,10 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
   return (
     <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-(--color-brand-soft) text-(--color-brand)">
-          <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
-        </span>
+        {/* The face carries its own tile now, so there is no square behind it:
+            a round photo inside a rounded box reads as double-boxed, the same
+            objection a card inside a well gets. */}
+        <ProfileFace photo={child.photo} avatar={child.avatar} name={child.name} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold">{child.name}</p>
           <p className="text-sm text-(--color-ink-soft)">
@@ -380,6 +385,11 @@ function ChildForm({
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [avatar, setAvatar] = useState<Avatar>(initial?.avatar ?? DEFAULT_AVATAR);
+  // Local to the form and saved with everything else, which is what makes it
+  // work on a child who does not exist yet: there is no id to attach a photo to
+  // until the create lands, so the picture rides along in the same call.
+  const [photo, setPhoto] = useState<string | null>(initial?.photo ?? null);
+  const [cropping, setCropping] = useState(false);
   const [level, setLevel] = useState<string>(initial?.level ?? levels[0] ?? 'K');
   // "none" is a real choice here rather than an absence, so the dropdown has
   // something to show for the child who has no goal.
@@ -403,8 +413,8 @@ function ChildForm({
 
     startTransition(async () => {
       const saved = initial
-        ? await updateChildAction(initial.id, name, avatar, level, targetKind, targetValue)
-        : await createChildAction(name, avatar, level, targetKind, targetValue);
+        ? await updateChildAction(initial.id, name, avatar, level, targetKind, targetValue, photo)
+        : await createChildAction(name, avatar, level, targetKind, targetValue, photo);
       if (saved) onDone();
     });
   };
@@ -487,6 +497,41 @@ function ChildForm({
 
       <fieldset>
         <legend className="mb-2 text-sm font-semibold">Picture</legend>
+
+        {/* The face itself first, because it is what everyone will actually see:
+            the animals below are the fallback, and the line under them says so
+            rather than leaving a parent to work out which of the two wins. */}
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <ProfileFace
+            photo={photo}
+            avatar={avatar}
+            name={name}
+            className="size-16"
+            px={64}
+          />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setCropping(true)} className={BUTTON}>
+              {photo ? 'Change' : 'Add a photo'}
+            </button>
+            {/* Not asked about with `confirm()`, for the reason the card gives:
+                and nothing is lost yet either way - the photo goes when the form
+                is saved, and Cancel above puts it back. */}
+            {photo ? (
+              <button
+                type="button"
+                onClick={() => setPhoto(null)}
+                className={`${BUTTON} text-(--color-wrong) hover:border-(--color-wrong)`}
+              >
+                Remove
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="mb-2 text-sm text-(--color-ink-soft)">
+          One of these shows when there&rsquo;s no photo.
+        </p>
+
         <div className="flex flex-wrap gap-2">
           {AVATARS.map((option) => (
             <button
@@ -506,6 +551,16 @@ function ChildForm({
           ))}
         </div>
       </fieldset>
+
+      {cropping ? (
+        <PhotoCrop
+          onCancel={() => setCropping(false)}
+          onDone={(cropped) => {
+            setPhoto(cropped);
+            setCropping(false);
+          }}
+        />
+      ) : null}
 
       <div className="flex gap-2">
         <button type="submit" disabled={pending || !name.trim()} className={PRIMARY}>

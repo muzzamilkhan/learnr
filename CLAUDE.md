@@ -995,6 +995,61 @@ best-effort - a silently failed answer costs history and the child plays on, but
 a silently failed login is a child locked out and a silently failed removal is a
 parent lied to, so the mutations report whether they worked.
 
+## Profile pictures
+
+A parent can give a child a photograph, and **the preset animal is what shows
+when they have not**. The eight animals in `src/lib/avatars.ts` are still the
+fallback everywhere and still the whole story for a family that never uploads
+anything - a photo is an addition to that list, not a replacement for it.
+
+**Nothing is uploaded.** `src/components/photo-crop.tsx` decodes whatever
+picture was chosen with `createImageBitmap`, draws the circle's square into a
+256px canvas and encodes WebP, so what reaches a server action is about 20KB
+whatever the camera produced. That is why there is no size limit and no MIME
+allow-list on the way in: the test of a picture is that the browser could decode
+it, and a 12MP HEIC and a 200px PNG cost the database exactly the same. It is
+the fourth browser shim, beside `sounds.ts`, `speech.ts` and `clock.ts`, and for
+the same reason - `File`, `createImageBitmap` and `<canvas>` could never live in
+`src/lib`.
+
+**The geometry is pure and tested** (`src/lib/photo/crop.ts`): `coverScale` is
+the zoom floor at which the picture covers the window, so a crop with an empty
+crescent in it cannot be produced; `clampOffset` is what a drag may not do; and
+`sourceRect` is the square handed to `drawImage`. Judging that by eye in a
+component is exactly what the `lib` rule exists to prevent, and there are no
+component tests here to catch it later - vitest is node-only.
+
+**`parsePhoto` is the boundary**, beside `parseYearLevel`, `parseTarget` and
+`parseAvatar`: only a `data:image/webp;base64,` string under `MAX_PHOTO_BYTES`
+is ever stored. A photo arrives through a server action, which is to say through
+the browser, so a remote URL accepted here would be a way to make every screen
+that draws this child fetch something somebody else chose. The byte cap is
+defence against a hand-rolled call, not against a parent's camera roll.
+
+**`ChildPhoto` is a table, not a column on `User`.** The Auth.js adapter selects
+whole user rows on every authenticated request, and a photo has no business
+riding along with a session lookup; the row is joined only where a face is
+actually drawn. It cascades with the child, so the removal copy's promise that
+the answers, the progress and the code go with them stays true of their picture
+too.
+
+**`ProfileFace` is the one place the fallback order lives**: photo → the Google
+picture a grown-up has → the preset animal → the initial → a silhouette. Six
+screens draw a face, and the order got copied the moment it was written twice.
+Threading it through the profile menu fixed a bug it walked past: a managed
+child has no Google `image`, and that menu had never looked at their `avatar` at
+all, so a child saw their initial on the one screen that is theirs.
+
+**The leaderboard shows faces and no names.** Everywhere else a face sits beside
+a name; there it replaces one. The board is the screen a pre-literate child
+reads for themselves, which is the reason the avatars exist in the first place,
+and a photograph is found faster than a name by someone who is not reading
+either. The name moves to the face's `alt` and `title`, so a hover and a screen
+reader still have it, and the `you` chip stays - it is the only visible text
+telling the rows apart. A grown-up in the household with no Google picture is a
+lettered circle among photographs; that is the honest cost of the trade and not
+worth an upload path of its own yet.
+
 ## Sharing a child
 
 A second grown-up - a separated parent, a grandparent, a tutor - can be given a

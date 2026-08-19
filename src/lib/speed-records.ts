@@ -2,6 +2,8 @@ import 'server-only';
 import { prisma } from './db';
 import { isRecord } from './speedrun/records';
 import { modeKey, type Mode } from './speedrun/modes';
+import { parseAvatar } from './avatars';
+import { parsePhoto } from './photo/photo';
 import type { FamilyRecord } from './speedrun/leaderboard';
 
 /**
@@ -204,12 +206,26 @@ export async function readFamilyRecords(parentId: string): Promise<FamilyRecord[
         mode: true,
         best: true,
         achievedAt: true,
-        user: { select: { name: true } },
+        // The board draws faces, so it reads what a face is made of: the
+        // photograph a parent cropped, then the animal the player picked, then
+        // the picture Google gave a grown-up - who has no avatar and never had a
+        // photo cropped for them, so it is the only face they own.
+        user: {
+          select: {
+            name: true,
+            avatar: true,
+            image: true,
+            photo: { select: { dataUrl: true } },
+          },
+        },
       },
     });
     return rows.map((row) => ({
       playerId: row.userId,
       playerName: row.user.name ?? '',
+      playerPhoto: parsePhoto(row.user.photo?.dataUrl),
+      playerAvatar: parseAvatar(row.user.avatar),
+      playerImage: row.user.image,
       mode: row.mode,
       best: row.best,
       achievedAt: row.achievedAt,

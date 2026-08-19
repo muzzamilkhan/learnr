@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import Image from 'next/image';
+import type { Avatar } from '@/lib/avatars';
 import { formatCount } from '@/lib/format';
 import { currentStreak, type PlayStreak } from '@/lib/rewards/streak';
 import { localOffsetMinutes, subscribeToTheClock } from './clock';
+import { ProfileFace } from './profile-face';
 import { FlameIcon, StarIcon } from './star-icon';
 
 /**
@@ -23,6 +24,14 @@ interface Props {
   name: string | null;
   image: string | null;
   /**
+   * The child's own face, and the animal they picked. A managed child has no
+   * Google picture at all, so until these arrived the menu drew their initial -
+   * a letter, on the one screen belonging to the child least likely to read one.
+   * A parent has neither and keeps their Google picture.
+   */
+  photo?: string | null;
+  avatar?: Avatar | null;
+  /**
    * As stored, and null for a parent - they don't play, so a run of days on
    * their account is counting nothing. Whether a run is still live depends on
    * the child's clock, not the server's.
@@ -37,7 +46,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function ProfileMenu({ name, image, streak, stars, children }: Props) {
+export function ProfileMenu({ name, image, photo, avatar, streak, stars, children }: Props) {
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
 
@@ -107,7 +116,7 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
             {formatCount(stars)}
           </span>
         )}
-        <Avatar name={name} image={image} />
+        <ProfileFace photo={photo} avatar={avatar} image={image} name={name} />
       </button>
 
       {open ? (
@@ -125,41 +134,5 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-/**
- * Google's picture when there is one. There often is not - a family account, or
- * a child added to one - so the fallback has to look deliberate rather than
- * broken: their initial, or a plain silhouette when there is not even a name.
- */
-function Avatar({ name, image }: { name: string | null; image: string | null }) {
-  const initial = name?.trim()?.[0]?.toUpperCase();
-
-  if (image) {
-    return (
-      <Image
-        src={image}
-        alt=""
-        width={40}
-        height={40}
-        className="h-10 w-10 rounded-full object-cover"
-      />
-    );
-  }
-
-  return (
-    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-(--color-brand-soft) text-lg font-bold text-(--color-brand)">
-      {initial ?? (
-        <svg
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          aria-hidden="true"
-          className="h-6 w-6 opacity-70"
-        >
-          <path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 1.8c-4 0-7.5 2.2-7.5 5v.7c0 .8.7 1.5 1.5 1.5h12c.8 0 1.5-.7 1.5-1.5v-.7c0-2.8-3.5-5-7.5-5Z" />
-        </svg>
-      )}
-    </span>
   );
 }

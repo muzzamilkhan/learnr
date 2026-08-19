@@ -227,6 +227,8 @@ export default async function HomePage() {
             <ProfileMenu
               name={session.user.name ?? null}
               image={session.user.image ?? null}
+              photo={account?.photo ?? null}
+              avatar={account?.avatar ?? null}
               streak={player?.streak ?? null}
               stars={player?.stars ?? null}
             >

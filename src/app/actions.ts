@@ -7,6 +7,7 @@ import { writeSelectedLevel } from '@/lib/records';
 import { parseYearLevel } from '@/lib/curriculum';
 import { parseAvatar } from '@/lib/avatars';
 import { parseTarget } from '@/lib/rewards/target';
+import { parsePhoto } from '@/lib/photo/photo';
 import {
   chooseRole,
   createChild,
@@ -78,6 +79,7 @@ function parseChildInput(
   level: string,
   targetKind: string,
   targetValue: string,
+  photo: string | null,
 ): ChildInput | null {
   const trimmed = name.trim();
   const parsedAvatar = parseAvatar(avatar);
@@ -90,7 +92,17 @@ function parseChildInput(
   const target = targetKind === 'none' ? null : parseTarget(targetKind, targetValue);
   if (targetKind !== 'none' && target === null) return null;
 
-  return { name: trimmed, avatar: parsedAvatar, level: parsedLevel, target };
+  // A photo that doesn't parse is no photo, and never a refused save: the
+  // picture is the smallest thing on the form, and losing a name, a level and a
+  // goal over a browser that encoded a face oddly is the wrong trade. `parsePhoto`
+  // is the only thing that decides what may be stored, here as everywhere.
+  return {
+    name: trimmed,
+    avatar: parsedAvatar,
+    photo: parsePhoto(photo),
+    level: parsedLevel,
+    target,
+  };
 }
 
 export async function createChildAction(
@@ -99,9 +111,10 @@ export async function createChildAction(
   level: string,
   targetKind: string,
   targetValue: string,
+  photo: string | null,
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level, targetKind, targetValue);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo);
   if (!parentId || !input) return false;
 
   const created = await createChild(parentId, input);
@@ -116,9 +129,10 @@ export async function updateChildAction(
   level: string,
   targetKind: string,
   targetValue: string,
+  photo: string | null,
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level, targetKind, targetValue);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo);
   if (!parentId || !input) return false;
 
   const updated = await updateChild(parentId, childId, input);

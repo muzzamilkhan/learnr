@@ -77,6 +77,13 @@ model User {
   /// for a day - so an award can still only ever be paid once.
   stars Int @default(0)
 
+  /// The photograph a parent cropped for this child, if they set one. A row of
+  /// its own rather than a column, because the Auth.js adapter reads whole `User`
+  /// rows on every authenticated request and a photo has no business riding
+  /// along with a session lookup. The preset `avatar` above is still what stands
+  /// in when there is no photo - it is the fallback, not the thing replaced.
+  photo ChildPhoto?
+
   accounts         Account[]
   sessions         Session[]
   learningSessions LearningSession[]
@@ -93,6 +100,21 @@ model User {
 
   /// The parent dashboard's only read: this parent's children.
   @@index([parentId])
+}
+
+/// One child's cropped profile picture, as a square WebP data URL.
+///
+/// The bytes never leave the browser as a file: the cropper decodes whatever
+/// picture was chosen, draws the circle's square into a 256px canvas and encodes
+/// that, so what is stored is about 20KB whatever the camera produced. `parsePhoto`
+/// is the boundary - nothing but a `data:image/webp;base64,` string under
+/// `MAX_PHOTO_BYTES` is ever written, so this column can never become a way to
+/// make the app fetch a URL somebody else chose.
+model ChildPhoto {
+  childId   String   @id
+  child     User     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dataUrl   String
+  updatedAt DateTime @updatedAt
 }
 
 model Account {

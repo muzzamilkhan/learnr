@@ -1,6 +1,7 @@
 import { familyStandings, type FamilyRecord, type Place } from '@/lib/speedrun/leaderboard';
 import { modeKey, modeLabel, operationGlyph, operationLabel, OPERATIONS } from '@/lib/speedrun/modes';
 import { OPERATION_ACCENT } from './speed-cards';
+import { ProfileFace } from './profile-face';
 
 /**
  * Who is fastest in the house, per mode - first, second and third.
@@ -15,9 +16,18 @@ import { OPERATION_ACCENT } from './speed-cards';
  * how a tie is placed is exactly the sort of thing that must not be judged only
  * by eye in a component.
  *
- * `you` marks the viewer's own places. A child scanning for their own name is
- * the common read, and by the time three names are on a row the fastest way to
- * find yourself is a mark rather than the spelling.
+ * **A place is a face, not a name.** Scanning a board for yourself is the whole
+ * of how it gets read, and a child finds their own photograph faster than their
+ * name - the pre-literate child is the reason the avatars exist at all, and a
+ * board spelled out in names is the one screen that forgets it. The name is not
+ * lost: it is the face's `alt` and `title`, so a hover and a screen reader still
+ * say who each row is. A grown-up shows the picture Google gave them, since no
+ * parent has an avatar or a cropped photo, and their lettered circle when even
+ * that is missing - `ProfileFace` owns that order, here as everywhere else.
+ *
+ * `you` marks the viewer's own places, and it is now the only text on a row
+ * beside the score - which is what it was always doing anyway, since a mark is
+ * faster to find than a spelling.
  */
 
 const SCALES = {
@@ -32,6 +42,7 @@ const SCALES = {
     places: 'mt-1.5 flex flex-col gap-1',
     place: 'flex items-center gap-3 text-lg',
     badge: 'flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold tabular-nums',
+    face: 'size-8',
     you: 'rounded-md bg-(--color-brand-soft) px-1.5 py-0.5 text-sm font-semibold text-(--color-brand)',
     best: 'ml-auto shrink-0 font-bold tabular-nums',
     empty: 'text-xl text-(--color-ink-soft)',
@@ -47,6 +58,7 @@ const SCALES = {
     places: 'mt-1 flex flex-col gap-0.5',
     place: 'flex items-center gap-2 text-sm',
     badge: 'flex size-5 shrink-0 items-center justify-center rounded text-xs font-bold tabular-nums',
+    face: 'size-6',
     you: 'rounded bg-(--color-brand-soft) px-1 text-xs font-semibold text-(--color-brand)',
     best: 'ml-auto shrink-0 font-semibold tabular-nums',
     empty: 'text-sm text-(--color-ink-soft)',
@@ -66,9 +78,18 @@ function badgeTone(place: number): string {
 
 function PlaceRow({ place, you, style }: { place: Place; you: boolean; style: (typeof SCALES)[keyof typeof SCALES] }) {
   return (
-    <li className={style.place}>
+    // The name on the row rather than only on the picture: a hover anywhere
+    // along it says who this is, which is what the visible name used to do.
+    <li className={style.place} title={place.playerName}>
       <span className={`${style.badge} ${badgeTone(place.place)}`}>{place.place}</span>
-      <span className="min-w-0 truncate">{place.playerName}</span>
+      <ProfileFace
+        photo={place.playerPhoto}
+        avatar={place.playerAvatar}
+        image={place.playerImage}
+        name={place.playerName}
+        className={style.face}
+        px={32}
+      />
       {you ? <span className={style.you}>you</span> : null}
       <span className={style.best}>{place.best}</span>
     </li>

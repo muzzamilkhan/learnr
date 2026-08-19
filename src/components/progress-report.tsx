@@ -4,7 +4,7 @@ import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import type { SpeedBest } from '@/lib/speed-records';
-import { AvatarIcon } from './avatar-icon';
+import { ProfileFace } from './profile-face';
 import { ChildPicker, type PickableChild } from './child-picker';
 import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
@@ -17,6 +17,8 @@ interface ProgressChild {
   id: string;
   name: string;
   avatar: Avatar;
+  /** The photograph their parent set, which stands in front of the avatar. */
+  photo: string | null;
   level: string | null;
 }
 
@@ -77,9 +79,13 @@ export function ProgressReport({
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-(--color-line) bg-(--color-card) px-4 py-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-(--color-brand-soft) text-(--color-brand)">
-          <AvatarIcon avatar={child.avatar} className="h-6 w-6" />
-        </span>
+        <ProfileFace
+          photo={child.photo}
+          avatar={child.avatar}
+          name={child.name}
+          className="size-9"
+          px={36}
+        />
         <p className="text-sm text-(--color-ink-soft)">
           {level ? shortYearLabel(level) : 'No level set'}
         </p>

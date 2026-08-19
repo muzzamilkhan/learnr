@@ -37,6 +37,7 @@ export default async function ChildrenPage() {
     id: child.id,
     name: child.name,
     avatar: child.avatar,
+    photo: child.photo,
     level: child.level,
     target: child.target,
     code: child.code,
@@ -49,6 +50,7 @@ export default async function ChildrenPage() {
       id: child.id,
       name: child.name,
       avatar: child.avatar,
+      photo: child.photo,
       level: child.level,
       sharedBy: child.sharedBy,
     }));

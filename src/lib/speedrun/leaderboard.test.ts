@@ -34,6 +34,27 @@ describe('familyStandings', () => {
     expect(standing.places.map((place) => place.place)).toEqual([1, 1, 3]);
   });
 
+  it('carries each player\u2019s face through the ranking, tie and all', () => {
+    const [standing] = familyStandings([
+      entry({ playerId: 'a', playerName: 'Ada', playerAvatar: 'owl', best: 19 }),
+      entry({
+        playerId: 'b',
+        playerName: 'Bo',
+        playerPhoto: 'data:image/webp;base64,AAAA',
+        best: 19,
+      }),
+    ]);
+
+    // The board draws the face and keeps the name for its alt text, so both have
+    // to survive a ranking that cares about neither.
+    expect(standing.places.map((place) => place.place)).toEqual([1, 1]);
+    expect(standing.places.map((place) => place.playerAvatar)).toEqual(['owl', undefined]);
+    expect(standing.places.map((place) => place.playerPhoto)).toEqual([
+      undefined,
+      'data:image/webp;base64,AAAA',
+    ]);
+  });
+
   it('lists whoever got there first ahead of a tie', () => {
     const [standing] = familyStandings([
       entry({ playerName: 'Late', best: 19, achievedAt: new Date('2026-08-18T10:00:00Z') }),

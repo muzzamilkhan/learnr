@@ -1,3 +1,4 @@
+import type { Avatar } from '../avatars';
 import { MODES, modeKey, parseMode, type Mode } from './modes';
 
 /**
@@ -11,10 +12,20 @@ import { MODES, modeKey, parseMode, type Mode } from './modes';
  * the score it sorts on is the same maximum the cabinet already shows.
  */
 
-/** One player's best at one mode - a `SpeedRecord` row with its owner named. */
+/**
+ * One player's best at one mode - a `SpeedRecord` row with its owner named, and
+ * drawn as their face. The photo and the avatar ride along beside the name
+ * because the board shows the face and keeps the name for the alt text; which of
+ * the three is drawn is `ProfileFace`'s decision, not this file's, and the
+ * ranking cares about none of them.
+ */
 export interface FamilyRecord {
   playerId: string;
   playerName: string;
+  playerPhoto?: string | null;
+  playerAvatar?: Avatar | null;
+  /** A grown-up's Google picture, which is the only face they have. */
+  playerImage?: string | null;
   /** The stored mode key, parsed here rather than trusted. */
   mode: string;
   best: number;
@@ -26,6 +37,9 @@ export interface Place {
   place: number;
   playerId: string;
   playerName: string;
+  playerPhoto?: string | null;
+  playerAvatar?: Avatar | null;
+  playerImage?: string | null;
   best: number;
   achievedAt: Date;
 }
@@ -99,6 +113,9 @@ function placesFor(rows: readonly FamilyRecord[]): Place[] {
       place,
       playerId: row.playerId,
       playerName: row.playerName,
+      playerPhoto: row.playerPhoto,
+      playerAvatar: row.playerAvatar,
+      playerImage: row.playerImage,
       best: row.best,
       achievedAt: row.achievedAt,
     });

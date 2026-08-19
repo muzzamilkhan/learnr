@@ -5,6 +5,7 @@ import { parseAvatar, type Avatar } from './avatars';
 import { codeExpiry, generateLoginCode, normaliseCode } from './login-code';
 import type { YearLevel } from './curriculum';
 import { parseTarget, type DailyTarget } from '@/lib/rewards/target';
+import { parsePhoto } from '@/lib/photo/photo';
 
 /**
  * Accounts: who a signed-in user is, the child profiles a parent manages, and the
@@ -35,6 +36,13 @@ export interface Account {
   name: string | null;
   avatar: Avatar | null;
   image: string | null;
+  /**
+   * The photograph their parent cropped, if there is one. Parsed rather than
+   * handed over as stored: the column is only ever written through `parsePhoto`,
+   * and reading it back through the same boundary is what makes that a property
+   * of the app rather than of the one action that happens to write it.
+   */
+  photo: string | null;
 }
 
 export async function readAccount(userId: string): Promise<Account | null> {
@@ -42,7 +50,15 @@ export async function readAccount(userId: string): Promise<Account | null> {
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true, parentId: true, name: true, avatar: true, image: true },
+      select: {
+        id: true,
+        role: true,
+        parentId: true,
+        name: true,
+        avatar: true,
+        image: true,
+        photo: { select: { dataUrl: true } },
+      },
     });
     if (!user) return null;
     return {
@@ -52,6 +68,7 @@ export async function readAccount(userId: string): Promise<Account | null> {
       name: user.name,
       avatar: parseAvatar(user.avatar),
       image: user.image,
+      photo: parsePhoto(user.photo?.dataUrl),
     };
   } catch (error) {
     console.error('Failed to read account', error);
@@ -83,6 +100,8 @@ export interface ChildProfile {
   id: string;
   name: string;
   avatar: Avatar;
+  /** The photograph, when their parent has set one - it wins over the avatar everywhere a face is drawn. */
+  photo: string | null;
   /** Set by the parent at creation and only ever changed by them. */
   level: string | null;
   /** The daily target the parent set, or null for the child who has none. */
@@ -109,6 +128,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
         id: true,
         name: true,
         avatar: true,
+        photo: { select: { dataUrl: true } },
         selectedLevel: true,
         targetKind: true,
         targetValue: true,
@@ -120,6 +140,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
       id: row.id,
       name: row.name ?? '',
       avatar: parseAvatar(row.avatar) ?? 'fox',
+      photo: parsePhoto(row.photo?.dataUrl),
       level: row.selectedLevel,
       target: parseTarget(row.targetKind, row.targetValue),
       code: row.loginCode,
@@ -134,6 +155,8 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
 export interface ChildInput {
   name: string;
   avatar: Avatar;
+  /** Null clears the photograph, which is what "Remove photo" on the form means. */
+  photo: string | null;
   level: YearLevel;
   /** Null clears the target, which is what "No goal" on the form means. */
   target: DailyTarget | null;
@@ -156,6 +179,11 @@ export async function createChild(parentId: string, input: ChildInput): Promise<
         selectedLevel: input.level,
         targetKind: input.target?.kind ?? null,
         targetValue: input.target?.value ?? null,
+        // A nested create, so the photograph lands in the same statement as the
+        // row it belongs to: there is no moment where the child exists without
+        // the face their parent just cropped, and nothing to clean up if the
+        // create fails.
+        photo: input.photo ? { create: { dataUrl: input.photo } } : undefined,
       },
       select: { id: true },
     });
@@ -177,18 +205,42 @@ export async function updateChild(
   input: ChildInput,
 ): Promise<boolean> {
   if (!prisma) return false;
+  const db = prisma;
   try {
-    const written = await prisma.user.updateMany({
-      where: { id: childId, parentId },
-      data: {
-        name: input.name,
-        avatar: input.avatar,
-        selectedLevel: input.level,
-        targetKind: input.target?.kind ?? null,
-        targetValue: input.target?.value ?? null,
-      },
+    return await db.$transaction(async (tx) => {
+      const written = await tx.user.updateMany({
+        where: { id: childId, parentId },
+        data: {
+          name: input.name,
+          avatar: input.avatar,
+          selectedLevel: input.level,
+          targetKind: input.target?.kind ?? null,
+          targetValue: input.target?.value ?? null,
+        },
+      });
+
+      // The photograph is a second statement rather than a nested write, because
+      // `updateMany` carries none - and it is gated on that update having matched
+      // a row, so ownership is still the query and not a check made up here. Both
+      // are in one transaction, so a child cannot end up wearing a face from a
+      // save that otherwise failed.
+      if (written.count === 0) return false;
+
+      if (input.photo) {
+        await tx.childPhoto.upsert({
+          where: { childId },
+          create: { childId, dataUrl: input.photo },
+          update: { dataUrl: input.photo },
+        });
+      } else {
+        // `deleteMany` rather than `delete`: clearing a photo the child never had
+        // is what "no photo" means every other time it is saved, and it must not
+        // be the one spelling of it that throws.
+        await tx.childPhoto.deleteMany({ where: { childId } });
+      }
+
+      return true;
     });
-    return written.count > 0;
   } catch (error) {
     console.error('Failed to update child', error);
     return false;
