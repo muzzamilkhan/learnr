@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { auth, isAuthConfigured } from '@/auth';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
+import { BoltIcon } from '@/components/bolt-icon';
 import { DailyGoal } from '@/components/daily-goal';
 import { Landing } from '@/components/landing';
 import { LevelPicker } from '@/components/level-picker';
@@ -10,6 +12,7 @@ import { LogoMark } from '@/components/logo';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
+import { SpeedCards } from '@/components/speed-cards';
 import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
@@ -19,6 +22,31 @@ import { requestNow } from './now';
 // The screen is per-child: it opens on the level that child last chose, so it
 // must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
+
+/**
+ * The title over "Practice" and "Speed run" - two ways to play, not one
+ * screen that happens to have a picker on it. Sized above `LevelPicker`'s
+ * "Level" label, since a section title outranks a control inside it.
+ */
+function SectionHeading({
+  title,
+  subtitle,
+  icon,
+}: {
+  title: string;
+  subtitle?: string;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="mb-5 flex items-center gap-3">
+      {icon}
+      <div>
+        <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
+        {subtitle ? <p className="mt-0.5 text-lg text-(--color-ink-soft)">{subtitle}</p> : null}
+      </div>
+    </div>
+  );
+}
 
 /**
  * What the questions are written against. Shown to a child as reassurance and to a
@@ -209,16 +237,31 @@ export default async function HomePage() {
         <DailyGoal target={player.target} answers={targetAnswers} awardedDay={player.targetDay} />
       ) : null}
 
-      {/* Only a child reaches this far - a parent was routed away above. */}
-      {!initialLevel ? (
-        <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
-      ) : isManagedChild ? (
-        // The parent set this year, so it is shown rather than chosen: subjects
-        // for their level, and no dropdown to wander out of it.
-        <SubjectCards subjects={subjects} level={initialLevel} />
-      ) : (
-        <LevelPicker subjects={subjects} levels={levels} initialLevel={initialLevel} />
-      )}
+      {/* Only a child reaches this far - a parent was routed away above. Two
+          headed sections rather than one screen that happens to have a
+          picker on it: a speed run has no school year, and nesting it under
+          the level dropdown would imply the level applies to it. */}
+      <section className="mb-12">
+        <SectionHeading title="Practice" />
+        {!initialLevel ? (
+          <p className="text-xl text-(--color-ink-soft)">There is no content to practice yet.</p>
+        ) : isManagedChild ? (
+          // The parent set this year, so it is shown rather than chosen: subjects
+          // for their level, and no dropdown to wander out of it.
+          <SubjectCards subjects={subjects} level={initialLevel} />
+        ) : (
+          <LevelPicker subjects={subjects} levels={levels} initialLevel={initialLevel} />
+        )}
+      </section>
+
+      <section>
+        <SectionHeading
+          title="Speed run"
+          subtitle="Beat the clock - no year needed."
+          icon={<BoltIcon className="h-8 w-8 text-(--color-sun)" />}
+        />
+        <SpeedCards />
+      </section>
 
       <CurriculumLink />
 
