@@ -571,9 +571,14 @@ Everything above the database is pure and gets tests.
 **`records.test.ts`** - `isRecord` for a first run, a beat, a tie and a worse
 run.
 
-**Component tests** follow the existing convention for the pieces with logic in
-them: the timer's pulse thresholds and the result screen's three states (first
-run, beaten, not beaten).
+**There are no component tests, and none are added.** Vitest runs
+`src/**/*.test.ts` in a node environment and the project has no React testing
+harness at all - which is the same pressure that put every other rule of this
+codebase into `lib`. So anything in a speed-run component worth asserting is
+pushed down into a pure function and tested there: the timer's pulse threshold
+is `pulseFor(remainingMs)`, and which of the three things the result screen says
+is `resultTone(previousBest, score)`. If it cannot be tested, it should not be
+deciding anything.
 
 The database writes in `speed-records.ts` are untested by the convention
 `records.ts` already sets - which is exactly why all of the arithmetic lives in
