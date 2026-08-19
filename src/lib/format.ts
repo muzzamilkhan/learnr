@@ -16,3 +16,18 @@ const COUNT = new Intl.NumberFormat('en-AU');
 export function formatCount(value: number): string {
   return COUNT.format(value);
 }
+
+/**
+ * A handful of children as a sentence: "Ada, Bo and Cy".
+ *
+ * The sharing panel says who a person can see, and a comma-separated list reads
+ * as data where a sentence reads as a fact about a family. The locale is pinned
+ * for the same reason as the separator above - and because "Ada, Bo, and Cy" is
+ * the other English convention, which is not the one the rest of this app writes
+ * in.
+ */
+const NAMES = new Intl.ListFormat('en-AU', { style: 'long', type: 'conjunction' });
+
+export function nameList(names: string[]): string {
+  return NAMES.format(names);
+}
