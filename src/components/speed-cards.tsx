@@ -34,7 +34,6 @@ import { TrophyIcon } from './trophy-icon';
 export type Accent = {
   tile: string;
   border: string;
-  arrow: string;
   /** The page behind a result: the accent at its palest. */
   wash: string;
   /** The score itself, and anything else meant to carry the colour. */
@@ -50,7 +49,6 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
     tile: 'bg-(--color-grape-soft) text-(--color-grape)',
     border: 'hover:border-(--color-grape)',
     line: 'border-(--color-grape)',
-    arrow: 'text-(--color-grape)',
     wash: 'bg-(--color-grape-soft)',
     text: 'text-(--color-grape)',
     solid: 'bg-(--color-grape)',
@@ -59,7 +57,6 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
     tile: 'bg-(--color-leaf-soft) text-(--color-leaf)',
     border: 'hover:border-(--color-leaf)',
     line: 'border-(--color-leaf)',
-    arrow: 'text-(--color-leaf)',
     wash: 'bg-(--color-leaf-soft)',
     text: 'text-(--color-leaf)',
     solid: 'bg-(--color-leaf)',
@@ -68,7 +65,6 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
     tile: 'bg-(--color-berry-soft) text-(--color-berry)',
     border: 'hover:border-(--color-berry)',
     line: 'border-(--color-berry)',
-    arrow: 'text-(--color-berry)',
     wash: 'bg-(--color-berry-soft)',
     text: 'text-(--color-berry)',
     solid: 'bg-(--color-berry)',
@@ -77,7 +73,6 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
     tile: 'bg-(--color-sun-soft) text-(--color-sun)',
     border: 'hover:border-(--color-sun)',
     line: 'border-(--color-sun)',
-    arrow: 'text-(--color-sun)',
     wash: 'bg-(--color-sun-soft)',
     text: 'text-(--color-sun)',
     solid: 'bg-(--color-sun)',
@@ -86,7 +81,6 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
     tile: 'bg-(--color-brand-soft) text-(--color-brand)',
     border: 'hover:border-(--color-brand)',
     line: 'border-(--color-brand)',
-    arrow: 'text-(--color-brand)',
     wash: 'bg-(--color-brand-soft)',
     text: 'text-(--color-brand)',
     solid: 'bg-(--color-brand)',
@@ -107,20 +101,16 @@ const SCALES = {
     card: 'gap-4 rounded-3xl border-2 p-5 shadow-sm hover:shadow-md',
     tile: 'size-14 rounded-2xl text-2xl',
     label: 'text-2xl',
-    arrow: 'text-2xl',
     records: 'mt-4 gap-3 rounded-2xl border-2 px-5 py-3.5 text-lg',
     star: 'h-6 w-6',
-    recordsArrow: 'text-2xl',
   },
   parent: {
     grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
     card: 'gap-3 rounded-xl border p-3',
     tile: 'size-9 rounded-lg text-base',
     label: 'text-base',
-    arrow: 'text-base',
     records: 'mt-3 gap-2 rounded-xl border px-3 py-2 text-sm',
     star: 'h-4 w-4',
-    recordsArrow: 'text-base',
   },
 } as const;
 
@@ -158,9 +148,6 @@ export function SpeedCards({
                 <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
                   {operationLabel(op)}
                 </span>
-                <span aria-hidden className={`shrink-0 ${style.arrow} ${accent.arrow}`}>
-                  &rarr;
-                </span>
               </Link>
             </li>
           );
@@ -173,9 +160,6 @@ export function SpeedCards({
       >
         <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
         Your records
-        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-          &rarr;
-        </span>
       </Link>
 
       <Link
@@ -184,9 +168,6 @@ export function SpeedCards({
       >
         <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
         Family leaderboard
-        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-          &rarr;
-        </span>
       </Link>
     </>
   );

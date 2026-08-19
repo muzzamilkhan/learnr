@@ -62,7 +62,6 @@ const MAX_MISSES = 12;
 const RECORD_ACCENT: Accent = {
   tile: 'bg-(--color-star-soft) text-(--color-star)',
   border: '',
-  arrow: '',
   line: 'border-(--color-star)',
   wash: 'bg-(--color-star-soft)',
   text: 'text-(--color-star)',
