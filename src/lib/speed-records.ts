@@ -82,13 +82,28 @@ export async function submitSpeedRun(
     const initial = await db.speedRecord.findUnique({ where: { userId_mode: { userId, mode: key } } });
     const previousBest = initial?.best ?? null;
 
+    // Fixed once, before either write attempt, and reused by both: whether
+    // this run beats a previous best of *this player's own* - never whether a
+    // write happens to land. `seen` and the returned `isRecord` are both built
+    // from this single value below, so they can never disagree about the same
+    // event: `seen: false` (the parent's banner fires) if and only if
+    // `isRecord: true` (the child's celebration fires). A landed write with no
+    // previous best to beat - two first-ever runs racing each other - is a
+    // first run twice over, not a comeback, so it announces nothing either way.
+    const beatsPreviousBest = isRecord(previousBest, run.correct);
+
     // The WHERE clause is `isRecord`'s rule written in SQL: a row only updates
     // if this score is strictly above what is stored, so a match here is proof
     // the write landed, not an inference from a read taken before it.
     const guardedUpdate = () =>
       db.speedRecord.updateMany({
         where: { userId, mode: key, best: { lt: run.correct } },
-        data: { best: run.correct, answered: run.answered, achievedAt: new Date(), seen: false },
+        data: {
+          best: run.correct,
+          answered: run.answered,
+          achievedAt: new Date(),
+          seen: !beatsPreviousBest,
+        },
       });
 
     let updated = await guardedUpdate();
@@ -104,13 +119,16 @@ export async function submitSpeedRun(
         if (!isUniqueViolation(error)) throw error;
         // Someone else's first run landed between our read and our insert -
         // there is a row now, so try the guarded update once more rather than
-        // looping on `create` again.
+        // looping on `create` again. `previousBest` is still null on this
+        // path, so `beatsPreviousBest` is still false and the retried write
+        // still sets `seen: true` - it is exactly as unannounced as the
+        // `create` above would have been.
         updated = await guardedUpdate();
       }
     }
 
     if (updated.count > 0) {
-      return { previousBest, best: run.correct, isRecord: isRecord(previousBest, run.correct) };
+      return { previousBest, best: run.correct, isRecord: beatsPreviousBest };
     }
 
     // Nothing landed: either this score was never beatable, or a concurrent run
