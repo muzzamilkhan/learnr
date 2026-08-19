@@ -45,17 +45,16 @@ export interface ChoiceSpec {
   jitter?: { min: Expr; max: Expr };
 }
 
-export interface QuestionTemplate {
-  id: string;
-  subject: string;
-  /**
-   * What this question practises, e.g. "counting numbers". Topics are shared
-   * across years - the same topic reappears at a harder level - so a topic is a
-   * tag on the template, never a property of the level.
-   */
-  topic: string;
-  /** The Australian school year this template was written for. */
-  level: YearLevel;
+/**
+ * Everything it takes to make a question, and nothing about who is being asked.
+ *
+ * The split exists because a speed run has no school year and no curriculum
+ * topic. Giving one a nominal year would be a lie told in the type system - the
+ * one place a level is guaranteed to be a real Australian school year - so the
+ * parts that make a question are separated from the parts that place it in a
+ * course, and a speed run uses only the first half.
+ */
+export interface QuestionSpec {
   /** Prompt with `{expression}` holes, e.g. "What is {x} + {y}?" */
   prompt: string;
   vars: readonly VarSpec[];
@@ -68,15 +67,25 @@ export interface QuestionTemplate {
   choices?: ChoiceSpec;
   /** Optional hint, also supports `{expression}` holes. */
   hint?: string;
+}
+
+/** A spec placed in a course: who is being asked, and what it practises. */
+export interface QuestionTemplate extends QuestionSpec {
+  id: string;
+  subject: string;
+  /**
+   * What this question practises, e.g. "counting numbers". Topics are shared
+   * across years - the same topic reappears at a harder level - so a topic is a
+   * tag on the template, never a property of the level.
+   */
+  topic: string;
+  /** The Australian school year this template was written for. */
+  level: YearLevel;
   tags?: readonly string[];
 }
 
-/** A template expanded into something a child can actually be shown. */
-export interface Question {
-  templateId: string;
-  subject: string;
-  topic: string;
-  level: YearLevel;
+/** A spec expanded, with nothing yet saying who was asked. */
+export interface GeneratedQuestion {
   prompt: string;
   answer: string | number | boolean;
   answerType: AnswerType;
@@ -85,4 +94,12 @@ export interface Question {
   hint?: string;
   /** The bound variables, kept for debugging and analytics. */
   vars: Record<string, string | number | boolean>;
+}
+
+/** A template expanded into something a child can actually be shown. */
+export interface Question extends GeneratedQuestion {
+  templateId: string;
+  subject: string;
+  topic: string;
+  level: YearLevel;
 }

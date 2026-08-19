@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRng } from '../rng';
-import { generateQuestion } from './generate';
+import { generate, generateQuestion } from './generate';
 import type { QuestionTemplate } from './types';
 
 const subtraction: QuestionTemplate = {
@@ -185,5 +185,49 @@ describe('generateQuestion', () => {
       createRng('hint'),
     );
     expect(q.hint).toBe(`Count back from ${q.vars.x}.`);
+  });
+});
+
+describe('generate', () => {
+  it('makes a question from a spec with no subject, topic or level', () => {
+    const question = generate(
+      {
+        prompt: 'What is {x} + {y}?',
+        vars: [
+          { name: 'x', kind: 'int', min: '2', max: '2' },
+          { name: 'y', kind: 'int', min: '3', max: '3' },
+        ],
+        answer: 'x + y',
+      },
+      createRng('spec'),
+    );
+
+    expect(question.prompt).toBe('What is 2 + 3?');
+    expect(question.answer).toBe(5);
+    expect(question.answerType).toBe('number');
+    expect(question).not.toHaveProperty('level');
+    expect(question).not.toHaveProperty('templateId');
+  });
+
+  it('is the same question generateQuestion wraps', () => {
+    const spec = {
+      prompt: '{x} x {y}',
+      vars: [
+        { name: 'x', kind: 'int' as const, min: '1', max: '9' },
+        { name: 'y', kind: 'int' as const, min: '1', max: '9' },
+      ],
+      answer: 'x * y',
+    };
+
+    const bare = generate(spec, createRng('same'));
+    const wrapped = generateQuestion(
+      { id: 'maths.1.multiplication.x', subject: 'maths', topic: 'multiplication', level: '1', ...spec },
+      createRng('same'),
+    );
+
+    expect(wrapped.prompt).toBe(bare.prompt);
+    expect(wrapped.answer).toBe(bare.answer);
+    expect(wrapped.templateId).toBe('maths.1.multiplication.x');
+    expect(wrapped.level).toBe('1');
   });
 });

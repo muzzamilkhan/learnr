@@ -1,6 +1,16 @@
 import { evaluate, type Scope, type Value } from '../expr';
 import type { Rng } from '../rng';
-import { MAX_CHOICES, type AnswerType, type ChoiceSpec, type Expr, type Question, type QuestionTemplate, type VarSpec } from './types';
+import {
+  MAX_CHOICES,
+  type AnswerType,
+  type ChoiceSpec,
+  type Expr,
+  type GeneratedQuestion,
+  type Question,
+  type QuestionSpec,
+  type QuestionTemplate,
+  type VarSpec,
+} from './types';
 
 /** How many times to redraw before giving up on a template's constraints. */
 const MAX_ATTEMPTS = 200;
@@ -65,14 +75,14 @@ function bindVar(spec: VarSpec, scope: Scope, rng: Rng): Value {
 }
 
 /** One attempt at binding every variable. Returns null if a constraint fails. */
-function tryBind(template: QuestionTemplate, rng: Rng): Record<string, Value> | null {
+function tryBind(spec: QuestionSpec, rng: Rng): Record<string, Value> | null {
   const scope: Record<string, Value> = Object.create(null);
 
-  for (const spec of template.vars) {
-    scope[spec.name] = bindVar(spec, scope, rng);
+  for (const varSpec of spec.vars) {
+    scope[varSpec.name] = bindVar(varSpec, scope, rng);
   }
 
-  for (const constraint of template.constraints ?? []) {
+  for (const constraint of spec.constraints ?? []) {
     if (!evaluate(constraint, scope)) return null;
   }
 
@@ -136,24 +146,24 @@ function buildChoices(
   return options;
 }
 
-export function generateQuestion(template: QuestionTemplate, rng: Rng): Question {
+export function generate(spec: QuestionSpec, rng: Rng, label = 'spec'): GeneratedQuestion {
   let scope: Record<string, Value> | null = null;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS && scope === null; attempt++) {
-    scope = tryBind(template, rng);
+    scope = tryBind(spec, rng);
   }
 
   if (scope === null) {
     throw new Error(
-      `Template ${template.id} failed to satisfy its constraints after ${MAX_ATTEMPTS} attempts: ` +
-        `[${(template.constraints ?? []).join(', ')}]`,
+      `Template ${label} failed to satisfy its constraints after ${MAX_ATTEMPTS} attempts: ` +
+        `[${(spec.constraints ?? []).join(', ')}]`,
     );
   }
 
-  const answerValue = evaluate(template.answer, scope);
+  const answerValue = evaluate(spec.answer, scope);
 
   /**
-   * A boolean answer is a true/false question whatever the template declared: its
+   * A boolean answer is a true/false question whatever the spec declared: its
    * two options are implied, so any `choices` are meaningless and are dropped.
    *
    * Nothing here throws on an authoring mistake. This runs mid-session with a
@@ -163,21 +173,32 @@ export function generateQuestion(template: QuestionTemplate, rng: Rng): Question
   const isBoolean = typeof answerValue === 'boolean';
   const answerType: AnswerType = isBoolean
     ? 'boolean'
-    : (template.answerType ?? (typeof answerValue === 'number' ? 'number' : 'text'));
+    : (spec.answerType ?? (typeof answerValue === 'number' ? 'number' : 'text'));
 
+  return {
+    prompt: renderTemplateString(spec.prompt, scope),
+    answer: answerValue,
+    answerType,
+    choices:
+      spec.choices && !isBoolean
+        ? buildChoices(spec.choices, answerValue as string | number, scope, rng)
+        : undefined,
+    hint: spec.hint ? renderTemplateString(spec.hint, scope) : undefined,
+    vars: { ...scope },
+  };
+}
+
+/**
+ * A generated question, placed in a course. Every field the engine needs to make
+ * one lives on the spec; these four say who was asked, and are carried straight
+ * through.
+ */
+export function generateQuestion(template: QuestionTemplate, rng: Rng): Question {
   return {
     templateId: template.id,
     subject: template.subject,
     topic: template.topic,
     level: template.level,
-    prompt: renderTemplateString(template.prompt, scope),
-    answer: answerValue,
-    answerType,
-    choices:
-      template.choices && !isBoolean
-        ? buildChoices(template.choices, answerValue as string | number, scope, rng)
-        : undefined,
-    hint: template.hint ? renderTemplateString(template.hint, scope) : undefined,
-    vars: { ...scope },
+    ...generate(template, rng, template.id),
   };
 }
