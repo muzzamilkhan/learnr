@@ -12,9 +12,9 @@ import { nextPlayStreak, startedNewDay, noStreak, type PlayStreak } from './rewa
 import { rounds } from './rewards/stars';
 import {
   TARGET_STARS,
+  dayProgress,
   dayTotal,
   parseTarget,
-  targetProgress,
   type DailyTarget,
   type TargetAnswer,
 } from './rewards/target';
@@ -322,19 +322,68 @@ export async function awardRoundStars(
 }
 
 /**
- * Every star the child has. One column now rather than a sum over their
- * sittings: the total is banked as it is earned and never recounted, because a
- * target is mutable and a recount of a past day against today's target would
- * take stars off a child who earned them. See the daily targets spec.
+ * Everything the two playing screens read off the child's own row, in one query.
+ *
+ * The level they last chose, the run of days, the stars and the daily target all
+ * live on `User`, and both `/` and `/play` want all four before they can render.
+ * Asked for one function at a time that is four round trips to the same row, and
+ * the target's two arrived *after* an existing `Promise.all` they had no reason
+ * to wait behind - a waterfall in front of the first question a child sees.
+ *
+ * One column now rather than a sum over the child's sittings, for the stars: the
+ * total is banked as it is earned and never recounted, because a target is
+ * mutable and a recount of a past day against today's target would take stars
+ * off a child who earned them. See the daily targets spec.
+ *
+ * The single-column readers stay for the two callers that genuinely want one
+ * thing: `readSelectedLevel` for the redirect that runs before anything else on
+ * `/play`, and `readPlayStreak` inside the streak fold.
  */
-export async function readStarTotal(userId: string): Promise<number> {
-  if (!prisma) return 0;
+export interface PlayerState {
+  /** As stored - the caller resolves it against content. */
+  selectedLevel: string | null;
+  streak: PlayStreak;
+  stars: number;
+  target: DailyTarget | null;
+  /** The last local day the target's stars were banked. */
+  targetDay: number | null;
+}
+
+const noPlayerState = (): PlayerState => ({
+  selectedLevel: null,
+  streak: noStreak(),
+  stars: 0,
+  target: null,
+  targetDay: null,
+});
+
+export async function readPlayerState(userId: string): Promise<PlayerState> {
+  if (!prisma) return noPlayerState();
   try {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { stars: true } });
-    return user?.stars ?? 0;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        selectedLevel: true,
+        playStreak: true,
+        playStreakDay: true,
+        stars: true,
+        targetKind: true,
+        targetValue: true,
+        targetDay: true,
+      },
+    });
+    if (!user) return noPlayerState();
+
+    return {
+      selectedLevel: user.selectedLevel,
+      streak: { days: user.playStreak, lastDay: user.playStreakDay },
+      stars: user.stars,
+      target: parseTarget(user.targetKind, user.targetValue),
+      targetDay: user.targetDay,
+    };
   } catch (error) {
-    console.error('Failed to read star total', error);
-    return 0;
+    console.error('Failed to read player state', error);
+    return noPlayerState();
   }
 }
 
@@ -422,25 +471,29 @@ export const TARGET_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
  * Best-effort like every other write on the play path: a missed award costs ten
  * stars and repairs itself on the child's next answer of the day, which is a far
  * better failure than an interrupted question.
+ *
+ * Answers whether the ten stars were just paid, and nothing else. It is asked on
+ * every answer until the day is done, so the one thing it must not do is read
+ * anything the caller does not need: the play screen already knows what a target
+ * is worth and adds `TARGET_STARS` to the total it is showing, so handing back a
+ * recounted total would be a query per question for a number nobody looks at.
  */
 export async function awardDailyTarget(
   userId: string,
   learningSessionId: string,
   { now, offsetMinutes }: { now: number; offsetMinutes: number },
-): Promise<{ awarded: boolean; stars: number } | null> {
-  if (!prisma) return null;
+): Promise<boolean> {
+  if (!prisma) return false;
   try {
-    if (!(await ownsSession(userId, learningSessionId))) return null;
+    if (!(await ownsSession(userId, learningSessionId))) return false;
 
     const { target } = await readTargetSettings(userId);
-    if (!target) return null;
+    if (!target) return false;
 
     // Best-effort on this side: a failed read means no award this call, and the
     // child's next answer of the day tries again.
     const answers = (await readRecentAnswers(userId, now - TARGET_WINDOW_MS)) ?? [];
-    if (!targetProgress(target, dayTotal(answers, { now, offsetMinutes })).complete) {
-      return { awarded: false, stars: await readStarTotal(userId) };
-    }
+    if (!dayProgress(target, dayTotal(answers, { now, offsetMinutes })).complete) return false;
 
     const today = localDay(now, offsetMinutes);
     const written = await prisma.user.updateMany({
@@ -448,10 +501,10 @@ export async function awardDailyTarget(
       data: { targetDay: today, stars: { increment: TARGET_STARS } },
     });
 
-    return { awarded: written.count > 0, stars: await readStarTotal(userId) };
+    return written.count > 0;
   } catch (error) {
     console.error('Failed to award daily target', error);
-    return null;
+    return false;
   }
 }
 

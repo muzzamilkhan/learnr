@@ -4,13 +4,16 @@
  * pure, which leaves somebody at the edge to actually look at it, and a server
  * component rendering one request is that somebody.
  *
- * A sibling of `src/app/play/now.ts` and `src/app/(parent)/progress/now.ts`
- * rather than an import of either - each is its own route's boundary, and
- * reaching across route groups for a one-line function would tie unrelated
- * screens together to save nothing.
+ * One of these for the whole app. There were three - one per route - each with a
+ * comment explaining why it must not be shared, and all three were the same
+ * line. Nothing about reading the clock differs between the home screen, the
+ * play screen and the parent's report, so there is nothing for a per-route copy
+ * to say differently.
  *
- * It is a function so that `react-hooks/purity` is satisfied honestly, rather
- * than with a disable comment that would switch the rule off for the rest of
- * the file too.
+ * It is a function so that `react-hooks/purity` is satisfied honestly. A bare
+ * `Date.now()` in a component body is flagged because in a client component the
+ * value shifts unpredictably between renders; a page renders once per request,
+ * and naming the boundary is how that is said - rather than a disable comment,
+ * which would switch the rule off for everything else in the file too.
  */
 export const requestNow = (): number => Date.now();

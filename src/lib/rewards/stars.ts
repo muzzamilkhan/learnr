@@ -56,8 +56,3 @@ export function closedRound(results: readonly boolean[]): Round | null {
   const closed = rounds(results);
   return closed[closed.length - 1];
 }
-
-/** Every star a run of answers is worth. The same sum whoever counts it. */
-export function starsEarned(results: readonly boolean[]): number {
-  return rounds(results).reduce((total, round) => total + round.stars, 0);
-}

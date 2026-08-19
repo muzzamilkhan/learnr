@@ -10,17 +10,15 @@ import { readAccount } from '@/lib/accounts';
 import {
   TARGET_WINDOW_MS,
   readLearnerProfile,
-  readPlayStreak,
+  readPlayerState,
+  readSelectedLevel,
   readRecentAnswers,
   readRecentTopics,
-  readSelectedLevel,
-  readStarTotal,
-  readTargetSettings,
 } from '@/lib/records';
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
-import { requestNow } from './now';
+import { requestNow } from '@/app/now';
 
 export default async function PlayPage({
   searchParams,
@@ -66,23 +64,24 @@ export default async function PlayPage({
 
   // What the child has shown before, so the first question of this sitting is
   // already weighted by it. Signed out there is no history, and an empty profile
-  // is exactly what draws questions at random.
-  const [profile, recentTopics, streak, stars] = userId
+  // is exactly what draws questions at random. The run of days, the stars and the
+  // goal all come off the child's own row, so they are one read rather than four.
+  const [profile, recentTopics, player] = userId
     ? await Promise.all([
         readLearnerProfile(userId, subject),
         readRecentTopics(userId, subject, level, RECENT_MEMORY),
-        readPlayStreak(userId),
-        readStarTotal(userId),
+        readPlayerState(userId),
       ])
-    : [emptyProfile(), [], noStreak(), 0];
+    : [emptyProfile(), [], null];
 
   // The server does not know what day it is where the child is, so it hands over
-  // a window of answers and the device decides which of them are today's. A
-  // failed read is best-effort here, as everything on the play path is: the bar
-  // starts empty and the next question's read repairs it.
-  const settings = userId ? await readTargetSettings(userId) : null;
+  // a window of answers and the device decides which of them are today's. The
+  // one read that has to wait for another, since there is no point fetching a
+  // window of answers for a child with no goal to measure them against. A failed
+  // read is best-effort here, as everything on the play path is: the bar starts
+  // empty and the next question's read repairs it.
   const targetAnswers =
-    settings?.target && userId
+    player?.target && userId
       ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
       : [];
 
@@ -103,8 +102,8 @@ export default async function PlayPage({
       recentTopics={recentTopics}
       recordingEnabled={Boolean(userId)}
       target={
-        settings?.target
-          ? { target: settings.target, answers: targetAnswers, awardedDay: settings.targetDay }
+        player?.target
+          ? { target: player.target, answers: targetAnswers, awardedDay: player.targetDay }
           : null
       }
       account={
@@ -112,8 +111,8 @@ export default async function PlayPage({
           ? {
               name: session.user.name ?? null,
               image: session.user.image ?? null,
-              streak,
-              stars,
+              streak: player?.streak ?? noStreak(),
+              stars: player?.stars ?? 0,
             }
           : null
       }

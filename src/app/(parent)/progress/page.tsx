@@ -4,7 +4,7 @@ import { ProgressReport } from '@/components/progress-report';
 import { resolveChild } from '@/lib/children';
 import { readObservations, readRecentAnswers, readSittings } from '@/lib/records';
 import { readParent } from '../parent';
-import { requestNow } from './now';
+import { requestNow } from '@/app/now';
 
 // Per-parent and per-child, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';

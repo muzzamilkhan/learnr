@@ -137,6 +137,21 @@ describe('questionNarration', () => {
     expect(questionNarration(q)).toBe('Which ribbon is longer, red or blue?');
   });
 
+  it('reads the options out when the prompt only used those words as data', () => {
+    // The pattern names every colour it offers and offers none of them - the
+    // child who cannot read still needs to be told what the buttons say.
+    const q = question({
+      prompt: 'What comes next? red, orange, purple, red, orange, purple, red, ?',
+      answerType: 'choice',
+      choices: ['purple', 'red', 'orange'],
+      answer: 'orange',
+    });
+    expect(questionNarration(q)).toBe(
+      'What comes next? red, orange, purple, red, orange, purple, red, what. ' +
+        'Is it purple, red, or orange?',
+    );
+  });
+
   it('ends the prompt before the options when the prompt ended in the gap', () => {
     const q = question({
       prompt: 'What comes next? red, blue, red, blue, ?',

@@ -131,17 +131,29 @@ export interface TargetProgress {
   complete: boolean;
 }
 
-export function targetProgress(target: DailyTarget, total: DayTotal): TargetProgress {
-  const done = totalFor(total, target.kind);
+/**
+ * How far a day has got, out of a target, both in the target's own unit.
+ *
+ * Every screen that draws a bar reads it from here rather than dividing for
+ * itself: three of them do it - the play header, the home screen's panel and the
+ * parent's calendar - and "is the day done" and "how full is the bar" have to be
+ * the same answer on all three. The one they cannot share is where `done` comes
+ * from, since the play screen adds the seconds of the question in hand to it.
+ */
+export function targetProgress(target: DailyTarget, done: number): TargetProgress {
   const units = targetUnits(target);
 
   return {
     done,
     target: units,
-    fraction: Math.min(1, done / units),
+    fraction: units <= 0 ? 0 : Math.min(1, done / units),
     complete: done >= units,
   };
 }
+
+/** The same, measured against a whole day's totals. */
+export const dayProgress = (target: DailyTarget, total: DayTotal): TargetProgress =>
+  targetProgress(target, totalFor(total, target.kind));
 
 export type TargetCellState = 'none' | 'partial' | 'met';
 
@@ -158,6 +170,6 @@ export function targetCell(
 ): { state: TargetCellState; fraction: number } {
   if (total.questions === 0) return { state: 'none', fraction: 0 };
 
-  const { fraction, complete } = targetProgress(target, total);
+  const { fraction, complete } = dayProgress(target, total);
   return { state: complete ? 'met' : 'partial', fraction };
 }

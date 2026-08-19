@@ -1,14 +1,14 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
-import { localDay } from '@/lib/day';
 import {
+  dayProgress,
   dayTotal,
-  targetUnits,
-  totalFor,
+  targetProgress,
   type DailyTarget,
   type TargetAnswer,
 } from '@/lib/rewards/target';
+import { localOffsetMinutes, subscribeToTheClock, today } from './clock';
 import { TargetBar } from './target-bar';
 
 /**
@@ -48,9 +48,8 @@ export function DailyGoal({
   const done = useSyncExternalStore(
     subscribeToTheClock,
     () => {
-      const now = Date.now();
-      const offsetMinutes = -new Date(now).getTimezoneOffset();
-      return totalFor(dayTotal(answers, { now, offsetMinutes }), target.kind);
+      const total = dayTotal(answers, { now: Date.now(), offsetMinutes: localOffsetMinutes() });
+      return dayProgress(target, total).done;
     },
     () => null,
   );
@@ -62,16 +61,15 @@ export function DailyGoal({
    */
   const awardedToday = useSyncExternalStore(
     subscribeToTheClock,
-    () => awardedDay != null && awardedDay === localDay(Date.now(), -new Date().getTimezoneOffset()),
+    () => awardedDay != null && awardedDay === today(),
     () => false,
   );
 
   // Nothing at all until the device has said what day it is.
   if (done === null) return null;
 
-  const units = targetUnits(target);
-  const fraction = Math.min(1, done / units);
-  const complete = done >= units || awardedToday;
+  const { fraction, complete: reached } = targetProgress(target, done);
+  const complete = reached || awardedToday;
 
   const count =
     target.kind === 'minutes'
@@ -106,10 +104,3 @@ export function DailyGoal({
     </div>
   );
 }
-
-/**
- * Nothing to subscribe to: the day turns over at midnight, and a child whose
- * screen has been open since yesterday will reload it long before the stale
- * number matters. Stable identity, so the store is never resubscribed.
- */
-const subscribeToTheClock = () => () => {};

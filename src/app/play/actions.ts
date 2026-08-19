@@ -12,6 +12,7 @@ import {
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 import { parseOffsetMinutes } from '@/lib/day';
+import { requestNow } from '@/app/now';
 
 /**
  * Recording only. These never affect what the child sees next - the session
@@ -65,9 +66,9 @@ export async function endRecordingAction(learningSessionId: string): Promise<voi
 }
 
 /**
- * Bank the day's target, if it has been reached. The server recounts today's
- * answers itself, so this says only *that* an answer landed - never how far
- * along the day is. The offset comes from the client because the server has no
+ * Bank the day's target, if it has been reached, and say whether it just was.
+ * The server recounts today's answers itself, so this says only *that* an answer
+ * landed - never how far along the day is. The offset comes from the client because the server has no
  * timezone, exactly as it does for every recorded answer - and it is bounded
  * before it is used, because the day it produces is written to `User.targetDay`
  * and one absurd value would sit in the future refusing every real day after it.
@@ -75,15 +76,15 @@ export async function endRecordingAction(learningSessionId: string): Promise<voi
 export async function awardTargetAction(
   learningSessionId: string,
   offsetMinutes: number,
-): Promise<{ awarded: boolean; stars: number } | null> {
+): Promise<boolean> {
   const session = await auth();
-  if (!session?.user?.id) return null;
+  if (!session?.user?.id) return false;
 
   const offset = parseOffsetMinutes(offsetMinutes);
-  if (offset === null) return null;
+  if (offset === null) return false;
 
   return awardDailyTarget(session.user.id, learningSessionId, {
-    now: Date.now(),
+    now: requestNow(),
     offsetMinutes: offset,
   });
 }

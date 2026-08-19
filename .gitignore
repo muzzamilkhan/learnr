@@ -45,3 +45,6 @@ next-env.d.ts
 
 # prisma client output
 /src/generated
+
+# agent worktrees - a second checkout of this repo, never part of it
+/.claude/worktrees/
