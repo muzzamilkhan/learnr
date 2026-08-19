@@ -353,7 +353,27 @@ export async function acceptShareInvite(
       `;
 
       const invite = claimed[0];
-      if (!invite) return { ok: false, reason: 'unavailable' } as const;
+      if (!invite) {
+        // The UPDATE matched nothing, but that is also what a second, concurrent
+        // acceptance by this same viewer looks like: the pre-transaction read
+        // above can't see a call that is still in flight, only one that has
+        // already committed. By the time our UPDATE has blocked on the row lock
+        // and lost, the other transaction has committed, so a fresh read here
+        // sees it. Telling this viewer their own just-granted link "didn't work"
+        // is the exact lie `acceptedById === viewerId` above exists to avoid -
+        // this is that same check, for the race that check can't see.
+        const now = await tx.shareInvite.findUnique({
+          where: { token: clean },
+          select: { acceptedById: true, childIds: true },
+        });
+        if (now?.acceptedById === viewerId) {
+          const held = await tx.childShare.count({
+            where: { viewerId, childId: { in: now.childIds } },
+          });
+          return { ok: true, children: held } as const;
+        }
+        return { ok: false, reason: 'unavailable' } as const;
+      }
 
       // The invite's array is a record of what was offered, so what it can still
       // grant is whatever of it the issuer owns *now*. A child removed since is
