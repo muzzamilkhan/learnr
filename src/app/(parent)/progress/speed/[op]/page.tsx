@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation';
 import { SpeedRun } from '@/components/speed-run';
-import { readSpeedRecords } from '@/lib/speed-records';
 import { parseOperation } from '@/lib/speedrun/modes';
 import { readParent } from '../../../parent';
 
-// Per-player bests, so it must never be prerendered and shared.
+// Per-parent state, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
 /**
@@ -34,13 +33,11 @@ export default async function ParentSpeedPage({ params }: { params: Promise<{ op
   const op = parseOperation((await params).op);
   if (!op) notFound();
 
-  const { userId } = await readParent();
-  const bests = await readSpeedRecords(userId);
+  await readParent();
 
   return (
     <SpeedRun
       op={op}
-      bests={bests}
       homeHref="/progress"
       backHref="/progress/speed"
       recordsHref="/progress/speed/records"

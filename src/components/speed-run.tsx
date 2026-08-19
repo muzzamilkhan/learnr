@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { submitRunAction } from '@/app/speed/actions';
 import { appendNumeric } from '@/lib/session/answers';
-import type { SpeedBest, SpeedOutcome } from '@/lib/speed-records';
+import type { SpeedOutcome } from '@/lib/speed-records';
 import {
   modeKey,
   modeLabel,
@@ -72,8 +72,6 @@ const COUNT_FROM = Math.max(1, Math.round(COUNTDOWN_MS / 1000));
 
 interface Props {
   op: Operation;
-  /** This player's bests, for the chooser. Null when they could not be read. */
-  bests: SpeedBest[] | null;
   /** Where "Go home" goes: `/` for a child, `/progress` for a parent. */
   homeHref: string;
   /**
@@ -98,7 +96,6 @@ interface Props {
 
 export function SpeedRun({
   op,
-  bests,
   homeHref,
   backHref,
   recordsHref,
@@ -106,10 +103,6 @@ export function SpeedRun({
   scale = 'child',
 }: Props) {
   const modes = useMemo(() => modesFor(op), [op]);
-  const bestByKey = useMemo(
-    () => new Map((bests ?? []).map((best) => [best.mode, best.best])),
-    [bests],
-  );
 
   const [phase, setPhase] = useState<Phase>('choosing');
   const [mode, setMode] = useState<Mode>(modes[0]);
@@ -334,7 +327,6 @@ export function SpeedRun({
         op={op}
         modes={modes}
         chosen={mode}
-        bestByKey={bestByKey}
         backHref={backHref}
         onChoose={setMode}
         onStart={start}
@@ -475,9 +467,8 @@ const CHOOSER_SCALES = {
     caption: 'text-base sm:text-lg',
     bolt: 'h-4 w-4 sm:h-5 sm:w-5',
     grid: 'mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-3 sm:gap-4',
-    mode: 'min-h-20 gap-0.5 rounded-2xl border-2 px-2 py-3 sm:min-h-24',
+    mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 sm:min-h-18',
     modeLabel: 'text-lg leading-tight font-semibold sm:text-xl',
-    modeBest: 'min-h-5 text-sm',
     start: 'mt-6 h-16 gap-3 rounded-2xl text-2xl sm:mt-8 sm:h-20 sm:text-3xl',
     startBolt: 'h-7 w-7 sm:h-8 sm:w-8',
   },
@@ -490,9 +481,8 @@ const CHOOSER_SCALES = {
     caption: 'text-sm',
     bolt: 'h-3.5 w-3.5',
     grid: 'mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4',
-    mode: 'min-h-14 gap-0.5 rounded-xl border px-2 py-2',
+    mode: 'min-h-11 rounded-xl border px-2 py-1.5',
     modeLabel: 'text-sm leading-tight font-semibold',
-    modeBest: 'min-h-4 text-xs',
     start: 'mt-4 h-11 gap-2 rounded-xl text-base',
     startBolt: 'h-5 w-5',
   },
@@ -502,7 +492,6 @@ function Chooser({
   op,
   modes,
   chosen,
-  bestByKey,
   backHref,
   onChoose,
   onStart,
@@ -511,7 +500,6 @@ function Chooser({
   op: Operation;
   modes: readonly Mode[];
   chosen: Mode;
-  bestByKey: Map<string, number>;
   backHref: string;
   onChoose: (mode: Mode) => void;
   onStart: () => void;
@@ -550,7 +538,6 @@ function Chooser({
       <div className={style.grid}>
         {modes.map((mode) => {
           const key = modeKey(mode);
-          const best = bestByKey.get(key);
           const selected = key === chosenKey;
 
           return (
@@ -559,21 +546,13 @@ function Chooser({
               type="button"
               aria-pressed={selected}
               onClick={() => onChoose(mode)}
-              className={`flex flex-col items-center justify-center text-center transition active:scale-95 ${style.mode} ${
+              className={`flex items-center justify-center text-center transition active:scale-95 ${style.mode} ${
                 selected
                   ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
                   : 'border-(--color-line) bg-(--color-card)'
               }`}
             >
               <span className={style.modeLabel}>{modeLabel(mode)}</span>
-              {/* A row kept whether or not there is a best in it, so the labels
-                  sit on one line across the grid. Nothing is drawn for a mode
-                  with no best: whether that is "never run" or "could not be
-                  read" is a distinction the records cabinet draws, and a dash
-                  here would answer it wrongly half the time. */}
-              <span className={`text-(--color-ink-soft) tabular-nums ${style.modeBest}`}>
-                {best === undefined ? '' : `Best ${best}`}
-              </span>
             </button>
           );
         })}
