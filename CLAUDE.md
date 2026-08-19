@@ -724,11 +724,23 @@ from both ends - a parent and the children they manage - which `householdId`
 (`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
 for the reason ownership always is, so there is no second column to drift out of
 step. A **parent is on the board**, since they play too and a board that quietly
-left them out would not be the one their children are reading. A **viewer a
-child was shared with is not**: the grant is one child's report, and a household
-board would hand them the owner's other children and the owner's own scores
-besides. A child on their own Google account and a parent with no children have
-no household at all, and get a sentence rather than a board of one.
+left them out would not be the one their children are reading. A child on their
+own Google account and a parent with no children have no household at all, and
+get a sentence rather than a board of one.
+
+**A viewer a child was shared with widens the board, on both sides.** A
+separated parent, or any other second grown-up given a share, is on that
+child's leaderboard, and the child's household sees them back - the whole
+point of sharing a child with a co-parent is that they *are* raising the same
+child, not reading about them from outside. What crosses is narrower than the
+household itself: `readFamilyRecords` (`src/lib/speed-records.ts`) reads the
+household as before, then reads every `ChildShare` touching it in either
+direction - one where this household is the owner sharing a child out, one
+where it is the viewer a child was shared in to - and
+`extendHouseholdWithShares` (`src/lib/children.ts`, pure and tested) adds only
+the viewer and the specific child a grant names, never the rest of either
+side. A sibling nobody shared stays off both boards, the same privacy the
+report itself already gives a share.
 
 `familyStandings` (`src/lib/speedrun/leaderboard.ts`) is the ranking, pure and
 tested like `banner.ts` beside it, and it needs no schema: a leaderboard is

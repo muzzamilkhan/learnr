@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  extendHouseholdWithShares,
   groupViewers,
   householdId,
   mergeViewable,
@@ -97,5 +98,37 @@ describe('householdId', () => {
 
   it('gives someone who has not chosen a role no household', () => {
     expect(householdId({ id: 'u', role: null, parentId: null })).toBeNull();
+  });
+});
+
+describe('extendHouseholdWithShares', () => {
+  it('is just the household when nothing has been shared', () => {
+    expect(extendHouseholdWithShares(['p', 'a', 'b'], [])).toEqual(['p', 'a', 'b']);
+  });
+
+  it('adds the viewer and the shared child when this household is the owner', () => {
+    const ids = extendHouseholdWithShares(
+      ['p', 'a', 'b'],
+      [{ childId: 'a', viewerId: 'v', ownerId: 'p' }],
+    );
+    expect(ids).toEqual(['p', 'a', 'b', 'v']);
+  });
+
+  it('adds the owner and the shared child when this household is the viewer', () => {
+    const ids = extendHouseholdWithShares(['v'], [{ childId: 'a', viewerId: 'v', ownerId: 'p' }]);
+    expect(ids).toEqual(['v', 'a', 'p']);
+  });
+
+  it('leaves a sibling nobody shared off the board', () => {
+    const ids = extendHouseholdWithShares(
+      ['p', 'a', 'b'],
+      [{ childId: 'a', viewerId: 'v', ownerId: 'p' }],
+    );
+    expect(ids).not.toContain('c');
+  });
+
+  it('does not double-count someone already in the household', () => {
+    const ids = extendHouseholdWithShares(['p', 'a'], [{ childId: 'a', viewerId: 'p', ownerId: 'p' }]);
+    expect(ids).toEqual(['p', 'a']);
   });
 });

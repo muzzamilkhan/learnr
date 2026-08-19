@@ -110,3 +110,38 @@ export function householdId(account: {
   if (account.parentId) return account.parentId;
   return account.role === 'parent' ? account.id : null;
 }
+
+/** One accepted grant, as far as widening a household for it goes. */
+export interface FamilyShare {
+  childId: string;
+  viewerId: string;
+  ownerId: string;
+}
+
+/**
+ * A household's own members, widened by every share crossing its border.
+ *
+ * A share pulls two households onto one family leaderboard - the viewer it was
+ * granted to, and the specific child it names, never the rest of either side.
+ * That is narrower than `householdId`: a viewer sees the household they were
+ * let into and the owner sees the viewer back, but a child not named on the
+ * grant stays off both boards, the same privacy `ChildShare` already gives the
+ * report itself.
+ *
+ * `shares` is trusted to already be every grant touching `household` in either
+ * direction - the caller's query has done that scoping, by `child.parentId` for
+ * shares leaving this household and by `viewerId` for ones arriving at it - so
+ * this is just the union.
+ */
+export function extendHouseholdWithShares(
+  household: readonly string[],
+  shares: readonly FamilyShare[],
+): string[] {
+  const ids = new Set(household);
+  for (const share of shares) {
+    ids.add(share.childId);
+    ids.add(share.viewerId);
+    ids.add(share.ownerId);
+  }
+  return [...ids];
+}

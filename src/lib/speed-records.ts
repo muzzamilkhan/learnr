@@ -4,6 +4,7 @@ import { isRecord } from './speedrun/records';
 import { modeKey, type Mode } from './speedrun/modes';
 import { parseAvatar } from './avatars';
 import { parsePhoto } from './photo/photo';
+import { extendHouseholdWithShares } from './children';
 import type { FamilyRecord } from './speedrun/leaderboard';
 
 /**
@@ -183,12 +184,24 @@ export async function dismissSpeedRecords(parentId: string, childId: string): Pr
 }
 
 /**
- * Every speed record in one household - the parent's own runs and their
- * children's, since both bank to the same table and a parent plays too.
+ * Every speed record on one family's board - the household's own runs, widened
+ * by every accepted share touching it.
  *
- * One query rather than a read per member: the leaderboard needs all of it
- * before it can rank any of it, and asking a member at a time would be the
- * waterfall `readPlayerState` exists to avoid.
+ * `parentId` is the household's head, exactly what `householdId` already
+ * resolves to for anyone with one - a parent themselves, or a managed child's
+ * parent. That is enough to find the household outright, but a share crosses a
+ * household's border on purpose (see **Sharing a child** in `CLAUDE.md`), so a
+ * second read finds every grant touching it either way: one where this
+ * household is the owner sharing a child out, one where it is the viewer a
+ * child was shared in to. `extendHouseholdWithShares` turns those into the
+ * final id list - the viewer and the specific child a grant names, never the
+ * rest of either side, the same privacy the report itself already gives a
+ * share.
+ *
+ * The household and the shares are independent of one another and read
+ * together, but both have to be in before the id list they build is known, so
+ * the record read itself is still a second round trip rather than one query
+ * the three could all be folded into.
  *
  * Null means the read failed, as everywhere here - a board drawn empty would
  * say a family has never played, which is the lie `readObservations` draws the
@@ -197,10 +210,30 @@ export async function dismissSpeedRecords(parentId: string, childId: string): Pr
 export async function readFamilyRecords(parentId: string): Promise<FamilyRecord[] | null> {
   if (!prisma) return [];
   try {
+    // Independent of one another, so read together rather than one after the
+    // other - the same reason `readPlayerState` folds its reads into one trip.
+    const [household, shares] = await Promise.all([
+      prisma.user.findMany({
+        where: { OR: [{ id: parentId }, { parentId }] },
+        select: { id: true },
+      }),
+      prisma.childShare.findMany({
+        where: { OR: [{ child: { parentId } }, { viewerId: parentId }] },
+        select: { childId: true, viewerId: true, child: { select: { parentId: true } } },
+      }),
+    ]);
+
+    const memberIds = extendHouseholdWithShares(
+      household.map((user) => user.id),
+      shares.map((share) => ({
+        childId: share.childId,
+        viewerId: share.viewerId,
+        ownerId: share.child.parentId ?? parentId,
+      })),
+    );
+
     const rows = await prisma.speedRecord.findMany({
-      // The household, read from both ends of `parentId` - the parent
-      // themselves, and everyone they manage.
-      where: { user: { OR: [{ id: parentId }, { parentId }] } },
+      where: { userId: { in: memberIds } },
       select: {
         userId: true,
         mode: true,
