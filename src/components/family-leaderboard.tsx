@@ -55,14 +55,28 @@ import { ProfileFace } from './profile-face';
  * it.
  */
 
+/**
+ * The foil: a soft light from the top-left and one diagonal band across it.
+ *
+ * A collectible card has a sheen, and this is the smallest honest version of
+ * one - white at low opacity over the operation's wash, so every card gets it
+ * without a per-accent gradient to keep in step with `OPERATION_ACCENT`. It is
+ * the same trick the target bar's shine uses, and it sits *under* the podium
+ * rather than over it: a gloss across a child's face would be a decoration
+ * spoiling the one thing the card is read for.
+ */
+const SHEEN =
+  'linear-gradient(115deg, transparent 40%, rgb(255 255 255 / 0.5) 50%, transparent 60%),' +
+  'linear-gradient(160deg, rgb(255 255 255 / 0.65), transparent 60%)';
+
 const SCALES = {
   child: {
     grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-64 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
-    bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-bold text-white',
+    bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-base leading-none',
     op: 'truncate',
-    body: 'flex flex-1 flex-col px-2 py-2.5',
+    body: 'relative flex flex-1 flex-col px-2 py-2.5',
     mode: 'line-clamp-2 text-center text-xs leading-tight font-medium text-(--color-ink-soft)',
     podium: 'flex flex-1 flex-col justify-center pt-3',
     winnerFace: 'size-14',
@@ -77,10 +91,10 @@ const SCALES = {
   parent: {
     grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-56 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
-    bar: 'flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-white',
+    bar: 'flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-sm leading-none',
     op: 'truncate',
-    body: 'flex flex-1 flex-col px-1.5 py-2',
+    body: 'relative flex flex-1 flex-col px-1.5 py-2',
     mode: 'line-clamp-2 text-center text-[0.65rem] leading-tight font-medium text-(--color-ink-soft)',
     podium: 'flex flex-1 flex-col justify-center pt-2.5',
     winnerFace: 'size-12',
@@ -127,16 +141,25 @@ function Podiumer({ place, style, accent }: { place: Place; style: Style; accent
  * A place nobody holds yet: the circle, dashed and empty.
  *
  * Drawn rather than left out, because the podium is the card's picture and a
- * card missing a third of it reads as a card that has not loaded. Dashed says
- * what a gap says - this is a place, and it is open - which is the honest
- * reading of a mode only one person in the house has run, and a better
- * invitation than the absence was.
+ * card missing a third of it reads as a card that has not loaded. It is drawn
+ * as a hole punched through the card - recessed, with a dashed rim - which is
+ * the honest reading of a mode only one person in the house has run: the place
+ * exists and nobody is in it. A better invitation than the absence was.
  */
 function EmptyPlace({ style }: { style: Style }) {
   return (
     <li aria-hidden className="flex flex-col items-center">
       <span
-        className={`${style.face} shrink-0 rounded-full border-2 border-dashed border-(--color-line)`}
+        className={`${style.face} shrink-0 rounded-full border border-dashed border-(--color-ink-soft)`}
+        style={{
+          // A hole punched through the card: darker than the wash it sits in, a
+          // shadow cast down its inside from the top edge, and a hairline of
+          // light along the bottom outside. Written out rather than assembled
+          // from utilities because it is one effect in three parts, and reading
+          // it as three separate classes says nothing about what it is.
+          background: 'rgb(27 36 48 / 0.07)',
+          boxShadow: 'inset 0 2px 5px rgb(27 36 48 / 0.2), 0 1px 0 rgb(255 255 255 / 0.7)',
+        }}
       />
     </li>
   );
@@ -225,8 +248,11 @@ export function FamilyLeaderboard({
               <span className={style.op}>{operationLabel(standing.mode.op)}</span>
             </h2>
             <div className={`${style.body} ${accent.wash}`}>
-              <p className={style.mode}>{modeLabel(standing.mode)}</p>
-              <Podium places={standing.places} style={style} accent={accent} />
+              <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: SHEEN }} />
+              <div className="relative flex flex-1 flex-col">
+                <p className={style.mode}>{modeLabel(standing.mode)}</p>
+                <Podium places={standing.places} style={style} accent={accent} />
+              </div>
             </div>
           </section>
         );

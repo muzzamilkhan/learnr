@@ -771,10 +771,18 @@ three lines of the same size told apart by a badge; position says who won
 before anything is decoded. The operation headings went with the sections
 because the card's own title bar carries them.
 
-**A place nobody holds is drawn as a dashed empty circle**, not left out. The
-podium is the card's picture, and a card missing a third of it reads as one that
-has not loaded; dashed says what a gap says - this is a place, and it is open -
-which is the honest state of a mode only one person in the house has run.
+**A place nobody holds is drawn as a hole punched through the card**, not left
+out. The podium is the card's picture, and a card missing a third of it reads as
+one that has not loaded; a recessed circle with a dashed rim says what a gap
+says - the place exists and nobody is in it - which is the honest state of a
+mode only one person in the house has run.
+
+**The card carries a foil sheen**: white at low opacity over the operation's
+wash, a soft light from the top-left and one diagonal band across it, plus a
+hairline along the top of the title bar. It is written as one gradient shared by
+every card rather than a per-accent one, so there is nothing to keep in step
+with `OPERATION_ACCENT`, and it sits *under* the podium - a gloss across a
+child's face would be decoration spoiling the one thing the card is read for.
 
 The podium is laid out by *place* rather than by list position, so a shared
 first puts both faces on the top step rather than demoting one of them to the
