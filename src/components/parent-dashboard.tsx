@@ -284,7 +284,16 @@ function CodePanel({
   pending: boolean;
 }) {
   const [left, setLeft] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
+  /**
+   * Which code the tick is for, rather than whether one is showing. A boolean
+   * would need clearing when a new code replaces this one, and clearing it is
+   * an effect that writes state from a prop change - the cascading render
+   * `react-hooks/set-state-in-effect` exists to catch. Holding the value the
+   * parent actually copied answers the same question by comparison, and a
+   * regenerated code stops matching on the render that shows it.
+   */
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const copied = copiedCode === code.value;
 
   // Best-effort, like playing a sound: an insecure context or a refused
   // permission rejects the write, and a code that can still be read off the
@@ -292,7 +301,7 @@ function CodePanel({
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code.value);
-      setCopied(true);
+      setCopiedCode(code.value);
     } catch {
       // Nothing to say - the code is right there to be typed.
     }
@@ -302,13 +311,9 @@ function CodePanel({
   // unmount and whenever a new code replaces this one.
   useEffect(() => {
     if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
+    const timer = setTimeout(() => setCopiedCode(null), 2000);
     return () => clearTimeout(timer);
   }, [copied]);
-
-  useEffect(() => {
-    setCopied(false);
-  }, [code.value]);
 
   // The clock belongs in an effect, not in render, and a code that ticks down
   // while a parent reads it should say so.
