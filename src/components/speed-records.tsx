@@ -9,9 +9,14 @@ import { OPERATION_ACCENT } from './speed-cards';
  * `bests === null` means the read failed, not that nothing has been played -
  * the distinction `readObservations` draws, and getting it backwards here
  * would tell a child who has records that they have none. `[]` is the honest
- * "nothing yet", and modes never run stay in the list rather than being left
- * out of it: greyed out with a dash, so there is visibly something to go
- * after rather than a short list of what is already done.
+ * "nothing yet".
+ *
+ * **Only what has been run is listed.** A mode never played has no record to
+ * show, and twenty-seven rows of dashes is a to-do list rather than a cabinet -
+ * the four or five scores actually set were the smallest thing on a screen
+ * mostly made of what had not happened. An operation with nothing under it
+ * loses its whole section for the same reason. What is missing is not a
+ * prompt to go and play: the cards above are, and they are always all five.
  *
  * `scale` follows `Select`'s precedent: `'child'` is large type and targets,
  * the default, since this is chiefly reached from the child's own home
@@ -69,9 +74,29 @@ export function SpeedRecordsCabinet({
 
   const bestByKey = new Map(bests.map((best) => [best.mode, best]));
 
+  // Each operation with the modes actually run under it, in `MODES` order.
+  // Built before rendering rather than filtered inside the map, so an
+  // operation with nothing under it can drop out entirely instead of leaving
+  // a heading over an empty list.
+  const sections = OPERATIONS.map((op) => ({
+    op,
+    rows: modesFor(op).flatMap((mode) => {
+      const best = bestByKey.get(modeKey(mode));
+      return best ? [{ mode, best }] : [];
+    }),
+  })).filter((section) => section.rows.length > 0);
+
+  if (sections.length === 0) {
+    return (
+      <p className={style.empty}>
+        No runs yet. Finish one and the best score lands here.
+      </p>
+    );
+  }
+
   return (
     <div className={style.stack}>
-      {OPERATIONS.map((op) => {
+      {sections.map(({ op, rows }) => {
         const accent = OPERATION_ACCENT[op];
         return (
           <section key={op} className={style.section}>
@@ -82,23 +107,15 @@ export function SpeedRecordsCabinet({
               {operationLabel(op)}
             </h2>
             <ul className={style.list}>
-              {modesFor(op).map((mode) => {
-                const key = modeKey(mode);
-                const best = bestByKey.get(key);
-                return (
-                  <li key={key} className={`${style.row} ${best ? '' : 'opacity-40'}`}>
-                    <span className="min-w-0 flex-1 truncate font-medium">{modeLabel(mode)}</span>
-                    {best ? (
-                      <span className="flex shrink-0 items-baseline gap-2">
-                        <span className={style.best}>{best.best}</span>
-                        <span className={style.date}>{DATE.format(best.achievedAt)}</span>
-                      </span>
-                    ) : (
-                      <span className={style.date}>-</span>
-                    )}
-                  </li>
-                );
-              })}
+              {rows.map(({ mode, best }) => (
+                <li key={modeKey(mode)} className={style.row}>
+                  <span className="min-w-0 flex-1 truncate font-medium">{modeLabel(mode)}</span>
+                  <span className="flex shrink-0 items-baseline gap-2">
+                    <span className={style.best}>{best.best}</span>
+                    <span className={style.date}>{DATE.format(best.achievedAt)}</span>
+                  </span>
+                </li>
+              ))}
             </ul>
           </section>
         );

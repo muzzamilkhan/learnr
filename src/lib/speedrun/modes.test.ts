@@ -10,6 +10,9 @@ import {
   parseMode,
   parseOperation,
   specsFor,
+  operationLabel,
+  operationNoun,
+  OPERATIONS,
   type Mode,
 } from './modes';
 import { answerRun, startRun } from './run';
@@ -61,6 +64,25 @@ describe('the mode space', () => {
     expect(parseOperation('multiply')).toBe('multiply');
     expect(parseOperation('records')).toBeNull();
     expect(parseOperation('MULTIPLY')).toBeNull();
+  });
+
+  it('labels a control with the verb', () => {
+    // What a card, a heading or a button says: press this and you are doing it.
+    expect(OPERATIONS.map(operationLabel)).toEqual([
+      'Add',
+      'Subtract',
+      'Multiply',
+      'Divide',
+      'Mixed',
+    ]);
+  });
+
+  it('names an operation in prose with the noun', () => {
+    // `recordBanners` drops this into "a personal best in ___", where the verb
+    // would not be English.
+    expect(operationNoun('add')).toBe('addition');
+    expect(operationNoun('divide')).toBe('division');
+    for (const op of OPERATIONS) expect(operationNoun(op)).toBe(operationNoun(op).toLowerCase());
   });
 });
 

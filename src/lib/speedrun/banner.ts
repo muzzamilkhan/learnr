@@ -1,5 +1,5 @@
 import type { ChildRecord } from '../speed-records';
-import { operationLabel, parseMode, type Mode } from './modes';
+import { operationNoun, parseMode, type Mode } from './modes';
 
 /**
  * The sentence a parent's banner reads, and which child it belongs to.
@@ -27,7 +27,9 @@ function modeDescription(mode: Mode): string {
     if (typeof mode.tables === 'number') return `the ${mode.tables} times table`;
     return `tables ${mode.tables}`;
   }
-  return `${mode.difficulty} ${operationLabel(mode.op).toLowerCase()}`;
+  // The noun form, not the card's verb: this drops into "a personal best in
+  // ___", where "easy add" would not be English.
+  return `${mode.difficulty} ${operationNoun(mode.op)}`;
 }
 
 /**

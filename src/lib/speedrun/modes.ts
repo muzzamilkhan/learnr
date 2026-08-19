@@ -236,17 +236,46 @@ export function modeLabel(mode: Mode): string {
   return difficulty[0].toUpperCase() + difficulty.slice(1);
 }
 
+/**
+ * What a card, a heading or a button says. The verb, not the noun: these label
+ * a thing to *do* - press this and you are multiplying - and "Multiply" is both
+ * the shorter word and the one a child reads without decoding four syllables.
+ * It is also what keeps the five cards the same shape as each other, where
+ * "Addition" beside "Multiplication" is a third again as wide for no more
+ * meaning.
+ */
 const OPERATION_LABELS: Record<Operation, string> = {
-  add: 'Addition',
-  subtract: 'Subtraction',
-  multiply: 'Multiplication',
-  divide: 'Division',
+  add: 'Add',
+  subtract: 'Subtract',
+  multiply: 'Multiply',
+  divide: 'Divide',
   mixed: 'Mixed',
 };
 
-/** What the card says: "Multiplication", "Mixed". */
+/** What the card says: "Multiply", "Mixed". */
 export function operationLabel(op: Operation): string {
   return OPERATION_LABELS[op];
+}
+
+/**
+ * The same operation as a *noun*, for prose rather than for a control: "a
+ * personal best in easy addition" is a sentence, and "in easy add" is not.
+ * Only `recordBanners` needs it, and it needs it for every operation, so the
+ * two forms live side by side here rather than one being derived from the
+ * other - there is no rule that turns "Divide" into "division" that is not
+ * just this table written twice.
+ */
+const OPERATION_NOUNS: Record<Operation, string> = {
+  add: 'addition',
+  subtract: 'subtraction',
+  multiply: 'multiplication',
+  divide: 'division',
+  mixed: 'mixed questions',
+};
+
+/** What a sentence says: "easy addition", "hard division". */
+export function operationNoun(op: Operation): string {
+  return OPERATION_NOUNS[op];
 }
 
 const OPERATION_GLYPHS: Record<Operation, string> = {

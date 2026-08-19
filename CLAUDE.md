@@ -663,6 +663,24 @@ and mixed, the eleven single tables plus four named bundles for multiplication.
 Fewer modes than a free range would give, and every one of them accumulates a
 record with some history behind it rather than being set once and forgotten.
 
+**An operation is labelled with the verb, not the noun**: "Add", "Subtract",
+"Multiply", "Divide". A card, a heading and a button all name something to *do*,
+the short word is the one a child reads without decoding four syllables, and
+five cards labelled with it are the same width as each other where
+"Multiplication" beside "Add" is not. `operationNoun` keeps the other form for
+the one place that needs prose - `recordBanners` says "a personal best in easy
+addition", and "in easy add" is not English. Two tables side by side in
+`modes.ts` rather than one derived from the other, because no rule turns
+"Divide" into "division" that isn't this table written twice.
+
+**The cabinet lists what has been run, and nothing else.** A mode never played
+has no record to show, and twenty-seven rows of dashes made a to-do list of a
+trophy case - the four scores actually set were the smallest thing on a screen
+mostly composed of what had not happened. An operation with nothing under it
+loses its section too, and a player with no runs at all gets one sentence. What
+is missing is not the prompt to go and play: the five cards above are, and they
+are always all five.
+
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody
 asked when a child came to practise their sevens - the table stands in for a
