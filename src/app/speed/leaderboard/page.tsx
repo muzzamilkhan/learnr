@@ -29,7 +29,7 @@ export default async function SpeedLeaderboardPage() {
   const household = account ? householdId(account) : null;
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
       <header className="mb-6 flex items-center gap-3 sm:mb-8 sm:gap-4">
         <Link
           href="/speed"

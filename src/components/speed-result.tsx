@@ -63,6 +63,7 @@ const RECORD_ACCENT: Accent = {
   tile: 'bg-(--color-star-soft) text-(--color-star)',
   border: '',
   arrow: '',
+  line: 'border-(--color-star)',
   wash: 'bg-(--color-star-soft)',
   text: 'text-(--color-star)',
   solid: 'bg-(--color-star)',

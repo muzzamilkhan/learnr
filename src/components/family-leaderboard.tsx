@@ -36,14 +36,21 @@ import { ProfileFace } from './profile-face';
  *
  * `you` marks the viewer's own places, under the face, and it is the only text
  * on a podium beside the score.
+ *
+ * **The card wears its operation's colour**, washed across the whole panel with
+ * a border and a solid glyph tile to match, rather than tinting the one tile and
+ * leaving twenty-seven identical white boxes to be told apart by reading their
+ * headings. `OPERATION_ACCENT` is the same table the cards, the cabinet and the
+ * result screen use, so Multiply is the same pink here as the card that starts
+ * the run - the colour is the mode's name said a second way.
  */
 
 const SCALES = {
   child: {
-    grid: 'grid gap-4 sm:grid-cols-2',
-    card: 'rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5',
+    grid: 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    card: 'rounded-3xl border-2 p-5',
     header: 'flex items-center gap-3',
-    tile: 'flex size-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold',
+    tile: 'flex size-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white',
     op: 'text-lg font-semibold leading-tight',
     mode: 'text-base text-(--color-ink-soft) leading-tight',
     podium: 'mt-4',
@@ -54,14 +61,14 @@ const SCALES = {
     px: 48,
     score: 'text-lg font-bold tabular-nums',
     crown: 'size-7',
-    you: 'mt-1 rounded-md bg-(--color-brand-soft) px-1.5 py-0.5 text-xs font-semibold text-(--color-brand)',
+    you: 'mt-1 rounded-md bg-(--color-card) px-1.5 py-0.5 text-xs font-semibold text-(--color-ink-soft)',
     empty: 'text-xl text-(--color-ink-soft)',
   },
   parent: {
-    grid: 'grid gap-3 sm:grid-cols-2',
-    card: 'rounded-xl border border-(--color-line) bg-(--color-card) p-4',
+    grid: 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    card: 'rounded-xl border p-4',
     header: 'flex items-center gap-2',
-    tile: 'flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold',
+    tile: 'flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white',
     op: 'text-sm font-semibold leading-tight',
     mode: 'text-xs text-(--color-ink-soft) leading-tight',
     podium: 'mt-3',
@@ -72,7 +79,7 @@ const SCALES = {
     px: 36,
     score: 'text-sm font-bold tabular-nums',
     crown: 'size-5',
-    you: 'mt-0.5 rounded bg-(--color-brand-soft) px-1 text-[0.65rem] font-semibold text-(--color-brand)',
+    you: 'mt-0.5 rounded bg-(--color-card) px-1 text-[0.65rem] font-semibold text-(--color-ink-soft)',
     empty: 'text-sm text-(--color-ink-soft)',
   },
 } as const;
@@ -80,9 +87,9 @@ const SCALES = {
 type Style = (typeof SCALES)[keyof typeof SCALES];
 
 /**
- * One place: the score, then the face to its right, and the crown above it when
- * this is a first. The score leads because the eye runs left to right and the
- * number is what ranks them; the face is what says whose it is.
+ * One place: the face, the score to its right, and the crown above it when this
+ * is a first. The face leads because it is what the board is scanned for - the
+ * score is what that face is worth, and it reads as a caption to it.
  */
 function Podiumer({
   place,
@@ -100,9 +107,6 @@ function Podiumer({
   return (
     <li className="flex flex-col items-center" title={place.playerName}>
       <div className="flex items-center gap-2">
-        <span className={`${winner ? style.winnerScore : style.score} ${winner ? accent.text : 'text-(--color-ink-soft)'}`}>
-          {place.best}
-        </span>
         <span className="relative">
           {winner ? (
             // Above the circle rather than over it, so the photograph stays whole.
@@ -115,11 +119,12 @@ function Podiumer({
             avatar={place.playerAvatar}
             image={place.playerImage}
             name={place.playerName}
-            className={`${winner ? style.winnerFace : style.face} ${
-              winner ? 'ring-2 ring-(--color-star) ring-offset-2 ring-offset-(--color-card)' : ''
-            }`}
+            className={`${winner ? style.winnerFace : style.face} ${winner ? 'ring-2 ring-(--color-star)' : ''}`}
             px={winner ? style.winnerPx : style.px}
           />
+        </span>
+        <span className={`${winner ? style.winnerScore : style.score} ${winner ? accent.text : 'text-(--color-ink-soft)'}`}>
+          {place.best}
         </span>
       </div>
       {you ? <span className={style.you}>you</span> : null}
@@ -199,9 +204,9 @@ export function FamilyLeaderboard({
       {standings.map((standing) => {
         const accent = OPERATION_ACCENT[standing.mode.op];
         return (
-          <section key={modeKey(standing.mode)} className={style.card}>
+          <section key={modeKey(standing.mode)} className={`${style.card} ${accent.line} ${accent.wash}`}>
             <header className={style.header}>
-              <span aria-hidden className={`${style.tile} ${accent.tile}`}>
+              <span aria-hidden className={`${style.tile} ${accent.solid}`}>
                 {operationGlyph(standing.mode.op)}
               </span>
               <span>

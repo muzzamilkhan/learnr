@@ -756,8 +756,8 @@ cabinet's reason.
 **A mode is a card, and its result is a podium.** First sits at the top with a
 crown above the circle, second below to the left, third below to the right and
 dropped a little further so the two lower places are not one flat row; each
-place is its score and then its face, in that order, because the eye runs left
-to right and the number is what ranks them. It replaced five operation sections
+place is its face and then its score, in that order, because the face is what
+the board is scanned for and the number reads as a caption to it. It replaced five operation sections
 of stacked rows, where first, second and third were three lines of the same size
 told apart by a badge - position says who won before anything is decoded, and it
 is the same thing the faces are there for. The operation headings went with the
@@ -766,7 +766,13 @@ sections because the card now carries both halves of the name itself
 never across it: covering any part of the photograph would cost the board the
 one thing a pre-literate child reads it for. The podium is laid out by *place*
 rather than by list position, so a shared first puts both faces on the top step
-rather than demoting one of them to the left.
+rather than demoting one of them to the left. **A card wears its operation's
+colour** - `OPERATION_ACCENT`'s wash across the whole panel, its border and a
+solid glyph tile - because twenty-seven identical white boxes are told apart
+only by reading their headings, and Multiply here is the same pink as the card
+that starts the run. That accent gained a `line` alongside `border`, since
+`border` was only ever a hover. Four across at `xl`, three at `lg`, two at `sm`:
+a card is a podium of three faces and does not need a column of its own.
 
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody

@@ -41,12 +41,15 @@ export type Accent = {
   text: string;
   /** A filled button in the accent, always with white on it. */
   solid: string;
+  /** A border drawn in the accent, unconditionally - `border` is a hover. */
+  line: string;
 };
 
 export const OPERATION_ACCENT: Record<Operation, Accent> = {
   add: {
     tile: 'bg-(--color-grape-soft) text-(--color-grape)',
     border: 'hover:border-(--color-grape)',
+    line: 'border-(--color-grape)',
     arrow: 'text-(--color-grape)',
     wash: 'bg-(--color-grape-soft)',
     text: 'text-(--color-grape)',
@@ -55,6 +58,7 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
   subtract: {
     tile: 'bg-(--color-leaf-soft) text-(--color-leaf)',
     border: 'hover:border-(--color-leaf)',
+    line: 'border-(--color-leaf)',
     arrow: 'text-(--color-leaf)',
     wash: 'bg-(--color-leaf-soft)',
     text: 'text-(--color-leaf)',
@@ -63,6 +67,7 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
   multiply: {
     tile: 'bg-(--color-berry-soft) text-(--color-berry)',
     border: 'hover:border-(--color-berry)',
+    line: 'border-(--color-berry)',
     arrow: 'text-(--color-berry)',
     wash: 'bg-(--color-berry-soft)',
     text: 'text-(--color-berry)',
@@ -71,6 +76,7 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
   divide: {
     tile: 'bg-(--color-sun-soft) text-(--color-sun)',
     border: 'hover:border-(--color-sun)',
+    line: 'border-(--color-sun)',
     arrow: 'text-(--color-sun)',
     wash: 'bg-(--color-sun-soft)',
     text: 'text-(--color-sun)',
@@ -79,6 +85,7 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
   mixed: {
     tile: 'bg-(--color-brand-soft) text-(--color-brand)',
     border: 'hover:border-(--color-brand)',
+    line: 'border-(--color-brand)',
     arrow: 'text-(--color-brand)',
     wash: 'bg-(--color-brand-soft)',
     text: 'text-(--color-brand)',
