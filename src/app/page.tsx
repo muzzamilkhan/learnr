@@ -12,14 +12,7 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
 import { SubjectCards } from '@/components/subject-cards';
 import { listChildren, readAccount } from '@/lib/accounts';
-import {
-  readPlayStreak,
-  readRecentAnswers,
-  readSelectedLevel,
-  readStarTotal,
-  readTargetSettings,
-  TARGET_WINDOW_MS,
-} from '@/lib/records';
+import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
 import { requestNow } from './now';
 
@@ -75,24 +68,21 @@ export default async function HomePage() {
   const account = userId ? await readAccount(userId) : null;
   const isParent = account?.role === 'parent';
 
-  // A parent doesn't play, so there is no level to reopen on, no run of days and
-  // no stars - reading them would only put numbers on their screen that are
-  // counting nothing.
-  const [stored, streak, stars] = userId && !isParent
-    ? await Promise.all([readSelectedLevel(userId), readPlayStreak(userId), readStarTotal(userId)])
-    : [null, null, null];
+  // A parent doesn't play, so there is no level to reopen on, no run of days, no
+  // stars and no goal - reading them would only put numbers on their screen that
+  // are counting nothing. For a child it is one read: all four live on their own
+  // row, and asking for them a function at a time was four round trips to it.
+  const player = userId && !isParent ? await readPlayerState(userId) : null;
 
-  // A parent has no goal of their own, so this is read on the same branch that
-  // skips their streak and stars. The answers are only worth fetching once there
-  // is a target to measure them against, and a failed read is best-effort here -
-  // an empty bar on the child's own screen, not a claim made to a parent.
-  const settings = userId && !isParent ? await readTargetSettings(userId) : null;
+  // Only worth fetching once there is a goal to measure them against, which is
+  // why this one waits. A failed read is best-effort here - an empty bar on the
+  // child's own screen, not a claim made to a parent.
   const targetAnswers =
-    settings?.target && userId
+    player?.target && userId
       ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
       : [];
 
-  const initialLevel = resolveInitialLevel(stored, levels);
+  const initialLevel = resolveInitialLevel(player?.selectedLevel ?? null, levels);
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
 
   // Signed in but hasn't said what kind of account this is. Asked once, kept
@@ -204,8 +194,8 @@ export default async function HomePage() {
             <ProfileMenu
               name={session.user.name ?? null}
               image={session.user.image ?? null}
-              streak={streak}
-              stars={stars}
+              streak={player?.streak ?? null}
+              stars={player?.stars ?? null}
             >
               <SignOutButton />
             </ProfileMenu>
@@ -215,12 +205,8 @@ export default async function HomePage() {
 
       {/* Under the band and above the cards: what the day asks for, before the
           child picks what to practise. */}
-      {settings?.target ? (
-        <DailyGoal
-          target={settings.target}
-          answers={targetAnswers}
-          awardedDay={settings.targetDay}
-        />
+      {player?.target ? (
+        <DailyGoal target={player.target} answers={targetAnswers} awardedDay={player.targetDay} />
       ) : null}
 
       {/* Only a child reaches this far - a parent was routed away above. */}

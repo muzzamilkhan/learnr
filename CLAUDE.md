@@ -358,6 +358,15 @@ simple enough for a child to pick up with no explanation.
   and shift what sits beside it. It closes on an outside pointerdown or Escape,
   never on blur: a tap on an option moves focus off the button first, and closing
   there would remove the option before the tap could land on it.
+- **`src/components/clock.ts` is the third browser shim**, beside `sounds.ts`
+  and `speech.ts` and there for the same reason: it reads `Date.now()` and the
+  device's own offset, so it could never live in `src/lib`, where every day
+  question takes both as arguments. Which day a moment falls in is a question
+  only the device can answer, so the profile menu's run of days, the home
+  screen's goal panel and the play screen's goal bar all read it through
+  `useSyncExternalStore` rather than rendering a number at UTC and correcting it
+  a frame later. One `subscribeToTheClock` for all three - it was copied into
+  each of them, comment and all.
 - **Three sounds, and only on the play screen**: right, wrong, and a fanfare with
   the stars. `src/components/sounds.ts` is the shim - it lives beside the
   components, not in `src/lib`, because it touches `Audio` and could never be
@@ -414,8 +423,13 @@ shipped content is a fraction, because division is written `÷`.
 `choice` question precisely because the child cannot spell it, so three unread
 buttons would leave that question as unanswerable as it was. Numerals are read
 long before words and four of them said back is noise. Options the prompt has
-already named are left alone - "Which ribbon is longer, red or blue?" does not
-need "Is it red or blue?" after it.
+already *offered* are left alone - "Which ribbon is longer, red or blue?" does
+not need "Is it red or blue?" after it. Offering them is what counts, not merely
+saying the words: "What comes next? red, orange, purple, red, orange, purple,
+red, ?" contains all three of its options and offers none of them, and taking
+that as already said left a Kindergartener with three unread buttons. The word
+that tells the two apart is "or", between two of the options and inside one
+sentence, so both have to hold before the reading is skipped.
 
 `src/components/speech.ts` is the browser shim, beside `sounds.ts` and for the
 same reason: it touches `speechSynthesis`, so it could never be pure. Speaking is
@@ -475,6 +489,10 @@ daily target arrived: a target is mutable, and a recount of a past day against
 today's setting would take stars off a child who had earned them. So the total
 is **incremented** by what is newly owed and never recomputed.
 
+Nothing recounts a star total now, so the play screen's optimistic `+3` is the
+only correction there is - which is why both it and the server value a round
+with the same `closedRound` over the same answers.
+
 What replaced the recount's idempotence is a guard on every increment. A round's
 stars are banked against `LearningSession.roundsBanked`, read under `SELECT ...
 FOR UPDATE` and moved up in the same transaction, so a repeated call, a retry or
@@ -508,6 +526,16 @@ the avatar, the same control on the home screen and the play screen so a child
 never looks in two places for the two numbers. Days sit left of the stars: the
 run is the thing that lapses if they stop. Behind the tap there is only the name
 and the way out.
+
+**Everything the playing screens read off the child's row is one query**
+(`readPlayerState`): the level they last chose, the run of days, the star total
+and the daily target all live on `User`, and both `/` and `/play` want all four
+before they can render. Asked for a function at a time that was four round trips
+to one row, with the target's two arriving *after* a `Promise.all` they had no
+reason to wait behind - a waterfall in front of the first question a child sees.
+The single-column readers that remain have callers that genuinely want one thing:
+`readSelectedLevel` for the redirect that runs before anything else on `/play`,
+and `readPlayStreak` inside the streak fold.
 
 Both are drawn through `formatCount` (`src/lib/format.ts`), which pins `en-AU`
 rather than reading the browser's locale - the totals are rendered on the server
@@ -790,10 +818,10 @@ played gets a sentence, not empty charts.
 against the 7 before, because a Monday-aligned week reads "0 questions" every
 Monday morning. It lives in `lib` and is tested, like everything else that
 counts, and the `now` it runs on is read once, at the request boundary -
-`requestNow()` in `src/app/progress/now.ts`, rather than a bare `Date.now()` in
-the component, which `react-hooks/purity` flags as impure. `strengths` mirrors
-`problemTopics`, ordered by `correctDays` because that is the evidence that means
-something; it excludes `review-due` so no topic appears in two sections at once.
+`requestNow()` in `src/app/now.ts` - one of these for the whole app, rather than
+a bare `Date.now()` in the component, which `react-hooks/purity` flags as impure.
+`strengths` mirrors `problemTopics`, ordered by `correctDays` because that is
+the evidence that means something; it excludes `review-due` so no topic appears in two sections at once.
 
 Two framing decisions the copy depends on. The tile says **"time on questions"**,
 not "minutes spent": it is summed `timeTakenMs`, already capped per answer, so
