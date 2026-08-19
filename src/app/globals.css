@@ -145,6 +145,38 @@
   }
 }
 
+/* The run-up's numbers: each one lands, holds, and shrinks away as the next
+   arrives, so three of them read as three beats rather than one blur. */
+@keyframes speed-count {
+  0% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+  25%,
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+/* The answered question dropping into place from where its preview was sitting.
+   It is what makes the line above read as the *next* question rather than as a
+   second question: the thing you were reading is the thing you are now on. */
+@keyframes speed-drop {
+  from {
+    opacity: 0.35;
+    transform: translateY(-0.55em) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 html,
 body {
   height: 100%;
