@@ -163,6 +163,16 @@ small closed set ("red or blue?", "metres or centimetres?") is a `choice` questi
 at any level; a two-option `choices` with both literals as distractors is the
 usual shape.
 
+**`QuestionSpec` and `QuestionTemplate` are a deliberate split**
+(`src/lib/templates/types.ts`). A spec is everything it takes to make a
+question - the prompt, the vars, the constraints, the answer - and a template is
+a spec placed in a course, adding an id, a subject, a topic and a school year.
+The split exists because a speed run question (see **Speed run**) has no
+curriculum topic and no school year to declare; giving it a nominal one would be
+a lie told in the type system, in the one place a level is guaranteed to be a
+real Australian school year. `specsFor` in `src/lib/speedrun/modes.ts` returns
+bare `QuestionSpec`s for exactly this reason, and reuses `generate` unchanged.
+
 ## Sessions
 
 A session never ends. The child picks subject + year and answers until they stop;
@@ -623,6 +633,125 @@ refuse every real day after it, which is a child's stars gone with nothing on
 screen to say why. A refused offset declines the award; a recorded answer falls
 back to UTC rather than being thrown away, because history is worth more than a
 perfect day boundary.
+
+## Speed run
+
+Ninety seconds, one mode, how many were answered right. It is a game rather than
+a lesson - the first thing in the app with a clock, a score and a number to
+beat, all three of which the rest of LearnR deliberately withholds: the play
+screen's header counts nothing and a session keeps no running score, on
+purpose. A speed run breaks both rules, and that is safe to do only because it
+is walled off from everything those rules protect.
+
+**Sealed off because an `Attempt` carries a curriculum topic and an Australian
+school year, and a speed run has neither.** `add.hard` is a drill, not a
+question ACARA describes, and it belongs to no level. Recording it as an
+`Attempt` anyway would put a topic outside the curriculum into
+`weightTemplates`, the selector that decides what a child is asked next, and
+forty answers in ninety seconds would swamp the recency-weighted `strength` of
+every topic genuinely being learned faster than a session could produce them. A
+speed run writes no `Attempt`, no `TopicSkill`, no star and no streak, and earns
+no daily-target credit - the only row it ever writes is `SpeedRecord`.
+
+**Twenty-seven modes, and the list is closed.** A free "from" and "to" range
+across the times tables would give something closer to sixty, most differing
+from a neighbour by one table: two near-identical numbers, each set once and
+never approached again. A record is only worth beating if the mode is worth
+naming, so `modes.ts` enumerates the twenty-seven by hand rather than building
+them from a range: three difficulties each for addition, subtraction, division
+and mixed, the eleven single tables plus four named bundles for multiplication.
+Fewer modes than a free range would give, and every one of them accumulates a
+record with some history behind it rather than being set once and forgotten.
+
+**Multiplication has no difficulty axis, because the times tables are how
+multiplication is drilled.** "Hard multiplication" answers a question nobody
+asked when a child came to practise their sevens - the table stands in for a
+difficulty of its own. Mixed still needs multiplication bands, because a mixed
+run has no table to choose and multiplication is one of its four operations
+regardless; `MIXED_TABLES` gives it 2, 5 and 10 at easy, the whole of 2-10 at
+moderate, and the full set at hard.
+
+**Every answer is a non-negative integer, because the number pad has no minus
+key.** Subtraction never goes negative - each difficulty's `y` is bounded by
+`x`, an ordered var referencing one already drawn - and division is exact by
+construction: built as a divisor times a quotient (`x: d * q`) rather than
+drawn and then checked, so there is nothing for rejection sampling to reject.
+**Hard means hard, not just bigger digits**: `add.hard` is constrained to carry
+and `subtract.hard` to borrow, because two-digit-plus-two-digit without that
+constraint draws 20 + 30 about as often as 37 + 58, and a "hard" that draws its
+easy cases just as often is moderate wearing a bigger font.
+
+**A record needs no row lock, unlike `roundsBanked` or `targetDay`.**
+`User.stars` is *incremented*, so a repeated call would pay a child twice if
+nothing stopped it - that is what the round-star lock exists for. A speed
+record is a maximum, and a maximum is idempotent: `best: { lt: run.correct }`
+in the update's `WHERE` clause is the whole guard, and a repeat, a retry or two
+runs landing at once all agree on the same outcome with no transaction needed.
+The one place that still needs care is the *insert* - the row cannot be locked
+before it exists, so two concurrent first-ever runs on the same mode can both
+read no row and both try to create one. That is the identical race
+`updateTopicSkill` hits on `TopicSkill`, handled the same way: catch the unique
+violation and retry the guarded update once. One time round is enough.
+
+**A first run is not a record.** Recording one as a record would make a
+personal best mean somebody *improved*, which a first run has not done, and it
+would let a child exploring the chooser fire twenty-seven notifications at
+their parent in an afternoon. The result screen has a third thing to say rather
+than two - "that's your score to beat", where a fanfare would be invented - and
+a fourth for when the run was never banked at all: signed out, no database, or
+a write that failed, in which case the screen claims no best rather than
+pretending the run was a first one. `seen` is `false` if and only if a run is
+reported as a record, on the write and the read alike, so the same event can
+never tell the child "new best" and leave the parent's banner silent, or the
+reverse.
+
+**A run nobody answered is never submitted.** Banking a zero-answer run would
+store a best of nought, which the child's first real attempt then "beats" -
+laundering a first run into a celebrated record through a run that never
+actually happened. The guard is on the number of answers, never the score:
+nought correct out of eight answered is a real baseline and is banked like any
+other.
+
+**The timer is one CSS transition, and only the pulse comes from React.** The
+bar's width is set once, at the start of the run, as a transition running down
+to zero over the time left; a bar re-rendered from state ten times a second
+under a child answering as fast as they can would repaint the whole screen to
+say what a transition says for free. React still owns the beat - `pulseFor`
+steps the animation faster at 30, 15 and 5 seconds left, because that changes
+three times in ninety seconds and not thirty.
+
+**The next question sits above the current one, dimmed, and it is real state,
+not a render trick.** Reading ahead is most of what makes a fast run fast, so
+`RunState` carries a lookahead of one: the question drawn as "next" is the very
+question that becomes "current" the moment this one is answered, not a preview
+redrawn to match. An answer commits the instant what is typed matches the
+expected answer as an exact string - `07` for 7 does not auto-advance - but the
+Check key stays, because it grades numerically, and a child who typed `07` and
+pressed it is still right. A wrong answer flashes the entry box red and moves
+straight on with nothing shown about what it should have been: ninety seconds
+is not teaching time, and a correction nobody has time to read is only a delay,
+paid most by the child getting the most wrong. The misses are kept and read
+back on the result screen, where there is time.
+
+**A parent plays too, privately.** `/progress/speed/[op]` renders the same
+component the child gets, and a parent's own runs bank to their own
+`SpeedRecord` rows the same way. `SpeedBanner` reports someone else's
+achievement and never your own: `readUnseenRecords` is scoped to a parent's
+*children*, so a parent beating their own best produces no row in their own
+banner - there is nothing the banner needs to do to keep that true.
+
+**The parent's routes nest under the report rather than sitting beside it as a
+second top-level path.** The child plays at `/speed/[op]` and `/speed/records`;
+a parent's own runs live at `/progress/speed/[op]` and
+`/progress/speed/records`. A route group adds no path segment, so a bare
+`(parent)/speed` would sit exactly beside the child's `/speed` - two top-level
+URLs a hyphen apart, told apart only by spelling, and a redirect or a copied
+`href` that gets the two backwards produces no build error and no test
+failure. Nesting under `/progress/speed/...` distinguishes by depth instead,
+which cannot be muddled the same way. It costs `useParentScreen` an ordering
+constraint: `/progress/speed` has to be checked before the bare `/progress`
+prefix below it, or every speed screen in the parent's own nav would highlight
+"Progress" instead of "Speed run".
 
 ## Accounts
 
