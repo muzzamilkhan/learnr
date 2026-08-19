@@ -81,6 +81,7 @@ model User {
   sessions         Session[]
   learningSessions LearningSession[]
   topicSkills      TopicSkill[]
+  speedRecords     SpeedRecord[]
 
   /// The parent dashboard's only read: this parent's children.
   @@index([parentId])
@@ -214,4 +215,41 @@ model Attempt {
   /// "This session's answers, newest first" - the shape both history reads take once
   /// the planner has narrowed to a child's sessions. Covers the plain FK lookup too.
   @@index([learningSessionId, answeredAt])
+}
+
+/// The best a player has done at one speed-run mode.
+///
+/// Only the best is kept: a run that does not beat it leaves no trace, so there
+/// is no history of every run and no graph of improvement over time. That is the
+/// cost of one row per mode, and it is written down here rather than discovered
+/// later.
+///
+/// This is the one award in the app that needs no row lock. `User.stars` is
+/// incremented, so a repeated or raced call would pay twice - hence
+/// `roundsBanked` under `SELECT ... FOR UPDATE` and the compare-and-set on
+/// `targetDay`. A record is a *maximum*, and a maximum is idempotent: two runs
+/// landing at once produce the same row whichever order they arrive in.
+model SpeedRecord {
+  id     String @id @default(cuid())
+  userId String
+  /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
+  mode   String
+
+  /// Most correct answers in a single run of this mode.
+  best     Int
+  /// How many were attempted in the run that set it - context, never a second score.
+  answered Int
+
+  achievedAt DateTime @default(now())
+
+  /// Whether this player's parent has seen the banner for it. True on creation,
+  /// because a first run is not a record and announces nothing; set false only
+  /// when a previous best is genuinely beaten.
+  seen Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mode])
+  /// The two reads: one player's whole cabinet, and a parent's unseen records.
+  @@index([userId])
 }
