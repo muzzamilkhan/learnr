@@ -771,8 +771,12 @@ colour** - `OPERATION_ACCENT`'s wash across the whole panel, its border and a
 solid glyph tile - because twenty-seven identical white boxes are told apart
 only by reading their headings, and Multiply here is the same pink as the card
 that starts the run. That accent gained a `line` alongside `border`, since
-`border` was only ever a hover. Four across at `xl`, three at `lg`, two at `sm`:
-a card is a podium of three faces and does not need a column of its own.
+`border` was only ever a hover. Six across on a desktop, four on a tablet, two
+on a phone, and **every card a fixed height**: a card is three faces and two
+short lines, so a wide one is mostly empty, and a grid row stretching its cards
+to whichever of them wrapped its mode label is what makes the next row a
+different size. The podium centres itself in whatever the header leaves, so a
+mode with one place and a mode with three are the same box.
 
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody

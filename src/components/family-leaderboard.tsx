@@ -43,43 +43,51 @@ import { ProfileFace } from './profile-face';
  * headings. `OPERATION_ACCENT` is the same table the cards, the cabinet and the
  * result screen use, so Multiply is the same pink here as the card that starts
  * the run - the colour is the mode's name said a second way.
+ *
+ * **Every card is the same fixed height**, and it is what makes a wall of
+ * twenty-seven of them read as a board rather than a ragged column: a grid row
+ * already stretches its cards to match each other, so without a height a card
+ * whose mode label wrapped set the height of the four beside it and the next
+ * row came out a different size. The podium sits in the leftover space and
+ * centres itself there, so a mode with one place and a mode with three are the
+ * same box with a different amount in it.
  */
 
 const SCALES = {
   child: {
-    grid: 'grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-    card: 'rounded-3xl border-2 p-5',
-    header: 'flex items-center gap-3',
-    tile: 'flex size-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-white',
-    op: 'text-lg font-semibold leading-tight',
-    mode: 'text-base text-(--color-ink-soft) leading-tight',
-    podium: 'mt-4',
-    winnerFace: 'size-16',
-    winnerPx: 64,
-    winnerScore: 'text-2xl font-bold tabular-nums',
-    face: 'size-12',
-    px: 48,
-    score: 'text-lg font-bold tabular-nums',
-    crown: 'size-7',
-    you: 'mt-1 rounded-md bg-(--color-card) px-1.5 py-0.5 text-xs font-semibold text-(--color-ink-soft)',
-    empty: 'text-xl text-(--color-ink-soft)',
-  },
-  parent: {
-    grid: 'grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
-    card: 'rounded-xl border p-4',
+    grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6',
+    card: 'flex h-48 flex-col rounded-2xl border-2 p-3',
     header: 'flex items-center gap-2',
-    tile: 'flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white',
-    op: 'text-sm font-semibold leading-tight',
-    mode: 'text-xs text-(--color-ink-soft) leading-tight',
-    podium: 'mt-3',
+    tile: 'flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white',
+    op: 'text-sm font-semibold leading-tight truncate',
+    mode: 'text-xs text-(--color-ink-soft) leading-tight line-clamp-2',
+    podium: 'mt-2 flex flex-1 flex-col justify-center pt-2',
     winnerFace: 'size-12',
     winnerPx: 48,
     winnerScore: 'text-lg font-bold tabular-nums',
-    face: 'size-9',
-    px: 36,
+    face: 'size-8',
+    px: 32,
     score: 'text-sm font-bold tabular-nums',
     crown: 'size-5',
-    you: 'mt-0.5 rounded bg-(--color-card) px-1 text-[0.65rem] font-semibold text-(--color-ink-soft)',
+    you: 'mt-1 rounded bg-(--color-card) px-1 text-[0.65rem] font-semibold text-(--color-ink-soft)',
+    empty: 'text-xl text-(--color-ink-soft)',
+  },
+  parent: {
+    grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 xl:grid-cols-6',
+    card: 'flex h-40 flex-col rounded-xl border p-2.5',
+    header: 'flex items-center gap-1.5',
+    tile: 'flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white',
+    op: 'text-xs font-semibold leading-tight truncate',
+    mode: 'text-[0.65rem] text-(--color-ink-soft) leading-tight line-clamp-2',
+    podium: 'mt-1.5 flex flex-1 flex-col justify-center pt-2',
+    winnerFace: 'size-10',
+    winnerPx: 40,
+    winnerScore: 'text-base font-bold tabular-nums',
+    face: 'size-7',
+    px: 28,
+    score: 'text-xs font-bold tabular-nums',
+    crown: 'size-4',
+    you: 'mt-0.5 rounded bg-(--color-card) px-1 text-[0.6rem] font-semibold text-(--color-ink-soft)',
     empty: 'text-sm text-(--color-ink-soft)',
   },
 } as const;
@@ -106,7 +114,7 @@ function Podiumer({
 
   return (
     <li className="flex flex-col items-center" title={place.playerName}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <span className="relative">
           {winner ? (
             // Above the circle rather than over it, so the photograph stays whole.
@@ -147,19 +155,19 @@ function Podium({ places, youId, style, accent }: { places: Place[]; youId?: str
 
   return (
     <div className={style.podium}>
-      <ol className="flex flex-wrap items-end justify-center gap-4">
+      <ol className="flex flex-wrap items-end justify-center gap-2">
         {tier(1).map((place) => (
           <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
         ))}
       </ol>
       {seconds.length > 0 || thirds.length > 0 ? (
-        <div className="mt-3 flex items-start justify-between gap-3">
-          <ol className="flex gap-3">
+        <div className="mt-2 flex items-start justify-between gap-1">
+          <ol className="flex gap-2">
             {seconds.map((place) => (
               <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
             ))}
           </ol>
-          <ol className="mt-4 flex gap-3">
+          <ol className="mt-3 flex gap-2">
             {thirds.map((place) => (
               <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
             ))}
@@ -209,7 +217,7 @@ export function FamilyLeaderboard({
               <span aria-hidden className={`${style.tile} ${accent.solid}`}>
                 {operationGlyph(standing.mode.op)}
               </span>
-              <span>
+              <span className="min-w-0">
                 <h2 className={style.op}>{operationLabel(standing.mode.op)}</h2>
                 <p className={style.mode}>{modeLabel(standing.mode)}</p>
               </span>
