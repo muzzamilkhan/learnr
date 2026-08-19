@@ -749,6 +749,12 @@ nothing for the mode somebody came to look at. `runHistory`
 because which of two tied runs is starred is not a thing to judge by eye in a
 component.
 
+Every record set before the table existed is backfilled as **one** run each,
+carrying the record's own `achievedAt` - one run is all that can honestly be
+recovered, since the best was the only run ever written down. Without it a
+player who had records saw blank cards while the leaderboard, still reading
+`SpeedRecord`, showed those same scores back to them.
+
 **The family leaderboard ranks the household, per mode, first to third.**
 `/speed/leaderboard` and `/progress/speed/leaderboard`, beside the cabinet and
 linked from `SpeedCards` at both scales. A household is `User.parentId` read
