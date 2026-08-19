@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { resolveChild } from '@/lib/children';
-import { OPERATIONS } from '@/lib/speedrun/modes';
 
-/** Where the nav's third item goes: the first operation in the closed list,
- * the same default order the child's own speed-run cards render in. */
-const SPEED_RUN_HREF = `/progress/speed/${OPERATIONS[0]}`;
+/** Where the nav's third item goes: the chooser, with all twenty-seven modes
+ * on it - not one arbitrary operation, which left the other twenty-six
+ * reachable only by hand-editing the URL. */
+const SPEED_RUN_HREF = '/progress/speed';
 
 type ParentScreen = 'progress' | 'children' | 'speed-run';
 

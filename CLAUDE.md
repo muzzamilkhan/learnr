@@ -742,8 +742,12 @@ banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
 second top-level path.** The child plays at `/speed/[op]` and `/speed/records`;
-a parent's own runs live at `/progress/speed/[op]` and
-`/progress/speed/records`. A route group adds no path segment, so a bare
+a parent's own runs live at `/progress/speed`, `/progress/speed/[op]` and
+`/progress/speed/records` - the first a chooser rendering the same
+`SpeedCards` the child's home screen offers, pointed at the parent's own base
+path, so the nav's "Speed run" item lands somewhere all twenty-seven modes are
+reachable rather than on one arbitrary operation. A route group adds no path
+segment, so a bare
 `(parent)/speed` would sit exactly beside the child's `/speed` - two top-level
 URLs a hyphen apart, told apart only by spelling, and a redirect or a copied
 `href` that gets the two backwards produces no build error and no test
