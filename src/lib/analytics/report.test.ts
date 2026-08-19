@@ -14,6 +14,9 @@ import {
   strengths,
   summarise,
   topicReports,
+  templateReports,
+  blindSpots,
+  levelFit,
   trendFor,
   EXAMPLE_ANSWERS,
 } from './report';
@@ -529,3 +532,99 @@ describe('recentAnswers', () => {
     ]);
   });
 });
+
+describe('templateReports', () => {
+  /** The same topic, asked by two templates - one she can do and one she cannot. */
+  const mixed: Observation[] = [
+    ...answers('number patterns', wrongs(9), { level: '5' }).map((o) => ({
+      ...o,
+      templateId: 'maths.5.number-patterns.multiply-rule',
+    })),
+    ...answers('number patterns', rights(6), { level: '5' }).map((o) => ({
+      ...o,
+      templateId: 'maths.5.number-patterns.add-rule',
+    })),
+  ];
+
+  it('measures one grain finer than the topic', () => {
+    const reports = templateReports(mixed);
+
+    expect(reports.map((report) => report.templateId)).toEqual([
+      'maths.5.number-patterns.multiply-rule',
+      'maths.5.number-patterns.add-rule',
+    ]);
+    expect(reports[0]).toMatchObject({ attempts: 9, correct: 0, accuracy: 0, topic: 'number patterns' });
+  });
+
+  it('skips answers with no template recorded rather than lumping them together', () => {
+    // Every attempt written since the column existed carries one; the history
+    // that predates it must not all pile into a single nameless row.
+    expect(templateReports(answers('counting numbers', rights(4)))).toEqual([]);
+  });
+
+  it('finds the template a topic is hiding', () => {
+    const [blind] = blindSpots(templateReports(mixed));
+
+    expect(blind.templateId).toBe('maths.5.number-patterns.multiply-rule');
+    // The topic around it is at 6/15 - poor, but nothing like the hole inside it.
+    expect(blind.topicAccuracy).toBeGreaterThan(blind.accuracy);
+  });
+
+  it('says nothing about a template that is merely unproven', () => {
+    const thin = answers('fractions', wrongs(2), { level: '5' }).map((o) => ({
+      ...o,
+      templateId: 'maths.5.fractions.of-a-quantity',
+    }));
+
+    expect(blindSpots(templateReports(thin))).toEqual([]);
+  });
+
+  it('leaves alone a template no worse than the topic it sits in', () => {
+    // A topic that is uniformly hard is a topic problem, and `topicReports`
+    // already reports it. This section is only for what that read cannot see.
+    const uniform = ['a', 'b'].flatMap((variant) =>
+      answers('fractions', wrongs(5), { level: '5' }).map((o) => ({
+        ...o,
+        templateId: `maths.5.fractions.${variant}`,
+      })),
+    );
+
+    expect(blindSpots(templateReports(uniform))).toEqual([]);
+  });
+});
+
+describe('levelFit', () => {
+  it('calls a level far below the mixing target too hard', () => {
+    const fit = levelFit(answers('fractions', [...wrongs(36), ...rights(7)], { level: '6' }));
+
+    expect(fit).toHaveLength(1);
+    expect(fit[0]).toMatchObject({ level: '6', verdict: 'too-hard', attempts: 43 });
+  });
+
+  it('calls the three-in-four band about right', () => {
+    const fit = levelFit(answers('fractions', [...rights(15), ...wrongs(5)], { level: '5' }));
+
+    expect(fit[0].verdict).toBe('about-right');
+  });
+
+  it('calls a level nearly always right too easy', () => {
+    const fit = levelFit(answers('counting numbers', [...rights(19), ...wrongs(1)], { level: 'K' }));
+
+    expect(fit[0].verdict).toBe('too-easy');
+  });
+
+  it('refuses to judge a level on too little', () => {
+    const fit = levelFit(answers('fractions', wrongs(3), { level: '6' }));
+
+    expect(fit[0].verdict).toBe('unknown');
+  });
+
+  it('reports every level played, hardest first', () => {
+    const fit = levelFit([
+      ...answers('fractions', wrongs(10), { level: '6' }),
+      ...answers('decimals', rights(10), { level: '5' }),
+    ]);
+
+    expect(fit.map((entry) => entry.level)).toEqual(['6', '5']);
+  });
+})

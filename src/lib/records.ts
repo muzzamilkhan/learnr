@@ -624,6 +624,9 @@ export async function readObservations(
         timeTakenMs: true,
         answeredAt: true,
         offsetMinutes: true,
+        // Carried for the parent's report alone - nothing that folds a profile
+        // or picks the next question reads it. See `Observation.templateId`.
+        templateId: true,
       },
     });
 
@@ -635,6 +638,7 @@ export async function readObservations(
               topic: row.topic,
               level,
               correct: row.correct,
+              templateId: row.templateId,
               timeTakenMs: row.timeTakenMs,
               answeredAt: row.answeredAt.getTime(),
               offsetMinutes: row.offsetMinutes,

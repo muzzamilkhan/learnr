@@ -20,6 +20,17 @@ export interface Observation {
   topic: string;
   level: YearLevel;
   correct: boolean;
+  /**
+   * Which template asked it, e.g. `maths.5.number-patterns.multiply-rule`.
+   *
+   * Optional, and nothing that folds a profile reads it: `nextSkill` measures a
+   * topic, and a topic is the grain a child learns at. It is carried for the
+   * parent's report alone, which needs one grain finer to see a single template
+   * a child cannot do sitting inside a topic that merely looks weak - `topic`
+   * cannot tell "she's shaky on number patterns" apart from "she has never once
+   * got the multiply-by-k rule out".
+   */
+  templateId?: string;
   timeTakenMs: number;
   answeredAt: number;
   /**

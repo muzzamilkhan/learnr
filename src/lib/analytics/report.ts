@@ -5,6 +5,7 @@ import {
   averageTimeMs,
   buildProfile,
   localDay,
+  MIN_OBSERVATIONS,
   reviewDueAt,
   skillStatus,
   type Observation,
@@ -534,4 +535,176 @@ export function headline(observations: readonly Observation[], options: PeriodOp
         ? null
         : thisWindow.accuracy - lastWindow.accuracy,
   };
+}
+
+/**
+ * One template's record, which is one grain finer than `TopicReport`.
+ *
+ * The topic is the grain a child *learns* at, and it stays the grain everything
+ * that folds a profile or picks a question works at. It is not always the grain
+ * a problem lives at: a year ships between one and five templates a topic, and
+ * a topic sitting at 40% can be one template the child has never once got out
+ * and another they are fine on. Averaged together that reads as "shaky", which
+ * sends a parent to help with the wrong half.
+ *
+ * Reported, never acted on. `weightTemplates` deliberately spreads a topic's
+ * weight across its templates so that how much content got written cannot decide
+ * how much practice a child gets, and a per-template weight read from here would
+ * undo exactly that.
+ */
+export interface TemplateReport {
+  templateId: string;
+  topic: string;
+  level: YearLevel;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+  averageTimeMs: number;
+  lastAnsweredAt: number;
+}
+
+/** Every template a child has answered, worst first. */
+export function templateReports(observations: readonly Observation[]): TemplateReport[] {
+  const groups = new Map<string, Observation[]>();
+
+  for (const observation of observations) {
+    // History written before the column existed carries no template. Those
+    // answers are counted by every topic-grained read here; collecting them
+    // under one nameless row would invent a template that was never asked.
+    if (!observation.templateId) continue;
+    const group = groups.get(observation.templateId) ?? [];
+    group.push(observation);
+    groups.set(observation.templateId, group);
+  }
+
+  return [...groups.entries()]
+    .map(([templateId, group]) => {
+      const correct = group.filter((observation) => observation.correct).length;
+      return {
+        templateId,
+        topic: group[0].topic,
+        level: group[0].level,
+        attempts: group.length,
+        correct,
+        accuracy: correct / group.length,
+        averageTimeMs: Math.round(
+          group.reduce((total, observation) => total + observation.timeTakenMs, 0) / group.length,
+        ),
+        lastAnsweredAt: Math.max(...group.map((observation) => observation.answeredAt)),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.accuracy - b.accuracy ||
+        b.attempts - a.attempts ||
+        compareYearLevels(a.level, b.level) ||
+        a.templateId.localeCompare(b.templateId),
+    );
+}
+
+/** A template going far worse than the topic around it, and the topic's own figure to compare against. */
+export interface BlindSpot extends TemplateReport {
+  topicAccuracy: number;
+}
+
+/** How far under its topic a template has to run before it is worth naming separately. */
+export const BLIND_SPOT_GAP = 0.25;
+
+/**
+ * The templates a topic average is hiding.
+ *
+ * Only what the topic-grained read cannot already see: a template is listed
+ * when it has enough answers behind it to mean anything *and* is running
+ * `BLIND_SPOT_GAP` below the topic it belongs to. A topic that is uniformly
+ * hard produces nothing here, on purpose - `problemTopics` reports that, and
+ * repeating it a grain down would be the same finding twice.
+ */
+export function blindSpots(
+  reports: readonly TemplateReport[],
+  limit = 3,
+  minimum = MIN_OBSERVATIONS,
+): BlindSpot[] {
+  const topics = new Map<string, { attempts: number; correct: number }>();
+  for (const report of reports) {
+    const id = key(report.topic, report.level);
+    const total = topics.get(id) ?? { attempts: 0, correct: 0 };
+    total.attempts += report.attempts;
+    total.correct += report.correct;
+    topics.set(id, total);
+  }
+
+  return reports
+    .filter((report) => report.attempts >= minimum)
+    .map((report) => {
+      const total = topics.get(key(report.topic, report.level))!;
+      return { ...report, topicAccuracy: total.correct / total.attempts };
+    })
+    .filter((report) => report.topicAccuracy - report.accuracy >= BLIND_SPOT_GAP)
+    .slice(0, limit);
+}
+
+/**
+ * Whether a year level is pitched right for the child answering it.
+ *
+ * The report already tells a parent that around three in four right is the
+ * system working - the selector mixes hard topics in deliberately, so a lower
+ * number is not a bad child. What it never said is what to do when a level is
+ * nowhere near that band, which is the one question a parent of a struggling
+ * child most needs answered and the one the screen made them infer: a child at
+ * 16% across forty questions is not being taught, and no amount of topic-level
+ * detail says so as plainly as the level itself does.
+ */
+export type LevelVerdict = 'too-hard' | 'about-right' | 'too-easy' | 'unknown';
+
+export interface LevelFit {
+  level: YearLevel;
+  attempts: number;
+  correct: number;
+  accuracy: number;
+  verdict: LevelVerdict;
+  lastAnsweredAt: number;
+}
+
+/** Below this, the level is asking more than the child can answer. */
+export const TOO_HARD_BELOW = 0.45;
+/** Above this, nothing is being learned because nothing is being got wrong. */
+export const TOO_EASY_ABOVE = 0.9;
+
+/**
+ * One entry per level the child has answered at, hardest-going first.
+ *
+ * Per level rather than per level *and* subject because a year is a year: a
+ * child moved down from Year 6 to Year 5 was moved in maths and would be moved
+ * in anything else too. Callers scope the observations they pass in.
+ */
+export function levelFit(
+  observations: readonly Observation[],
+  minimum = MIN_OBSERVATIONS,
+): LevelFit[] {
+  const levels = new Map<YearLevel, Observation[]>();
+  for (const observation of observations) {
+    levels.set(observation.level, [...(levels.get(observation.level) ?? []), observation]);
+  }
+
+  return [...levels.entries()]
+    .map(([level, group]) => {
+      const correct = group.filter((observation) => observation.correct).length;
+      const accuracy = correct / group.length;
+      return {
+        level,
+        attempts: group.length,
+        correct,
+        accuracy,
+        verdict:
+          group.length < minimum
+            ? ('unknown' as const)
+            : accuracy < TOO_HARD_BELOW
+              ? ('too-hard' as const)
+              : accuracy > TOO_EASY_ABOVE
+                ? ('too-easy' as const)
+                : ('about-right' as const),
+        lastAnsweredAt: Math.max(...group.map((observation) => observation.answeredAt)),
+      };
+    })
+    .sort((a, b) => a.accuracy - b.accuracy || compareYearLevels(b.level, a.level));
 }
