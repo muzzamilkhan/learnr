@@ -14,7 +14,8 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
 import { SpeedCards } from '@/components/speed-cards';
 import { SubjectCards } from '@/components/subject-cards';
-import { listChildren, readAccount } from '@/lib/accounts';
+import { readAccount } from '@/lib/accounts';
+import { readViewableChildren } from '@/lib/sharing';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
 import { requestNow } from './now';
@@ -136,7 +137,11 @@ export default async function HomePage() {
   // way. Setting the profiles up is the other screen, and only the parent with no
   // children yet is sent there.
   if (isParent && userId) {
-    const profiles = await listChildren(userId);
+    // Everything they may look at, not only what they own: a grown-up who was
+    // invited to watch someone else's child has a report to land on, and telling
+    // them to add a child of their own would be answering a question they
+    // haven't asked.
+    const profiles = await readViewableChildren(userId);
     const menu = (
       <ProfileMenu
         name={session?.user?.name ?? null}

@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * instead of being torn down and rebuilt, which is what made the hop flicker.
  */
 export default async function ParentLayout({ children }: { children: ReactNode }) {
-  const { name, image, profiles } = await readParent();
+  const { name, image, viewable } = await readParent();
 
   // A parent doesn't play, so there is no run of days and no stars to show -
   // both would be counting nothing.
@@ -25,7 +25,10 @@ export default async function ParentLayout({ children }: { children: ReactNode }
   );
 
   return (
-    <ParentShell profiles={profiles ?? []} title="LearnR" menu={menu}>
+    // The heading names whichever child is on screen, and a shared child is one
+    // of those - so the shell is given everything this parent may look at, not
+    // only what they own.
+    <ParentShell profiles={viewable ?? []} title="LearnR" menu={menu}>
       {children}
     </ParentShell>
   );

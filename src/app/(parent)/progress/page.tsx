@@ -29,18 +29,21 @@ export default async function ProgressPage({
   searchParams: Promise<{ child?: string; subject?: string }>;
 }) {
   const { child: childParam, subject: subjectParam } = await searchParams;
-  const { userId, profiles } = await readParent();
+  const { userId, viewable } = await readParent();
 
   // Scoped to this parent's children, never to the one `?child=` names, so it
   // shows regardless of which child's report is currently open - and never to
   // this parent's own runs, since `readUnseenRecords` only ever looks at rows
-  // belonging to a child of theirs. Best-effort like the play path's own
-  // `readRecentAnswers` fallback: a missed celebration costs nothing a parent
-  // would notice was missing, unlike the report below it.
+  // belonging to a child of theirs. A child shared with them is somebody else's
+  // to be told about: the banner marks records seen as it shows them, and
+  // spending that once-only announcement on the other family's parent is not
+  // this screen's to do. Best-effort like the play path's own `readRecentAnswers`
+  // fallback: a missed celebration costs nothing a parent would notice was
+  // missing, unlike the report below it.
   const unseenRecords = await readUnseenRecords(userId);
   const banner = <SpeedBanner records={unseenRecords ?? []} />;
 
-  if (profiles === null) {
+  if (viewable === null) {
     return (
       <>
         {banner}
@@ -51,18 +54,21 @@ export default async function ProgressPage({
     );
   }
 
-  // The child id arrives from the browser, so it is resolved against a list
-  // already scoped by parentId rather than checked separately and then trusted.
-  // There is no second place for the two to drift apart.
-  const child = resolveChild(profiles, childParam);
+  // The child id arrives from the browser, so it is resolved against a list the
+  // query already scoped - by `parentId` for their own children, by a grant for
+  // one shared with them - rather than checked separately and then trusted.
+  // There is no second place for the two to drift apart, which is what keeps a
+  // typed id from reaching a child nobody shared.
+  const child = resolveChild(viewable, childParam);
   if (child === null) {
     return (
       <>
         {banner}
         <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
-          <h2 className="text-lg font-semibold">No children yet</h2>
+          <h2 className="text-lg font-semibold">Nobody to report on yet</h2>
           <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
-            Add a profile, and their progress will show up here once they start practising.
+            Add a profile, and their progress will show up here once they start practising. A child
+            another parent shares with you turns up here too.
           </p>
           <Link
             href="/children"
@@ -96,7 +102,7 @@ export default async function ProgressPage({
       {banner}
       <ProgressReport
         child={{ id: child.id, name: child.name, avatar: child.avatar, level: child.level }}
-        profiles={profiles.map(({ id, name }) => ({ id, name }))}
+        profiles={viewable.map(({ id, name, sharedBy }) => ({ id, name, sharedBy }))}
         subjects={subjects}
         subject={subject}
         observations={observations}
