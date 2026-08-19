@@ -28,6 +28,17 @@ import { playSound } from './sounds';
  *
  * `fixed inset-0`, so it escapes whatever frame the run was started from - the
  * same reason `RoundReward` covers the play screen rather than sitting in it.
+ *
+ * The loud treatment is driven by `outcome.isRecord`, not by recomputing from
+ * `previousBest` here. The two usually agree, but not on a guarded update that
+ * matched no rows - a second tab, or a retry, already banked a higher score -
+ * where the server correctly returns `isRecord: false` and leaves `seen: true`
+ * so the parent's banner stays quiet. Recomputing from the stale
+ * `previousBest` would fire the fanfare anyway, congratulating the child for a
+ * record that was never stored and that their parent is never told about.
+ * `resultTone` still picks the COPY - "first" vs "short" both read as calm -
+ * but only the server's word on what actually got written decides the
+ * celebration.
  */
 
 /** How many misses are worth reading back. Beyond this it is a list, not a lesson. */
@@ -43,7 +54,7 @@ interface Props {
 
 export function SpeedResult({ result, outcome, homeHref, recordsHref, onAgain }: Props) {
   const tone = outcome === null ? null : resultTone(outcome.previousBest, result.correct);
-  const record = tone === 'record';
+  const record = outcome !== null && outcome.isRecord;
 
   // The same fanfare a round of ten gets, and only for the one event that has
   // earned it. A sound on every result would make the sound mean "finished"
@@ -79,7 +90,7 @@ export function SpeedResult({ result, outcome, homeHref, recordsHref, onAgain }:
             </span>
           </p>
 
-          <Comparison result={result} outcome={outcome} tone={tone} />
+          <Comparison result={result} outcome={outcome} tone={tone} record={record} />
         </header>
 
         {/* The teaching the run itself had no room for. It is the only part of
@@ -154,10 +165,12 @@ function Comparison({
   result,
   outcome,
   tone,
+  record,
 }: {
   result: RunResult;
   outcome: SpeedOutcome | null;
   tone: ReturnType<typeof resultTone> | null;
+  record: boolean;
 }) {
   // Nothing was banked, so there is no best to speak of. Silence rather than a
   // number, for the same reason `readObservations` returns null rather than [].
@@ -171,7 +184,13 @@ function Comparison({
     );
   }
 
-  if (tone === 'record') {
+  // `record` (from `outcome.isRecord`), not `tone === 'record'`: the two agree
+  // except on the race where a concurrent run already banked a higher score
+  // between our read and our write. There `tone` still says "record" from the
+  // stale `previousBest`, but nothing was actually written - the short-run copy
+  // below reads `outcome.best`, which was re-read from the row after the write
+  // attempt and is the honest one.
+  if (record) {
     return (
       <p className="mt-2 text-lg text-(--color-ink-soft) sm:text-xl">
         Your old best was{' '}
