@@ -1,0 +1,263 @@
+import type { QuestionSpec } from '../templates/types';
+
+/**
+ * What can be speed-run. Twenty-seven modes, enumerated here and never built at
+ * runtime.
+ *
+ * The list is closed because a record is only worth beating if the mode is worth
+ * naming. A free "from" and "to" range across the tables would give about sixty
+ * modes, most differing from a neighbour by one table: two near-identical
+ * numbers, each set once and never approached again. Four named bundles are
+ * enough range to be useful and few enough that each accumulates a record with
+ * some history behind it.
+ *
+ * Multiplication is the one operation with no difficulty axis, because the times
+ * tables *are* how multiplication is drilled - asking for "hard multiplication"
+ * when a child came to practise their sevens answers a question nobody asked.
+ */
+
+export type Difficulty = 'easy' | 'moderate' | 'hard';
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'moderate', 'hard'];
+
+/** A single table, a named bundle of them, or the lot. */
+export type TableChoice = number | '2-5' | '6-9' | '10-12' | 'all';
+
+export type Mode =
+  | { op: 'add' | 'subtract' | 'divide' | 'mixed'; difficulty: Difficulty }
+  | { op: 'multiply'; tables: TableChoice };
+
+export type Operation = Mode['op'];
+
+export const OPERATIONS: readonly Operation[] = ['add', 'subtract', 'multiply', 'divide', 'mixed'];
+
+/** The single tables offered. 1 is not a drill and 13 is not a table. */
+export const TABLES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+export const TABLE_BUNDLES: readonly TableChoice[] = ['2-5', '6-9', '10-12', 'all'];
+
+/** Every answer is a non-negative integer: subtraction never goes negative and
+ * division is built from the quotient up, so there is nothing for the number
+ * pad's missing minus key to trip over. */
+const ADD: Record<Difficulty, QuestionSpec> = {
+  easy: {
+    prompt: '{x} + {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '1', max: '10' },
+      { name: 'y', kind: 'int', min: '1', max: '10' },
+    ],
+    answer: 'x + y',
+  },
+  moderate: {
+    prompt: '{x} + {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '10', max: '99' },
+      { name: 'y', kind: 'int', min: '1', max: '20' },
+    ],
+    answer: 'x + y',
+  },
+  // Hard has to mean hard: without the carry, "two-digit plus two-digit" draws
+  // 20 + 30 about as often as 37 + 58, and hard is moderate with more digits.
+  hard: {
+    prompt: '{x} + {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '10', max: '99' },
+      { name: 'y', kind: 'int', min: '10', max: '99' },
+    ],
+    constraints: ['mod(x, 10) + mod(y, 10) > 9'],
+    answer: 'x + y',
+  },
+};
+
+/** `y`'s bounds reference `x`, which is exactly what ordered vars are for - it
+ * is what keeps the difference from ever going negative. */
+const SUBTRACT: Record<Difficulty, QuestionSpec> = {
+  easy: {
+    prompt: '{x} − {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '2', max: '20' },
+      { name: 'y', kind: 'int', min: '1', max: 'x' },
+    ],
+    answer: 'x - y',
+  },
+  moderate: {
+    prompt: '{x} − {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '20', max: '99' },
+      { name: 'y', kind: 'int', min: '1', max: 'min(20, x)' },
+    ],
+    answer: 'x - y',
+  },
+  hard: {
+    prompt: '{x} − {y}',
+    vars: [
+      { name: 'x', kind: 'int', min: '30', max: '99' },
+      { name: 'y', kind: 'int', min: '10', max: 'x' },
+    ],
+    constraints: ['mod(x, 10) < mod(y, 10)'],
+    answer: 'x - y',
+  },
+};
+
+/** Built from the quotient up, so division is exact by construction rather than
+ * by rejecting the draws that are not. */
+const DIVIDE: Record<Difficulty, QuestionSpec> = {
+  easy: {
+    prompt: '{x} ÷ {d}',
+    vars: [
+      { name: 'd', kind: 'pick', from: [2, 5, 10] },
+      { name: 'q', kind: 'int', min: '1', max: '10' },
+      { name: 'x', kind: 'expr', expr: 'd * q' },
+    ],
+    answer: 'q',
+  },
+  moderate: {
+    prompt: '{x} ÷ {d}',
+    vars: [
+      { name: 'd', kind: 'int', min: '2', max: '10' },
+      { name: 'q', kind: 'int', min: '1', max: '10' },
+      { name: 'x', kind: 'expr', expr: 'd * q' },
+    ],
+    answer: 'q',
+  },
+  hard: {
+    prompt: '{x} ÷ {d}',
+    vars: [
+      { name: 'd', kind: 'int', min: '2', max: '12' },
+      { name: 'q', kind: 'int', min: '2', max: '12' },
+      { name: 'x', kind: 'expr', expr: 'd * q' },
+    ],
+    answer: 'q',
+  },
+};
+
+/** The tables a mixed run draws multiplication from - the bands multiplication
+ * has nowhere else, since it has no difficulty axis of its own. */
+const MIXED_TABLES: Record<Difficulty, readonly number[]> = {
+  easy: [2, 5, 10],
+  moderate: [2, 3, 4, 5, 6, 7, 8, 9, 10],
+  hard: TABLES,
+};
+
+function multiplySpec(tables: readonly number[]): QuestionSpec {
+  return {
+    prompt: '{t} × {n}',
+    vars: [
+      { name: 't', kind: 'pick', from: tables },
+      { name: 'n', kind: 'int', min: '1', max: '12' },
+    ],
+    answer: 't * n',
+  };
+}
+
+/** Turn a `TableChoice` into the tables it names. */
+function tableList(tables: TableChoice): readonly number[] {
+  if (typeof tables === 'number') return [tables];
+  switch (tables) {
+    case '2-5':
+      return [2, 3, 4, 5];
+    case '6-9':
+      return [6, 7, 8, 9];
+    case '10-12':
+      return [10, 11, 12];
+    case 'all':
+      return TABLES;
+  }
+}
+
+/**
+ * The question specs a mode draws from - one for most modes, four for a mixed
+ * one. Returning a list is what makes mixed fall out of the same mechanism as
+ * everything else rather than needing a second path; a list of one is the
+ * ordinary case.
+ */
+export function specsFor(mode: Mode): readonly QuestionSpec[] {
+  if (mode.op === 'multiply') return [multiplySpec(tableList(mode.tables))];
+  if (mode.op === 'mixed') {
+    return [
+      ADD[mode.difficulty],
+      SUBTRACT[mode.difficulty],
+      multiplySpec(MIXED_TABLES[mode.difficulty]),
+      DIVIDE[mode.difficulty],
+    ];
+  }
+  return [{ add: ADD, subtract: SUBTRACT, divide: DIVIDE }[mode.op][mode.difficulty]];
+}
+
+/**
+ * Ordered for display: the operations in `OPERATIONS` order, and within
+ * multiply the singles 2-12 then the bundles then `all`.
+ */
+export const MODES: readonly Mode[] = [
+  ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'add', difficulty })),
+  ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'subtract', difficulty })),
+  ...TABLES.map((tables): Mode => ({ op: 'multiply', tables })),
+  ...TABLE_BUNDLES.map((tables): Mode => ({ op: 'multiply', tables })),
+  ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'divide', difficulty })),
+  ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'mixed', difficulty })),
+];
+
+/** The canonical key: "add.easy", "multiply.7", "multiply.2-5". */
+export function modeKey(mode: Mode): string {
+  return mode.op === 'multiply' ? `multiply.${mode.tables}` : `${mode.op}.${mode.difficulty}`;
+}
+
+// Built once from `MODES` rather than assembled from the parts of a key, so a
+// key is only ever a mode this module actually enumerated - the same defence
+// the expression language's variable tables use against `__proto__`, but a
+// `Map` needs no null-prototype trick to get it: a lookup key is never a
+// property access.
+const MODE_BY_KEY = new Map(MODES.map((mode) => [modeKey(mode), mode]));
+
+/**
+ * The boundary normaliser, exactly like `parseYearLevel`: one place that decides
+ * a key from a URL is real, so no caller has to know what the twenty-seven are.
+ */
+export function parseMode(key: string): Mode | null {
+  return MODE_BY_KEY.get(key) ?? null;
+}
+
+const OPERATION_SET = new Set(OPERATIONS);
+
+export function parseOperation(op: string): Operation | null {
+  return OPERATION_SET.has(op as Operation) ? (op as Operation) : null;
+}
+
+export function modesFor(op: Operation): readonly Mode[] {
+  return MODES.filter((mode) => mode.op === op);
+}
+
+/** What the chip says: "7 times table", "All tables", "Easy". */
+export function modeLabel(mode: Mode): string {
+  if (mode.op === 'multiply') {
+    if (mode.tables === 'all') return 'All tables';
+    if (typeof mode.tables === 'number') return `${mode.tables} times table`;
+    return `Tables ${mode.tables}`;
+  }
+  const { difficulty } = mode;
+  return difficulty[0].toUpperCase() + difficulty.slice(1);
+}
+
+const OPERATION_LABELS: Record<Operation, string> = {
+  add: 'Addition',
+  subtract: 'Subtraction',
+  multiply: 'Multiplication',
+  divide: 'Division',
+  mixed: 'Mixed',
+};
+
+/** What the card says: "Multiplication", "Mixed". */
+export function operationLabel(op: Operation): string {
+  return OPERATION_LABELS[op];
+}
+
+const OPERATION_GLYPHS: Record<Operation, string> = {
+  add: '+',
+  subtract: '−',
+  multiply: '×',
+  divide: '÷',
+  mixed: '?',
+};
+
+/** The sign on the card: "+", "−", "×", "÷", "?" for mixed. */
+export function operationGlyph(op: Operation): string {
+  return OPERATION_GLYPHS[op];
+}
