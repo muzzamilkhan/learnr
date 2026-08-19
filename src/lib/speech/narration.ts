@@ -127,11 +127,7 @@ export function questionNarration(question: Question): string {
   if (!choices || !choices.some((choice) => /[A-Za-z]/.test(String(choice)))) return prompt;
 
   const labels = choices.map((choice) => spokenText(String(choice)));
-  // "Which ribbon is longer, red or blue? Is it red or blue?" - a prompt that
-  // has already named every option has said this once, and saying it twice is
-  // the child waiting through a repeat before they can answer.
-  const spoken = prompt.toLowerCase();
-  if (labels.every((label) => spoken.includes(label.toLowerCase()))) return prompt;
+  if (alreadyOffered(prompt, labels)) return prompt;
 
   const last = labels[labels.length - 1];
   const rest = labels.slice(0, -1);
@@ -143,3 +139,36 @@ export function questionNarration(question: Question): string {
   const stop = /[.!?]$/.test(prompt) ? '' : '.';
   return `${prompt}${stop} Is it ${list}?`;
 }
+
+/**
+ * Whether the prompt has already offered these options, so reading them again
+ * would only be a repeat before the child can answer: "Which ribbon is longer,
+ * red or blue? Is it red or blue?"
+ *
+ * Naming a word and offering it are not the same thing, which is why finding
+ * every label somewhere in the sentence is not enough on its own. "What comes
+ * next? red, orange, purple, red, orange, purple, red, ?" contains all three of
+ * its options and offers none of them - they are the pattern being asked about.
+ * Taking that as "already said" left a Kindergartener with three unread buttons
+ * and nothing spoken to tell them apart, which is the whole thing narration is
+ * here to prevent.
+ *
+ * The word that separates the two is "or". A prompt offering a choice says one
+ * somewhere between the alternatives, and a prompt using the same words as data
+ * has no reason to. So both have to hold: every option named, and named as an
+ * alternative to another one.
+ */
+function alreadyOffered(prompt: string, labels: readonly string[]): boolean {
+  const spoken = prompt.toLowerCase();
+  if (!labels.every((label) => spoken.includes(label.toLowerCase()))) return false;
+
+  const alternatives = labels.map(escapeForRegExp).join('|');
+  // Within one sentence: the "or" has to sit between two of the options rather
+  // than anywhere in the prompt, so "Is it more or less than 5? 3, 5, 7" does
+  // not count as having offered 3, 5 and 7.
+  return new RegExp(`(?:${alternatives})[^.!?]*\\bor\\b[^.!?]*(?:${alternatives})`, 'i').test(
+    prompt,
+  );
+}
+
+const escapeForRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
