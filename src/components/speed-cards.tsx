@@ -20,34 +20,67 @@ import { StarIcon } from './star-icon';
  * "Speed run" section on why the parent's routes nest rather than sitting
  * beside the child's as a second top-level path).
  */
-export const OPERATION_ACCENT: Record<
-  Operation,
-  { tile: string; border: string; arrow: string }
-> = {
+/**
+ * One accent per operation, and every class written out in full.
+ *
+ * `wash`, `text` and `solid` are here for the result screen, which dresses
+ * itself in the colour of the operation just run - so finishing a Multiply run
+ * looks like the Multiply card that started it. They live beside `tile` rather
+ * than being built from a token name because Tailwind reads class names as
+ * literals: `bg-(--color-${op}-soft)` compiles to nothing at all.
+ */
+export type Accent = {
+  tile: string;
+  border: string;
+  arrow: string;
+  /** The page behind a result: the accent at its palest. */
+  wash: string;
+  /** The score itself, and anything else meant to carry the colour. */
+  text: string;
+  /** A filled button in the accent, always with white on it. */
+  solid: string;
+};
+
+export const OPERATION_ACCENT: Record<Operation, Accent> = {
   add: {
     tile: 'bg-(--color-grape-soft) text-(--color-grape)',
     border: 'hover:border-(--color-grape)',
     arrow: 'text-(--color-grape)',
+    wash: 'bg-(--color-grape-soft)',
+    text: 'text-(--color-grape)',
+    solid: 'bg-(--color-grape)',
   },
   subtract: {
     tile: 'bg-(--color-leaf-soft) text-(--color-leaf)',
     border: 'hover:border-(--color-leaf)',
     arrow: 'text-(--color-leaf)',
+    wash: 'bg-(--color-leaf-soft)',
+    text: 'text-(--color-leaf)',
+    solid: 'bg-(--color-leaf)',
   },
   multiply: {
     tile: 'bg-(--color-berry-soft) text-(--color-berry)',
     border: 'hover:border-(--color-berry)',
     arrow: 'text-(--color-berry)',
+    wash: 'bg-(--color-berry-soft)',
+    text: 'text-(--color-berry)',
+    solid: 'bg-(--color-berry)',
   },
   divide: {
     tile: 'bg-(--color-sun-soft) text-(--color-sun)',
     border: 'hover:border-(--color-sun)',
     arrow: 'text-(--color-sun)',
+    wash: 'bg-(--color-sun-soft)',
+    text: 'text-(--color-sun)',
+    solid: 'bg-(--color-sun)',
   },
   mixed: {
     tile: 'bg-(--color-brand-soft) text-(--color-brand)',
     border: 'hover:border-(--color-brand)',
     arrow: 'text-(--color-brand)',
+    wash: 'bg-(--color-brand-soft)',
+    text: 'text-(--color-brand)',
+    solid: 'bg-(--color-brand)',
   },
 };
 

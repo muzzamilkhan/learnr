@@ -673,6 +673,22 @@ addition", and "in easy add" is not English. Two tables side by side in
 `modes.ts` rather than one derived from the other, because no rule turns
 "Divide" into "division" that isn't this table written twice.
 
+**The result screen wears the colour of the operation just run.**
+`OPERATION_ACCENT` is one table shared by the cards, the cabinet and the result,
+so finishing a Multiply run looks like the Multiply card that started it rather
+than like the one blue number every mode used to share. Its `wash`, `text` and
+`solid` classes are written out in full per operation because Tailwind reads
+class names as literals - `bg-(--color-${op}-soft)` compiles to nothing. A
+beaten best overrides the lot with the star tokens: the rarest state has to be
+the one a player already recognises from the round rewards and the streak, not
+just another operation's colour. Under the score sit right / missed / answered,
+in `--color-right` and `--color-wrong`, because "8 right" says nothing about
+whether that was 8 out of 8 or 8 out of 20. The four blocks arrive on a
+staggered `reward-in` so the screen assembles rather than appearing whole. The
+tally is the one part hidden by a height query on a short viewport: this screen
+never scrolls, and the row is the only thing on it that says nothing the score
+above and the misses below do not.
+
 **The cabinet lists what has been run, and nothing else.** A mode never played
 has no record to show, and twenty-seven rows of dashes made a to-do list of a
 trophy case - the four scores actually set were the smallest thing on a screen
