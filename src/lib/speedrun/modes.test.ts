@@ -12,6 +12,7 @@ import {
   specsFor,
   type Mode,
 } from './modes';
+import { answerRun, startRun } from './run';
 
 /** Every question a mode can produce, over enough draws to trust the bounds. */
 function draws(mode: Mode, count = 200) {
@@ -124,9 +125,21 @@ describe('the difficulty bands mean what they say', () => {
     }
   });
 
+  // Through `startRun`/`answerRun` rather than the `draws` helper above: the
+  // helper round-robins `specs[i % specs.length]` itself, so it never touches
+  // `drawQuestion`'s `rng.pick(specs)` in `run.ts` - the only place a mixed
+  // run actually chooses between its four operations. This walks the real
+  // path, the way a run in progress does.
   it('draws all four operations in a mixed run', () => {
     for (const difficulty of ['easy', 'moderate', 'hard'] as const) {
-      const prompts = draws({ op: 'mixed', difficulty }).map((q) => q.prompt);
+      const mode: Mode = { op: 'mixed', difficulty };
+      let state = startRun({ mode, seed: `mixed-${difficulty}`, startedAt: 0 });
+      const prompts = [state.current.prompt, state.next.prompt];
+      for (let i = 0; i < 200; i++) {
+        state = answerRun(state, String(state.current.answer), 0);
+        prompts.push(state.current.prompt);
+      }
+
       for (const sign of ['+', '−', '×', '÷']) {
         expect(prompts.some((p) => p.includes(sign))).toBe(true);
       }
