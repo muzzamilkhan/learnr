@@ -750,8 +750,23 @@ family of three a tie is common and breaking it on a technicality hands someone
 a second place they did not lose; within one, whoever got there first is listed
 first, which is the only thing that honestly separates them. The cut is at three
 *places*, not three rows, so a three-way tie for first shows all three names.
-Only modes somebody has run appear, and an operation with nothing under it loses
-its section - the cabinet's rule above, for the cabinet's reason.
+Only modes somebody has run appear - the cabinet's rule above, for the
+cabinet's reason.
+
+**A mode is a card, and its result is a podium.** First sits at the top with a
+crown above the circle, second below to the left, third below to the right and
+dropped a little further so the two lower places are not one flat row; each
+place is its score and then its face, in that order, because the eye runs left
+to right and the number is what ranks them. It replaced five operation sections
+of stacked rows, where first, second and third were three lines of the same size
+told apart by a badge - position says who won before anything is decoded, and it
+is the same thing the faces are there for. The operation headings went with the
+sections because the card now carries both halves of the name itself
+("Multiply", then "7 times table"). The crown is drawn *above* the circle and
+never across it: covering any part of the photograph would cost the board the
+one thing a pre-literate child reads it for. The podium is laid out by *place*
+rather than by list position, so a shared first puts both faces on the top step
+rather than demoting one of them to the left.
 
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody

@@ -1,16 +1,21 @@
 import { familyStandings, type FamilyRecord, type Place } from '@/lib/speedrun/leaderboard';
-import { modeKey, modeLabel, operationGlyph, operationLabel, OPERATIONS } from '@/lib/speedrun/modes';
-import { OPERATION_ACCENT } from './speed-cards';
+import { modeKey, modeLabel, operationGlyph, operationLabel } from '@/lib/speedrun/modes';
+import { OPERATION_ACCENT, type Accent } from './speed-cards';
+import { CrownIcon } from './crown-icon';
 import { ProfileFace } from './profile-face';
 
 /**
- * Who is fastest in the house, per mode - first, second and third.
+ * Who is fastest in the house - one card per mode, ranked as a podium.
  *
- * Built from `SpeedRecordsCabinet`'s shape and its rules: grouped by operation
- * with the same accents, only what has actually been run, `null` for a failed
- * read and `[]` for an honest nothing. What it adds is everyone else in the
- * household on the same row, which is the whole point of it - a personal best
- * says how you did, and this says who to chase.
+ * **A mode is a card, and the podium is the shape of the result.** The board
+ * used to be five operation sections of stacked rows, which read as a list of
+ * numbers to compare rather than a result to look at: first, second and third
+ * were three lines the same size, told apart only by a badge. A podium says the
+ * same thing by position - first at the top, second to its left, third a little
+ * lower to its right - so who won is read before anything is decoded. The
+ * card's own title carries the operation and the mode, which is why the
+ * operation headings went with the sections: the card says "Multiply" and "7
+ * times table" itself.
  *
  * The ranking itself is `familyStandings`, in `lib` and tested there, because
  * how a tie is placed is exactly the sort of thing that must not be judged only
@@ -21,78 +26,142 @@ import { ProfileFace } from './profile-face';
  * name - the pre-literate child is the reason the avatars exist at all, and a
  * board spelled out in names is the one screen that forgets it. The name is not
  * lost: it is the face's `alt` and `title`, so a hover and a screen reader still
- * say who each row is. A grown-up shows the picture Google gave them, since no
+ * say who each place is. A grown-up shows the picture Google gave them, since no
  * parent has an avatar or a cropped photo, and their lettered circle when even
  * that is missing - `ProfileFace` owns that order, here as everywhere else.
  *
- * `you` marks the viewer's own places, and it is now the only text on a row
- * beside the score - which is what it was always doing anyway, since a mark is
- * faster to find than a spelling.
+ * **The crown sits above the circle, never across it.** It is the one mark that
+ * says first place now that the badge is gone, and covering any part of the
+ * photograph to draw it would cost the board the thing it is read for.
+ *
+ * `you` marks the viewer's own places, under the face, and it is the only text
+ * on a podium beside the score.
  */
 
 const SCALES = {
   child: {
-    stack: 'flex flex-col gap-5',
-    section: 'rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5',
-    heading: 'flex items-center gap-3 text-2xl font-semibold',
+    grid: 'grid gap-4 sm:grid-cols-2',
+    card: 'rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5',
+    header: 'flex items-center gap-3',
     tile: 'flex size-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold',
-    list: 'mt-2 divide-y divide-(--color-line)',
-    mode: 'py-3',
-    modeLabel: 'text-xl font-medium',
-    places: 'mt-1.5 flex flex-col gap-1',
-    place: 'flex items-center gap-3 text-lg',
-    badge: 'flex size-7 shrink-0 items-center justify-center rounded-lg text-sm font-bold tabular-nums',
-    face: 'size-8',
-    you: 'rounded-md bg-(--color-brand-soft) px-1.5 py-0.5 text-sm font-semibold text-(--color-brand)',
-    best: 'ml-auto shrink-0 font-bold tabular-nums',
+    op: 'text-lg font-semibold leading-tight',
+    mode: 'text-base text-(--color-ink-soft) leading-tight',
+    podium: 'mt-4',
+    winnerFace: 'size-16',
+    winnerPx: 64,
+    winnerScore: 'text-2xl font-bold tabular-nums',
+    face: 'size-12',
+    px: 48,
+    score: 'text-lg font-bold tabular-nums',
+    crown: 'size-7',
+    you: 'mt-1 rounded-md bg-(--color-brand-soft) px-1.5 py-0.5 text-xs font-semibold text-(--color-brand)',
     empty: 'text-xl text-(--color-ink-soft)',
   },
   parent: {
-    stack: 'flex flex-col gap-3',
-    section: 'rounded-xl border border-(--color-line) bg-(--color-card) p-4',
-    heading: 'flex items-center gap-2 text-base font-semibold',
+    grid: 'grid gap-3 sm:grid-cols-2',
+    card: 'rounded-xl border border-(--color-line) bg-(--color-card) p-4',
+    header: 'flex items-center gap-2',
     tile: 'flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-bold',
-    list: 'mt-1 divide-y divide-(--color-line)',
-    mode: 'py-2',
-    modeLabel: 'text-sm font-medium',
-    places: 'mt-1 flex flex-col gap-0.5',
-    place: 'flex items-center gap-2 text-sm',
-    badge: 'flex size-5 shrink-0 items-center justify-center rounded text-xs font-bold tabular-nums',
-    face: 'size-6',
-    you: 'rounded bg-(--color-brand-soft) px-1 text-xs font-semibold text-(--color-brand)',
-    best: 'ml-auto shrink-0 font-semibold tabular-nums',
+    op: 'text-sm font-semibold leading-tight',
+    mode: 'text-xs text-(--color-ink-soft) leading-tight',
+    podium: 'mt-3',
+    winnerFace: 'size-12',
+    winnerPx: 48,
+    winnerScore: 'text-lg font-bold tabular-nums',
+    face: 'size-9',
+    px: 36,
+    score: 'text-sm font-bold tabular-nums',
+    crown: 'size-5',
+    you: 'mt-0.5 rounded bg-(--color-brand-soft) px-1 text-[0.65rem] font-semibold text-(--color-brand)',
     empty: 'text-sm text-(--color-ink-soft)',
   },
 } as const;
 
+type Style = (typeof SCALES)[keyof typeof SCALES];
+
 /**
- * First carries the star tokens the round rewards and the streak already use, so
- * the top of a board is the colour a player recognises as winning; second and
- * third are plain, because three coloured badges would rank nothing.
+ * One place: the score, then the face to its right, and the crown above it when
+ * this is a first. The score leads because the eye runs left to right and the
+ * number is what ranks them; the face is what says whose it is.
  */
-function badgeTone(place: number): string {
-  return place === 1
-    ? 'bg-(--color-star-soft) text-(--color-star)'
-    : 'bg-(--color-paper) text-(--color-ink-soft)';
+function Podiumer({
+  place,
+  you,
+  style,
+  accent,
+}: {
+  place: Place;
+  you: boolean;
+  style: Style;
+  accent: Accent;
+}) {
+  const winner = place.place === 1;
+
+  return (
+    <li className="flex flex-col items-center" title={place.playerName}>
+      <div className="flex items-center gap-2">
+        <span className={`${winner ? style.winnerScore : style.score} ${winner ? accent.text : 'text-(--color-ink-soft)'}`}>
+          {place.best}
+        </span>
+        <span className="relative">
+          {winner ? (
+            // Above the circle rather than over it, so the photograph stays whole.
+            <CrownIcon
+              className={`${style.crown} absolute bottom-full left-1/2 -translate-x-1/2 translate-y-1 text-(--color-star)`}
+            />
+          ) : null}
+          <ProfileFace
+            photo={place.playerPhoto}
+            avatar={place.playerAvatar}
+            image={place.playerImage}
+            name={place.playerName}
+            className={`${winner ? style.winnerFace : style.face} ${
+              winner ? 'ring-2 ring-(--color-star) ring-offset-2 ring-offset-(--color-card)' : ''
+            }`}
+            px={winner ? style.winnerPx : style.px}
+          />
+        </span>
+      </div>
+      {you ? <span className={style.you}>you</span> : null}
+    </li>
+  );
 }
 
-function PlaceRow({ place, you, style }: { place: Place; you: boolean; style: (typeof SCALES)[keyof typeof SCALES] }) {
+/**
+ * The triangle: firsts across the top, seconds bottom-left, thirds bottom-right
+ * and dropped a little further so the two lower places are not one flat row.
+ *
+ * Laid out by *place* rather than by position in the list, because a tie shares
+ * a place - two firsts belong side by side on the top step, not one of them
+ * demoted to the left by the order it happened to be listed in.
+ */
+function Podium({ places, youId, style, accent }: { places: Place[]; youId?: string; style: Style; accent: Accent }) {
+  const tier = (n: number) => places.filter((place) => place.place === n);
+  const seconds = tier(2);
+  const thirds = tier(3);
+
   return (
-    // The name on the row rather than only on the picture: a hover anywhere
-    // along it says who this is, which is what the visible name used to do.
-    <li className={style.place} title={place.playerName}>
-      <span className={`${style.badge} ${badgeTone(place.place)}`}>{place.place}</span>
-      <ProfileFace
-        photo={place.playerPhoto}
-        avatar={place.playerAvatar}
-        image={place.playerImage}
-        name={place.playerName}
-        className={style.face}
-        px={32}
-      />
-      {you ? <span className={style.you}>you</span> : null}
-      <span className={style.best}>{place.best}</span>
-    </li>
+    <div className={style.podium}>
+      <ol className="flex flex-wrap items-end justify-center gap-4">
+        {tier(1).map((place) => (
+          <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
+        ))}
+      </ol>
+      {seconds.length > 0 || thirds.length > 0 ? (
+        <div className="mt-3 flex items-start justify-between gap-3">
+          <ol className="flex gap-3">
+            {seconds.map((place) => (
+              <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
+            ))}
+          </ol>
+          <ol className="mt-4 flex gap-3">
+            {thirds.map((place) => (
+              <Podiumer key={place.playerId} place={place} you={place.playerId === youId} style={style} accent={accent} />
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -125,42 +194,22 @@ export function FamilyLeaderboard({
     );
   }
 
-  // Grouped into the five operations before rendering, so an operation nobody
-  // has run drops out with its heading rather than leaving an empty list.
-  const sections = OPERATIONS.map((op) => ({
-    op,
-    standings: standings.filter((standing) => standing.mode.op === op),
-  })).filter((section) => section.standings.length > 0);
-
   return (
-    <div className={style.stack}>
-      {sections.map(({ op, standings: rows }) => {
-        const accent = OPERATION_ACCENT[op];
+    <div className={style.grid}>
+      {standings.map((standing) => {
+        const accent = OPERATION_ACCENT[standing.mode.op];
         return (
-          <section key={op} className={style.section}>
-            <h2 className={style.heading}>
+          <section key={modeKey(standing.mode)} className={style.card}>
+            <header className={style.header}>
               <span aria-hidden className={`${style.tile} ${accent.tile}`}>
-                {operationGlyph(op)}
+                {operationGlyph(standing.mode.op)}
               </span>
-              {operationLabel(op)}
-            </h2>
-            <ul className={style.list}>
-              {rows.map((standing) => (
-                <li key={modeKey(standing.mode)} className={style.mode}>
-                  <p className={style.modeLabel}>{modeLabel(standing.mode)}</p>
-                  <ol className={style.places}>
-                    {standing.places.map((place) => (
-                      <PlaceRow
-                        key={place.playerId}
-                        place={place}
-                        you={place.playerId === youId}
-                        style={style}
-                      />
-                    ))}
-                  </ol>
-                </li>
-              ))}
-            </ul>
+              <span>
+                <h2 className={style.op}>{operationLabel(standing.mode.op)}</h2>
+                <p className={style.mode}>{modeLabel(standing.mode)}</p>
+              </span>
+            </header>
+            <Podium places={standing.places} youId={youId} style={style} accent={accent} />
           </section>
         );
       })}
