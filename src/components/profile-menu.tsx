@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import Image from 'next/image';
 import { formatCount } from '@/lib/format';
 import { currentStreak, type PlayStreak } from '@/lib/rewards/streak';
+import { localOffsetMinutes, subscribeToTheClock } from './clock';
 import { FlameIcon, StarIcon } from './star-icon';
 
 /**
@@ -17,13 +18,6 @@ import { FlameIcon, StarIcon } from './star-icon';
  * only ever goes up, in whole rounds, and nothing a wrong answer does takes
  * anything off either of them.
  */
-
-/**
- * Nothing to subscribe to: the day only turns over at midnight, and a child
- * whose screen has been open since yesterday will reload it long before the
- * stale number matters. Stable identity, so the store is never resubscribed.
- */
-const subscribeToTheClock = () => () => {};
 
 interface Props {
   name: string | null;
@@ -58,7 +52,7 @@ export function ProfileMenu({ name, image, streak, stars, children }: Props) {
    */
   const days = useSyncExternalStore(
     subscribeToTheClock,
-    () => (streak ? currentStreak(streak, Date.now(), -new Date().getTimezoneOffset()) : 0),
+    () => (streak ? currentStreak(streak, Date.now(), localOffsetMinutes()) : 0),
     () => streak?.days ?? 0,
   );
 
