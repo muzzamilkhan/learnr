@@ -258,7 +258,11 @@ model SpeedRecord {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, mode])
-  /// The two reads: one player's whole cabinet, and a parent's unseen records.
+  /// Redundant against the unique constraint above, which already indexes
+  /// `userId` as its leading column - not worth a migration to drop. It does
+  /// not serve `readUnseenRecords`: that filters on `seen` and `user.parentId`
+  /// with no `userId` in the WHERE at all, so a parent's banner scans on
+  /// those, never on this.
   @@index([userId])
 }
 
