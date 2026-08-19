@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { SpeedRun } from '@/components/speed-run';
 import { readSpeedRecords } from '@/lib/speed-records';
 import { parseOperation } from '@/lib/speedrun/modes';
-import { readParent } from '../../parent';
+import { readParent } from '../../../parent';
 
 // Per-player bests, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
@@ -19,12 +19,16 @@ export const dynamic = 'force-dynamic';
  * reason `/progress` calls it too: a layout does not re-run on a client-side
  * hop between screens, so it is a frame and not a gate.
  *
- * This route is `/speed-run/[op]`, not `/speed/[op]` - the path the design doc
- * sketched collides with the child's own `src/app/speed/[op]/page.tsx`. A route
- * group adds no path segment, so both would resolve to the identical URL and
- * `next build` refuses it outright ("You cannot have two parallel pages that
- * resolve to the same path"). `/speed-run` keeps the nav's own wording and
- * stays a peer of `/progress` and `/children` rather than nesting under either.
+ * This route is `/progress/speed/[op]`, nested under the report rather than
+ * a bare top-level segment sitting beside `/progress` and `/children`. A route
+ * group adds no path segment, so a bare top-level name here would sit one
+ * hyphen away from the child's own `/speed` - two URLs told apart only by
+ * spelling, both individually valid, so a later edit that gets one backwards
+ * (a redirect, a copy-pasted href, a shared link builder) would produce no
+ * build error and no test failure. Nesting tells them apart by depth instead,
+ * which cannot be confused the same way, and it is the truer structure
+ * besides: a parent's own speed run is a facet of their report, where
+ * `/children` is a genuinely separate destination.
  */
 export default async function ParentSpeedPage({ params }: { params: Promise<{ op: string }> }) {
   const op = parseOperation((await params).op);
@@ -38,7 +42,7 @@ export default async function ParentSpeedPage({ params }: { params: Promise<{ op
       op={op}
       bests={bests}
       homeHref="/progress"
-      recordsHref="/speed-run/records"
+      recordsHref="/progress/speed/records"
       recordingEnabled
     />
   );

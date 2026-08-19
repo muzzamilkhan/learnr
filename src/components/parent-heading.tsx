@@ -7,7 +7,7 @@ import { OPERATIONS } from '@/lib/speedrun/modes';
 
 /** Where the nav's third item goes: the first operation in the closed list,
  * the same default order the child's own speed-run cards render in. */
-const SPEED_RUN_HREF = `/speed-run/${OPERATIONS[0]}`;
+const SPEED_RUN_HREF = `/progress/speed/${OPERATIONS[0]}`;
 
 type ParentScreen = 'progress' | 'children' | 'speed-run';
 
@@ -75,16 +75,21 @@ export function ParentNav() {
 }
 
 /**
- * Which of the three the current path is on. `/speed-run` rather than `/speed`
- * because a route group adds no path segment: the parent's speed pages sit at
- * `/speed-run/...` precisely so they cannot collide with the child's own
- * `/speed/...` routes, which resolve to the same URL space regardless of which
- * group either page lives in.
+ * Which of the three the current path is on. The parent's speed pages are
+ * nested at `/progress/speed/...` rather than sitting beside `/progress` as
+ * their own top-level segment, precisely so they can never collide with the
+ * child's own `/speed/...` routes - a route group adds no path segment, so two
+ * bare top-level names would be told apart only by spelling. That nesting is
+ * why `/progress/speed` has to be checked *before* the bare `/progress` below
+ * it: both prefixes match a speed URL, and the more specific one has to win or
+ * every speed screen would highlight "Progress" instead of "Speed run". A
+ * later reordering of these two lines is the exact mistake this comment exists
+ * to catch.
  */
 function useParentScreen(): ParentScreen {
   const pathname = usePathname() ?? '';
   if (pathname.startsWith('/children')) return 'children';
-  if (pathname.startsWith('/speed-run')) return 'speed-run';
+  if (pathname.startsWith('/progress/speed')) return 'speed-run';
   return 'progress';
 }
 
