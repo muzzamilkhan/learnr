@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { OPERATIONS, operationGlyph, operationLabel, type Operation } from '@/lib/speedrun/modes';
 import { StarIcon } from './star-icon';
+import { TrophyIcon } from './trophy-icon';
 
 /**
  * The five operations, as cards, and a link to the cabinet.
@@ -14,8 +15,9 @@ import { StarIcon } from './star-icon';
  * same colour here as it is on the cabinet below - `OPERATION_ACCENT` is shared
  * by both rather than each guessing an index into the same four colours.
  *
- * `basePath` and `recordsHref` are what let one component serve both trees
- * rather than forking a parent copy: the child runs at `/speed/...`, a
+ * `basePath`, `recordsHref` and `leaderboardHref` are what let one component
+ * serve both trees rather than forking a parent copy: the child runs at
+ * `/speed/...`, a
  * parent's own runs nest under `/progress/speed/...` (see CLAUDE.md's
  * "Speed run" section on why the parent's routes nest rather than sitting
  * beside the child's as a second top-level path).
@@ -118,11 +120,13 @@ const SCALES = {
 export function SpeedCards({
   basePath = '/speed',
   recordsHref = `${basePath}/records`,
+  leaderboardHref = `${basePath}/leaderboard`,
   scale = 'child',
 }: {
   /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
   basePath?: string;
   recordsHref?: string;
+  leaderboardHref?: string;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -162,6 +166,17 @@ export function SpeedCards({
       >
         <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
         Your records
+        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
+          &rarr;
+        </span>
+      </Link>
+
+      <Link
+        href={leaderboardHref}
+        className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
+      >
+        <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
+        Family leaderboard
         <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
           &rarr;
         </span>

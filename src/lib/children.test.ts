@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { groupViewers, mergeViewable, resolveChild, type ShareRow } from './children';
+import {
+  groupViewers,
+  householdId,
+  mergeViewable,
+  resolveChild,
+  type ShareRow,
+} from './children';
 
 const profiles = [
   { id: 'a', name: 'Ada' },
@@ -73,5 +79,23 @@ describe('groupViewers', () => {
 
   it('has nobody to list before anything is shared', () => {
     expect(groupViewers([])).toEqual([]);
+  });
+});
+
+describe('householdId', () => {
+  it('puts a parent at the head of their own household', () => {
+    expect(householdId({ id: 'p', role: 'parent', parentId: null })).toBe('p');
+  });
+
+  it('puts a managed child in their parent’s household', () => {
+    expect(householdId({ id: 'c', role: 'child', parentId: 'p' })).toBe('p');
+  });
+
+  it('gives a child with their own account no household', () => {
+    expect(householdId({ id: 'c', role: 'child', parentId: null })).toBeNull();
+  });
+
+  it('gives someone who has not chosen a role no household', () => {
+    expect(householdId({ id: 'u', role: null, parentId: null })).toBeNull();
   });
 });

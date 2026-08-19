@@ -717,6 +717,30 @@ loses its section too, and a player with no runs at all gets one sentence. What
 is missing is not the prompt to go and play: the five cards above are, and they
 are always all five.
 
+**The family leaderboard ranks the household, per mode, first to third.**
+`/speed/leaderboard` and `/progress/speed/leaderboard`, beside the cabinet and
+linked from `SpeedCards` at both scales. A household is `User.parentId` read
+from both ends - a parent and the children they manage - which `householdId`
+(`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
+for the reason ownership always is, so there is no second column to drift out of
+step. A **parent is on the board**, since they play too and a board that quietly
+left them out would not be the one their children are reading. A **viewer a
+child was shared with is not**: the grant is one child's report, and a household
+board would hand them the owner's other children and the owner's own scores
+besides. A child on their own Google account and a parent with no children have
+no household at all, and get a sentence rather than a board of one.
+
+`familyStandings` (`src/lib/speedrun/leaderboard.ts`) is the ranking, pure and
+tested like `banner.ts` beside it, and it needs no schema: a leaderboard is
+`SpeedRecord` rows sorted, on the same maximum the cabinet already shows.
+**A tie shares a place and skips the next** - 1st, 1st, 3rd - because in a
+family of three a tie is common and breaking it on a technicality hands someone
+a second place they did not lose; within one, whoever got there first is listed
+first, which is the only thing that honestly separates them. The cut is at three
+*places*, not three rows, so a three-way tie for first shows all three names.
+Only modes somebody has run appear, and an operation with nothing under it loses
+its section - the cabinet's rule above, for the cabinet's reason.
+
 **Multiplication has no difficulty axis, because the times tables are how
 multiplication is drilled.** "Hard multiplication" answers a question nobody
 asked when a child came to practise their sevens - the table stands in for a

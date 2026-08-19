@@ -2,6 +2,7 @@ import 'server-only';
 import { prisma } from './db';
 import { isRecord } from './speedrun/records';
 import { modeKey, type Mode } from './speedrun/modes';
+import type { FamilyRecord } from './speedrun/leaderboard';
 
 /**
  * The Prisma side of speed runs, beside `records.ts` and `accounts.ts` rather
@@ -176,5 +177,45 @@ export async function dismissSpeedRecords(parentId: string, childId: string): Pr
   } catch (error) {
     console.error('Failed to dismiss speed records', error);
     return false;
+  }
+}
+
+/**
+ * Every speed record in one household - the parent's own runs and their
+ * children's, since both bank to the same table and a parent plays too.
+ *
+ * One query rather than a read per member: the leaderboard needs all of it
+ * before it can rank any of it, and asking a member at a time would be the
+ * waterfall `readPlayerState` exists to avoid.
+ *
+ * Null means the read failed, as everywhere here - a board drawn empty would
+ * say a family has never played, which is the lie `readObservations` draws the
+ * same distinction to prevent.
+ */
+export async function readFamilyRecords(parentId: string): Promise<FamilyRecord[] | null> {
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.speedRecord.findMany({
+      // The household, read from both ends of `parentId` - the parent
+      // themselves, and everyone they manage.
+      where: { user: { OR: [{ id: parentId }, { parentId }] } },
+      select: {
+        userId: true,
+        mode: true,
+        best: true,
+        achievedAt: true,
+        user: { select: { name: true } },
+      },
+    });
+    return rows.map((row) => ({
+      playerId: row.userId,
+      playerName: row.user.name ?? '',
+      mode: row.mode,
+      best: row.best,
+      achievedAt: row.achievedAt,
+    }));
+  } catch (error) {
+    console.error('Failed to read family speed records', error);
+    return null;
   }
 }

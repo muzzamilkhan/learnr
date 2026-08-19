@@ -84,3 +84,29 @@ export function groupViewers(rows: ShareRow[]): SharedViewer[] {
 
   return [...viewers.values()];
 }
+
+/**
+ * Which household someone belongs to, or null if they are in none.
+ *
+ * A household is a parent and the children they manage - `User.parentId` read
+ * from both ends, and nothing else. It is what the family leaderboard is scoped
+ * to, and the reason it is `parentId` alone is the reason ownership always is:
+ * there is no second column that could drift out of step with it.
+ *
+ * Two people honestly have no household. A child who signed in with their own
+ * Google account has no parent to share a board with, and a parent with no
+ * children is the only one on theirs - both are told so in a sentence rather
+ * than shown a board of one.
+ *
+ * A viewer a child was *shared* with is deliberately not a member: the grant is
+ * one child's report, and a household board would hand them the owner's other
+ * children and the owner's own scores besides.
+ */
+export function householdId(account: {
+  id: string;
+  role: 'parent' | 'child' | null;
+  parentId: string | null;
+}): string | null {
+  if (account.parentId) return account.parentId;
+  return account.role === 'parent' ? account.id : null;
+}
