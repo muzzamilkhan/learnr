@@ -2,7 +2,12 @@ import Link from 'next/link';
 import { listSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
 import { resolveChild } from '@/lib/children';
-import { readObservations, readRecentAnswers, readSittings } from '@/lib/records';
+import {
+  readAnsweredQuestions,
+  readObservations,
+  readRecentAnswers,
+  readSittings,
+} from '@/lib/records';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
 
@@ -58,9 +63,10 @@ export default async function ProgressPage({
 
   const now = requestNow();
 
-  const [observations, sittings, targetAnswers] = await Promise.all([
+  const [observations, sittings, answered, targetAnswers] = await Promise.all([
     readObservations(child.id, subject),
     readSittings(child.id, subject),
+    readAnsweredQuestions(child.id, subject),
     readRecentAnswers(child.id, now - CALENDAR_WINDOW_MS),
   ]);
 
@@ -72,6 +78,7 @@ export default async function ProgressPage({
       subject={subject}
       observations={observations}
       sittings={sittings}
+      answered={answered}
       targetAnswers={targetAnswers}
       target={child.target}
       now={now}

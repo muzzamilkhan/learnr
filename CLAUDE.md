@@ -814,6 +814,26 @@ for each.
 rather than listing something built from two data points. A child who has never
 played gets a sentence, not empty charts.
 
+**"Needs a hand" unfolds the questions themselves.** A percentage says a topic
+is hard and only the questions say *how* it is going wrong, so each struggling
+topic carries a disclosure with its last `EXAMPLE_ANSWERS` (3) answers - the
+prompt as the child saw it, what they answered, and what it should have been -
+one row each, elided rather than wrapped so the column can be read down. Three
+is enough to see a pattern and few enough to unfold without a page of history.
+It is a plain `<details>`: the rows are rendered with the page and the
+disclosure is the whole interaction, so nothing here needs a client component.
+Folded rather than shown, because the weekly skim is the common read and this is
+what a parent opens when they are about to sit down with the child.
+
+`readAnsweredQuestions` is the read, and it fetches the last three for **every**
+topic rather than being told which topics are struggling: which those are is
+`topicReports`' answer, over history the read knows nothing about. One query
+with a `ROW_NUMBER()` window does the per-topic slicing in the database - the
+alternative, taking the last few hundred attempts and hoping, would quietly show
+nothing for a topic last got wrong a while ago, which is exactly the topic a
+parent came to look at. `null` on failure like its neighbours, and the panel
+says it could not fetch them rather than drawing a topic as having no history.
+
 `headline` holds the arithmetic behind the three tiles - a rolling 7 days
 against the 7 before, because a Monday-aligned week reads "0 questions" every
 Monday morning. It lives in `lib` and is tested, like everything else that

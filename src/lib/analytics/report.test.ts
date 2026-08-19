@@ -10,11 +10,14 @@ import {
   periods,
   problemTopics,
   progressOverTime,
+  recentAnswers,
   strengths,
   summarise,
   topicReports,
   trendFor,
+  EXAMPLE_ANSWERS,
 } from './report';
+import type { AnsweredQuestion } from './report';
 import type { Observation } from './profile';
 import type { YearLevel } from '../curriculum';
 
@@ -478,5 +481,51 @@ describe('dailyTotals', () => {
     const practised = grid.flat().filter((day) => day.attempts > 0);
     expect(practised).toHaveLength(1);
     expect(totals.get(practised[0].start)).toEqual({ questions: 1, timeMs: 5_000 });
+  });
+});
+
+describe('recentAnswers', () => {
+  const answer = (topic: string, level: YearLevel, day: number): AnsweredQuestion => ({
+    topic,
+    level,
+    prompt: `${topic} on day ${day}`,
+    expected: '4',
+    response: '4',
+    correct: true,
+    answeredAt: day * DAY,
+  });
+
+  it('gives the topic’s answers newest first', () => {
+    const given = [
+      answer('addition', '1', 1),
+      answer('addition', '1', 3),
+      answer('addition', '1', 2),
+    ];
+
+    expect(recentAnswers(given, 'addition', '1').map((one) => one.prompt)).toEqual([
+      'addition on day 3',
+      'addition on day 2',
+      'addition on day 1',
+    ]);
+  });
+
+  it('keeps only that topic at that level', () => {
+    const given = [
+      answer('addition', '1', 1),
+      answer('addition', '2', 2),
+      answer('subtraction', '1', 3),
+    ];
+
+    expect(recentAnswers(given, 'addition', '1')).toEqual([answer('addition', '1', 1)]);
+  });
+
+  it('shows no more than the last few', () => {
+    const given = [1, 2, 3, 4, 5].map((day) => answer('addition', '1', day));
+
+    expect(recentAnswers(given, 'addition', '1')).toHaveLength(EXAMPLE_ANSWERS);
+    expect(recentAnswers(given, 'addition', '1', 2).map((one) => one.prompt)).toEqual([
+      'addition on day 5',
+      'addition on day 4',
+    ]);
   });
 });

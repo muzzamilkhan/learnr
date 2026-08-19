@@ -4,8 +4,10 @@ import {
   coverage,
   dueForReview,
   problemTopics,
+  recentAnswers,
   strengths,
   topicReports,
+  type AnsweredQuestion,
   type TopicReport,
 } from '@/lib/analytics/report';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
@@ -53,6 +55,7 @@ function exampleQuestion(subject: string, topic: string, level: YearLevel): stri
 export function ProgressTopics({
   observations,
   sittings,
+  answered,
   subject,
   level,
   now,
@@ -60,6 +63,11 @@ export function ProgressTopics({
 }: {
   observations: Observation[];
   sittings: Sitting[];
+  /**
+   * The last few answers on each topic, as they were given. `null` is a failed
+   * read, and the panel says so rather than drawing a topic as having no history.
+   */
+  answered: AnsweredQuestion[] | null;
   subject: string;
   level: YearLevel | null;
   now: number;
@@ -95,6 +103,9 @@ export function ProgressTopics({
                     </p>
                   ) : null;
                 })()}
+                <WhatHappened
+                  answers={answered && recentAnswers(answered, report.topic, report.level)}
+                />
               </li>
             ))}
           </ul>
@@ -186,6 +197,96 @@ function Unproven() {
       Not enough answers yet to say. LearnR waits for {MIN_OBSERVATIONS} answers on a topic
       before it calls anything easy or hard.
     </p>
+  );
+}
+
+/**
+ * What actually happened, folded away behind a button: the last few questions of
+ * a topic that is going badly, each with what the child answered and what it
+ * should have been.
+ *
+ * The percentages above say a topic is hard; only the questions say *how*. Three
+ * lines is usually enough to see it - the same sign misread twice, subtraction
+ * done the wrong way round, an answer that is right for a question next to this
+ * one - which is the difference between a parent knowing to help and knowing
+ * what to say.
+ *
+ * Folded because it is detail, not headline. A weekly skim is the common read
+ * and this is the one section a parent opens when they are about to sit down
+ * with the child, so it costs a tap and nothing else on the page moves.
+ *
+ * A plain `<details>`: the disclosure is the whole of the interaction, the rows
+ * are rendered with the page, and neither wants a client component. The rows are
+ * one line each and elided rather than wrapped - a column of ragged three-line
+ * cells is not something you can compare down.
+ */
+function WhatHappened({ answers }: { answers: AnsweredQuestion[] | null }) {
+  if (answers === null) {
+    return (
+      <p className="mt-2 text-xs text-(--color-ink-soft)">
+        Couldn&rsquo;t load the last few questions just now.
+      </p>
+    );
+  }
+  if (answers.length === 0) return null;
+
+  return (
+    <details className="group mt-2">
+      <summary className="no-select inline-flex cursor-pointer list-none items-center gap-1 rounded-lg border border-(--color-line) px-2 py-1 text-xs font-semibold text-(--color-ink-soft) transition hover:bg-(--color-paper) [&::-webkit-details-marker]:hidden">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          className="h-3.5 w-3.5 transition group-open:rotate-180"
+        >
+          <path
+            d="M6 9l6 6 6-6"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+        <span className="group-open:hidden">
+          Show the last {answers.length} question{answers.length === 1 ? '' : 's'}
+        </span>
+        <span className="hidden group-open:inline">Hide the questions</span>
+      </summary>
+
+      <table className="mt-2 w-full table-fixed border-collapse text-xs">
+        <thead>
+          <tr className="text-left text-(--color-ink-soft)">
+            <th className="w-1/2 py-1 pr-3 font-medium">Question</th>
+            <th className="w-1/4 py-1 pr-3 font-medium">They said</th>
+            <th className="w-1/4 py-1 font-medium">Answer</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-(--color-line)">
+          {answers.map((answer) => (
+            <tr key={`${answer.answeredAt}|${answer.prompt}`}>
+              {/* The full text is on the cell, since a line that fits is not a line
+                  that always fits and the elision is what keeps the rows comparable. */}
+              <td className="truncate py-1.5 pr-3" title={answer.prompt}>
+                {answer.prompt}
+              </td>
+              <td
+                className={`truncate py-1.5 pr-3 font-semibold ${
+                  answer.correct ? 'text-(--color-right)' : 'text-(--color-wrong)'
+                }`}
+                title={answer.response}
+              >
+                {/* An answer given as nothing is a question walked away from,
+                    which is worth seeing rather than showing as a blank cell. */}
+                {answer.response === '' ? 'nothing' : answer.response}
+              </td>
+              <td className="truncate py-1.5" title={answer.expected}>
+                {answer.expected}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
   );
 }
 

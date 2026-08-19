@@ -6,6 +6,7 @@ import {
   type Observation,
   type TopicSkill,
 } from './analytics/profile';
+import { EXAMPLE_ANSWERS, type AnsweredQuestion } from './analytics/report';
 import { parseYearLevel, type YearLevel } from './curriculum';
 import { prisma } from './db';
 import { nextPlayStreak, startedNewDay, noStreak, type PlayStreak } from './rewards/streak';
@@ -644,6 +645,82 @@ export async function readObservations(
       .reverse();
   } catch (error) {
     console.error('Failed to read practice history', error);
+    return null;
+  }
+}
+
+/**
+ * The last few answers on every topic the child has practised in this subject -
+ * the question as they saw it, what they answered, and what it should have been.
+ *
+ * The report only unfolds these for the topics that are going badly, and which
+ * those are is decided by `topicReports` over history this read knows nothing
+ * about. So it fetches the last few for *every* topic rather than being told
+ * which to fetch: a subject's topics number in the dozens, three answers each is
+ * a small read, and the alternative - taking the last few hundred attempts and
+ * hoping a struggling topic is among them - would quietly show nothing for a
+ * topic the child last got wrong a while ago, which is exactly the topic a
+ * parent has come here to look at.
+ *
+ * That is what the window function is for. One query, three rows per topic, and
+ * the database does the per-topic slicing rather than the app throwing away most
+ * of what it read.
+ *
+ * `null` on failure, like `readObservations` and `readSittings`: the panel says
+ * it could not fetch them rather than drawing a topic as having no history.
+ */
+export async function readAnsweredQuestions(
+  userId: string,
+  subject: string,
+  perTopic = EXAMPLE_ANSWERS,
+): Promise<AnsweredQuestion[] | null> {
+  if (!prisma) return [];
+  try {
+    const rows = await prisma.$queryRaw<
+      {
+        topic: string;
+        level: string;
+        prompt: string;
+        expected: string;
+        response: string;
+        correct: boolean;
+        answeredAt: Date;
+      }[]
+    >`
+      SELECT "topic", "level", "prompt", "expected", "response", "correct", "answeredAt"
+      FROM (
+        SELECT a."topic", a."level", a."prompt", a."expected", a."response", a."correct",
+               a."answeredAt",
+               ROW_NUMBER() OVER (
+                 PARTITION BY a."topic", a."level"
+                 -- The id settles a tie, so two reads cannot pick different answers.
+                 ORDER BY a."answeredAt" DESC, a."id" DESC
+               ) AS place
+        FROM "Attempt" a
+        JOIN "LearningSession" s ON s."id" = a."learningSessionId"
+        WHERE s."userId" = ${userId} AND s."subject" = ${subject}
+      ) ranked
+      WHERE "place" <= ${perTopic}
+    `;
+
+    return rows
+      .map((row) => {
+        const level = parseYearLevel(row.level);
+        return level
+          ? {
+              topic: row.topic,
+              level,
+              prompt: row.prompt,
+              expected: row.expected,
+              response: row.response,
+              correct: row.correct,
+              answeredAt: row.answeredAt.getTime(),
+            }
+          : undefined;
+      })
+      .filter((answer) => answer !== undefined);
+  } catch (error) {
+    console.error('Failed to read answered questions', error);
     return null;
   }
 }

@@ -1,5 +1,5 @@
 import type { Observation } from '@/lib/analytics/profile';
-import { latestOffsetMinutes } from '@/lib/analytics/report';
+import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/report';
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
@@ -33,6 +33,7 @@ export function ProgressReport({
   subject,
   observations,
   sittings,
+  answered,
   targetAnswers,
   target,
   now,
@@ -43,6 +44,12 @@ export function ProgressReport({
   subject: string;
   observations: Observation[] | null;
   sittings: Sitting[] | null;
+  /**
+   * The last few answers of each topic, for the "needs a hand" section to unfold.
+   * A failed read is passed through as `null` rather than folded in with the two
+   * above: the report is still worth reading without the examples.
+   */
+  answered: AnsweredQuestion[] | null;
   /**
    * The calendar's cross-subject read, and the goal it measures each day
    * against. `null` is a failed read, and the calendar falls back to plain
@@ -92,6 +99,7 @@ export function ProgressReport({
           <ProgressTopics
             observations={observations}
             sittings={sittings}
+            answered={answered}
             subject={subject}
             level={level}
             now={now}

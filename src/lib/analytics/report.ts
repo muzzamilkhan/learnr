@@ -143,6 +143,51 @@ export function topicReports(observations: readonly Observation[], now: number):
 }
 
 /**
+ * One answer as it was actually given: the question the child saw, what they
+ * typed or tapped, and what it should have been.
+ *
+ * `Observation` deliberately carries none of this - the engines grade on
+ * correctness and would be worse for knowing the words. It is the parent who
+ * needs them, because "23% of 14 questions" says a topic is hard and only the
+ * questions themselves say *how* it is going wrong.
+ */
+export interface AnsweredQuestion {
+  topic: string;
+  level: YearLevel;
+  prompt: string;
+  expected: string;
+  response: string;
+  correct: boolean;
+  answeredAt: number;
+}
+
+/**
+ * How many of a struggling topic's questions the report will show. Three is
+ * enough to see a pattern - the same misread sign twice, or three different
+ * mistakes - and few enough to read without unfolding a page of history.
+ */
+export const EXAMPLE_ANSWERS = 3;
+
+/**
+ * The last few answers on one topic, newest first, for a parent opening up a
+ * topic that is going badly.
+ *
+ * Level is part of the question because a topic recurs across years and the
+ * same topic two years apart is not the same work.
+ */
+export function recentAnswers(
+  answers: readonly AnsweredQuestion[],
+  topic: string,
+  level: YearLevel,
+  limit = EXAMPLE_ANSWERS,
+): AnsweredQuestion[] {
+  return answers
+    .filter((answer) => answer.topic === topic && answer.level === level)
+    .sort((a, b) => b.answeredAt - a.answeredAt)
+    .slice(0, limit);
+}
+
+/**
  * The topics worth sitting down with, and nothing else. A list padded out with
  * topics that are merely unproven would send a parent to help with something
  * that is not a problem, and cost the real ones their attention.
