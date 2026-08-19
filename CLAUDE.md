@@ -771,6 +771,11 @@ three lines of the same size told apart by a badge; position says who won
 before anything is decoded. The operation headings went with the sections
 because the card's own title bar carries them.
 
+**A place nobody holds is drawn as a dashed empty circle**, not left out. The
+podium is the card's picture, and a card missing a third of it reads as one that
+has not loaded; dashed says what a gap says - this is a place, and it is open -
+which is the honest state of a mode only one person in the house has run.
+
 The podium is laid out by *place* rather than by list position, so a shared
 first puts both faces on the top step rather than demoting one of them to the
 left. **A card wears its operation's colour** - `OPERATION_ACCENT`'s solid in

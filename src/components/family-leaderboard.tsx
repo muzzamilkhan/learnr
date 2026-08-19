@@ -124,6 +124,25 @@ function Podiumer({ place, style, accent }: { place: Place; style: Style; accent
 }
 
 /**
+ * A place nobody holds yet: the circle, dashed and empty.
+ *
+ * Drawn rather than left out, because the podium is the card's picture and a
+ * card missing a third of it reads as a card that has not loaded. Dashed says
+ * what a gap says - this is a place, and it is open - which is the honest
+ * reading of a mode only one person in the house has run, and a better
+ * invitation than the absence was.
+ */
+function EmptyPlace({ style }: { style: Style }) {
+  return (
+    <li aria-hidden className="flex flex-col items-center">
+      <span
+        className={`${style.face} shrink-0 rounded-full border-2 border-dashed border-(--color-line)`}
+      />
+    </li>
+  );
+}
+
+/**
  * The triangle: firsts across the top, seconds below to the left, thirds lower
  * again to the right, so no two of the three ever sit on one line.
  *
@@ -143,20 +162,26 @@ function Podium({ places, style, accent }: { places: Place[]; style: Style; acce
           <Podiumer key={place.playerId} place={place} style={style} accent={accent} />
         ))}
       </ol>
-      {seconds.length > 0 || thirds.length > 0 ? (
-        <div className="flex items-start justify-between gap-1">
-          <ol className="-mt-1 flex gap-2">
-            {seconds.map((place) => (
+      <div className="flex items-start justify-between gap-1">
+        <ol className="-mt-1 flex gap-2">
+          {seconds.length > 0 ? (
+            seconds.map((place) => (
               <Podiumer key={place.playerId} place={place} style={style} accent={accent} />
-            ))}
-          </ol>
-          <ol className="mt-4 flex gap-2">
-            {thirds.map((place) => (
+            ))
+          ) : (
+            <EmptyPlace style={style} />
+          )}
+        </ol>
+        <ol className="mt-4 flex gap-2">
+          {thirds.length > 0 ? (
+            thirds.map((place) => (
               <Podiumer key={place.playerId} place={place} style={style} accent={accent} />
-            ))}
-          </ol>
-        </div>
-      ) : null}
+            ))
+          ) : (
+            <EmptyPlace style={style} />
+          )}
+        </ol>
+      </div>
     </div>
   );
 }
