@@ -105,7 +105,7 @@ export function startRun(config: StartRunConfig): RunState {
   };
 }
 
-/** Whole seconds left, never below zero - the clock face never counts negative. */
+/** Milliseconds left, never below zero - the clock face never counts negative. */
 export function remainingMs(state: RunState, now: number): number {
   return Math.max(0, state.startedAt + SPEED_RUN_MS - now);
 }
