@@ -44,6 +44,9 @@ export default async function ParentSpeedPage({ params }: { params: Promise<{ op
       homeHref="/progress"
       recordsHref="/progress/speed/records"
       recordingEnabled
+      // The chooser at the parent's density; the run itself is the same size
+      // for everyone. See `SpeedRun`'s `scale`.
+      scale="parent"
     />
   );
 }

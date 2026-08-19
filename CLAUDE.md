@@ -673,6 +673,16 @@ addition", and "in easy add" is not English. Two tables side by side in
 `modes.ts` rather than one derived from the other, because no rule turns
 "Divide" into "division" that isn't this table written twice.
 
+**A parent's speed screens run at the parent's density, but the run itself
+does not.** `SpeedCards` and the chooser take the same `scale` prop
+`SpeedRecordsCabinet` already had: at `'parent'` they are `text-base`/`text-sm`,
+single-width borders and `rounded-xl`, like everything else under `ParentShell`,
+because a parent picking a run is doing it inside a report drawn at that size.
+The ninety seconds themselves are identical for everyone - a question readable
+at a glance and a pad hit without looking are not things an adult wants smaller
+either - and so is the result screen. The line is between choosing and playing,
+not between who is playing.
+
 **The result screen wears the colour of the operation just run.**
 `OPERATION_ACCENT` is one table shared by the cards, the cabinet and the result,
 so finishing a Multiply run looks like the Multiply card that started it rather

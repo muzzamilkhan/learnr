@@ -84,35 +84,70 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
   },
 };
 
+/**
+ * `scale` follows `SpeedRecordsCabinet`'s precedent, and for the same reason:
+ * these cards are sized for a six-year-old holding an iPad at arm's length, and
+ * a parent choosing their own run is reading a laptop with a report on it. At
+ * `'parent'` they run at the density everything else under `ParentShell` does -
+ * `text-base` labels, single-width borders, `rounded-xl` - so the speed screens
+ * stop being the one part of a parent's app shouting at them.
+ */
+const SCALES = {
+  child: {
+    grid: 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5',
+    card: 'gap-4 rounded-3xl border-2 p-5 shadow-sm hover:shadow-md',
+    tile: 'size-14 rounded-2xl text-2xl',
+    label: 'text-2xl',
+    arrow: 'text-2xl',
+    records: 'mt-4 gap-3 rounded-2xl border-2 px-5 py-3.5 text-lg',
+    star: 'h-6 w-6',
+    recordsArrow: 'text-2xl',
+  },
+  parent: {
+    grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
+    card: 'gap-3 rounded-xl border p-3',
+    tile: 'size-9 rounded-lg text-base',
+    label: 'text-base',
+    arrow: 'text-base',
+    records: 'mt-3 gap-2 rounded-xl border px-3 py-2 text-sm',
+    star: 'h-4 w-4',
+    recordsArrow: 'text-base',
+  },
+} as const;
+
 export function SpeedCards({
   basePath = '/speed',
   recordsHref = `${basePath}/records`,
+  scale = 'child',
 }: {
   /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
   basePath?: string;
   recordsHref?: string;
+  scale?: keyof typeof SCALES;
 }) {
+  const style = SCALES[scale];
+
   return (
     <>
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
+      <ul className={style.grid}>
         {OPERATIONS.map((op) => {
           const accent = OPERATION_ACCENT[op];
           return (
             <li key={op}>
               <Link
                 href={`${basePath}/${op}`}
-                className={`no-select flex items-center gap-4 rounded-3xl border-2 border-(--color-line) bg-(--color-card) p-5 shadow-sm transition hover:shadow-md active:scale-[0.98] ${accent.border}`}
+                className={`no-select flex items-center border-(--color-line) bg-(--color-card) transition active:scale-[0.98] ${style.card} ${accent.border}`}
               >
                 <span
                   aria-hidden
-                  className={`flex size-14 shrink-0 items-center justify-center rounded-2xl text-2xl font-bold ${accent.tile}`}
+                  className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
                 >
                   {operationGlyph(op)}
                 </span>
-                <span className="min-w-0 flex-1 text-2xl font-semibold">
+                <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
                   {operationLabel(op)}
                 </span>
-                <span aria-hidden className={`shrink-0 text-2xl ${accent.arrow}`}>
+                <span aria-hidden className={`shrink-0 ${style.arrow} ${accent.arrow}`}>
                   &rarr;
                 </span>
               </Link>
@@ -123,11 +158,11 @@ export function SpeedCards({
 
       <Link
         href={recordsHref}
-        className="no-select mt-4 flex items-center gap-3 rounded-2xl border-2 border-(--color-line) bg-(--color-card) px-5 py-3.5 text-lg font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98]"
+        className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
       >
-        <StarIcon filled className="h-6 w-6 shrink-0 text-(--color-star)" />
+        <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
         Your records
-        <span aria-hidden className="ml-auto text-2xl">
+        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
           &rarr;
         </span>
       </Link>

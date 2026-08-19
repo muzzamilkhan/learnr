@@ -28,6 +28,7 @@ import {
 } from '@/lib/speedrun/run';
 import { BoltIcon } from './bolt-icon';
 import { ExitIcon } from './exit-icon';
+import { OPERATION_ACCENT } from './speed-cards';
 import { NumberPad } from './number-pad';
 import { playSound, primeSounds } from './sounds';
 import { SpeedResult } from './speed-result';
@@ -77,9 +78,25 @@ interface Props {
   homeHref: string;
   recordsHref: string;
   recordingEnabled: boolean;
+  /**
+   * The scale of the screen that *chooses* a run, and only that one. The run
+   * itself is the same size for everybody: ninety seconds against a clock needs
+   * a question readable at a glance and a pad hit without looking, and those are
+   * not things an adult wants smaller either. What a parent does not need is the
+   * chooser in front of it drawn at a six-year-old's scale, in the middle of a
+   * report drawn at theirs.
+   */
+  scale?: 'child' | 'parent';
 }
 
-export function SpeedRun({ op, bests, homeHref, recordsHref, recordingEnabled }: Props) {
+export function SpeedRun({
+  op,
+  bests,
+  homeHref,
+  recordsHref,
+  recordingEnabled,
+  scale = 'child',
+}: Props) {
   const modes = useMemo(() => modesFor(op), [op]);
   const bestByKey = useMemo(
     () => new Map((bests ?? []).map((best) => [best.mode, best.best])),
@@ -313,6 +330,7 @@ export function SpeedRun({ op, bests, homeHref, recordsHref, recordingEnabled }:
         homeHref={homeHref}
         onChoose={setMode}
         onStart={start}
+        scale={scale}
       />
     );
   }
@@ -428,6 +446,49 @@ function Countdown({ count }: { count: number }) {
  * six-year-old hits on an iPad, and there is nothing dense enough here to be
  * worth shrinking for an adult.
  */
+/**
+ * The chooser at both scales. `'child'` is what it always was; `'parent'` is
+ * the density of everything else under `ParentShell`, since a parent picking
+ * their own run is doing it inside a report drawn at that size and does not
+ * need the six-year-old's targets to press a mode.
+ *
+ * The glyph tile takes the operation's own accent rather than the grape it was
+ * hard-coded to, so the chooser matches the card that led here and the result
+ * that follows it.
+ */
+const CHOOSER_SCALES = {
+  child: {
+    section: 'mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8',
+    header: 'flex items-center gap-3 sm:gap-4',
+    exit: 'rounded-full border-2 p-2.5',
+    tile: 'h-14 w-14 rounded-2xl text-3xl sm:h-16 sm:w-16 sm:text-4xl',
+    title: 'truncate text-2xl font-bold sm:text-3xl',
+    caption: 'text-base sm:text-lg',
+    bolt: 'h-4 w-4 sm:h-5 sm:w-5',
+    grid: 'mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-3 sm:gap-4',
+    mode: 'min-h-20 gap-0.5 rounded-2xl border-2 px-2 py-3 sm:min-h-24',
+    modeLabel: 'text-lg leading-tight font-semibold sm:text-xl',
+    modeBest: 'min-h-5 text-sm',
+    start: 'mt-6 h-16 gap-3 rounded-2xl text-2xl sm:mt-8 sm:h-20 sm:text-3xl',
+    startBolt: 'h-7 w-7 sm:h-8 sm:w-8',
+  },
+  parent: {
+    section: 'w-full',
+    header: 'flex items-center gap-3',
+    exit: 'rounded-lg border p-1.5',
+    tile: 'h-10 w-10 rounded-xl text-xl',
+    title: 'truncate text-lg font-semibold',
+    caption: 'text-sm',
+    bolt: 'h-3.5 w-3.5',
+    grid: 'mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4',
+    mode: 'min-h-14 gap-0.5 rounded-xl border px-2 py-2',
+    modeLabel: 'text-sm leading-tight font-semibold',
+    modeBest: 'min-h-4 text-xs',
+    start: 'mt-4 h-11 gap-2 rounded-xl text-base',
+    startBolt: 'h-5 w-5',
+  },
+} as const;
+
 function Chooser({
   op,
   modes,
@@ -436,6 +497,7 @@ function Chooser({
   homeHref,
   onChoose,
   onStart,
+  scale,
 }: {
   op: Operation;
   modes: readonly Mode[];
@@ -444,34 +506,39 @@ function Chooser({
   homeHref: string;
   onChoose: (mode: Mode) => void;
   onStart: () => void;
+  scale: keyof typeof CHOOSER_SCALES;
 }) {
   const chosenKey = modeKey(chosen);
+  const style = CHOOSER_SCALES[scale];
+  const accent = OPERATION_ACCENT[op];
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
-      <header className="flex items-center gap-3 sm:gap-4">
+    <section className={style.section}>
+      <header className={style.header}>
         <Link
           href={homeHref}
           aria-label="Go back"
-          className="shrink-0 rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
+          className={`shrink-0 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 ${style.exit}`}
         >
           <ExitIcon />
         </Link>
 
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-(--color-grape-soft) text-3xl font-bold text-(--color-grape) sm:h-16 sm:w-16 sm:text-4xl">
+        <div
+          className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
+        >
           {operationGlyph(op)}
         </div>
 
         <div className="min-w-0">
-          <h1 className="truncate text-2xl font-bold sm:text-3xl">{operationLabel(op)}</h1>
-          <p className="flex items-center gap-1.5 text-base text-(--color-ink-soft) sm:text-lg">
-            <BoltIcon className="h-4 w-4 text-(--color-sun) sm:h-5 sm:w-5" />
+          <h1 className={style.title}>{operationLabel(op)}</h1>
+          <p className={`flex items-center gap-1.5 text-(--color-ink-soft) ${style.caption}`}>
+            <BoltIcon className={`text-(--color-sun) ${style.bolt}`} />
             90 seconds
           </p>
         </div>
       </header>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-3 sm:gap-4">
+      <div className={style.grid}>
         {modes.map((mode) => {
           const key = modeKey(mode);
           const best = bestByKey.get(key);
@@ -483,21 +550,19 @@ function Chooser({
               type="button"
               aria-pressed={selected}
               onClick={() => onChoose(mode)}
-              className={`flex min-h-20 flex-col items-center justify-center gap-0.5 rounded-2xl border-2 px-2 py-3 text-center transition active:scale-95 sm:min-h-24 ${
+              className={`flex flex-col items-center justify-center text-center transition active:scale-95 ${style.mode} ${
                 selected
                   ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
                   : 'border-(--color-line) bg-(--color-card)'
               }`}
             >
-              <span className="text-lg leading-tight font-semibold sm:text-xl">
-                {modeLabel(mode)}
-              </span>
+              <span className={style.modeLabel}>{modeLabel(mode)}</span>
               {/* A row kept whether or not there is a best in it, so the labels
                   sit on one line across the grid. Nothing is drawn for a mode
                   with no best: whether that is "never run" or "could not be
                   read" is a distinction the records cabinet draws, and a dash
                   here would answer it wrongly half the time. */}
-              <span className="min-h-5 text-sm text-(--color-ink-soft) tabular-nums">
+              <span className={`text-(--color-ink-soft) tabular-nums ${style.modeBest}`}>
                 {best === undefined ? '' : `Best ${best}`}
               </span>
             </button>
@@ -508,9 +573,9 @@ function Chooser({
       <button
         type="button"
         onClick={onStart}
-        className="mt-6 flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-(--color-brand) text-2xl font-bold text-white transition active:scale-95 sm:mt-8 sm:h-20 sm:text-3xl"
+        className={`flex w-full items-center justify-center bg-(--color-brand) font-bold text-white transition active:scale-95 ${style.start}`}
       >
-        <BoltIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+        <BoltIcon className={style.startBolt} />
         Start
       </button>
     </section>

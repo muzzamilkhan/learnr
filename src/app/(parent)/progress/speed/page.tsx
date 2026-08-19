@@ -23,7 +23,11 @@ export default async function ParentSpeedChooserPage() {
 
   return (
     <Well title="Speed run">
-      <SpeedCards basePath="/progress/speed" recordsHref="/progress/speed/records" />
+      <SpeedCards
+        basePath="/progress/speed"
+        recordsHref="/progress/speed/records"
+        scale="parent"
+      />
     </Well>
   );
 }
