@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ROUND_SIZE, closedRound, rounds, starsEarned, starsForRound } from './stars';
+import { ROUND_SIZE, closedRound, rounds, starsForRound } from './stars';
 
 /** `n` answers, the first `correct` of them right. */
 const results = (n: number, correct: number): boolean[] =>
@@ -50,16 +50,5 @@ describe('closedRound', () => {
   it('is the round the last answer just finished', () => {
     const played = [...results(10, 10), ...results(10, 0)];
     expect(closedRound(played)).toEqual({ index: 2, correct: 0, stars: 1 });
-  });
-});
-
-describe('starsEarned', () => {
-  it('is zero before the first round closes', () => {
-    expect(starsEarned(results(9, 9))).toBe(0);
-  });
-
-  it('adds up every closed round', () => {
-    const played = [...results(10, 10), ...results(10, 4), ...results(10, 0)];
-    expect(starsEarned(played)).toBe(3 + 2 + 1);
   });
 });
