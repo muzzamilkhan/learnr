@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateTemplate } from './validate';
+import { validateSpec, validateTemplate } from './validate';
 import type { QuestionTemplate } from './types';
 
 const valid: QuestionTemplate = {
@@ -153,5 +153,41 @@ describe('validateTemplate', () => {
     expect(errorsFor(null).length).toBeGreaterThan(0);
     expect(errorsFor('a string').length).toBeGreaterThan(0);
     expect(errorsFor({ ...valid, vars: 'not an array' }).length).toBeGreaterThan(0);
+  });
+});
+
+describe('validateSpec', () => {
+  it('accepts a spec with no id, subject, topic or level', () => {
+    expect(
+      validateSpec({
+        prompt: '{x} + {y}',
+        vars: [
+          { name: 'x', kind: 'int', min: '1', max: '9' },
+          { name: 'y', kind: 'int', min: '1', max: '9' },
+        ],
+        answer: 'x + y',
+      }).valid,
+    ).toBe(true);
+  });
+
+  it('still catches an unbound variable', () => {
+    const result = validateSpec({
+      prompt: '{x} + {z}',
+      vars: [{ name: 'x', kind: 'int', min: '1', max: '9' }],
+      answer: 'x + z',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toContain('z');
+  });
+
+  it('still catches constraints that can never be satisfied', () => {
+    const result = validateSpec({
+      prompt: '{x}',
+      vars: [{ name: 'x', kind: 'int', min: '1', max: '9' }],
+      constraints: ['x > 100'],
+      answer: 'x',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(' ')).toContain('generation failed');
   });
 });
