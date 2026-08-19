@@ -3,11 +3,14 @@ import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/repo
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
+import type { SpeedBest } from '@/lib/speed-records';
 import { AvatarIcon } from './avatar-icon';
 import { ChildPicker } from './child-picker';
 import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
+import { SpeedRecordsCabinet } from './speed-records';
 import { SubjectPicker } from './subject-picker';
+import { Well } from './well';
 import type { Avatar } from '@/lib/avatars';
 
 interface ProgressChild {
@@ -36,6 +39,7 @@ export function ProgressReport({
   answered,
   targetAnswers,
   target,
+  speedBests,
   now,
 }: {
   child: ProgressChild;
@@ -57,6 +61,13 @@ export function ProgressReport({
    */
   targetAnswers: TargetAnswer[] | null;
   target: DailyTarget | null;
+  /**
+   * This child's own speed-run bests, cross-subject like the calendar - a
+   * speed run has no curriculum topic to scope it by. Shown whether or not
+   * they have answered a curriculum question yet, since a speed run touches no
+   * `Attempt` and so does not depend on it either.
+   */
+  speedBests: SpeedBest[] | null;
   now: number;
 }) {
   const offsetMinutes = latestOffsetMinutes(observations ?? []);
@@ -107,6 +118,16 @@ export function ProgressReport({
           />
         </div>
       )}
+
+      {/* Outside the block above rather than inside it: a speed run writes no
+          `Attempt`, so it has bests to show even for a child who has never
+          answered a curriculum question, and the well would otherwise be
+          hidden behind a message that is only true of the report above it. */}
+      <div className="mt-4">
+        <Well title="Speed runs" note={`${child.name}'s best per mode.`}>
+          <SpeedRecordsCabinet bests={speedBests} scale="parent" />
+        </Well>
+      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { listSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
+import { SpeedBanner } from '@/components/speed-banner';
 import { resolveChild } from '@/lib/children';
 import {
   readAnsweredQuestions,
@@ -8,6 +9,7 @@ import {
   readRecentAnswers,
   readSittings,
 } from '@/lib/records';
+import { readSpeedRecords, readUnseenRecords } from '@/lib/speed-records';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
 
@@ -27,13 +29,25 @@ export default async function ProgressPage({
   searchParams: Promise<{ child?: string; subject?: string }>;
 }) {
   const { child: childParam, subject: subjectParam } = await searchParams;
-  const { profiles } = await readParent();
+  const { userId, profiles } = await readParent();
+
+  // Scoped to this parent's children, never to the one `?child=` names, so it
+  // shows regardless of which child's report is currently open - and never to
+  // this parent's own runs, since `readUnseenRecords` only ever looks at rows
+  // belonging to a child of theirs. Best-effort like the play path's own
+  // `readRecentAnswers` fallback: a missed celebration costs nothing a parent
+  // would notice was missing, unlike the report below it.
+  const unseenRecords = await readUnseenRecords(userId);
+  const banner = <SpeedBanner records={unseenRecords ?? []} />;
 
   if (profiles === null) {
     return (
-      <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
-        Couldn&rsquo;t load your children just now. Try again in a moment.
-      </p>
+      <>
+        {banner}
+        <p className="rounded-xl border border-(--color-line) bg-(--color-card) p-4 text-sm text-(--color-ink-soft)">
+          Couldn&rsquo;t load your children just now. Try again in a moment.
+        </p>
+      </>
     );
   }
 
@@ -43,18 +57,21 @@ export default async function ProgressPage({
   const child = resolveChild(profiles, childParam);
   if (child === null) {
     return (
-      <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
-        <h2 className="text-lg font-semibold">No children yet</h2>
-        <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
-          Add a profile, and their progress will show up here once they start practising.
-        </p>
-        <Link
-          href="/children"
-          className="no-select mt-4 inline-block rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98]"
-        >
-          Add a child
-        </Link>
-      </div>
+      <>
+        {banner}
+        <div className="rounded-xl border border-(--color-line) bg-(--color-card) p-6">
+          <h2 className="text-lg font-semibold">No children yet</h2>
+          <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
+            Add a profile, and their progress will show up here once they start practising.
+          </p>
+          <Link
+            href="/children"
+            className="no-select mt-4 inline-block rounded-lg bg-(--color-brand) px-3 py-1.5 text-sm font-semibold text-white transition active:scale-[0.98]"
+          >
+            Add a child
+          </Link>
+        </div>
+      </>
     );
   }
 
@@ -63,25 +80,33 @@ export default async function ProgressPage({
 
   const now = requestNow();
 
-  const [observations, sittings, answered, targetAnswers] = await Promise.all([
+  const [observations, sittings, answered, targetAnswers, speedBests] = await Promise.all([
     readObservations(child.id, subject),
     readSittings(child.id, subject),
     readAnsweredQuestions(child.id, subject),
     readRecentAnswers(child.id, now - CALENDAR_WINDOW_MS),
+    // The resolved child's own bests, not the parent's - so the well and the
+    // heading above it can never disagree about who is on screen, and so the
+    // numbers here survive a banner about this same child being dismissed.
+    readSpeedRecords(child.id),
   ]);
 
   return (
-    <ProgressReport
-      child={{ id: child.id, name: child.name, avatar: child.avatar, level: child.level }}
-      profiles={profiles.map(({ id, name }) => ({ id, name }))}
-      subjects={subjects}
-      subject={subject}
-      observations={observations}
-      sittings={sittings}
-      answered={answered}
-      targetAnswers={targetAnswers}
-      target={child.target}
-      now={now}
-    />
+    <>
+      {banner}
+      <ProgressReport
+        child={{ id: child.id, name: child.name, avatar: child.avatar, level: child.level }}
+        profiles={profiles.map(({ id, name }) => ({ id, name }))}
+        subjects={subjects}
+        subject={subject}
+        observations={observations}
+        sittings={sittings}
+        answered={answered}
+        targetAnswers={targetAnswers}
+        target={child.target}
+        speedBests={speedBests}
+        now={now}
+      />
+    </>
   );
 }

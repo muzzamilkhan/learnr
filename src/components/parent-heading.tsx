@@ -3,17 +3,24 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { resolveChild } from '@/lib/children';
+import { OPERATIONS } from '@/lib/speedrun/modes';
+
+/** Where the nav's third item goes: the first operation in the closed list,
+ * the same default order the child's own speed-run cards render in. */
+const SPEED_RUN_HREF = `/speed-run/${OPERATIONS[0]}`;
+
+type ParentScreen = 'progress' | 'children' | 'speed-run';
 
 /**
  * The heading and the nav, worked out in the browser rather than passed down
  * from whichever page is on screen.
  *
- * The two parent screens share one shell, and the shell lives in a layout so
+ * The parent's screens share one shell, and the shell lives in a layout so
  * that moving between them re-renders only the page below it - a header that
  * came from the page would be torn down and rebuilt on every hop, which is the
  * flicker this avoids. A layout can't be told which page is showing, so the
  * pieces that change per screen read the URL instead: the title, and which of
- * the two nav items is the current one.
+ * the nav items is the current one.
  *
  * `/` is treated as the report, because that is where a parent with children is
  * sent; the one parent who lands on `/` has no children yet and is looking at
@@ -29,12 +36,19 @@ export function ParentHeading({
   fallbackTitle: string;
   fallbackSubtitle?: string;
 }) {
-  const onChildren = useIsChildrenScreen();
+  const screen = useParentScreen();
   const childParam = useSearchParams().get('child');
   const child = resolveChild(profiles, childParam);
 
-  const title = onChildren ? 'Children' : child ? `${child.name}'s progress` : fallbackTitle;
-  const subtitle = onChildren || child ? undefined : fallbackSubtitle;
+  const title =
+    screen === 'children'
+      ? 'Children'
+      : screen === 'speed-run'
+        ? 'Speed run'
+        : child
+          ? `${child.name}'s progress`
+          : fallbackTitle;
+  const subtitle = screen === 'progress' && !child ? fallbackSubtitle : undefined;
 
   return (
     <div className="min-w-0">
@@ -45,22 +59,33 @@ export function ParentHeading({
 }
 
 /**
- * The two destinations, full width: two of them sharing the space evenly read as
- * a place to go, where two chips floating in a corner read as decoration.
+ * The three destinations, full width: sharing the space evenly reads as a place
+ * to go, where chips floating in a corner read as decoration.
  */
 export function ParentNav() {
-  const onChildren = useIsChildrenScreen();
+  const screen = useParentScreen();
 
   return (
     <nav className="no-select mt-4 flex rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold">
-      <NavLink href="/progress" label="Progress" active={!onChildren} />
-      <NavLink href="/children" label="Children" active={onChildren} />
+      <NavLink href="/progress" label="Progress" active={screen === 'progress'} />
+      <NavLink href="/children" label="Children" active={screen === 'children'} />
+      <NavLink href={SPEED_RUN_HREF} label="Speed run" active={screen === 'speed-run'} />
     </nav>
   );
 }
 
-function useIsChildrenScreen() {
-  return usePathname()?.startsWith('/children') ?? false;
+/**
+ * Which of the three the current path is on. `/speed-run` rather than `/speed`
+ * because a route group adds no path segment: the parent's speed pages sit at
+ * `/speed-run/...` precisely so they cannot collide with the child's own
+ * `/speed/...` routes, which resolve to the same URL space regardless of which
+ * group either page lives in.
+ */
+function useParentScreen(): ParentScreen {
+  const pathname = usePathname() ?? '';
+  if (pathname.startsWith('/children')) return 'children';
+  if (pathname.startsWith('/speed-run')) return 'speed-run';
+  return 'progress';
 }
 
 function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
