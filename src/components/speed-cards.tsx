@@ -103,6 +103,7 @@ const SCALES = {
     label: 'text-2xl',
     records: 'mt-4 gap-3 rounded-2xl border-2 px-5 py-3.5 text-lg',
     star: 'h-6 w-6',
+    recordsArrow: 'text-2xl',
   },
   parent: {
     grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
@@ -111,6 +112,7 @@ const SCALES = {
     label: 'text-base',
     records: 'mt-3 gap-2 rounded-xl border px-3 py-2 text-sm',
     star: 'h-4 w-4',
+    recordsArrow: 'text-base',
   },
 } as const;
 
@@ -160,6 +162,9 @@ export function SpeedCards({
       >
         <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
         Your records
+        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
+          &rarr;
+        </span>
       </Link>
 
       <Link
@@ -168,6 +173,9 @@ export function SpeedCards({
       >
         <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
         Family leaderboard
+        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
+          &rarr;
+        </span>
       </Link>
     </>
   );
