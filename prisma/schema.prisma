@@ -89,6 +89,7 @@ model User {
   learningSessions LearningSession[]
   topicSkills      TopicSkill[]
   speedRecords     SpeedRecord[]
+  speedAttempts    SpeedAttempt[]
 
   /// Sharing, from all four sides: invites this parent has sent, an invite they
   /// accepted, grants over this child, and grants to this viewer. Ownership is
@@ -286,6 +287,38 @@ model SpeedRecord {
   /// with no `userId` in the WHERE at all, so a parent's banner scans on
   /// those, never on this.
   @@index([userId])
+}
+
+/// One finished speed run, kept whether or not it beat anything.
+///
+/// `SpeedRecord` above is the maximum and stays the maximum - it is what the
+/// leaderboard ranks, what the banner announces and what the guarded update
+/// makes idempotent. This is the history behind it, and it exists because a
+/// single best cannot say whether a score was a fluke or a floor: the cabinet
+/// shows a player their top five runs at a mode, and there is nothing to show
+/// unless every run is written down.
+///
+/// It needs no lock and no guard of any kind: an insert is not a maximum and
+/// not a counter, so a retry writes a second row rather than paying twice, and
+/// two runs landing at once are simply two runs.
+model SpeedAttempt {
+  id     String @id @default(cuid())
+  userId String
+  /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
+  mode   String
+
+  /// How many were answered right, and how many were answered at all.
+  correct  Int
+  answered Int
+
+  playedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// What the cabinet reads: one player's runs at one mode, best first. The
+  /// ranking is done in the database (`readSpeedAttempts`), so the index is
+  /// the ordering the window function uses.
+  @@index([userId, mode, correct(sort: Desc), playedAt])
 }
 
 /// A link one parent sends another grown-up so they can watch a child's progress.

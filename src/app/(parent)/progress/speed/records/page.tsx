@@ -1,8 +1,8 @@
 import { SpeedRecordsCabinet } from '@/components/speed-records';
-import { readSpeedRecords } from '@/lib/speed-records';
+import { readSpeedAttempts } from '@/lib/speed-records';
 import { readParent } from '../../../parent';
 
-// Per-player bests, so it must never be prerendered and shared.
+// Per-player runs, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
 /**
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function ParentSpeedRecordsPage() {
   const { userId } = await readParent();
-  const bests = await readSpeedRecords(userId);
+  const attempts = await readSpeedAttempts(userId);
 
-  return <SpeedRecordsCabinet bests={bests} scale="parent" />;
+  return <SpeedRecordsCabinet attempts={attempts} scale="parent" />;
 }

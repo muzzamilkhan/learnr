@@ -712,10 +712,42 @@ above and the misses below do not.
 **The cabinet lists what has been run, and nothing else.** A mode never played
 has no record to show, and twenty-seven rows of dashes made a to-do list of a
 trophy case - the four scores actually set were the smallest thing on a screen
-mostly composed of what had not happened. An operation with nothing under it
-loses its section too, and a player with no runs at all gets one sentence. What
-is missing is not the prompt to go and play: the five cards above are, and they
-are always all five.
+mostly composed of what had not happened. A player with no runs at all gets one
+sentence. What is missing is not the prompt to go and play: the five cards above
+are, and they are always all five.
+
+**The cabinet is the leaderboard's card, with a table where the podium goes.**
+Same coloured title bar carrying the whole mode name, same foil sheen, same
+fixed portrait frame, same `OPERATION_ACCENT` - the two screens answer
+neighbouring questions (how the house is going, how *I* am going) and should be
+the same object with a different picture on the front. A podium is the wrong
+picture for one player: it would be one face with two holes punched beside it.
+So the picture is that player's `HISTORY_RUNS` (5) best runs at the mode,
+highest first, **the top one bold and starred**. It is the number that is
+really the record - the one `SpeedRecord` keeps, the leaderboard ranks and the
+banner announces - and the four beneath it are what say whether it was a fluke
+or a floor. Only one row is ever starred, even when a later run matched it: the
+star marks the run that *set* the best, which is the run `achievedAt` names.
+Cards are ordered freshest first on the runs *shown*, the leaderboard's rule
+for the leaderboard's reason - a sixth-best run this afternoon changes nothing
+on the card and must not reorder the board.
+
+**`SpeedAttempt` is that history, and `SpeedRecord` stays the maximum.** A table
+of five cannot be built from one row per mode, so every finished run is now
+written down whether it beat anything or not - the run that failed to beat the
+best is exactly the kind that says whether the best was a fluke. The two writes
+go together in `submitSpeedRun` and are independent: the record decides what the
+result screen says, the attempt is best-effort like `records.ts`, and a lost
+attempt costs a line of history rather than a game. It needs no lock and no
+guard at all, unlike either of its neighbours - an insert is neither a maximum
+nor a counter, so a retry writes a second row instead of paying twice, which is
+the honest reading of two runs anyway. `readSpeedAttempts` slices the top five
+per mode with a `ROW_NUMBER()` window, the shape `readAnsweredQuestions` uses
+and for its reason: taking the last few hundred runs and hoping would show
+nothing for the mode somebody came to look at. `runHistory`
+(`src/lib/speedrun/history.ts`) is the pure half, beside `leaderboard.ts`,
+because which of two tied runs is starred is not a thing to judge by eye in a
+component.
 
 **The family leaderboard ranks the household, per mode, first to third.**
 `/speed/leaderboard` and `/progress/speed/leaderboard`, beside the cabinet and
@@ -744,7 +776,7 @@ report itself already gives a share.
 
 `familyStandings` (`src/lib/speedrun/leaderboard.ts`) is the ranking, pure and
 tested like `banner.ts` beside it, and it needs no schema: a leaderboard is
-`SpeedRecord` rows sorted, on the same maximum the cabinet already shows.
+`SpeedRecord` rows sorted, on the same maximum the cabinet stars.
 **A tie shares a place and skips the next** - 1st, 1st, 3rd - because in a
 family of three a tie is common and breaking it on a technicality hands someone
 a second place they did not lose; within one, whoever got there first is listed

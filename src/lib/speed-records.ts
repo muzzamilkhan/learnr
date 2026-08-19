@@ -6,6 +6,7 @@ import { parseAvatar } from './avatars';
 import { parsePhoto } from './photo/photo';
 import { extendHouseholdWithShares } from './children';
 import type { FamilyRecord } from './speedrun/leaderboard';
+import { HISTORY_RUNS, type SpeedAttempt } from './speedrun/history';
 
 /**
  * The Prisma side of speed runs, beside `records.ts` and `accounts.ts` rather
@@ -15,13 +16,6 @@ import type { FamilyRecord } from './speedrun/leaderboard';
  * `readObservations` and `readSittings` already draw. A failed read rendered as
  * an empty cabinet tells a child they have never played.
  */
-
-export interface SpeedBest {
-  mode: string;
-  best: number;
-  answered: number;
-  achievedAt: Date;
-}
 
 export interface SpeedOutcome {
   previousBest: number | null;
@@ -37,17 +31,41 @@ export interface ChildRecord {
   achievedAt: Date;
 }
 
-/** Every mode this player has run. Null means the read failed. */
-export async function readSpeedRecords(userId: string): Promise<SpeedBest[] | null> {
+/**
+ * One player's best runs at each mode - up to `HISTORY_RUNS` of them, ranked in
+ * the database rather than in the app.
+ *
+ * The slicing is a `ROW_NUMBER()` window, the same shape `readAnsweredQuestions`
+ * uses and for the same reason: taking the last few hundred runs and hoping
+ * would quietly show nothing for a mode last played a while ago, which is
+ * exactly the mode somebody came to look at. `runHistory` still re-ranks what
+ * comes back - the ordering is cheap, it is tested there, and the read is not
+ * where a tie-breaking rule should live.
+ *
+ * Null means the read failed, never that nothing has been played - the
+ * distinction `readObservations` draws.
+ */
+export async function readSpeedAttempts(userId: string): Promise<SpeedAttempt[] | null> {
   if (!prisma) return [];
   try {
-    const rows = await prisma.speedRecord.findMany({
-      where: { userId },
-      select: { mode: true, best: true, answered: true, achievedAt: true },
-    });
-    return rows;
+    return await prisma.$queryRaw<SpeedAttempt[]>`
+      SELECT "mode", "correct", "answered", "playedAt"
+      FROM (
+        SELECT "mode", "correct", "answered", "playedAt",
+               ROW_NUMBER() OVER (
+                 PARTITION BY "mode"
+                 -- The earlier run set a tied score, so it is the one kept and
+                 -- the one starred; the id settles the rest so two reads cannot
+                 -- return different rows.
+                 ORDER BY "correct" DESC, "playedAt" ASC, "id" ASC
+               ) AS place
+        FROM "SpeedAttempt"
+        WHERE "userId" = ${userId}
+      ) ranked
+      WHERE "place" <= ${HISTORY_RUNS}
+    `;
   } catch (error) {
-    console.error('Failed to read speed records', error);
+    console.error('Failed to read speed attempts', error);
     return null;
   }
 }
@@ -79,8 +97,51 @@ export async function submitSpeedRun(
   run: { correct: number; answered: number },
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
+
+  // Two independent writes, so they go together rather than one after the
+  // other: the record is the maximum and the attempt is the history behind it,
+  // and neither reads what the other does. A failed attempt row costs a line in
+  // the cabinet's table; a failed record costs the outcome this returns, which
+  // is why only one of the two can decide what the result screen says.
+  const [, outcome] = await Promise.all([
+    recordAttempt(userId, modeKey(mode), run),
+    bankRecord(userId, modeKey(mode), run),
+  ]);
+  return outcome;
+}
+
+/**
+ * Keep the run itself, beaten or not - the table of five in the cabinet is
+ * built from these, and a run that failed to beat the best is exactly the kind
+ * that says whether a best was a fluke.
+ *
+ * Best-effort like `records.ts`: the run is over, and a lost row costs a line
+ * of history rather than a game. It needs no guard of any kind - an insert is
+ * neither a maximum nor a counter, so a retry writes a second row rather than
+ * paying twice, which is the honest reading of two runs anyway.
+ */
+async function recordAttempt(
+  userId: string,
+  mode: string,
+  run: { correct: number; answered: number },
+): Promise<void> {
+  if (!prisma) return;
+  try {
+    await prisma.speedAttempt.create({
+      data: { userId, mode, correct: run.correct, answered: run.answered },
+    });
+  } catch (error) {
+    console.error('Failed to record speed attempt', error);
+  }
+}
+
+async function bankRecord(
+  userId: string,
+  key: string,
+  run: { correct: number; answered: number },
+): Promise<SpeedOutcome | null> {
+  if (!prisma) return null;
   const db = prisma;
-  const key = modeKey(mode);
 
   try {
     const initial = await db.speedRecord.findUnique({ where: { userId_mode: { userId, mode: key } } });

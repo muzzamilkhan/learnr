@@ -9,7 +9,7 @@ import {
   readRecentAnswers,
   readSittings,
 } from '@/lib/records';
-import { readSpeedRecords, readUnseenRecords } from '@/lib/speed-records';
+import { readSpeedAttempts, readUnseenRecords } from '@/lib/speed-records';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
 
@@ -86,15 +86,15 @@ export default async function ProgressPage({
 
   const now = requestNow();
 
-  const [observations, sittings, answered, targetAnswers, speedBests] = await Promise.all([
+  const [observations, sittings, answered, targetAnswers, speedRuns] = await Promise.all([
     readObservations(child.id, subject),
     readSittings(child.id, subject),
     readAnsweredQuestions(child.id, subject),
     readRecentAnswers(child.id, now - CALENDAR_WINDOW_MS),
-    // The resolved child's own bests, not the parent's - so the well and the
+    // The resolved child's own runs, not the parent's - so the well and the
     // heading above it can never disagree about who is on screen, and so the
     // numbers here survive a banner about this same child being dismissed.
-    readSpeedRecords(child.id),
+    readSpeedAttempts(child.id),
   ]);
 
   return (
@@ -116,7 +116,7 @@ export default async function ProgressPage({
         answered={answered}
         targetAnswers={targetAnswers}
         target={child.target}
-        speedBests={speedBests}
+        speedRuns={speedRuns}
         now={now}
       />
     </>

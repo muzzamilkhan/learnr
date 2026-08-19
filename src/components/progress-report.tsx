@@ -3,7 +3,7 @@ import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/repo
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
-import type { SpeedBest } from '@/lib/speed-records';
+import type { SpeedAttempt } from '@/lib/speedrun/history';
 import { ProfileFace } from './profile-face';
 import { ChildPicker, type PickableChild } from './child-picker';
 import { ProgressTopics } from './progress-topics';
@@ -41,7 +41,7 @@ export function ProgressReport({
   answered,
   targetAnswers,
   target,
-  speedBests,
+  speedRuns,
   now,
 }: {
   child: ProgressChild;
@@ -65,12 +65,12 @@ export function ProgressReport({
   targetAnswers: TargetAnswer[] | null;
   target: DailyTarget | null;
   /**
-   * This child's own speed-run bests, cross-subject like the calendar - a
-   * speed run has no curriculum topic to scope it by. Shown whether or not
-   * they have answered a curriculum question yet, since a speed run touches no
-   * `Attempt` and so does not depend on it either.
+   * This child's own speed runs, cross-subject like the calendar - a speed run
+   * has no curriculum topic to scope it by. Shown whether or not they have
+   * answered a curriculum question yet, since a speed run touches no `Attempt`
+   * and so does not depend on it either.
    */
-  speedBests: SpeedBest[] | null;
+  speedRuns: SpeedAttempt[] | null;
   now: number;
 }) {
   const offsetMinutes = latestOffsetMinutes(observations ?? []);
@@ -131,8 +131,8 @@ export function ProgressReport({
           answered a curriculum question, and the well would otherwise be
           hidden behind a message that is only true of the report above it. */}
       <div className="mt-4">
-        <Well title="Speed runs" note={`${child.name}'s best per mode.`}>
-          <SpeedRecordsCabinet bests={speedBests} scale="parent" />
+        <Well title="Speed runs" note={`${child.name}'s best runs at each mode.`}>
+          <SpeedRecordsCabinet attempts={speedRuns} scale="parent" />
         </Well>
       </div>
     </>

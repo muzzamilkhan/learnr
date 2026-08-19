@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { auth, isAuthConfigured } from '@/auth';
 import { ExitIcon } from '@/components/exit-icon';
 import { SpeedRecordsCabinet } from '@/components/speed-records';
-import { readSpeedRecords } from '@/lib/speed-records';
+import { readSpeedAttempts } from '@/lib/speed-records';
 
-// Per-player bests, so it must never be prerendered and shared.
+// Per-player runs, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
 /**
@@ -28,7 +28,7 @@ export default async function SpeedRecordsPage() {
   const userId = session?.user?.id;
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
       <header className="mb-6 flex items-center gap-3 sm:mb-8 sm:gap-4">
         <Link
           href="/speed"
@@ -41,7 +41,7 @@ export default async function SpeedRecordsPage() {
       </header>
 
       {userId ? (
-        <SpeedRecordsCabinet bests={await readSpeedRecords(userId)} scale="child" />
+        <SpeedRecordsCabinet attempts={await readSpeedAttempts(userId)} scale="child" />
       ) : (
         <p className="text-xl text-(--color-ink-soft)">
           Sign in to keep records of your runs.
