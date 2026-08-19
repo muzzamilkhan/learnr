@@ -18,8 +18,8 @@ import { ProfileFace } from './profile-face';
  * **It is drawn as a collectible card because that is what it is**: one per
  * mode, twenty-seven of them, each a fixed frame with a face on the front that
  * changes when somebody beats it. The parts are a trading card's parts - a
- * coloured title bar naming the operation, the mode as its subtitle, and the
- * podium as the picture in the middle - and a child reads a wall of them the
+ * coloured title bar carrying the whole name ("Add - Easy", "Multiply - 7 times
+ * table") and the podium as the picture beneath it - and a child reads a wall of them the
  * way they read a wall of cards, by colour and by who is on the front. The tall
  * portrait frame is what makes that legible: a podium needs the height more
  * than the width, and a card wider than it is tall is a row wearing a border.
@@ -73,11 +73,10 @@ const SCALES = {
   child: {
     grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-64 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
-    bar: 'flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
-    glyph: 'text-base leading-none',
+    bar: 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
+    glyph: 'text-sm leading-none',
     op: 'truncate',
     body: 'relative flex flex-1 flex-col px-3 py-3',
-    mode: 'line-clamp-2 text-center text-xs leading-tight font-medium text-(--color-ink-soft)',
     podium: 'flex flex-1 flex-col justify-center pt-3',
     winnerFace: 'size-14',
     winnerPx: 56,
@@ -91,11 +90,10 @@ const SCALES = {
   parent: {
     grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     card: 'flex h-56 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
-    bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
-    glyph: 'text-sm leading-none',
+    bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
+    glyph: 'text-xs leading-none',
     op: 'truncate',
     body: 'relative flex flex-1 flex-col px-2.5 py-2.5',
-    mode: 'line-clamp-2 text-center text-[0.65rem] leading-tight font-medium text-(--color-ink-soft)',
     podium: 'flex flex-1 flex-col justify-center pt-2.5',
     winnerFace: 'size-12',
     winnerPx: 48,
@@ -239,18 +237,20 @@ export function FamilyLeaderboard({
     <div className={style.grid}>
       {standings.map((standing) => {
         const accent = OPERATION_ACCENT[standing.mode.op];
+        // One line, both halves of the name: "Add - Easy", "Multiply - 7 times
+        // table". `title` repeats it for the few that outrun the card's width.
+        const title = `${operationLabel(standing.mode.op)} - ${modeLabel(standing.mode)}`;
         return (
           <section key={modeKey(standing.mode)} className={`${style.card} ${accent.line}`}>
-            <h2 className={`${style.bar} ${accent.solid}`}>
+            <h2 className={`${style.bar} ${accent.solid}`} title={title}>
               <span aria-hidden className={style.glyph}>
                 {operationGlyph(standing.mode.op)}
               </span>
-              <span className={style.op}>{operationLabel(standing.mode.op)}</span>
+              <span className={style.op}>{title}</span>
             </h2>
             <div className={`${style.body} ${accent.wash}`}>
               <span aria-hidden className="pointer-events-none absolute inset-0" style={{ backgroundImage: SHEEN }} />
-              <div className="relative flex flex-1 flex-col">
-                <p className={style.mode}>{modeLabel(standing.mode)}</p>
+              <div className="relative flex flex-1 flex-col justify-center">
                 <Podium places={standing.places} style={style} accent={accent} />
               </div>
             </div>

@@ -94,7 +94,31 @@ describe('familyStandings', () => {
     expect(standings[0].mode).toEqual({ op: 'add', difficulty: 'easy' });
   });
 
-  it('returns the modes in MODES order', () => {
+  it('puts the mode whose podium changed most recently first', () => {
+    const standings = familyStandings([
+      entry({ mode: 'add.easy', achievedAt: new Date('2026-08-01T10:00:00Z') }),
+      entry({ mode: 'mixed.hard', achievedAt: new Date('2026-08-18T10:00:00Z') }),
+      entry({ mode: 'multiply.7', achievedAt: new Date('2026-08-09T10:00:00Z') }),
+    ]);
+
+    expect(standings.map((standing) => standing.mode.op)).toEqual(['mixed', 'multiply', 'add']);
+  });
+
+  it('ranks a mode by its podium, not by a run that missed it', () => {
+    const standings = familyStandings([
+      entry({ mode: 'add.easy', playerId: 'a', best: 20, achievedAt: new Date('2026-08-10T10:00:00Z') }),
+      // Fourth place, and the newest run in the house - but nothing on the card
+      // changed, so it must not haul addition to the front of the board.
+      entry({ mode: 'add.easy', playerId: 'b', best: 19, achievedAt: new Date('2026-08-02T10:00:00Z') }),
+      entry({ mode: 'add.easy', playerId: 'c', best: 18, achievedAt: new Date('2026-08-02T10:00:00Z') }),
+      entry({ mode: 'add.easy', playerId: 'd', best: 17, achievedAt: new Date('2026-08-19T10:00:00Z') }),
+      entry({ mode: 'mixed.hard', playerId: 'e', achievedAt: new Date('2026-08-12T10:00:00Z') }),
+    ]);
+
+    expect(standings.map((standing) => standing.mode.op)).toEqual(['mixed', 'add']);
+  });
+
+  it('keeps MODES order between modes that are equally fresh', () => {
     const standings = familyStandings([
       entry({ mode: 'mixed.hard' }),
       entry({ mode: 'add.easy' }),

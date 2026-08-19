@@ -751,13 +751,19 @@ a second place they did not lose; within one, whoever got there first is listed
 first, which is the only thing that honestly separates them. The cut is at three
 *places*, not three rows, so a three-way tie for first shows all three names.
 Only modes somebody has run appear - the cabinet's rule above, for the
-cabinet's reason.
+cabinet's reason - and they are ordered **freshest first**: the newest
+`achievedAt` among a card's *places*, so a fourth-place run, which changes
+nothing anybody can see, does not reorder the board. Twenty-seven cards is more
+than anyone reads top to bottom, and the ones worth reading are the ones that
+just moved. Equally fresh modes keep `MODES` order between them.
 
 **A mode is a collectible card, and its result is a podium.** One card per
-mode, twenty-seven of them: a coloured title bar naming the operation, the mode
-as its subtitle, and the podium as the picture in the middle - a child reads a
-wall of them the way they read a wall of cards, by colour and by who is on the
-front. The frame is tall and portrait because a podium needs height more than
+mode, twenty-seven of them: a coloured title bar carrying the whole name -
+"Add - Easy", "Multiply - 7 times table" - and the podium as the picture
+beneath it. A child reads a wall of them the way they read a wall of cards, by
+colour and by who is on the front. The mode used to be a subtitle under the bar,
+which split one name across two zones and spent a line of the card's height
+saying the second half of it. The frame is tall and portrait because a podium needs height more than
 width, and a card wider than it is tall is a row wearing a border.
 
 First sits at the top with a crown above the circle, second below it to the

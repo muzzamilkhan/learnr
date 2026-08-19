@@ -53,7 +53,7 @@ export interface Standing {
 export const PLACES = 3;
 
 /**
- * The standings, one per mode somebody has run, in `MODES` order.
+ * The standings, one per mode somebody has run, **freshest first**.
  *
  * **Only modes that have been run appear**, and `SpeedRecordsCabinet` draws the
  * empty ones the same way for the same reason: twenty-seven rows of dashes make
@@ -70,6 +70,17 @@ export const PLACES = 3;
  * shows all three names rather than dropping one on the ordering used to break
  * a tie that was not broken.
  *
+ * **The order is when a mode's podium last changed**, newest first, rather than
+ * the fixed `MODES` order it used to be. Twenty-seven cards is more than anyone
+ * reads top to bottom, and the ones worth reading are the ones that just moved:
+ * a board sorted by what happened lately puts the run somebody finished this
+ * afternoon on the first card rather than wherever addition happens to sit in a
+ * list. Freshness is the newest `achievedAt` among the *places*, not among the
+ * rows - a fourth-place run changes nothing anybody can see on the card, so it
+ * must not reorder the board either. Modes that are equally fresh keep `MODES`
+ * order between them, which is what an empty board and a seeded test both fall
+ * back to.
+ *
  * A `mode` key this build no longer recognises is dropped rather than rendered
  * as raw text - the same defence `recordBanners` and every other reader of a
  * stored key takes through `parseMode`.
@@ -84,11 +95,20 @@ export function familyStandings(records: readonly FamilyRecord[]): Standing[] {
     else byMode.set(record.mode, [record]);
   }
 
-  return MODES.flatMap((mode) => {
+  const standings = MODES.flatMap((mode) => {
     const rows = byMode.get(modeKey(mode));
     if (!rows) return [];
     return [{ mode, places: placesFor(rows) }];
   });
+
+  // Built in `MODES` order and sorted by freshness after, so `sort`'s stability
+  // is what keeps two equally fresh modes in the order the game lists them.
+  return standings.sort((a, b) => freshness(b) - freshness(a));
+}
+
+/** When this mode's podium last changed: the newest `achievedAt` on it. */
+function freshness(standing: Standing): number {
+  return Math.max(...standing.places.map((place) => place.achievedAt.getTime()));
 }
 
 function placesFor(rows: readonly FamilyRecord[]): Place[] {
