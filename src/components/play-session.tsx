@@ -21,9 +21,9 @@ import { answerMode, answerOptions, appendNumeric, formatAnswer } from '@/lib/se
 import { closedRound, type Round } from '@/lib/rewards/stars';
 import { noStreak, type PlayStreak } from '@/lib/rewards/streak';
 import {
+  dayProgress,
   dayTotal,
-  targetUnits,
-  totalFor,
+  targetProgress,
   TARGET_STARS,
   type DailyTarget,
   type TargetAnswer,
@@ -35,6 +35,7 @@ import {
   recordAttemptAction,
   startRecordingAction,
 } from '@/app/play/actions';
+import { localOffsetMinutes, subscribeToTheClock, today } from './clock';
 import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
@@ -233,7 +234,7 @@ export function PlaySession({
    */
   const doneBefore = useSyncExternalStore(
     subscribeToTheClock,
-    () => (target === null ? null : totalToday(target.answers, target.target.kind)),
+    () => (target === null ? null : doneToday(target.target, target.answers)),
     () => null,
   );
 
@@ -250,9 +251,7 @@ export function PlaySession({
    */
   const awardedToday = useSyncExternalStore(
     subscribeToTheClock,
-    () =>
-      target?.awardedDay != null &&
-      target.awardedDay === localDay(Date.now(), -new Date().getTimezoneOffset()),
+    () => target?.awardedDay != null && target.awardedDay === today(),
     () => false,
   );
   const targetFinished = awardedToday || targetCelebrated;
@@ -272,7 +271,7 @@ export function PlaySession({
   const targetFraction =
     target === null || targetDone === null
       ? 0
-      : Math.min(1, (targetDone + elapsed) / targetUnits(target.target));
+      : targetProgress(target.target, targetDone + elapsed).fraction;
 
   useEffect(() => {
     if (!recordingEnabled) return;
@@ -307,9 +306,12 @@ export function PlaySession({
     const round = closedRound(next.attempts.map((attempt) => attempt.correct));
     if (round) {
       setReward(round);
-      // Optimistic, like the round celebration itself: the server recounts from
-      // the stored answers regardless, so this only has to hold until the next
-      // full page load reconciles it.
+      // Optimistic, and now the only correction there is. The server still
+      // decides what a round was worth by reading the stored answers, but
+      // `User.stars` is *incremented* rather than recounted, so a dropped
+      // `awardRoundAction` no longer heals itself on the next page load. What
+      // keeps the two in step is that both value the round with `closedRound`
+      // over the same answers.
       setStars((total) => total + round.stars);
     }
   }, [updateEntry]);
@@ -374,7 +376,7 @@ export function PlaySession({
       // way a session that runs across a daylight saving change stays honest
       // about which day each answer belongs to.
       const now = Date.now();
-      const offsetMinutes = -new Date(now).getTimezoneOffset();
+      const offsetMinutes = localOffsetMinutes();
       const next = submitAnswer(session, value, now, offsetMinutes);
 
       // The target's own view of the answer. Questions step by one; minutes take
@@ -418,8 +420,8 @@ export function PlaySession({
           // a dropped call repair itself - the compare-and-set on the day means
           // only one of them can ever pay out.
           if (target && !targetFinished) {
-            awardTargetAction(id, offsetMinutes).then((result) => {
-              if (!result?.awarded) return;
+            awardTargetAction(id, offsetMinutes).then((awarded) => {
+              if (!awarded) return;
               setTargetReward(target.target);
               setStars((total) => total + TARGET_STARS);
             });
@@ -647,13 +649,6 @@ export function PlaySession({
   );
 }
 
-/**
- * Nothing to subscribe to: the day turns over at midnight, and a child whose
- * screen has been open since yesterday will reload it long before the stale
- * number matters. Stable identity, so the store is never resubscribed.
- */
-const subscribeToTheClock = () => () => {};
-
 /** A tick a second, which is as often as the creep below has anything to say. */
 function subscribeToSeconds(onChange: () => void) {
   const timer = setInterval(onChange, 1000);
@@ -661,10 +656,9 @@ function subscribeToSeconds(onChange: () => void) {
 }
 
 /** What of these answers belongs to today, in the unit the target counts in. */
-function totalToday(answers: TargetAnswer[], kind: DailyTarget['kind']): number {
-  const now = Date.now();
-  const offsetMinutes = -new Date(now).getTimezoneOffset();
-  return totalFor(dayTotal(answers, { now, offsetMinutes }), kind);
+function doneToday(target: DailyTarget, answers: TargetAnswer[]): number {
+  const total = dayTotal(answers, { now: Date.now(), offsetMinutes: localOffsetMinutes() });
+  return dayProgress(target, total).done;
 }
 
 /**

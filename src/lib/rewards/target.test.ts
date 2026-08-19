@@ -3,6 +3,7 @@ import { MAX_TIME_MS } from '../session/session';
 import {
   TARGET_LIMITS,
   TARGET_STARS,
+  dayProgress,
   dayTotal,
   parseTarget,
   targetCell,
@@ -99,32 +100,32 @@ describe('dayTotal', () => {
   });
 });
 
-describe('targetProgress', () => {
+describe('dayProgress', () => {
   it('counts questions towards a questions target', () => {
-    const progress = targetProgress({ kind: 'questions', value: 20 }, { questions: 5, timeMs: 0 });
+    const progress = dayProgress({ kind: 'questions', value: 20 }, { questions: 5, timeMs: 0 });
     expect(progress).toEqual({ done: 5, target: 20, fraction: 0.25, complete: false });
   });
 
   it('sums milliseconds towards a minutes target', () => {
-    const progress = targetProgress({ kind: 'minutes', value: 10 }, { questions: 8, timeMs: 5 * MINUTE });
+    const progress = dayProgress({ kind: 'minutes', value: 10 }, { questions: 8, timeMs: 5 * MINUTE });
     expect(progress).toEqual({ done: 5 * MINUTE, target: 10 * MINUTE, fraction: 0.5, complete: false });
   });
 
   it('completes on exactly the answer that reaches the target', () => {
     const target = { kind: 'questions', value: 10 } as const;
-    expect(targetProgress(target, { questions: 9, timeMs: 0 }).complete).toBe(false);
-    expect(targetProgress(target, { questions: 10, timeMs: 0 }).complete).toBe(true);
+    expect(dayProgress(target, { questions: 9, timeMs: 0 }).complete).toBe(false);
+    expect(dayProgress(target, { questions: 10, timeMs: 0 }).complete).toBe(true);
   });
 
   it('clamps the fraction at one, because the bar never shows more than full', () => {
-    const progress = targetProgress({ kind: 'questions', value: 10 }, { questions: 40, timeMs: 0 });
+    const progress = dayProgress({ kind: 'questions', value: 10 }, { questions: 40, timeMs: 0 });
     expect(progress.fraction).toBe(1);
     expect(progress.done).toBe(40);
     expect(progress.complete).toBe(true);
   });
 
   it('is nothing at all before the first answer', () => {
-    expect(targetProgress({ kind: 'minutes', value: 5 }, { questions: 0, timeMs: 0 })).toEqual({
+    expect(dayProgress({ kind: 'minutes', value: 5 }, { questions: 0, timeMs: 0 })).toEqual({
       done: 0,
       target: 5 * MINUTE,
       fraction: 0,
@@ -138,12 +139,33 @@ describe('targetProgress', () => {
  * be finished by walking away: an abandoned question is not a measurement, so it
  * contributes its capped time and no more.
  */
-describe('targetProgress with an abandoned question', () => {
+describe('dayProgress with an abandoned question', () => {
   it('cannot be finished by one question left open all afternoon', () => {
     const abandoned = dayTotal([{ answeredAt: at(100), timeTakenMs: MAX_TIME_MS }], { now: at(100) });
-    const progress = targetProgress({ kind: 'minutes', value: 30 }, abandoned);
+    const progress = dayProgress({ kind: 'minutes', value: 30 }, abandoned);
     expect(progress.done).toBe(MAX_TIME_MS);
     expect(progress.complete).toBe(false);
+  });
+});
+
+/**
+ * The play screen is the one caller that does not have a `DayTotal`: it adds the
+ * seconds of the question in hand to what the day already came to, so that its
+ * minutes bar moves while the child is thinking.
+ */
+describe('targetProgress', () => {
+  it('measures a total already in the target\u2019s own unit', () => {
+    expect(targetProgress({ kind: 'minutes', value: 10 }, 5 * MINUTE)).toEqual({
+      done: 5 * MINUTE,
+      target: 10 * MINUTE,
+      fraction: 0.5,
+      complete: false,
+    });
+  });
+
+  it('is the same answer dayProgress gives for the same day', () => {
+    const target = { kind: 'questions', value: 20 } as const;
+    expect(targetProgress(target, 5)).toEqual(dayProgress(target, { questions: 5, timeMs: 0 }));
   });
 });
 
