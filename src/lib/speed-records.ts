@@ -48,14 +48,26 @@ export async function readSpeedRecords(userId: string): Promise<SpeedBest[] | nu
   }
 }
 
+/** Postgres' unique violation, as Prisma reports it - someone else's row landed first. */
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
+
 /**
- * Bank a finished run. No lock and no transaction beyond the upsert: a best is a
- * maximum, and a maximum is idempotent, so a retry or two tabs finishing at once
- * reach the same row in either order.
+ * Bank a finished run.
  *
- * Returns the outcome rather than swallowing failure, because the result screen
- * has to know what to show - and on null it shows the score with no comparison
- * beside it rather than claiming a best that was never written.
+ * No lock, and no upsert either: a best is a maximum, and a maximum is
+ * idempotent, so a guarded update needs nothing more than its own WHERE clause
+ * to be safe under two runs landing at once. What still needs guarding is the
+ * *insert* - the row cannot be locked before it exists, so two concurrent
+ * first-ever runs on the same mode can both read no row and both try to create
+ * one. `updateTopicSkill` (`src/lib/records.ts`) hits the identical race on
+ * `TopicSkill` and retries past it; this does the same, once - one time round
+ * is enough.
+ *
+ * The returned outcome is derived from what the writes actually did, never from
+ * the read taken before them: a guarded update that matches no rows is a no-op,
+ * and reporting a record for a write that never landed would show a child a
+ * "new best" screen for a score that was never stored.
  */
 export async function submitSpeedRun(
   userId: string,
@@ -63,29 +75,49 @@ export async function submitSpeedRun(
   run: { correct: number; answered: number },
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
-
+  const db = prisma;
   const key = modeKey(mode);
-  try {
-    const previous = await prisma.speedRecord.findUnique({
-      where: { userId_mode: { userId, mode: key } },
-    });
-    const previousBest = previous?.best ?? null;
-    const beat = isRecord(previousBest, run.correct);
 
-    if (previous === null) {
-      await prisma.speedRecord.create({
-        data: { userId, mode: key, best: run.correct, answered: run.answered, seen: true },
-      });
-    } else if (beat) {
-      // Guarded on `best` as well as the id, so a slower run that raced this one
-      // cannot walk a record backwards.
-      await prisma.speedRecord.updateMany({
+  try {
+    const initial = await db.speedRecord.findUnique({ where: { userId_mode: { userId, mode: key } } });
+    const previousBest = initial?.best ?? null;
+
+    // The WHERE clause is `isRecord`'s rule written in SQL: a row only updates
+    // if this score is strictly above what is stored, so a match here is proof
+    // the write landed, not an inference from a read taken before it.
+    const guardedUpdate = () =>
+      db.speedRecord.updateMany({
         where: { userId, mode: key, best: { lt: run.correct } },
         data: { best: run.correct, answered: run.answered, achievedAt: new Date(), seen: false },
       });
+
+    let updated = await guardedUpdate();
+
+    if (updated.count === 0 && initial === null) {
+      try {
+        await db.speedRecord.create({
+          data: { userId, mode: key, best: run.correct, answered: run.answered, seen: true },
+        });
+        // A first-ever run is never a record - see `isRecord`.
+        return { previousBest: null, best: run.correct, isRecord: false };
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        // Someone else's first run landed between our read and our insert -
+        // there is a row now, so try the guarded update once more rather than
+        // looping on `create` again.
+        updated = await guardedUpdate();
+      }
     }
 
-    return { previousBest, best: Math.max(previousBest ?? 0, run.correct), isRecord: beat };
+    if (updated.count > 0) {
+      return { previousBest, best: run.correct, isRecord: isRecord(previousBest, run.correct) };
+    }
+
+    // Nothing landed: either this score was never beatable, or a concurrent run
+    // beat us to the same row first. Read back what is actually stored rather
+    // than trusting the snapshot taken before any of this happened.
+    const current = await db.speedRecord.findUnique({ where: { userId_mode: { userId, mode: key } } });
+    return { previousBest, best: current?.best ?? run.correct, isRecord: false };
   } catch (error) {
     console.error('Failed to submit speed run', error);
     return null;
