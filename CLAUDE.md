@@ -912,6 +912,63 @@ best-effort - a silently failed answer costs history and the child plays on, but
 a silently failed login is a child locked out and a silently failed removal is a
 parent lied to, so the mutations report whether they worked.
 
+## Sharing a child
+
+A second grown-up - a separated parent, a grandparent, a tutor - can be given a
+child's report and nothing else. `src/lib/sharing.ts` is the Prisma side, beside
+`accounts.ts` and following its rules; `src/lib/share-link.ts` is the pure half,
+beside `login-code.ts` and for the same reasons.
+
+**Read-only is a property of the schema, not a check anyone has to remember.**
+Ownership is still `User.parentId` alone, and every mutation in `accounts.ts`
+already scopes its `where` by it - so there is no query in the app that edits a
+child and can be reached through a share. Adding viewers therefore changed none
+of them. A permission column consulted by each caller would have been the same
+feature with a place to forget, and this is the one part of the app where
+forgetting means showing one family another family's child.
+
+**A `ChildShare` row carries no `ownerId`.** Who owns the child is
+`User.parentId`, and a copy here would be a second truth to keep in step - the
+same objection as `TopicSkill` being a cache rather than a second history. A
+revoke scopes itself through the child (`child: { parentId }`), which cannot
+drift from ownership because it *is* ownership.
+
+**The link is short-lived and single-use; what it buys is not.** Exactly the
+split a child's login code makes: `ShareInvite` lasts `INVITE_TTL_MS` (7 days,
+not the code's hour - an adult opens a message after the weekend) and is spent at
+acceptance, and the `ChildShare` it leaves stands until the owner revokes it.
+Acceptance is one `UPDATE ... RETURNING` on the token *and* a null `acceptedAt`,
+like `redeemLoginCode`, so two taps cannot both get in. The token is 32
+characters of a 62-character alphabet rather than four of a reduced one, because
+nobody reads it aloud - and `crypto.randomInt`, never the seeded `Rng`, for the
+reason a login code says.
+
+**Accepting again by the same person is not a failure.** Signing in is the
+acceptance - Google's round trip returns to `/share/<token>?go=1` and the page
+takes the invite on arrival - so a reload must not read as a dead link while the
+grants are sitting there. `acceptShareInvite` returns success for the viewer who
+already holds it, which is what makes the auto-accept safe.
+
+**`ShareInvite.childIds` is an array, not a join table**, because it records what
+was *offered* rather than what is granted: it is written once and read once, and
+every id in it is checked against the issuer's current children at acceptance. A
+child removed in between is simply not granted. The page behind the link runs the
+same filter, so it cannot promise what the acceptance would then not give.
+
+**A new account arriving through a link never meets the role chooser** - it is a
+compare-and-set to `parent` on `role IS NULL`, because following the link already
+answered that question. A viewer is an ordinary parent account: they can add
+children of their own, and being shared someone else's is a grant beside that,
+not a lesser kind of account. A signed-in *child* account is refused at the page
+rather than allowed to collect other families' children.
+
+`readViewableChildren` is what every parent screen resolves `?child=` against -
+own children first, then shared - so a child that is not in it is not reachable
+by typing its id, and there is no second ownership check to drift out of step.
+Shared children come back with `access: 'viewer'`, no login code (never
+selected, rather than selected and blanked) and the name of the parent who
+shared them.
+
 ## Parent analytics
 
 `/progress?child=<id>&subject=maths` - a parent picks a child and sees how they

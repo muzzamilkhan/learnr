@@ -83,6 +83,14 @@ model User {
   topicSkills      TopicSkill[]
   speedRecords     SpeedRecord[]
 
+  /// Sharing, from all four sides: invites this parent has sent, an invite they
+  /// accepted, grants over this child, and grants to this viewer. Ownership is
+  /// still `parentId` alone - none of these ever make someone a parent.
+  invitesSent     ShareInvite[] @relation("InvitesSent")
+  invitesAccepted ShareInvite[] @relation("InvitesAccepted")
+  sharedOut       ChildShare[]  @relation("SharedChild")
+  sharedIn        ChildShare[]  @relation("ChildViewer")
+
   /// The parent dashboard's only read: this parent's children.
   @@index([parentId])
 }
@@ -129,20 +137,20 @@ model VerificationToken {
 /// One sitting: a child picks a subject + level and answers until they stop.
 /// There is no end condition, so `endedAt` is set on an explicit finish only.
 model LearningSession {
-  id        String    @id @default(cuid())
-  userId    String
-  subject   String
+  id           String    @id @default(cuid())
+  userId       String
+  subject      String
   /// Australian school year: "K" or "1" through "6".
-  level     String
+  level        String
   /// RNG seed, so a session's exact question sequence can be replayed.
-  seed      String
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
+  seed         String
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
   /// How many closed rounds of this sitting have been paid for. The guard that
   /// lets `User.stars` be incremented rather than recounted: banking reads this
   /// under a row lock, pays for the rounds past it, and moves it up. It is a
   /// count of events, not a cache of anything.
-  roundsBanked Int @default(0)
+  roundsBanked Int       @default(0)
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   attempts Attempt[]
@@ -166,15 +174,15 @@ model TopicSkill {
   /// Australian school year: "K" or "1" through "6".
   level   String
 
-  attempts Int @default(0)
-  correct  Int @default(0)
+  attempts       Int   @default(0)
+  correct        Int   @default(0)
   /// Recency-weighted accuracy in [0, 1] - what the child can do now, not on average.
-  strength Float @default(0)
+  strength       Float @default(0)
   /// Correct answers in a row. A run, not a single right answer, is what mastery looks like.
-  streak   Int @default(0)
+  streak         Int   @default(0)
   /// Distinct local days with at least one right answer. A run inside one sitting is
   /// short-term memory; the same topic known again a day later is what mastery is.
-  correctDays Int @default(0)
+  correctDays    Int   @default(0)
   /// The last day counted towards `correctDays`, so folding forward can tell a new day apart.
   lastCorrectDay Int?
 
@@ -252,4 +260,65 @@ model SpeedRecord {
   @@unique([userId, mode])
   /// The two reads: one player's whole cabinet, and a parent's unseen records.
   @@index([userId])
+}
+
+/// A link one parent sends another grown-up so they can watch a child's progress.
+///
+/// The link is the short-lived half of sharing and the grant below is the lasting
+/// half - the same split as a child's login code and the session it buys. An
+/// invite is good for a week and is spent at acceptance (`acceptedAt`), so one
+/// link admits exactly one person however many times it is forwarded.
+///
+/// `childIds` is a plain array rather than a join table because it is a *record
+/// of what was offered*, not a live set: it is written once and read once, at
+/// acceptance, and every id in it is checked against the issuer's children then.
+/// A child removed in the meantime simply isn't granted - which is why the array
+/// having no foreign keys is the honest shape rather than a missing constraint.
+model ShareInvite {
+  id       String   @id @default(cuid())
+  /// What the URL carries. Long and unguessable, since nobody types it.
+  token    String   @unique
+  ownerId  String
+  /// The children this link offers, as chosen when it was created.
+  childIds String[]
+
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  /// When it was spent, and by whom. Null on a link nobody has opened yet - and
+  /// the column the accepting statement matches on, so two taps cannot both win.
+  acceptedAt   DateTime?
+  acceptedById String?
+
+  owner      User  @relation("InvitesSent", fields: [ownerId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("InvitesAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  /// "The links I have sent", newest first - the sharing panel's only read.
+  @@index([ownerId, createdAt])
+}
+
+/// One grown-up may read one child's progress. The standing grant an accepted
+/// invite leaves behind, and the row revoking deletes.
+///
+/// It carries no `ownerId`: who owns the child is `User.parentId`, and copying it
+/// here would be a second truth to keep in step. Scoping a revoke to the parent
+/// asking is a filter through the child (`child: { parentId }`), which cannot
+/// drift from ownership because it *is* ownership.
+///
+/// A grant is read-only by construction rather than by a flag: nothing in
+/// `accounts.ts` matches on anything but `parentId`, so no query that edits a
+/// child can be reached through one of these rows.
+model ChildShare {
+  id       String @id @default(cuid())
+  childId  String
+  viewerId String
+
+  createdAt DateTime @default(now())
+
+  child  User @relation("SharedChild", fields: [childId], references: [id], onDelete: Cascade)
+  viewer User @relation("ChildViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  /// Sharing the same child with the same person twice is one grant.
+  @@unique([childId, viewerId])
+  /// "The children shared with me", which every screen a viewer sees starts from.
+  @@index([viewerId])
 }

@@ -14,16 +14,29 @@ const SIZES = {
   hero: 'no-select rounded-xl bg-(--color-grape) px-5 py-3 text-base font-semibold text-white shadow-md transition hover:brightness-110 active:scale-[0.98]',
 } as const;
 
-export function SignInButton({ size = 'lg' }: { size?: keyof typeof SIZES }) {
+/**
+ * `redirectTo` exists for one caller: someone who arrived on a share link and has
+ * to sign in before they can take it. Google's round trip has to come back to the
+ * link rather than to the home screen, or the invite is lost between the two.
+ */
+export function SignInButton({
+  size = 'lg',
+  redirectTo = '/',
+  label = 'Sign in with Google',
+}: {
+  size?: keyof typeof SIZES;
+  redirectTo?: string;
+  label?: string;
+}) {
   return (
     <form
       action={async () => {
         'use server';
-        await signIn('google', { redirectTo: '/' });
+        await signIn('google', { redirectTo });
       }}
     >
       <button type="submit" className={SIZES[size]}>
-        Sign in with Google
+        {label}
       </button>
     </form>
   );

@@ -5,7 +5,7 @@ import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import type { SpeedBest } from '@/lib/speed-records';
 import { AvatarIcon } from './avatar-icon';
-import { ChildPicker } from './child-picker';
+import { ChildPicker, type PickableChild } from './child-picker';
 import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
 import { SpeedRecordsCabinet } from './speed-records';
@@ -43,7 +43,8 @@ export function ProgressReport({
   now,
 }: {
   child: ProgressChild;
-  profiles: { id: string; name: string }[];
+  /** Everyone this parent may read about - their own children and any shared with them. */
+  profiles: PickableChild[];
   subjects: string[];
   subject: string;
   observations: Observation[] | null;

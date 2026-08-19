@@ -18,6 +18,14 @@ import {
   type ChildInput,
   type Role,
 } from '@/lib/accounts';
+import {
+  acceptShareInvite,
+  cancelShareInvite,
+  createShareInvite,
+  leaveShare,
+  revokeShare,
+  type AcceptResult,
+} from '@/lib/sharing';
 
 /**
  * The home screen's level picker is usable before this resolves - remembering the
@@ -158,4 +166,78 @@ export async function redeemLoginCodeAction(code: string): Promise<{ error: stri
 
   revalidatePath('/');
   return null;
+}
+
+/**
+ * Sharing a child with another grown-up.
+ *
+ * Every one of these goes through `requireParentId` like the rest, and then hands
+ * the parent's own id to a query that scopes by it - a viewer reaching one of
+ * these actions with a child id they can see is refused by the `where`, not by a
+ * check written here. The one exception is `acceptShareInviteAction`, which is the
+ * only action a person who owns nothing may call, and which scopes itself by the
+ * token instead.
+ */
+export async function createShareInviteAction(childIds: string[]): Promise<string | null> {
+  const parentId = await requireParentId();
+  if (!parentId || childIds.length === 0) return null;
+
+  const invite = await createShareInvite(parentId, childIds);
+  revalidatePath('/children');
+  return invite?.token ?? null;
+}
+
+export async function cancelShareInviteAction(inviteId: string): Promise<boolean> {
+  const parentId = await requireParentId();
+  if (!parentId) return false;
+
+  const cancelled = await cancelShareInvite(parentId, inviteId);
+  revalidatePath('/children');
+  return cancelled;
+}
+
+/** One child of theirs, or - with no child id - everything that person can see. */
+export async function revokeShareAction(viewerId: string, childId?: string): Promise<boolean> {
+  const parentId = await requireParentId();
+  if (!parentId) return false;
+
+  const revoked = await revokeShare(parentId, viewerId, childId);
+  revalidatePath('/children');
+  revalidatePath('/progress');
+  return revoked;
+}
+
+/**
+ * A viewer giving up access they were given. Not a parent action: it needs no
+ * ownership at all, only that the grant being dropped is their own.
+ */
+export async function leaveShareAction(childId: string): Promise<boolean> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return false;
+
+  const left = await leaveShare(userId, childId);
+  revalidatePath('/children');
+  revalidatePath('/progress');
+  return left;
+}
+
+/**
+ * Take a link. The one action here that anyone signed in may call, because the
+ * person calling it has by definition never had access to anything yet - the
+ * token is what authorises it, and `acceptShareInvite` spends the token in the
+ * same statement that reads it.
+ */
+export async function acceptShareInviteAction(token: string): Promise<AcceptResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, reason: 'error' };
+
+  const result = await acceptShareInvite(token, userId);
+  if (result.ok) {
+    revalidatePath('/');
+    revalidatePath('/children');
+    revalidatePath('/progress');
+  }
+  return result;
 }
