@@ -76,6 +76,13 @@ interface Props {
   bests: SpeedBest[] | null;
   /** Where "Go home" goes: `/` for a child, `/progress` for a parent. */
   homeHref: string;
+  /**
+   * Where backing out goes - the chooser one level up (`/speed`,
+   * `/progress/speed`), not home. Leaving a run and leaving the app are
+   * different intentions, and the arrow that undoes "I picked Multiply" should
+   * undo exactly that. "Go home" on the result screen still goes home.
+   */
+  backHref: string;
   recordsHref: string;
   recordingEnabled: boolean;
   /**
@@ -93,6 +100,7 @@ export function SpeedRun({
   op,
   bests,
   homeHref,
+  backHref,
   recordsHref,
   recordingEnabled,
   scale = 'child',
@@ -327,7 +335,7 @@ export function SpeedRun({
         modes={modes}
         chosen={mode}
         bestByKey={bestByKey}
-        homeHref={homeHref}
+        backHref={backHref}
         onChoose={setMode}
         onStart={start}
         scale={scale}
@@ -340,10 +348,11 @@ export function SpeedRun({
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -
           there is no confirmation, because a modal over a running clock is worse
-          than the mis-tap it prevents. */}
+          than the mis-tap it prevents. It lands on the chooser, not home:
+          abandoning a run is most often about picking a different one. */}
       <header className="flex shrink-0 items-center gap-3 sm:gap-5">
         <Link
-          href={homeHref}
+          href={backHref}
           aria-label="Leave the run"
           className="shrink-0 rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
         >
@@ -494,7 +503,7 @@ function Chooser({
   modes,
   chosen,
   bestByKey,
-  homeHref,
+  backHref,
   onChoose,
   onStart,
   scale,
@@ -503,7 +512,7 @@ function Chooser({
   modes: readonly Mode[];
   chosen: Mode;
   bestByKey: Map<string, number>;
-  homeHref: string;
+  backHref: string;
   onChoose: (mode: Mode) => void;
   onStart: () => void;
   scale: keyof typeof CHOOSER_SCALES;
@@ -516,7 +525,7 @@ function Chooser({
     <section className={style.section}>
       <header className={style.header}>
         <Link
-          href={homeHref}
+          href={backHref}
           aria-label="Go back"
           className={`shrink-0 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 ${style.exit}`}
         >

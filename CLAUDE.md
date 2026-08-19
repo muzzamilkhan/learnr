@@ -673,6 +673,16 @@ addition", and "in easy add" is not English. Two tables side by side in
 `modes.ts` rather than one derived from the other, because no rule turns
 "Divide" into "division" that isn't this table written twice.
 
+**Going back is not going home**, so `SpeedRun` takes both. The arrow on the
+chooser and the door inside a run land on the chooser one level up (`/speed`,
+`/progress/speed`), because what someone is usually undoing is "I picked
+Multiply", not "I opened this app"; only the result screen's "Go home" goes
+home. That is what `/speed` exists for: the same cards the child's home screen
+carries beside Practice, on a page of their own, so backing out of a run lands
+one step up rather than two. The two places are not a duplicate to tidy -
+choosing between practice and a speed run and choosing an operation are
+different questions.
+
 **A parent's speed screens run at the parent's density, but the run itself
 does not.** `SpeedCards` and the chooser take the same `scale` prop
 `SpeedRecordsCabinet` already had: at `'parent'` they are `text-base`/`text-sm`,
@@ -785,7 +795,8 @@ achievement and never your own: `readUnseenRecords` is scoped to a parent's
 banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
-second top-level path.** The child plays at `/speed/[op]` and `/speed/records`;
+second top-level path.** The child plays at `/speed`, `/speed/[op]` and
+`/speed/records`;
 a parent's own runs live at `/progress/speed`, `/progress/speed/[op]` and
 `/progress/speed/records` - the first a chooser rendering the same
 `SpeedCards` the child's home screen offers, pointed at the parent's own base

@@ -31,7 +31,7 @@ export default async function SpeedRecordsPage() {
     <main className="mx-auto min-h-screen max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
       <header className="mb-6 flex items-center gap-3 sm:mb-8 sm:gap-4">
         <Link
-          href="/"
+          href="/speed"
           aria-label="Go back"
           className="shrink-0 rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
         >

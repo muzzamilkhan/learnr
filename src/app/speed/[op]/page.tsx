@@ -26,6 +26,7 @@ export default async function SpeedPage({ params }: { params: Promise<{ op: stri
       op={op}
       bests={bests}
       homeHref="/"
+      backHref="/speed"
       recordsHref="/speed/records"
       recordingEnabled={Boolean(userId)}
     />

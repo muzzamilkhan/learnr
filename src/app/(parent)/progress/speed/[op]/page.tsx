@@ -42,6 +42,7 @@ export default async function ParentSpeedPage({ params }: { params: Promise<{ op
       op={op}
       bests={bests}
       homeHref="/progress"
+      backHref="/progress/speed"
       recordsHref="/progress/speed/records"
       recordingEnabled
       // The chooser at the parent's density; the run itself is the same size
