@@ -35,12 +35,25 @@ import type { Figure, Mark } from '@/lib/figures/types';
  * `font-size`, and true scale-independence for text needs a measured
  * counter-transform (a `ResizeObserver`, the way `Prompt` in
  * `play-session.tsx` measures its own box) that nothing has built yet. No
- * template emits a `label` mark today, so `LABEL_SIZE` stays a plain viewBox
- * quantity, derived off `strokeWidth` so it at least tracks the same caller
- * intent as everything else - it is not truly frame-matched, and whoever adds
- * the first label-emitting figure kind should give it the measured treatment
- * rather than trust this constant.
+ * template emits a `label` mark today, so `LABEL_SIZE` stays a plain, flat
+ * viewBox quantity rather than being derived off `strokeWidth` the way the
+ * dot and the dash are - deriving it would be the wrong direction, not just
+ * an approximation: `strokeWidth` is a real-pixel number, and the caller
+ * choosing a *larger* one is already the signal that the rendered box is
+ * larger, which means every viewBox unit already buys more real pixels.
+ * Scaling `fontSize` by `strokeWidth` too would double-count that, spreading
+ * the rendered label size *further* apart between the two call sites than
+ * a flat constant does, not closer - worse than doing nothing. It is inert
+ * today, since nothing emits a `label` mark, but it should not be wrong on
+ * the way in; whoever adds the first label-emitting figure kind should give
+ * it the measured treatment instead of trusting this constant.
  */
+
+/**
+ * A plain viewBox constant - see the module comment above for why this one,
+ * unlike the dot and the dash, is not derived from `strokeWidth`.
+ */
+const LABEL_SIZE = 10;
 
 export function Diagram({
   figure,
@@ -64,7 +77,6 @@ export function Diagram({
   // caller having picked a different `strokeWidth`.
   const dotDiameter = strokeWidth * 3;
   const dash = `${strokeWidth * 2.5} ${strokeWidth * 1.5}`;
-  const labelSize = strokeWidth * 5;
 
   return (
     <svg
@@ -88,7 +100,7 @@ export function Diagram({
           strokeWidth={strokeWidth}
           dotDiameter={dotDiameter}
           dash={dash}
-          labelSize={labelSize}
+          labelSize={LABEL_SIZE}
         />
       ))}
     </svg>

@@ -97,9 +97,20 @@ const MAX_ENTRY = { text: 16 } as const;
  * (see `diagram.tsx`), so a play-screen figure is never asked to be legible
  * smaller than the thumbnail it already has to work at. Below this a picture
  * stops telling a heptagon from an octagon, which is worse than the layout
- * looking a little cramped, so it is a hard floor rather than a size the
- * flexible layout is merely encouraged toward - see the figure-and-prompt
- * wrapper below for what happens on the rare device where even this overruns.
+ * looking a little cramped.
+ *
+ * It is written `min(64px,100%)`, not a bare `64px` - a floor that is hard
+ * regardless of the room actually on offer claims room that is not always
+ * there. On a landscape phone the figure's own row resolves to 0px tall (see
+ * the wrapper below), and a bare floor would still win, painting the drawing
+ * over whatever the header put at that height - found on the round this was
+ * caught: the narration speaker button, which sits at the figure's own stack
+ * position and loses, since the figure paints after the header in DOM order.
+ * `100%` resolves against the wrapper's own definite height, so the floor is
+ * a genuine 64px wherever there is 64px to give, and shrinks to nothing -
+ * no figure drawn at all - exactly where there is none. That is the honest
+ * trade: a figure that sometimes does not appear, rather than one that
+ * sometimes appears on top of a button.
  */
 
 type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | null;
@@ -660,9 +671,21 @@ export function PlaySession({
               // read from a constant: a class built by interpolating a JS
               // value into the string is exactly the mistake this file
               // already made once - Tailwind's scanner needs the literal text
-              // `min-h-[64px]` present in the source, and a composed string
-              // is invisible to it however correct it looks at runtime.
-              className="min-h-[64px] min-w-[64px] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
+              // `min-h-[min(64px,100%)]` present in the source, and a composed
+              // string is invisible to it however correct it looks at runtime.
+              //
+              // `min(64px,100%)`, not a bare `64px`: a *hard* floor claims
+              // room that is not always there - on a landscape phone the row
+              // is 0px tall and the floor still wins, so the drawing paints
+              // over whatever the header put at that height (found on this
+              // round's review: the speaker button, at the figure's own
+              // stack position, since the figure comes after the header in
+              // DOM order). `100%` resolves against the wrapper's own
+              // definite height, so the floor is 64px wherever there is 64px
+              // to give and shrinks to nothing - a figure that does not draw
+              // at all - exactly where there is none. `min-w` gets the same
+              // treatment for the same reason on the row axis.
+              className="min-h-[min(64px,100%)] min-w-[min(64px,100%)] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
             />
             <div className="flex min-h-0 min-w-0 w-full flex-[0.35] flex-col items-center justify-center">
               <Prompt
