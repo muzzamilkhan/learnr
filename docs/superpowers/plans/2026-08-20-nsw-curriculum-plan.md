@@ -22,7 +22,9 @@
   - **Rank leak** — sort the options numerically and the answer's rank is the same every draw, so "never the biggest, never the smallest" beats the question. Caused by distractors built as scalings of the answer (`n/10`, `n/1000`, `n`), which always sort into a fixed order.
   - **Option-set leak** — the answer is always drawn from a distinguishable subset of the option space, so the option set announces it. Worse under narration, which reads word options aloud: a pre-literate child hears three colours and applies the rule without reading the question.
 
-  Where a fixed rank is legitimate *because finding the extreme is the question* ("Which is largest?"), declare it with `rankIsTheQuestion: true`. Declaring is the exception, exactly as pinning a figure's `rotation` is — because forgetting is the failure mode and an anchored question looks perfectly correct.
+  Where a fixed rank is legitimate *because finding the extreme is the question* ("Which is largest?"), declare it with `rankIsTheQuestion: true`. Where the answer's option set is disjoint from the distractors' *because telling that property apart is the question* ("which of these is even?" — no odd number could ever be the answer), declare it with `propertyIsTheQuestion: true`. The two are separate and each suppresses only its own check. Declaring is the exception, exactly as pinning a figure's `rotation` is — because forgetting is the failure mode and a leaking question looks perfectly correct.
+
+- **Reach every rank you can.** The check refuses only a *constant* rank, which is a weaker property than "the rank carries no information". The twelve templates reworked in Task 26 land on exactly two of four ranks, so "never the biggest, never the smallest" still lifts a guess from 25% to ~50% — accepted there, because a place-value ladder brackets the answer by construction and unbracketing it costs a diagnostic distractor (see the ledger's Task 26 ruling). **New templates are under no such constraint and must not inherit it.** Author option sets where the answer can land at any rank. An inherently bracketing ladder is fine; confinement you manufactured is not.
 - **Template ids are `subject.level.topic.variant`**, lowercase kebab variant.
 - Every template cites at least one syllabus code. NSW codes must match their level's stage.
 - Run `npm test` and `npm run typecheck` before every commit.
@@ -912,6 +914,14 @@ npm run build            # catches JSX and page-level type errors the node-only 
 
 # The content actually landed
 grep -c "id: 'maths" src/content/maths/*.ts | awk -F: '{s+=$2} END {print s}'   # expect 329
+
+# Positional advantage is a known number, not a surprise.
+# Probe every `choice` template over a few hundred seeded draws, compute the answer's rank
+# among the numerically sorted options, and report the worst-case share any single rank takes
+# and how many of the available ranks are reachable. The twelve templates Task 26 reworked sit
+# at ~50% over two of four ranks and are accepted at that. Any NEW template worse than those,
+# or reaching fewer ranks than its option set allows, is a defect to fix before merge.
+# Keep the probe outside `src/` so it never joins the shipped suite.
 
 # The strand split moved
 # expect roughly: Number and algebra 50%, Measurement and space 33%, Statistics and probability 17%
