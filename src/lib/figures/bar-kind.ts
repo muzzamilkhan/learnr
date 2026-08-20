@@ -1,9 +1,16 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField } from './fields';
-import { CHAR_SHARE, DRAWN_SPAN, PITCH_SHARE, reportLabelWidth } from './labels';
+import {
+  CHAR_RATIO,
+  CHAR_SHARE,
+  DRAWN_SPAN,
+  PITCH_SHARE,
+  PLAY_LABEL_SIZE,
+  reportLabelWidth,
+} from './labels';
 import type { FigureKindModule } from './registry';
-import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
+import { FIGURE_BOX, FIGURE_PRECISION, type FigureSpec, type Mark, type Point } from './types';
 
 /**
  * The `bar` kind: a column graph, a dot plot or a line graph - the picture a
@@ -36,12 +43,18 @@ import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
  * and whose width is never more, which is what makes `labels.ts`' shares
  * directly comparable with the geometry here.
  *
- * The one thing this cannot buy back is a *descender* in a category label at
- * report scale: the lowest label is the bottom of the drawing by construction,
- * so it gets exactly the fit's own padding, which covers a line of digits and
- * capitals and leaves the tail of a "p" a pixel short in a 64px thumbnail.
- * Short category labels - "Mon", "Red", "A" - are what this kind is for, and
- * `MAX_LABEL_CHARS` is where that stops being advice.
+ * Two things that buys and one it does not. It buys no clipping: the drawing
+ * is sized so every label's ink lands inside the box at report scale, category
+ * labels included. It buys clear axis steps. It does **not** buy category
+ * labels clear of *each other* there - no arrangement can, since a slot is the
+ * plot divided by the data's own category count - so that budget is computed
+ * per graph (`categoryBudget`), judged at play-screen scale, and *reported*
+ * rather than enforced by a constant chosen up front. The
+ * other thing left tight is a *descender* at report scale: the lowest label is
+ * the bottom of the drawing by construction, so it gets exactly the fit's own
+ * padding, which covers digits and capitals and leaves the tail of a "p" a
+ * pixel short in a 64px thumbnail. Short category labels - "Mon", "Red", "A" -
+ * are what this kind is for.
  */
 
 type BarSpec = Extract<FigureSpec, { kind: 'bar' }>;
@@ -64,6 +77,9 @@ const STEP_GAP = 0.035;
 const CATEGORY_BAND = 0.12;
 /** The stroke that marks a step on the value axis. */
 const TICK = 0.02;
+
+/** The plot is never squeezed past this share of the width, however wide the labels. */
+const MIN_PLOT_WIDTH = 0.2;
 
 /** The plot's own height, with room below it for the category labels. */
 const PLOT_HEIGHT = 1 - TOP_OVERHANG - CATEGORY_BAND;
@@ -102,17 +118,50 @@ const MAX_CATEGORIES = 5;
  * be shown again in a parent's report. Content this long is an authoring
  * mistake that validation catches; this is only so that mid-session it is a
  * cramped graph rather than a lost one.
+ *
+ * **This is a silent truncation, which `labels.ts`' third lesson otherwise
+ * rules out, and it is the storage-cap exception named there.** It is safe
+ * only because it is unreachable by anything that validates: `MAX_CATEGORIES`
+ * is reported at less than half of it, so a template that ships can never have
+ * a value cut. Keep both halves if you copy it.
  */
 const MAX_DRAWN_VALUES = 12;
 
-/** Longer than this and a category label is prose, not a label. */
-const MAX_LABEL_CHARS = 6;
-
-/** As many characters of a step's label as the left margin is sized for. */
-const MAX_STEP_CHARS = 5;
-
-/** The plot is never squeezed past this share of the width, however wide the labels. */
-const MIN_PLOT_WIDTH = 0.2;
+/**
+ * **The room a category label has is not a constant, so it is not written as
+ * one.** `MAX_STEPS` and `MAX_CATEGORIES` are caps the geometry can honour by
+ * choosing differently; how wide a category label may be is settled by the
+ * data instead - a slot is the plot divided by the number of categories, and
+ * no arrangement makes one wider than `DRAWN_SPAN / n`. So the budget is
+ * computed from the layout the graph will actually get (`categoryBudget`), and
+ * a label past it is reported rather than banned by a number chosen up front.
+ *
+ * It is measured at `PLAY_LABEL_SIZE`, and that is the one place in this file
+ * where the larger call site does not get its way. Two failures hide behind
+ * "that label is too big":
+ *
+ * - **Clipping** - ink outside the box, which is simply gone (`labels.ts`,
+ *   lesson 1). Geometry's to prevent, and prevented: `plotShape` sizes the
+ *   drawing so the widest step label *and* the widest category label land
+ *   inside the box **at report scale**, whatever was authored. Nothing here
+ *   relaxes that.
+ * - **Collision** - labels touching. Geometry cannot fix this one, so someone
+ *   has to be told. Judged at play-screen scale because that is where the
+ *   child reads the graph; the same labels do crowd each other in a 64px
+ *   report thumbnail, which is a reminder of a question already answered.
+ *
+ */
+/**
+ * The most characters a step's label may carry, derived from the room the left
+ * margin can give up: a label that wide leaves the plot exactly
+ * `MIN_PLOT_WIDTH` and anything wider eats into it. It is **reported**, never
+ * quietly clamped - a longer label is measured at its true width, so the
+ * geometry stays honest and the drawing narrows, which is lesson 3's third
+ * state (neither obeyed nor reported) deliberately closed off.
+ */
+const MAX_STEP_CHARS = Math.floor(
+  (1 - MIN_PLOT_WIDTH - RIGHT_OVERHANG - STEP_GAP) / CHAR_SHARE,
+);
 
 /**
  * How much of the room left over the plot actually takes. **This is the jitter
@@ -138,7 +187,7 @@ function fallbackValues(rng: Rng): number[] {
  */
 function parseValues(text: string): number[] | null {
   const parts = text.split(',').map((part) => part.trim());
-  if (parts.length === 0 || parts.some((part) => part === '')) return null;
+  if (parts.some((part) => part === '')) return null;
   const values = parts.map(Number);
   return values.every((value) => Number.isFinite(value)) ? values : null;
 }
@@ -177,6 +226,61 @@ function scaleFor(values: readonly number[], max: number, pinned: number | undef
 
   // Past the ladder's reach - a step of the data's own, so the axis still fits.
   return Math.max(EPSILON, Math.ceil(max / MAX_STEPS));
+}
+
+/**
+ * How wide the plot is drawn before the width jitter, and what the left margin
+ * costs - the half of the layout that depends on nothing random, so `build` and
+ * `categoryBudget` can never disagree about how much room a label has.
+ *
+ * The width is whatever is left once the step labels have their margin,
+ * narrowed until **every label's ink** lands inside the box at report scale.
+ * `fit` bounds a drawing by anchor points and an SVG clips at its own edge
+ * (`labels.ts`, lesson 1), so the only room a label's ink has is the padding
+ * the fit leaves outside those bounds, and this is what spends it.
+ *
+ * Both kinds of label are measured, because both sit near an edge. The widest
+ * step label *is* the left bound, so it needs its whole half-width. A category
+ * label sits `RIGHT_OVERHANG` inside the right bound - the axis runs that far
+ * past the last bar - so that much of its half-width is already paid for. (The
+ * left-hand one is further in still, by the step label's own band, which is
+ * always the wider of the two; the tighter side is what is solved for.) Each
+ * category label also has half a slot of room beyond that, which is real and is
+ * deliberately *not* counted, so this stays one expression rather than a solve
+ * coupled to the category count.
+ */
+function plotShape(stepChars: number, categoryChars: number): { leftBand: number; width: number } {
+  const leftBand = STEP_GAP + stepChars * CHAR_SHARE;
+  const available = Math.max(1 - leftBand - RIGHT_OVERHANG, MIN_PLOT_WIDTH);
+
+  const stepInk = reportLabelWidth(stepChars) / 2;
+  const categoryInk = Math.max(
+    reportLabelWidth(categoryChars) / 2 - RIGHT_OVERHANG * DRAWN_SPAN,
+    0,
+  );
+  // Met with a rounding step to spare: `fit` rounds every coordinate to
+  // `FIGURE_PRECISION`, and this bound is otherwise tight enough that the ink
+  // of the binding label lands on the box edge exactly.
+  const roomForInk =
+    (FIGURE_BOX / 2 - Math.max(stepInk, categoryInk) - 10 ** -FIGURE_PRECISION) /
+    (DRAWN_SPAN / 2);
+  const outside = RIGHT_OVERHANG + leftBand - (stepChars * CHAR_SHARE) / 2;
+  const widest = clamp((roomForInk - outside) / available, MIN_PLOT_WIDTH, 1);
+
+  return { leftBand, width: available * widest };
+}
+
+/**
+ * The most characters a category label can carry on *this* graph and still
+ * clear the label beside it, at play-screen scale. Measured against the
+ * narrowest slot the graph is ever drawn with - the low end of `WIDTH_BAND` -
+ * so a label that fits is one that fits on every seed, not on the lucky ones.
+ */
+function categoryBudget(count: number, stepChars: number, categoryChars: number): number {
+  const slot =
+    (plotShape(stepChars, categoryChars).width * WIDTH_BAND[0] * DRAWN_SPAN) /
+    Math.max(count, 1);
+  return Math.floor(slot / (PLAY_LABEL_SIZE * CHAR_RATIO));
 }
 
 /** A step's label, without the tail a floating-point step would otherwise leave on it. */
@@ -226,22 +330,16 @@ export const barModule: FigureKindModule<'bar'> = {
     const stepHeight = plotHeight / steps;
 
     const stepTexts = Array.from({ length: steps + 1 }, (_, step) => formatStep(step * scale));
-    const stepChars = Math.min(
-      Math.max(...stepTexts.map((text) => text.length)),
-      MAX_STEP_CHARS,
-    );
+    // Measured at its true width, never clamped to `MAX_STEP_CHARS`: a label
+    // budgeted narrower than it is drawn is the one thing worse than a wide
+    // one, since the geometry then leaves room that does not exist. Too wide a
+    // label is reported, and `MIN_PLOT_WIDTH` below keeps it drawable meanwhile.
+    const stepChars = Math.max(...stepTexts.map((text) => text.length));
+    const categoryChars = labelled
+      ? Math.max(...values.map((_, index) => (names[index] ?? '').length))
+      : 0;
 
-    const leftBand = STEP_GAP + stepChars * CHAR_SHARE;
-    const available = Math.max(1 - leftBand - RIGHT_OVERHANG, MIN_PLOT_WIDTH);
-    // What is left over once the widest step label has been paid for, as a
-    // share of the box: the label's ink reaches half its own width past the
-    // anchor the fit measures, and an SVG clips at its own edge, so the
-    // drawing has to stay narrow enough for that half to land inside.
-    const roomForInk =
-      (FIGURE_BOX / 2 - reportLabelWidth(stepChars) / 2) / (DRAWN_SPAN / 2);
-    const outside = RIGHT_OVERHANG + leftBand - (stepChars * CHAR_SHARE) / 2;
-    const widest = clamp((roomForInk - outside) / available, MIN_PLOT_WIDTH, 1);
-    const plotWidth = available * widest * jitter(rng, ...WIDTH_BAND);
+    const plotWidth = plotShape(stepChars, categoryChars).width * jitter(rng, ...WIDTH_BAND);
 
     const slot = plotWidth / Math.max(values.length, 1);
     const barWidth = slot * jitter(rng, ...BAR_BAND);
@@ -261,7 +359,7 @@ export const barModule: FigureKindModule<'bar'> = {
     stepTexts.forEach((text, step) => {
       // Right-aligned against the axis, which is where a value axis reads
       // from - so the anchor moves left as the number gets longer.
-      const width = Math.min(text.length, MAX_STEP_CHARS) * CHAR_SHARE;
+      const width = text.length * CHAR_SHARE;
       marks.push({ kind: 'label', at: [-(STEP_GAP + width / 2), step * stepHeight], text });
     });
 
@@ -317,6 +415,19 @@ export const barModule: FigureKindModule<'bar'> = {
       issues.push(`figure.values: ${JSON.stringify(raw)} is not a comma-separated list of numbers`);
     }
     if (values) {
+      // The axis reaches at least as high as the tallest value, so a value
+      // needing more characters than the margin can give guarantees a step
+      // label that wide - whichever scale is chosen for it. Reported rather
+      // than clamped: `build` draws the label at its true width and the plot
+      // narrows, which is honest, but nobody should ship a graph like it.
+      const top = formatStep(Math.max(...values.map((value) => Math.max(value, 0)), 0));
+      if (top.length > MAX_STEP_CHARS) {
+        issues.push(
+          `figure.values: an axis reaching ${top} needs ${top.length} characters beside` +
+            ` the plot, more than the ${MAX_STEP_CHARS} it has room for`,
+        );
+      }
+
       const below = values.find((value) => value < 0);
       if (below !== undefined) {
         issues.push(`figure.values: ${below} is below zero, and a bar graph has no room under its axis`);
@@ -335,18 +446,31 @@ export const barModule: FigureKindModule<'bar'> = {
       if (values && names.length !== values.length) {
         issues.push(`figure.labels: ${names.length} labels for ${values.length} values`);
       }
-      const long = names.find((name) => name.length > MAX_LABEL_CHARS);
-      if (long !== undefined) {
-        issues.push(
-          `figure.labels: ${JSON.stringify(long)} is longer than the ${MAX_LABEL_CHARS}` +
-            ' characters a category label has room for',
-        );
+      const longest = names.reduce((a, b) => (b.length > a.length ? b : a), '');
+      if (values && longest.length > 0) {
+        // The axis reaches at least as high as the tallest value, so its own
+        // label is at least this wide - and a wider one only narrows the plot
+        // further, which makes this budget the generous reading. Erring that
+        // way is deliberate: this refuses content, and it should refuse only
+        // what is certainly unreadable.
+        const stepChars = formatStep(Math.max(...values.map((v) => Math.max(v, 0)), 0)).length;
+        const budget = categoryBudget(values.length, stepChars, longest.length);
+        if (longest.length > budget) {
+          issues.push(
+            `figure.labels: ${JSON.stringify(longest)} needs ${longest.length} characters` +
+              ` where ${values.length} categories leave room for ${budget} - shorten the` +
+              ' labels, or graph fewer categories',
+          );
+        }
       }
     }
 
     const style = read(spec.style, 'figure.style', 'string');
     if (typeof style === 'string' && !(STYLES as readonly string[]).includes(style)) {
-      issues.push(`figure.style: ${JSON.stringify(style)} is not ${STYLES.join(', ')}`);
+      issues.push(
+        `figure.style: ${JSON.stringify(style)} is not a graph style` +
+          ` (expected ${STYLES.slice(0, -1).join(', ')} or ${STYLES[STYLES.length - 1]})`,
+      );
     }
 
     const scale = read(spec.scale, 'figure.scale', 'number');

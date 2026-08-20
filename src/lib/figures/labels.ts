@@ -44,6 +44,15 @@ import { FIGURE_BOX, FIGURE_PADDING } from './types';
  * template gave you), draw what you were given and **report** it from `issues`.
  * Silently dropping or truncating data draws a picture the template never
  * described, which is worse than a cramped one.
+ *
+ * There is exactly one exception, and it is not a readability limit: `MAX_MARKS`
+ * in `types.ts` is a *storage* cap, and `parseFigure` refuses a figure past it
+ * when it is read back out of an `Attempt`. A kind may slice its input to stay
+ * under that (`bar-kind.ts`'s `MAX_DRAWN_VALUES`) because the alternative is a
+ * figure that cannot be shown again at all - but only where the slice is
+ * unreachable in practice, being far past a limit `issues` already reports, so
+ * no content that validates can ever be silently cut. If your kind takes this
+ * exception, keep both halves: the slice *and* the reported limit well inside it.
  */
 
 /**
@@ -53,6 +62,16 @@ import { FIGURE_BOX, FIGURE_PADDING } from './types';
  * the report's density moves the geometry of every kind that labels anything.
  */
 export const REPORT_LABEL_SIZE = 16;
+
+/**
+ * The type size the same figure is drawn at on the play screen, where the box
+ * is the child's whole question rather than a thumbnail. Exported beside its
+ * larger twin because the two together are the *range* a kind is drawing for -
+ * and because a limit that genuinely cannot be met at report scale (see
+ * `bar-kind.ts`'s `MAX_LABEL_CHARS`) has to be measured against something
+ * rather than guessed.
+ */
+export const PLAY_LABEL_SIZE = 7;
 
 /** About what one character costs, as a share of the type size. */
 export const CHAR_RATIO = 0.58;

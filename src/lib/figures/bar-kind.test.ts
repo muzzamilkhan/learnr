@@ -38,6 +38,23 @@ const paths = (figure: Figure) =>
 /** The bars: closed paths, in the order they were drawn. */
 const bars = (figure: Figure) => paths(figure).filter((path) => path.closed);
 
+/**
+ * Every label's **ink** inside the box, measured at report scale. `fit` bounds
+ * a drawing by label anchor points and an SVG clips at its own edge, so half of
+ * every label hangs outside what was measured - which is invisible on the play
+ * screen, where a glyph is small, and slices a digit off in a 64px report row.
+ */
+function expectInsideTheBox(figure: Figure, note = '') {
+  for (const label of figure.marks.flatMap((mark) => (mark.kind === 'label' ? [mark] : []))) {
+    const half = (label.text.length * REPORT_CHAR) / 2;
+    const where = `${note} ${label.text}`;
+    expect(label.at[0] - half, where).toBeGreaterThanOrEqual(0);
+    expect(label.at[0] + half, where).toBeLessThanOrEqual(FIGURE_BOX);
+    expect(label.at[1] - REPORT_INK / 2, where).toBeGreaterThanOrEqual(0);
+    expect(label.at[1] + REPORT_INK / 2, where).toBeLessThanOrEqual(FIGURE_BOX);
+  }
+}
+
 /** How tall one bar stands, in the fitted box (y is down there, so this is a span). */
 const height = (points: readonly (readonly [number, number])[]) => {
   const ys = points.map(([, y]) => y);
@@ -179,17 +196,85 @@ describe('the bar figure kind', () => {
         expect(acrosses[i] - acrosses[i - 1]).toBeGreaterThanOrEqual(REPORT_CHAR);
       }
 
-      // And every label has to be inside the box it is drawn in: an SVG clips
-      // at its own edge, so a label centred on the boundary loses half of
-      // itself in the report while looking fine on the play screen.
-      for (const label of drawn) {
-        const half = (label.text.length * REPORT_CHAR) / 2;
-        expect(label.at[0] - half).toBeGreaterThanOrEqual(0);
-        expect(label.at[0] + half).toBeLessThanOrEqual(FIGURE_BOX);
-        expect(label.at[1] - REPORT_INK / 2).toBeGreaterThanOrEqual(0);
-        expect(label.at[1] + REPORT_INK / 2).toBeLessThanOrEqual(FIGURE_BOX);
+      expectInsideTheBox(figure);
+    }
+  });
+
+  it('keeps every label inside the box at the widest the caps allow', () => {
+    // The invariant above, taken to the corner rather than the easy case: an
+    // SVG clips at its own edge and `fit` bounds a drawing by anchor points,
+    // so half of a label always hangs outside what was measured. Two-character
+    // labels prove nothing about that - they are narrower than the padding.
+    // These are the widest each field is allowed to be, so if the geometry has
+    // failed to budget for a label's ink it fails here.
+    const corners: [string, FigureSpec][] = [
+      // The most categories, each carrying the longest label that graph allows.
+      ['five categories', { kind: 'bar', values: "'4,8,6,2,10'", labels: "'Mo,Tu,We,Th,Fr'" }],
+      // Fewer categories buy longer labels; this is that trade at its end.
+      ['long labels', { kind: 'bar', values: "'3,7,5'", labels: "'Mond,Tues,Wedn'" }],
+      // The widest value axis, which is the other label that reaches an edge.
+      ['a wide axis', { kind: 'bar', values: "'100000,300000,500000'" }],
+      // Both at once, plus a category count to squeeze them.
+      ['both at once', { kind: 'bar', values: "'40,80,60,20,100'", labels: "'Mo,Tu,We,Th,Fr'" }],
+      // A line graph puts its labels in the same places; a dot plot too.
+      ['as a line', { kind: 'bar', values: "'40,80,60,20,100'", labels: "'Mo,Tu,We,Th,Fr'", style: "'line'" }],
+    ];
+
+    for (const [name, spec] of corners) {
+      // Every one of them is content an author is allowed to write - the point
+      // is that the *legal* extremes draw legibly, not that illegal ones do.
+      expect(figureIssues(spec, {}), name).toEqual([]);
+      for (let seed = 0; seed < 40; seed++) {
+        expectInsideTheBox(build(spec, `bar-corner-${name}-${seed}`), name);
       }
     }
+  });
+
+  it('keeps a label inside the box even when it is one it would refuse', () => {
+    // `build` never throws and never refuses: it runs mid-session, on whatever
+    // was authored, and validation is a *separate* gate that catches bad
+    // content before it ships rather than while a child is waiting. So the ink
+    // budget has to hold for labels `issues` would reject too - these three are
+    // the widths measured as clipped before the category labels were budgeted
+    // for at all, and they are what regresses if that budget is removed.
+    const refused: [string, FigureSpec][] = [
+      ['4 x 5-char', { kind: 'bar', values: "'4,8,6,2'", labels: "'Monda,Tueda,Wedne,Thurs'" }],
+      [
+        '5 x 5-char',
+        { kind: 'bar', values: "'4,8,6,2,10'", labels: "'Monda,Tueda,Wedne,Thurs,Frida'" },
+      ],
+      [
+        '5 x 6-char',
+        { kind: 'bar', values: "'4,8,6,2,10'", labels: "'Mondae,Tuedae,Wednes,Thursd,Fridae'" },
+      ],
+    ];
+
+    for (const [name, spec] of refused) {
+      expect(figureIssues(spec, {}).join(), name).toContain('figure.labels');
+      for (let seed = 0; seed < 40; seed++) {
+        expectInsideTheBox(build(spec, `bar-refused-${name}-${seed}`), name);
+      }
+    }
+  });
+
+  it('says so when a label is wider than its share of the graph', () => {
+    // The budget is per graph, not a constant: five categories leave room for
+    // two characters and three categories leave room for four, so the same
+    // label is fine on one graph and reported on the other.
+    expect(
+      figureIssues({ kind: 'bar', values: "'3,7,5'", labels: "'Mon,Tue,Wed'" }, {}),
+    ).toEqual([]);
+    expect(
+      figureIssues({ kind: 'bar', values: "'4,8,6,2,10'", labels: "'Mon,Tue,Wed,Thu,Fri'" }, {})
+        .join(),
+    ).toContain('figure.labels');
+  });
+
+  it('says so when the value axis needs more characters than it has room for', () => {
+    expect(figureIssues({ kind: 'bar', values: "'100000,300000'" }, {})).toEqual([]);
+    expect(figureIssues({ kind: 'bar', values: "'1000000,3000000'" }, {}).join()).toContain(
+      'figure.values',
+    );
   });
 
   it('keeps a scale it is given, and picks one that fits when it is not', () => {
