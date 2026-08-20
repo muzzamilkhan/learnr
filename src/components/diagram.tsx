@@ -11,29 +11,61 @@ import type { Figure, Mark } from '@/lib/figures/types';
  * the same component draws a ~64px thumbnail in a parent's report row and the
  * play screen's whole flexible area - just the one bigger than the other.
  *
- * **Stroke width is pinned in real pixels, not viewBox units.** The two places
- * this renders are a five-times difference in size, and a width declared in
- * viewBox units scales with the box like everything else drawn in it - bold on
- * the play screen, close to a hairline at 64px. `vectorEffect:
- * 'non-scaling-stroke'` keeps the line the same weight everywhere instead,
- * which matches how the rest of the app draws a line: every card, pad and
- * button here is `border-2` regardless of the screen it is on, never a border
- * that thickens with the box it sits in.
+ * **Stroke width is the caller's, not a constant in here.** The two places
+ * this renders are a five-times difference in size, and one number cannot read
+ * at both: `vectorEffect="non-scaling-stroke"` is the right mechanism for
+ * pinning a line's weight in real pixels regardless of the viewBox's scale -
+ * matching how every card, pad and button in this app is a flat `border-2`
+ * whatever screen it is on - but *which* real-pixel width still has to differ
+ * between a play-screen figure and a 64px report thumbnail, so it is a prop
+ * (`strokeWidth`) rather than a constant. Everything else that has to read as
+ * one drawing - the vertex dot, the dashed mirror line's dash length - is
+ * derived from that same number so the whole figure scales as one weight
+ * rather than several fighting each other.
+ *
+ * The vertex dot is drawn as a zero-length, round-capped `<line>` rather than
+ * a filled `<circle>`, because `vectorEffect` only pins a *stroke* - a fill
+ * radius has no equivalent and would still be a viewBox-unit quantity scaling
+ * with the box. A stroke with `strokeLinecap="round"` on a zero-length line
+ * renders as a solid dot exactly `strokeWidth` wide, which puts it in the same
+ * real-pixel frame as every other line here rather than a second, disagreeing
+ * one.
+ *
+ * `label` has no such trick available - SVG has no `vector-effect` for
+ * `font-size`, and true scale-independence for text needs a measured
+ * counter-transform (a `ResizeObserver`, the way `Prompt` in
+ * `play-session.tsx` measures its own box) that nothing has built yet. No
+ * template emits a `label` mark today, so `LABEL_SIZE` stays a plain viewBox
+ * quantity, derived off `strokeWidth` so it at least tracks the same caller
+ * intent as everything else - it is not truly frame-matched, and whoever adds
+ * the first label-emitting figure kind should give it the measured treatment
+ * rather than trust this constant.
  */
 
-/** In real pixels, via `vectorEffect="non-scaling-stroke"` - see above. */
-const STROKE_WIDTH = 2;
-const DASH = '6 4';
+export function Diagram({
+  figure,
+  strokeWidth,
+  className,
+}: {
+  figure: Figure;
+  /**
+   * Real pixels, via `vectorEffect="non-scaling-stroke"`. Roughly 3-4 on the
+   * play screen, 1.5-2 in a report row - the caller's call, because it is the
+   * caller who knows which of the two very differently sized places this is.
+   */
+  strokeWidth: number;
+  className?: string;
+}) {
+  // A dot noticeably heavier than the line it marks, so "the arms alone do
+  // not say which end is the corner" (`angle.ts`) still holds at a glance;
+  // a dash pattern proportioned to the same line weight rather than a fixed
+  // absolute length, so it does not go from a handful of dashes at report
+  // scale to a wall of them at play-screen scale for no reason but the
+  // caller having picked a different `strokeWidth`.
+  const dotDiameter = strokeWidth * 3;
+  const dash = `${strokeWidth * 2.5} ${strokeWidth * 1.5}`;
+  const labelSize = strokeWidth * 5;
 
-/** A marked vertex. Viewbox units, so it shrinks with the drawing like the
- * shape itself rather than staying a fixed dot on a shrunk figure. */
-const DOT_RADIUS = 2.5;
-
-/** No template emits a `label` mark yet (`types.ts`) - sized so the day one
- * does, this reads rather than being retuned then. */
-const LABEL_SIZE = 10;
-
-export function Diagram({ figure, className }: { figure: Figure; className?: string }) {
   return (
     <svg
       viewBox={`0 0 ${figure.width} ${figure.height}`}
@@ -50,13 +82,32 @@ export function Diagram({ figure, className }: { figure: Figure; className?: str
       {figure.marks.map((mark, index) => (
         // The marks are a fixed list rebuilt fresh for every question, never
         // reordered or filtered in place, so the index is a stable key.
-        <MarkShape key={index} mark={mark} />
+        <MarkShape
+          key={index}
+          mark={mark}
+          strokeWidth={strokeWidth}
+          dotDiameter={dotDiameter}
+          dash={dash}
+          labelSize={labelSize}
+        />
       ))}
     </svg>
   );
 }
 
-function MarkShape({ mark }: { mark: Mark }) {
+function MarkShape({
+  mark,
+  strokeWidth,
+  dotDiameter,
+  dash,
+  labelSize,
+}: {
+  mark: Mark;
+  strokeWidth: number;
+  dotDiameter: number;
+  dash: string;
+  labelSize: number;
+}) {
   switch (mark.kind) {
     case 'path': {
       // A closed path is the shape's own outline (or a tick that happens to
@@ -67,16 +118,16 @@ function MarkShape({ mark }: { mark: Mark }) {
       // TypeScript's JSX does not narrow cleanly across a union of host elements.
       const points = mark.points.map(([x, y]) => `${x},${y}`).join(' ');
       const fill = mark.fill ? 'var(--color-brand-soft)' : 'none';
-      const dash = mark.dashed ? DASH : undefined;
+      const dashArray = mark.dashed ? dash : undefined;
       return mark.closed ? (
         <polygon
           points={points}
           fill={fill}
           stroke="var(--color-ink)"
-          strokeWidth={STROKE_WIDTH}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={dash}
+          strokeDasharray={dashArray}
           vectorEffect="non-scaling-stroke"
         />
       ) : (
@@ -84,10 +135,10 @@ function MarkShape({ mark }: { mark: Mark }) {
           points={points}
           fill={fill}
           stroke="var(--color-ink)"
-          strokeWidth={STROKE_WIDTH}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={dash}
+          strokeDasharray={dashArray}
           vectorEffect="non-scaling-stroke"
         />
       );
@@ -99,14 +150,29 @@ function MarkShape({ mark }: { mark: Mark }) {
           d={arcPath(mark)}
           fill="none"
           stroke="var(--color-ink)"
-          strokeWidth={STROKE_WIDTH}
+          strokeWidth={strokeWidth}
           strokeLinecap="round"
           vectorEffect="non-scaling-stroke"
         />
       );
 
     case 'dot':
-      return <circle cx={mark.at[0]} cy={mark.at[1]} r={DOT_RADIUS} fill="var(--color-ink)" />;
+      // See the module comment: a zero-length round-capped line renders as a
+      // dot exactly `dotDiameter` real pixels wide, which is what keeps it in
+      // the same non-scaling frame as every stroke here rather than a filled
+      // circle sized in the viewBox's own, different units.
+      return (
+        <line
+          x1={mark.at[0]}
+          y1={mark.at[1]}
+          x2={mark.at[0]}
+          y2={mark.at[1]}
+          stroke="var(--color-ink)"
+          strokeWidth={dotDiameter}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      );
 
     case 'label':
       return (
@@ -115,7 +181,7 @@ function MarkShape({ mark }: { mark: Mark }) {
           y={mark.at[1]}
           textAnchor="middle"
           dominantBaseline="middle"
-          fontSize={LABEL_SIZE}
+          fontSize={labelSize}
           fill="var(--color-ink)"
         >
           {mark.text}

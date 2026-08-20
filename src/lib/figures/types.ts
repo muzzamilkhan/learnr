@@ -36,7 +36,7 @@ export type Point = readonly [number, number];
 
 /**
  * The four primitives a figure is drawn from. Deliberately few: the renderer
- * (`src/components/figure.tsx`) turns marks into SVG and makes no decisions, so
+ * (`src/components/diagram.tsx`) turns marks into SVG and makes no decisions, so
  * anything it has to know how to draw is a decision that has escaped `lib`.
  */
 export type Mark =

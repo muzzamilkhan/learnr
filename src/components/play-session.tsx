@@ -76,9 +76,31 @@ const MAX_ENTRY = { text: 16 } as const;
  * is 768px tall, and every phone in portrait clears this too; what is left is
  * a phone turned sideways, down around 375-430px, where a figure stacked above
  * the prompt would leave neither any usable room. Below it the two sit side by
- * side instead - see the figure-and-prompt wrapper below.
+ * side instead - see the figure-and-prompt wrapper below - and the pad's own
+ * bounds switch with it, for the same reason (see the pad's slot further down).
+ *
+ * `500px` is written out at every use below rather than held in a constant:
+ * Tailwind's scanner reads class names as source-text literals (CLAUDE.md
+ * says this outright for `OPERATION_ACCENT`, and it is exactly as true of an
+ * arbitrary variant), so a class built from `` `${SOME_CONST}:flex-row` ``
+ * compiles to nothing - the composed string exists at runtime, but never in
+ * the source text the build ever scans. A shared constant here would be a
+ * standing invitation to do that again the next time this screen changes.
  */
-const SHORT_VIEWPORT = '[@media(max-height:500px)]';
+
+/**
+ * `64px`, applied as a literal `min-h`/`min-w` on the figure itself further
+ * down rather than held in a constant here (a class built by interpolating a
+ * JS value into a Tailwind arbitrary value is the exact mistake the note
+ * above is about) - the smallest a figure is ever allowed to render at, the
+ * same ~64px this component is built to read at in a parent's report row
+ * (see `diagram.tsx`), so a play-screen figure is never asked to be legible
+ * smaller than the thumbnail it already has to work at. Below this a picture
+ * stops telling a heptagon from an octagon, which is worse than the layout
+ * looking a little cramped, so it is a hard floor rather than a size the
+ * flexible layout is merely encouraged toward - see the figure-and-prompt
+ * wrapper below for what happens on the rare device where even this overruns.
+ */
 
 type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | null;
 
@@ -603,33 +625,53 @@ export function PlaySession({
         {question.figure ? (
           // A question with a figure is a picture with a caption underneath it,
           // not a sentence with a picture squeezed above it - see the design's
-          // "Layout" section. The figure is the one flex-1 item with a cap of
-          // its own (the max-h/max-w pair below); the prompt, rendered exactly
-          // as it always is, is the other flex-1 item and has no cap, so once
-          // the figure's grow hits its ceiling every pixel left over is the
-          // prompt's. `Prompt` needs no change to make that true: its own root
-          // is already `flex-1`, and it already fits itself to whatever box
-          // the flex layout hands it - only the box is smaller now.
+          // "Layout" section. `Diagram` is the *sole* flex-1 item here, capped
+          // at 40/46vh as a ceiling (ample headroom on every device this app
+          // targets - see the report's per-viewport table - so it is a defence
+          // against an unreasonably tall window rather than the thing that
+          // actually decides the figure's size) and floored at 64px (see the
+          // note above) so it is never asked to draw as a sliver. `Prompt`'s
+          // own slot is deliberately *not* flex-1: an earlier version gave it
+          // `flex-1` too, which - both siblings then wanting equal shares of a
+          // `flex: 1 1 0%` split - meant the figure's cap never bound at all,
+          // since there was never a competition for it to win. Here the slot
+          // instead carries a much lower `flex-grow` (`flex-[0.35]`, roughly
+          // the "prompt is a caption now" quarter-share the design calls for),
+          // so `Diagram` takes essentially everything up to its own cap and
+          // the slot takes what is left. `Prompt` itself is unchanged - its
+          // root is still `flex-1` and still fits itself to whatever box it
+          // is handed, which is exactly why it can sit inside a slot with a
+          // different flex-grow of its own rather than needing to know about
+          // any of this.
           //
           // On a landscape phone the column becomes a row instead (the one
-          // flex-direction change under `SHORT_VIEWPORT`), and `items-stretch`
-          // goes with it: in the ordinary column, height is the main axis and
-          // `flex-1` sizes both children along it, but a row's main axis is
-          // width - stretch is what gives them a height at all there, and the
-          // same `max-h` cap still holds once they have one.
-          <div
-            className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 sm:gap-4 ${SHORT_VIEWPORT}:flex-row ${SHORT_VIEWPORT}:items-stretch`}
-          >
+          // flex-direction change under a short-viewport media query, `500px`
+          // - see the constant note above for why that number is not held in
+          // a variable), and `items-stretch` goes with it: in the ordinary
+          // column, height is the main axis and flex-grow sizes both children
+          // along it, but a row's main axis is width - stretch is what gives
+          // them a height at all there, and the same caps and floors still
+          // hold once they have one.
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 sm:gap-4 [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-stretch">
             <Diagram
               figure={question.figure}
-              className="min-h-0 min-w-0 max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
+              strokeWidth={3.5}
+              // `64px` is the floor documented above, written out rather than
+              // read from a constant: a class built by interpolating a JS
+              // value into the string is exactly the mistake this file
+              // already made once - Tailwind's scanner needs the literal text
+              // `min-h-[64px]` present in the source, and a composed string
+              // is invisible to it however correct it looks at runtime.
+              className="min-h-[64px] min-w-[64px] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
             />
-            <Prompt
-              key={session.askedCount}
-              prompt={question.prompt}
-              onRepeat={repeatQuestion}
-              repeatable={narrating}
-            />
+            <div className="flex min-h-0 min-w-0 w-full flex-[0.35] flex-col items-center justify-center">
+              <Prompt
+                key={session.askedCount}
+                prompt={question.prompt}
+                onRepeat={repeatQuestion}
+                repeatable={narrating}
+              />
+            </div>
           </div>
         ) : (
           <Prompt
@@ -666,8 +708,22 @@ export function PlaySession({
           runs on, and every percent the pad gives back there is a percent the
           question can be set in. The bounds are part of the same expression: a
           fixed 16rem floor would quietly take those percent back on a short
-          phone. */}
-      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 sm:h-[clamp(16rem,40vh,22rem)] sm:gap-3">
+          phone.
+
+          That reasoning was written assuming width was a good enough proxy for
+          "tablet", which is what `sm:` gave it - and a landscape phone breaks
+          the proxy rather than the reasoning: it is *wide* (often past the
+          640px `sm:` line) and short at once, so it was taking the 16rem
+          tablet floor - built for a device with height to spare - on exactly
+          the device with the least height to spare, working against the very
+          thing the paragraph above says the floor must not do. So the larger
+          bounds now ask for height as well as width: `min-height:501px` is
+          "not the short viewport" (the figure-and-prompt wrapper above uses
+          the same `500px` line, in the same not-a-variable way, for the same
+          reason). A landscape phone fails that second half and keeps the
+          phone-sized clamp regardless of how wide it is; every tablet and
+          desktop this app targets clears both and is unaffected. */}
+      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 [@media(min-width:640px)_and_(min-height:501px)]:h-[clamp(16rem,40vh,22rem)] [@media(min-width:640px)_and_(min-height:501px)]:gap-3">
         {(pending === null || mode === 'tap') && (
           <div className="min-h-0 flex-1">
             <AnswerInput
