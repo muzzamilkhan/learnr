@@ -432,7 +432,17 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: 'K',
     prompt: 'What shape is this?',
     vars: [
-      { name: 'shape', kind: 'pick', from: ['triangle', 'square', 'rectangle'] },
+      // Three names that cannot both be true of one drawing. A square *is* a
+      // rectangle, so those two can never share a screen here - and the way
+      // round that is to drop one of the names from the question, not to swap
+      // it out when a square turns up. Making the third button depend on what
+      // was drawn put the answer in the option set: "hexagon" on screen meant
+      // "square" every time, which answered a third of the questions outright
+      // and took a picture-blind child from 33% to 67% - the anchoring failure
+      // this feature exists to prevent, arriving through the buttons instead
+      // of through the drawing. Rectangles are still drawn and counted by the
+      // two questions below; it is only the naming that leaves them out.
+      { name: 'shape', kind: 'pick', from: ['triangle', 'square', 'hexagon'] },
       // Equal-sided, two-sides-equal and no-sides-equal are all triangles, and
       // the drawn one is picked afresh: a child shown only the neat one learns
       // that picture instead of "three straight sides".
@@ -441,17 +451,9 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     answer: 'shape',
     answerType: 'choice',
-    // The distractors depend on what was drawn, which no other question here
-    // needs: a square *is* a rectangle, so offering both beside a drawn square
-    // puts two right answers on the screen and marks one of them wrong. When
-    // the square is the answer the third button is a hexagon instead.
-    choices: {
-      count: 3,
-      distractors: [
-        "shape == 'triangle' ? 'square' : 'triangle'",
-        "shape == 'square' ? 'hexagon' : shape == 'triangle' ? 'rectangle' : 'square'",
-      ],
-    },
+    // Fixed, so the three buttons are the same three whatever was drawn and
+    // say nothing at all about which of them is right.
+    choices: { count: 3, distractors: ["'triangle'", "'square'", "'hexagon'"] },
     figure: { kind: 'polygon', shape: 'drawn' },
     tags: ['AC9MFSP01'],
   },
@@ -2903,13 +2905,20 @@ export const mathsTemplates: QuestionTemplate[] = [
     prompt: 'Is this angle acute, obtuse or reflex?',
     vars: [
       { name: 'kind', kind: 'pick', from: ['acute', 'obtuse', 'reflex'] },
-      // Clear of the right angle by 25 degrees either side, as above. The
-      // obtuse band runs nearer to 180 than the Year 4 one does because
-      // "straight" is not an option here and the drawn sweep, not the arms,
-      // is what separates 170 degrees from 190.
+      // Clear of the right angle by 25 degrees either side, as above, and of
+      // the straight angle by 20 - the same clearance Year 4 takes, so there
+      // is one standard here rather than one standard with an exception.
+      //
+      // The sweep is drawn, so 170 degrees and 190 are not quite the same
+      // picture, and an earlier version of this leaned on that. It leans on it
+      // too hard: the arc's ends sit on the arms, so it says which side of them
+      // the angle is on and not how big it is, and at 170 against 190 the far
+      // arm's tip is about six to nine units off the straight continuation -
+      // eight to twelve pixels on an iPad held sideways. That is a cue, not a
+      // difference a child can be marked wrong for missing.
       { name: 'small', kind: 'int', min: '15', max: '65', step: 5 },
-      { name: 'large', kind: 'int', min: '115', max: '170', step: 5 },
-      { name: 'round', kind: 'int', min: '190', max: '340', step: 5 },
+      { name: 'large', kind: 'int', min: '115', max: '160', step: 5 },
+      { name: 'round', kind: 'int', min: '200', max: '340', step: 5 },
       {
         name: 'd',
         kind: 'expr',
@@ -2930,18 +2939,19 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: '5',
     prompt: 'About how many degrees is this angle?',
     vars: [
-      // Stepped round the five sizes so the two distractors are always a
-      // different pair, and never collide with the answer.
-      { name: 'i', kind: 'pick', from: [0, 1, 2, 3, 4] },
-      { name: 'd', kind: 'expr', expr: '30 + 30 * i' },
+      // The four sizes are the four buttons, always, and the drawn angle is
+      // one of them. Stepping the distractors round a ring of five instead -
+      // the answer, then the next two along - gave every answer an option set
+      // of its own: {30, 60, 90} could only ever be 30, {60, 90, 120} could
+      // only ever be 60, and a child who never looked at the drawing scored
+      // 100%. A set that moves with the answer names it, however well the
+      // drawing itself varies.
+      { name: 'd', kind: 'pick', from: [30, 60, 90, 120] },
     ],
     answer: 'd',
     answerType: 'choice',
-    choices: {
-      count: 3,
-      distractors: ['30 + 30 * mod(i + 1, 5)', '30 + 30 * mod(i + 2, 5)'],
-    },
-    hint: 'A right angle is 90 degrees, and half of one is 45.',
+    choices: { count: 4, distractors: ['30', '60', '90', '120'] },
+    hint: 'A right angle is 90 degrees. Is this one bigger or smaller than that?',
     figure: { kind: 'angle', degrees: 'd' },
     tags: ['AC9M5M04'],
   },
@@ -2950,12 +2960,23 @@ export const mathsTemplates: QuestionTemplate[] = [
   // sentence would be one question wearing two years - a topic is supposed to
   // recur *harder*, not reworded. A turn is the harder half: a line of
   // symmetry is there to be seen on the page, and whether a shape comes back
-  // to itself part way round has to be done in the head. It is also the
-  // stronger reading of this description, which is about performing a rotation
-  // and recognising what stays the same, and it is what puts the
+  // to itself part way round has to be done in the head. It is what puts the
   // parallelogram - no line of symmetry at all, but perfectly unchanged by a
   // half turn - in front of a child. Neither draws a mirror line, so the
   // heptagon and the octagon are allowed back in.
+  //
+  // **Both cite two content descriptions, which nothing else in this file
+  // does.** `AC9M4SP03` is "recognise line *and rotational* symmetry of
+  // shapes", and that is what these two questions ask, near enough word for
+  // word. `AC9M5SP03` is where they sit and what makes them Year 5 work - but
+  // its head is *describe and perform* translations, reflections and
+  // rotations, which neither question asks for, and the fit rests on its
+  // trailing "identify any symmetries". Citing only the Year 5 code would
+  // claim the harder half of that description; citing only the Year 4 one
+  // would file Year 5 questions under Year 4. Both is what is honestly
+  // practised, and a topic recurring across years is the thing this course is
+  // built out of, so a year citing its predecessor's description is the
+  // recurrence showing rather than a mistake.
   {
     id: 'maths.5.symmetry.half-turn',
     subject: 'maths',
@@ -2992,7 +3013,7 @@ export const mathsTemplates: QuestionTemplate[] = [
       "shape == 'parallelogram' || shape == 'hexagon' || shape == 'octagon'",
     hint: 'Half a turn is the same as looking at it upside down.',
     figure: { kind: 'polygon', shape: 'shape' },
-    tags: ['AC9M5SP03'],
+    tags: ['AC9M4SP03', 'AC9M5SP03'],
   },
   {
     id: 'maths.5.symmetry.turn-matches',
@@ -3024,9 +3045,13 @@ export const mathsTemplates: QuestionTemplate[] = [
       "shape == 'rectangle' || shape == 'rhombus' || shape == 'parallelogram' ? 2 : " +
       "shape == 'equilateral' ? 3 : shape == 'square' ? 4 : shape == 'pentagon' ? 5 : " +
       "shape == 'hexagon' ? 6 : shape == 'heptagon' ? 7 : 8",
-    hint: 'A regular shape matches once for every side. A rectangle matches only twice.',
+    // The three shapes that are not regular are the three the hint has to
+    // name: for the other six the answer is the side count, which the first
+    // sentence gives away outright, and these are the only draws where the
+    // turning has to actually be done.
+    hint: 'A regular shape matches once for every side. A rectangle, a rhombus and a parallelogram match twice.',
     figure: { kind: 'polygon', shape: 'shape' },
-    tags: ['AC9M5SP03'],
+    tags: ['AC9M4SP03', 'AC9M5SP03'],
   },
 
   // ------------------------------------------------------------------
