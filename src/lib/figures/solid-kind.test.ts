@@ -66,6 +66,123 @@ const sides = (points: readonly Point[]) =>
   points.map((point, index) => distance(point, points[(index + 1) % points.length]));
 
 /**
+ * How close two fitted coordinates have to be to count as the same point.
+ * Coordinates are rounded to `FIGURE_PRECISION`, and two points the builder
+ * placed at the same spot round to the same pair, so this is slack rather than
+ * a budget.
+ */
+const TOUCH = 0.05;
+
+const same = (a: number, b: number) => Math.abs(a - b) < TOUCH;
+
+/** Every mark a net draws is one face, so the closed paths are the faces. */
+const facesOf = (figure: Figure) => closed(figure).map((path) => path.points);
+
+/**
+ * Where two faces fold together, as the edge index in each - or nothing.
+ *
+ * A fold is a **whole shared edge**, both ends coincident, so finding one is
+ * also the proof that the two faces are the same length along it. That is the
+ * check the five nets below are missing when only their faces are counted: a
+ * flap the wrong size still draws as a face, and only the join says so.
+ */
+function foldBetween(a: readonly Point[], b: readonly Point[]): [number, number] | null {
+  for (let index = 0; index < a.length; index++) {
+    const [p, q] = [a[index], a[(index + 1) % a.length]];
+    for (let other = 0; other < b.length; other++) {
+      const [r, s] = [b[other], b[(other + 1) % b.length]];
+      const joined =
+        (distance(p, r) < TOUCH && distance(q, s) < TOUCH) ||
+        (distance(p, s) < TOUCH && distance(q, r) < TOUCH);
+      if (joined) return [index, other];
+    }
+  }
+  return null;
+}
+
+interface Fold {
+  faces: [number, number];
+  edges: [number, number];
+}
+
+function foldsOf(faces: readonly (readonly Point[])[]): Fold[] {
+  const folds: Fold[] = [];
+  for (let a = 0; a < faces.length; a++) {
+    for (let b = a + 1; b < faces.length; b++) {
+      const edges = foldBetween(faces[a], faces[b]);
+      if (edges) folds.push({ faces: [a, b], edges });
+    }
+  }
+  return folds;
+}
+
+/** Whether the folds hold every face together in one piece. */
+function inOnePiece(count: number, folds: readonly Fold[]): boolean {
+  const reached = new Set([0]);
+  for (let pass = 0; pass < count; pass++) {
+    for (const { faces } of folds) {
+      if (reached.has(faces[0])) reached.add(faces[1]);
+      if (reached.has(faces[1])) reached.add(faces[0]);
+    }
+  }
+  return reached.size === count;
+}
+
+const centroid = (points: readonly Point[]): Point => [
+  points.reduce((sum, [x]) => sum + x, 0) / points.length,
+  points.reduce((sum, [, y]) => sum + y, 0) / points.length,
+];
+
+/** The radius of a face drawn as a sampled circle, or nothing if it is not one. */
+function circleRadius(points: readonly Point[]): number | null {
+  if (points.length < 12) return null;
+  const middle = centroid(points);
+  const radii = points.map((point) => distance(point, middle));
+  return Math.max(...radii) - Math.min(...radii) < TOUCH
+    ? (Math.min(...radii) + Math.max(...radii)) / 2
+    : null;
+}
+
+/** The corner of a sector every other point is the same distance from. */
+function apexOf(points: readonly Point[]): number | null {
+  for (let index = 0; index < points.length; index++) {
+    const away = points.flatMap((point, other) =>
+      other === index ? [] : [distance(points[index], point)],
+    );
+    if (Math.max(...away) - Math.min(...away) < TOUCH) return index;
+  }
+  return null;
+}
+
+/** How far a point is from the infinite line through two others. */
+function distanceToLine([px, py]: Point, [ax, ay]: Point, [bx, by]: Point): number {
+  const length = Math.hypot(bx - ax, by - ay);
+  return Math.abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / length;
+}
+
+/** A rectangle's two dimensions, shortest first. */
+const rectangleOf = (points: readonly Point[]): [number, number] => {
+  const [first, second] = sides(points);
+  return first <= second ? [first, second] : [second, first];
+};
+
+/** Group numbers that are the same length, so a multiset can be counted. */
+function tally(values: readonly number[]): number[][] {
+  const groups: number[][] = [];
+  for (const value of values) {
+    const group = groups.find((candidate) => same(candidate[0], value));
+    if (group) group.push(value);
+    else groups.push([value]);
+  }
+  return groups;
+}
+
+const sortedSides = (points: readonly Point[]) => sides(points).slice().sort((a, b) => a - b);
+
+const congruent = (a: readonly number[], b: readonly number[]) =>
+  a.length === b.length && a.every((side, index) => same(side, b[index]));
+
+/**
  * Rolling a cube across the grid a net is laid out on: the face that ends up
  * touching the paper at each cell. `D` is the cube's own face vector pointing
  * down, `N` the one pointing north, and a roll turns them. A hexomino is a net
@@ -168,6 +285,246 @@ describe('the nets a cube has', () => {
     const line: Point[] = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0], [5, 0]];
     expect(foldsToACube(block)).toBe(false);
     expect(foldsToACube(line)).toBe(false);
+  });
+});
+
+describe('the nets the other solids fold into', () => {
+  /**
+   * The cube gets a folding simulation because a hexomino that is not a net
+   * draws exactly as neatly as one that is. **That argument is not about
+   * cubes.** Every net below is a composite construction - a band and its
+   * flaps, a square and its triangles, a sector and its circle - and each of
+   * them still draws its full count of neat closed shapes when a dimension is
+   * wrong. Counting the faces cannot see that, and neither can the distinctness
+   * checks or the no-dashes check; only the joins can. So these verify the
+   * construction rather than its parts.
+   */
+
+  /** The polyhedra, whose faces fold along shared straight edges. */
+  const FLAT = ['cube', 'cuboid', 'square-pyramid', 'triangular-prism'] as const;
+
+  it('joins every flat face to its neighbour along a whole shared edge, in one piece', () => {
+    // Both ends of a fold coincide, so a flap sized against the wrong edge of
+    // its band face joins at one corner instead of along an edge and is not a
+    // fold at all. `faces - 1` folds holding one piece together is a tree: no
+    // face is left loose and no two faces are glued twice.
+    for (const solid of FLAT) {
+      for (const seed of SEEDS) {
+        const faces = facesOf(build(spec(solid, 'net'), seed));
+        const folds = foldsOf(faces);
+        const where = `${solid} / ${seed}`;
+
+        expect(faces.length, where).toBe(FACES[solid]);
+        expect(folds.length, where).toBe(faces.length - 1);
+        expect(inOnePiece(faces.length, folds), where).toBe(true);
+
+        // And no face is folded twice along one edge of itself, which is two
+        // faces landing on each other rather than a net.
+        const used = folds.flatMap(({ faces: pair, edges }) => [
+          `${pair[0]}:${edges[0]}`,
+          `${pair[1]}:${edges[1]}`,
+        ]);
+        expect(new Set(used).size, where).toBe(used.length);
+      }
+    }
+  });
+
+  it('gives a cuboid the six rectangles a box has: three matching pairs of three lengths', () => {
+    // The parity in `flap` decides the flap's *other* dimension, and swapping
+    // it still draws six rectangles joined along whole edges - the fold check
+    // above cannot see it. A box's six faces are three congruent pairs whose
+    // dimensions are the three edge lengths, each appearing twice.
+    for (const seed of SEEDS) {
+      const faces = facesOf(build(spec('cuboid', 'net'), seed));
+      const shapes = faces.map(rectangleOf);
+      const pairs: [number, number][][] = [];
+      for (const shape of shapes) {
+        const group = pairs.find(
+          (candidate) => same(candidate[0][0], shape[0]) && same(candidate[0][1], shape[1]),
+        );
+        if (group) group.push(shape);
+        else pairs.push([shape]);
+      }
+      const where = `${seed}: ${shapes.map((shape) => shape.join(' x ')).join(', ')}`;
+
+      expect(pairs.length, where).toBe(3);
+      for (const pair of pairs) expect(pair.length, where).toBe(2);
+      // The three distinct shapes between them use three lengths twice each.
+      expect(
+        tally(pairs.flatMap((pair) => pair[0])).map((group) => group.length),
+        where,
+      ).toEqual([2, 2, 2]);
+    }
+  });
+
+  it('gives a square pyramid four matching triangles, one on each side of the square', () => {
+    for (const seed of SEEDS) {
+      const faces = facesOf(build(spec('square-pyramid', 'net'), seed));
+      const base = faces.find((face) => face.length === 4);
+      const walls = faces.filter((face) => face.length === 3);
+      if (!base) throw new Error('no square was drawn');
+
+      expect(walls, seed).toHaveLength(4);
+      const square = sortedSides(base);
+      for (const side of square) expect(side, seed).toBeCloseTo(square[0], 1);
+
+      // One on each side, never two on one: four folds against four different
+      // edges of the square.
+      const squareIndex = faces.indexOf(base);
+      const onTheSquare = foldsOf(faces)
+        .filter(({ faces: pair }) => pair.includes(squareIndex))
+        .map(({ faces: pair, edges }) => (pair[0] === squareIndex ? edges[0] : edges[1]));
+      expect(new Set(onTheSquare).size, seed).toBe(4);
+
+      for (const wall of walls) {
+        expect(congruent(sortedSides(wall), sortedSides(walls[0])), seed).toBe(true);
+
+        // **Which side is the base is read off the fold, never guessed by
+        // length.** A triangle whose slant is a little over half the base is
+        // shorter in the leg than in the base, and one at `sqrt(3)/2` of it is
+        // equilateral - both are legal pyramids, and both defeat "the base is
+        // the short side", which is what this assertion said first and what the
+        // test caught.
+        const join = foldBetween(base, wall);
+        if (!join) throw new Error('a triangle came loose from the square');
+        const hinge: [Point, Point] = [wall[join[1]], wall[(join[1] + 1) % 3]];
+        const apex = wall.find((point) => !hinge.some((end) => distance(point, end) < TOUCH));
+        if (!apex) throw new Error('a triangle has no apex');
+
+        expect(distance(hinge[0], hinge[1]), seed).toBeCloseTo(square[0], 1);
+        // Isosceles, or the four apexes do not meet at one point.
+        expect(distance(apex, hinge[0]), seed).toBeCloseTo(distance(apex, hinge[1]), 1);
+        // And the slant has to clear half the base, or they cannot reach that
+        // point at all - which is a leg longer than the base over root two.
+        expect(distance(apex, hinge[0]), seed).toBeGreaterThan(square[0] / Math.SQRT2);
+      }
+    }
+  });
+
+  it("puts a triangular prism's end triangles where the band rolls them, not merely the right size", () => {
+    // **The failure the source names, and the one lengths alone cannot catch.**
+    // The cap on a band face is the cross-section with that face's edge as its
+    // base, so its apex sits the width of the face two along from the left end
+    // and the width of the next face from the right. Swap those and the
+    // triangle has the same three sides - the cross-section is isosceles - and
+    // folds onto the wrong prism edge. Only where the apex sits says so, and
+    // only read in the order the band runs.
+    for (const seed of SEEDS) {
+      const faces = facesOf(build(spec('triangular-prism', 'net'), seed));
+      const band = faces.filter((face) => face.length === 4);
+      const caps = faces.filter((face) => face.length === 3);
+      expect(band, seed).toHaveLength(3);
+      expect(caps, seed).toHaveLength(2);
+
+      // The strip runs from one end face to the other. Which end is called the
+      // left one does not matter: reversing the band reverses the rule with it.
+      const neighbours = band.map(
+        (face) => band.filter((other) => other !== face && foldBetween(face, other)).length,
+      );
+      const ends = band.filter((_, index) => neighbours[index] === 1);
+      expect(ends, seed).toHaveLength(2);
+
+      const [ax, ay] = centroid(ends[0]);
+      const [bx, by] = centroid(ends[1]);
+      const span = Math.hypot(bx - ax, by - ay);
+      const along = ([x, y]: Point) => ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / span;
+      const strip = [...band].sort((one, other) => along(centroid(one)) - along(centroid(other)));
+
+      // A band face's width is the side across the strip - the one that is not
+      // the fold line it shares with the face beside it.
+      const shared = foldBetween(strip[0], strip[1]);
+      if (!shared) throw new Error('the band is not joined up');
+      const long = distance(strip[0][shared[0]], strip[0][(shared[0] + 1) % 4]);
+      const widths = strip.map((face) => {
+        const [shorter, longer] = rectangleOf(face);
+        return same(shorter, long) ? longer : shorter;
+      });
+
+      for (const cap of caps) {
+        const seat = strip.findIndex((face) => foldBetween(face, cap));
+        expect(seat, seed).toBeGreaterThanOrEqual(0);
+        const join = foldBetween(strip[seat], cap);
+        if (!join) throw new Error('a cap came loose');
+
+        const hinge: [Point, Point] = [cap[join[1]], cap[(join[1] + 1) % 3]];
+        const apex = cap.find((point) => !hinge.some((end) => distance(point, end) < TOUCH));
+        if (!apex) throw new Error('a cap has no apex');
+        const [left, right] =
+          along(hinge[0]) <= along(hinge[1]) ? [hinge[0], hinge[1]] : [hinge[1], hinge[0]];
+
+        expect(distance(left, right), `${seed}: the cap's base`).toBeCloseTo(widths[seat], 1);
+        expect(distance(apex, left), `${seed}: the cap's apex from the left`).toBeCloseTo(
+          widths[(seat + 2) % 3],
+          1,
+        );
+        expect(distance(apex, right), `${seed}: the cap's apex from the right`).toBeCloseTo(
+          widths[(seat + 1) % 3],
+          1,
+        );
+      }
+    }
+  });
+
+  it("rolls a cylinder's rectangle exactly once round its circles", () => {
+    // The one length a cylinder net has to get right: a rectangle that is not
+    // the rim's length rolls into a tube its ends do not fit.
+    for (const seed of SEEDS) {
+      const faces = facesOf(build(spec('cylinder', 'net'), seed));
+      const wall = faces.find((face) => face.length === 4);
+      const ends = faces.flatMap((face) => {
+        const radius = circleRadius(face);
+        return radius === null ? [] : [{ face, radius }];
+      });
+      if (!wall) throw new Error('no rectangle was drawn');
+
+      expect(ends, seed).toHaveLength(2);
+      expect(ends[0].radius, seed).toBeCloseTo(ends[1].radius, 1);
+
+      const [across, round] = rectangleOf(wall);
+      expect(round, seed).toBeCloseTo(2 * Math.PI * ends[0].radius, 0);
+      expect(across, seed).toBeLessThan(round);
+
+      // And each end sits on the edge it rolls off rather than floating near it.
+      for (const end of ends) {
+        const middle = centroid(end.face);
+        const gaps = wall.map((corner, index) =>
+          distanceToLine(middle, corner, wall[(index + 1) % 4]),
+        );
+        expect(Math.min(...gaps), seed).toBeCloseTo(end.radius, 1);
+      }
+    }
+  });
+
+  it("cuts a cone's sector so its arc is exactly the base circle's rim", () => {
+    // The sector's angle is not free: too wide and the folded cone's rim is
+    // longer than the circle meant to close it. Both are measured as the
+    // polylines they are drawn as, sampled at the same 6-degree step, so the
+    // comparison is like for like.
+    for (const seed of SEEDS) {
+      const faces = facesOf(build(spec('cone', 'net'), seed));
+      const base = faces.find((face) => circleRadius(face) !== null);
+      const sector = faces.find((face) => circleRadius(face) === null);
+      if (!base || !sector) throw new Error('a cone net needs a sector and a circle');
+
+      const apex = apexOf(sector);
+      if (apex === null) throw new Error('the sector has no corner to fold from');
+
+      const arc = Array.from(
+        { length: sector.length - 1 },
+        (_, step) => sector[(apex + 1 + step) % sector.length],
+      );
+      const arcLength = arc
+        .slice(1)
+        .reduce((total, point, index) => total + distance(arc[index], point), 0);
+      const rim = sides(base).reduce((total, side) => total + side, 0);
+
+      expect(arcLength / rim, seed).toBeCloseTo(1, 1);
+      // A sector, not a whole disc: its two straight edges are a real corner.
+      expect(distance(sector[apex], arc[0]), seed).toBeCloseTo(
+        distance(sector[apex], arc[arc.length - 1]),
+        1,
+      );
+    }
   });
 });
 

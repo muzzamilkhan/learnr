@@ -66,6 +66,16 @@ import type { FigureSpec, Mark, Point } from './types';
  *   draws every edge, the hidden ones dashed.
  * - **Whether the faces are flat or curved, and which shapes they are.** Fixed
  *   by the solid; the nets differ in arrangement, never in what a face is.
+ * - **The mirror is presentation on top of a real lever, never the lever
+ *   itself.** `flipped` negates x, and a sphere, a cone and a cylinder are all
+ *   symmetric about that axis - so mirroring one gives back the same picture
+ *   with its sample points in the other order, which `JSON.stringify` counts as
+ *   a different figure and a child cannot tell apart at all. That is a way to
+ *   pass the anchoring check while defeating the rule it enforces, and it is
+ *   why the mirror is never what makes a solid vary: every solid here has a
+ *   real lever underneath it - which of eleven nets, or a proportion the answer
+ *   does not fix - and the mirror only ever adds to that. A kind that reaches
+ *   for "mirror it" as the variation on a symmetric drawing has no lever at all.
  * - **Which view it is.** `view` is the one parameter a jitter can change that
  *   the *prompt* may already have committed to - "which solid does this net
  *   fold into?" is a question about a net. That is why a prompt naming the view

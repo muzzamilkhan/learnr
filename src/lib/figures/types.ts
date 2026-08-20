@@ -182,9 +182,21 @@ export type FigureSpec =
        * which is what a template asking "how many faces?" wants and what a
        * template whose prompt says "this net" must **not** leave open: the
        * prompt names the view, so the prompt is what pins it.
+       *
+       * A solid that cannot be unfolded is the exception at both ends: a
+       * sphere is always drawn as an object, the jitter never offers a net
+       * for one, and a pinned `'net'` is reported as an authoring mistake.
        */
       view?: Expr;
-      /** Degrees anticlockwise. Omitted, it jitters over the whole turn. */
+      /**
+       * Degrees anticlockwise. Omitted, it jitters over the whole turn - and
+       * **pinning it does not fix the orientation here**, unlike a polygon's
+       * or a spinner's. A solid has no upright, so which of the eight ways
+       * round a net lies, and which side an object's depth leans towards,
+       * stay free whatever this says. That is deliberate: it is what lets a
+       * pinned rotation still satisfy the anchoring check, where a regular
+       * polygon's pinned rotation has to be refused outright.
+       */
       rotation?: Expr;
     };
 
