@@ -9,7 +9,7 @@ import {
   readRecentAnswers,
   readSittings,
 } from '@/lib/records';
-import { readSpeedAttempts, readUnseenRecords } from '@/lib/speed-records';
+import { readSpeedSummaries, readUnseenRecords } from '@/lib/speed-records';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
 
@@ -94,7 +94,7 @@ export default async function ProgressPage({
     // The resolved child's own runs, not the parent's - so the well and the
     // heading above it can never disagree about who is on screen, and so the
     // numbers here survive a banner about this same child being dismissed.
-    readSpeedAttempts(child.id),
+    readSpeedSummaries(child.id),
   ]);
 
   return (

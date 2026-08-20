@@ -7,6 +7,7 @@ import { parsePhoto } from './photo/photo';
 import { extendHouseholdWithShares } from './children';
 import type { FamilyRecord } from './speedrun/leaderboard';
 import { HISTORY_RUNS, type SpeedAttempt } from './speedrun/history';
+import type { SummaryRun } from './speedrun/summary';
 
 /**
  * The Prisma side of speed runs, beside `records.ts` and `accounts.ts` rather
@@ -66,6 +67,52 @@ export async function readSpeedAttempts(userId: string): Promise<SpeedAttempt[] 
     `;
   } catch (error) {
     console.error('Failed to read speed attempts', error);
+    return null;
+  }
+}
+
+/** The latest run and the one before it - all a change needs to be measured. */
+const SUMMARY_RUNS = 2;
+
+/**
+ * One player's runs at each mode, cut to what the report's table needs: the
+ * latest two, plus the best if it is neither of them.
+ *
+ * The table shows a best, a latest run and the change between the latest and
+ * the one before it, so three rows a mode is all it can ever read - and taking
+ * the last few hundred runs and hoping is the shape `readAnsweredQuestions`
+ * already rejects, for the same reason. Two `ROW_NUMBER()` windows over the
+ * same rows do the cutting in the database: one ranks by score so the best
+ * survives however old it is, one ranks by recency so the latest pair always
+ * does. `speedSummaries` takes the maximum over what comes back, which is why
+ * the best has to be in it.
+ *
+ * Null means the read failed, never that nothing has been played - the
+ * distinction `readObservations` draws.
+ */
+export async function readSpeedSummaries(userId: string): Promise<SummaryRun[] | null> {
+  if (!prisma) return [];
+  try {
+    return await prisma.$queryRaw<SummaryRun[]>`
+      SELECT "mode", "correct", "answered", "playedAt"
+      FROM (
+        SELECT "mode", "correct", "answered", "playedAt",
+               ROW_NUMBER() OVER (
+                 PARTITION BY "mode"
+                 -- The earlier run set a tied best, exactly as the cabinet reads it.
+                 ORDER BY "correct" DESC, "playedAt" ASC, "id" ASC
+               ) AS best_place,
+               ROW_NUMBER() OVER (
+                 PARTITION BY "mode"
+                 ORDER BY "playedAt" DESC, "id" DESC
+               ) AS recent_place
+        FROM "SpeedAttempt"
+        WHERE "userId" = ${userId}
+      ) ranked
+      WHERE "best_place" = 1 OR "recent_place" <= ${SUMMARY_RUNS}
+    `;
+  } catch (error) {
+    console.error('Failed to read speed summaries', error);
     return null;
   }
 }

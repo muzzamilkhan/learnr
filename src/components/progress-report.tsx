@@ -3,12 +3,12 @@ import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/repo
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
-import type { SpeedAttempt } from '@/lib/speedrun/history';
+import type { SummaryRun } from '@/lib/speedrun/summary';
 import { ProfileFace } from './profile-face';
 import { ChildPicker, type PickableChild } from './child-picker';
 import { ProgressTopics } from './progress-topics';
 import { ProgressUsage } from './progress-usage';
-import { SpeedRecordsCabinet } from './speed-records';
+import { SpeedTable } from './speed-table';
 import { SubjectPicker } from './subject-picker';
 import { Well } from './well';
 import type { Avatar } from '@/lib/avatars';
@@ -70,7 +70,7 @@ export function ProgressReport({
    * answered a curriculum question yet, since a speed run touches no `Attempt`
    * and so does not depend on it either.
    */
-  speedRuns: SpeedAttempt[] | null;
+  speedRuns: SummaryRun[] | null;
   now: number;
 }) {
   const offsetMinutes = latestOffsetMinutes(observations ?? []);
@@ -131,8 +131,11 @@ export function ProgressReport({
           answered a curriculum question, and the well would otherwise be
           hidden behind a message that is only true of the report above it. */}
       <div className="mt-4">
-        <Well title="Speed runs" note={`${child.name}'s best runs at each mode.`}>
-          <SpeedRecordsCabinet attempts={speedRuns} scale="parent" />
+        <Well
+          title="Speed runs"
+          note={`How ${child.name} is going at each mode, last played first.`}
+        >
+          <SpeedTable runs={speedRuns} />
         </Well>
       </div>
     </>

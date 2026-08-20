@@ -749,6 +749,36 @@ nothing for the mode somebody came to look at. `runHistory`
 because which of two tied runs is starred is not a thing to judge by eye in a
 component.
 
+**A parent's report gets a table instead of the cards** (`SpeedTable`, in the
+`Speed runs` well on `/progress`). The cards are collectibles - a coloured
+frame, a foil sheen, a starred best - and they are built for the player, who
+reads a wall of them by colour the way they read a wall of cards. A parent
+skimming a weekly report is reading down a column instead, so the same data is
+one row a mode: the best, the **latest** run, and the change between that run
+and the one before it. The child's own trophy screen and the parent's own runs
+at `/progress/speed/records` both keep the cabinet - the cards are the right
+shape for the question those screens answer.
+
+**The latest run is the number in the middle, and the best is only the standing
+figure.** A best cannot fall, so a table of bests is a high-water mark that
+reads the same whether a child improved, plateaued or stopped playing a
+fortnight ago - it cannot answer the question the report exists for. The change
+beside it is what a parent is actually reading the row for, and it is a
+percentage of the previous run except where that run scored nought, where a
+percentage is a division by zero and the count gained is the only honest thing
+to put there. A first run has nothing to compare against and gets an em dash
+rather than a zero, since no change and no previous run are different things.
+Rows are ordered by when a mode was last played, freshest first - the
+leaderboard's rule and the cabinet's, for their reason.
+
+`speedSummaries` (`src/lib/speedrun/summary.ts`) is the pure half, beside
+`history.ts`, and `readSpeedSummaries` is the read. It takes the latest two runs
+per mode **and** the best, with two `ROW_NUMBER()` windows over the same rows:
+one ranks by score so the best survives however old it is, one by recency so the
+pair the change is measured from always does. The best is then the maximum over
+what came back rather than a number read from somewhere else, so the table can
+never claim a best that none of its own rows could have set.
+
 Every record set before the table existed is backfilled as **one** run each,
 carrying the record's own `achievedAt` - one run is all that can honestly be
 recovered, since the best was the only run ever written down. Without it a
@@ -1279,17 +1309,37 @@ deliberately, and without that line a parent reads 76% as a C.
 `recharts` draws the topic bars and is the project's only UI dependency. Height
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
-of failures. **Its labels lie flat where there is room and turn on their side
-where there isn't**: a topic name is several words and a year's worth of topics
-puts a dozen bars across a panel, so on a phone flat labels collided however
-they were wrapped. Vertical they cannot collide at all, and what limits them is
-the height reserved below the axis - one number, the same for every bar. Flat
-is the better read where it fits, so from `md` up they lie down, and what limits
-them there is the bar's own width, measured with a `ResizeObserver` rather than
-declared - a label is only ever as wide as the band it sits under. When even
-that leaves nothing legible (`MIN_CHARS`) they turn back on their side, because
-a row of stumps is worse than a tilted head. Anything longer than its budget is
-elided either way, and the tooltip still names the topic in full. The practice calendar is hand-rolled SVG and server-rendered - no
+of failures. **Its labels lie flat where there is room and tilt to
+`LABEL_ANGLE` (30 degrees) where there isn't**: a topic name is several words
+and a year's worth of topics puts a dozen bars across a panel, so on a phone
+flat labels collided however they were wrapped. Flat is the better read where
+it fits, so from `md` up they lie down, and what limits them there is the bar's
+own width, measured with a `ResizeObserver` rather than declared - a label is
+only ever as wide as the band it sits under. When even that leaves nothing
+legible (`MIN_CHARS`) they tilt. Anything longer than its budget is elided
+either way, and the tooltip still names the topic in full.
+
+**They used to turn fully on their side, and 30 degrees is the trade that
+replaced it.** Vertical labels cannot collide whatever the bar width and need no
+width at all, which is exactly why they fit a phone - but reading one means
+turning the phone, and a label nobody reads is not doing its job. The geometry
+of the tilt is `src/lib/chart/axis-labels.ts`, pure and tested for the reason
+`photo/crop.ts` gives: it is geometry, and a phone is both the case that goes
+wrong and the hardest thing to keep checking by hand. A label is anchored at its
+**end**, under the bar it names, since which bar a name belongs to is the one
+thing a tilted axis can get wrong. The tilt then costs two things vertical got
+for free, and both are measured rather than hoped for. **Horizontal room**: a
+label leans up and to the left, an SVG clips at its own edge, and what runs off
+is simply gone - so the chart takes a **gutter** on its left, sized to what the
+longest name actually needs, capped at `MAX_GUTTER_SHARE` of the width so the
+bars never become slivers, and nothing at all when the names are short.
+**Clearance from the label next door**: tilted labels are parallel strips
+separated by the band *across* the tilt rather than the bar width, and length
+cannot help since two strips are the same distance apart however long they are -
+so the type size comes down as far as `MIN_FONT`, which buys back characters as
+well as daylight. `CHART_INSETS` is shared with the component rather than
+written twice, because two copies of the value axis' width is how a label starts
+being clipped by a margin nobody told the geometry about. The practice calendar is hand-rolled SVG and server-rendered - no
 library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
 (`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
 carry weekday labels, since a column that is Monday one week and Thursday the

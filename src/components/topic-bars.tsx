@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { axisLabels, CHART_INSETS, LABEL_ANGLE } from '@/lib/chart/axis-labels';
 
 /**
  * How much of each topic has been answered, and how much of that was right.
@@ -27,7 +28,7 @@ export interface TopicBar {
 /**
  * Declared rather than left to the container: ResponsiveContainer renders
  * nothing until it mounts, and without a height the whole page jumps when it does.
- * Tall enough that the rotated labels below take their room out of the page
+ * Tall enough that the tilted labels below take their room out of the page
  * rather than out of the bars.
  */
 const HEIGHT = 300;
@@ -36,36 +37,12 @@ const HEIGHT = 300;
  * Which way the labels run is a question about width, so it is asked of the
  * viewport rather than decided once. On a phone the panel is a few hundred
  * pixels across and a dozen topics leave a bar barely wider than a letter, so
- * the labels are turned on their side: vertical they cannot collide at all, and
- * what limits them is the height reserved below the axis, which is one number
- * and the same for every bar. On a laptop there is room to lay them flat, which
- * is the way a label is read without tilting your head, so that is what a wide
- * screen gets.
+ * a flat label has nowhere to go and the labels are tilted instead. On a laptop
+ * there is room to lay them flat, which is the way a label is read with no tilt
+ * at all, so that is what a wide screen gets. `axisLabels` is where the two are
+ * chosen between, and the geometry behind it is tested there.
  */
 const DESKTOP = '(min-width: 768px)';
-
-/** Room below the axis for the labels, in each of the two orientations. */
-const LABEL_HEIGHT = { vertical: 124, horizontal: 34 };
-
-/** Roughly what a 12px label gets through in `LABEL_HEIGHT.vertical` pixels. */
-const MAX_CHARS = 18;
-
-/** About what one character of the 12px label costs, for the flat-label budget. */
-const CHAR_WIDTH = 6.6;
-
-/** Kept clear of the label next door, so two flat labels never touch. */
-const LABEL_GAP = 8;
-
-/**
- * Below this a flat label is elided down to nothing worth reading, so a wide
- * screen with a great many topics on it turns them back on their side rather
- * than ruling a row of stumps under the axis. Horizontal is what a desktop
- * gets when horizontal fits.
- */
-const MIN_CHARS = 6;
-
-/** The gutter the value axis and the chart's own margins take out of the width. */
-const NON_PLOT_WIDTH = 36 + 8;
 
 function elide(text: string, max: number): string {
   return text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
@@ -90,7 +67,7 @@ function useIsDesktop(): boolean {
   );
 }
 
-/** The rendered width of the chart, which is what a flat label has to fit into. */
+/** The rendered width of the chart, which is what the labels have to fit into. */
 function useWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState(0);
 
@@ -110,27 +87,32 @@ function TopicTick({
   x = 0,
   y = 0,
   payload,
-  vertical,
+  angled,
   maxChars,
+  fontSize,
 }: {
   x?: number;
   y?: number;
   payload?: { value?: string };
-  vertical: boolean;
+  angled: boolean;
   maxChars: number;
+  fontSize: number;
 }) {
   const text = elide(String(payload?.value ?? ''), maxChars);
 
-  return vertical ? (
-    // Rotated about the tick, anchored at its end, so the text runs downwards
-    // from the axis and reads bottom-to-top - the way an axis label is read.
-    <g transform={`translate(${x},${y + 8})`}>
+  return angled ? (
+    // Rotated about the tick and anchored at its **end**, so the label leans up
+    // and to the left away from the bar it names and finishes directly under
+    // it. Which bar a name belongs to is the one thing a tilted axis can get
+    // wrong, and anchoring the end is what settles it: the name stops where the
+    // bar is, rather than starting there and drifting over its neighbours.
+    <g transform={`translate(${x},${y + 10})`}>
       <text
-        transform="rotate(-90)"
+        transform={`rotate(-${LABEL_ANGLE})`}
         textAnchor="end"
         dominantBaseline="central"
         fill="var(--color-ink-soft)"
-        fontSize={12}
+        fontSize={fontSize}
       >
         {text}
       </text>
@@ -141,7 +123,7 @@ function TopicTick({
         textAnchor="middle"
         dominantBaseline="hanging"
         fill="var(--color-ink-soft)"
-        fontSize={12}
+        fontSize={fontSize}
       >
         {text}
       </text>
@@ -186,32 +168,43 @@ export function TopicBars({ data }: { data: TopicBar[] }) {
   const isDesktop = useIsDesktop();
 
   /**
-   * A flat label is bounded by the bar it sits under, not by the height below
-   * the axis, so its budget has to be measured rather than declared: how many
-   * characters fit is the plot divided by the number of topics. The tooltip
-   * still names the topic in full, which is what makes eliding safe.
+   * The labels are laid out against the box they are actually in rather than a
+   * declared worst case: which way they run, what size they are set at, how
+   * long a name may be, how much of the height they take and how much room they
+   * are left to lean into all fall out of the measured width. The tooltip still
+   * names the topic in full, which is what makes eliding safe.
    */
-  const band = data.length > 0 ? Math.max(width - NON_PLOT_WIDTH, 0) / data.length : 0;
-  const flatChars = Math.floor(Math.max(band - LABEL_GAP, 0) / CHAR_WIDTH);
-  const vertical = !isDesktop || flatChars < MIN_CHARS;
-  const maxChars = vertical ? MAX_CHARS : flatChars;
+  const longestChars = data.reduce((longest, bar) => Math.max(longest, bar.label.length), 0);
+  const labels = axisLabels({ width, count: data.length, longestChars, wide: isDesktop });
 
   return (
     <div ref={box} style={{ height: HEIGHT }}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        {/* The left margin is the gutter a tilted label leans into - blank above
+            the axis and full of names below it. An SVG clips at its own edge,
+            so without it the leftmost name would simply lose its first half. */}
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: CHART_INSETS.right, left: labels.gutter, bottom: 0 }}
+        >
           <CartesianGrid vertical={false} stroke="var(--color-line)" />
           <XAxis
             dataKey="label"
             interval={0}
-            height={vertical ? LABEL_HEIGHT.vertical : LABEL_HEIGHT.horizontal}
+            height={labels.height}
             tickLine={false}
             axisLine={{ stroke: 'var(--color-line)' }}
-            tick={<TopicTick vertical={vertical} maxChars={maxChars} />}
+            tick={
+              <TopicTick
+                angled={labels.angled}
+                maxChars={labels.maxChars}
+                fontSize={labels.fontSize}
+              />
+            }
           />
           <YAxis
             allowDecimals={false}
-            width={36}
+            width={CHART_INSETS.valueAxis}
             tickLine={false}
             axisLine={false}
             tick={{ fill: 'var(--color-ink-soft)', fontSize: 12 }}
