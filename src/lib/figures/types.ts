@@ -64,7 +64,7 @@ export interface Figure {
   marks: readonly Mark[];
 }
 
-export const FIGURE_KINDS = ['polygon', 'angle'] as const;
+export const FIGURE_KINDS = ['polygon', 'angle', 'bar'] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
 /**
@@ -121,6 +121,17 @@ export type FigureSpec =
       armLength?: Expr;
       /** Draw the sweep between the arms. Omitted, true. */
       arc?: Expr;
+    }
+  | {
+      kind: 'bar';
+      /** The values, comma-joined, e.g. "'3,7,5,2'". */
+      values: Expr;
+      /** Category labels, comma-joined. Omitted, categories go unlabelled. */
+      labels?: Expr;
+      /** 'column' | 'dot' | 'line'. Omitted, jitters between column and dot. */
+      style?: Expr;
+      /** Units per axis step. Omitted, jitters over 1, 2, 5 and 10 as the values allow. */
+      scale?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */
