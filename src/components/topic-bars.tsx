@@ -86,6 +86,7 @@ function useWidth(ref: React.RefObject<HTMLDivElement | null>): number {
 function TopicTick({
   x = 0,
   y = 0,
+  index = 0,
   payload,
   angled,
   maxChars,
@@ -93,12 +94,15 @@ function TopicTick({
 }: {
   x?: number;
   y?: number;
+  /** Which bar this tick belongs to - what makes the budget below its own. */
+  index?: number;
   payload?: { value?: string };
   angled: boolean;
-  maxChars: number;
+  /** How many characters each label keeps, in bar order. */
+  maxChars: number[];
   fontSize: number;
 }) {
-  const text = elide(String(payload?.value ?? ''), maxChars);
+  const text = elide(String(payload?.value ?? ''), maxChars[index] ?? 0);
 
   return angled ? (
     // Rotated about the tick and anchored at its **end**, so the label leans up
@@ -170,12 +174,16 @@ export function TopicBars({ data }: { data: TopicBar[] }) {
   /**
    * The labels are laid out against the box they are actually in rather than a
    * declared worst case: which way they run, what size they are set at, how
-   * long a name may be, how much of the height they take and how much room they
-   * are left to lean into all fall out of the measured width. The tooltip still
-   * names the topic in full, which is what makes eliding safe.
+   * much of the height they take, how much room they are left to lean into and
+   * how much of each name survives all fall out of the measured width and where
+   * each name sits. The tooltip still gives the topic in full, which is what
+   * makes eliding safe.
    */
-  const longestChars = data.reduce((longest, bar) => Math.max(longest, bar.label.length), 0);
-  const labels = axisLabels({ width, count: data.length, longestChars, wide: isDesktop });
+  const labels = axisLabels({
+    width,
+    lengths: data.map((bar) => bar.label.length),
+    wide: isDesktop,
+  });
 
   return (
     <div ref={box} style={{ height: HEIGHT }}>

@@ -1330,14 +1330,23 @@ wrong and the hardest thing to keep checking by hand. A label is anchored at its
 thing a tilted axis can get wrong. The tilt then costs two things vertical got
 for free, and both are measured rather than hoped for. **Horizontal room**: a
 label leans up and to the left, an SVG clips at its own edge, and what runs off
-is simply gone - so the chart takes a **gutter** on its left, sized to what the
-longest name actually needs, capped at `MAX_GUTTER_SHARE` of the width so the
-bars never become slivers, and nothing at all when the names are short. **The
-angle is set against that gutter**, since the two pull opposite ways: a flatter
-label is the easier read and reaches further sideways, so it wants a wider
-gutter to lean into. 30 degrees spent most of a phone's panel on one and read as
-a hole punched in the corner of it; 45 halves the gutter - to nothing at all on
-a laptop - and costs about four characters of the longest topic name.
+is simply gone - so the chart takes a **gutter** on its left, capped at
+`MAX_GUTTER_SHARE` of the width so the bars never become slivers. **What that
+gutter is worth is decided by position, not by length**: only the bars near the
+left edge can run out of chart, and a long name over the sixth bar has five
+bars' width of its own to lean across and wants nothing from the gutter at all.
+So each label is asked what *it* needs from where *it* sits and the gutter is
+the largest of those answers, which for a typical run of topic names is nothing.
+Sizing it off the longest name wherever that name sat spent a quarter of a
+phone's panel on room the labels did not want, and read as a hole punched in the
+corner of the panel. Eliding follows position for the same reason: a single
+budget would have to be the leftmost bar's, and trimming a name that has the
+whole plot to lean across, because a different name on the far side is cramped,
+is that same mistake pointed the other way. **The angle is set against the
+gutter too**, since those also pull opposite ways - a flatter label is the
+easier read and reaches further sideways, so it wants more room to lean into.
+30 degrees asked for half again what 45 does, and 45 costs about four characters
+of the longest topic name.
 **Clearance from the label next door**: tilted labels are parallel strips
 separated by the band *across* the tilt rather than the bar width, and length
 cannot help since two strips are the same distance apart however long they are -
