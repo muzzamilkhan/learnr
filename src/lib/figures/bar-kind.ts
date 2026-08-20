@@ -128,30 +128,6 @@ const MAX_CATEGORIES = 5;
 const MAX_DRAWN_VALUES = 12;
 
 /**
- * **The room a category label has is not a constant, so it is not written as
- * one.** `MAX_STEPS` and `MAX_CATEGORIES` are caps the geometry can honour by
- * choosing differently; how wide a category label may be is settled by the
- * data instead - a slot is the plot divided by the number of categories, and
- * no arrangement makes one wider than `DRAWN_SPAN / n`. So the budget is
- * computed from the layout the graph will actually get (`categoryBudget`), and
- * a label past it is reported rather than banned by a number chosen up front.
- *
- * It is measured at `PLAY_LABEL_SIZE`, and that is the one place in this file
- * where the larger call site does not get its way. Two failures hide behind
- * "that label is too big":
- *
- * - **Clipping** - ink outside the box, which is simply gone (`labels.ts`,
- *   lesson 1). Geometry's to prevent, and prevented: `plotShape` sizes the
- *   drawing so the widest step label *and* the widest category label land
- *   inside the box **at report scale**, whatever was authored. Nothing here
- *   relaxes that.
- * - **Collision** - labels touching. Geometry cannot fix this one, so someone
- *   has to be told. Judged at play-screen scale because that is where the
- *   child reads the graph; the same labels do crowd each other in a 64px
- *   report thumbnail, which is a reminder of a question already answered.
- *
- */
-/**
  * The most characters a step's label may carry, derived from the room the left
  * margin can give up: a label that wide leaves the plot exactly
  * `MIN_PLOT_WIDTH` and anything wider eats into it. It is **reported**, never
@@ -211,8 +187,12 @@ function stepsFor(max: number, scale: number): number {
  * a column that stops between two ticks is a column nobody can read a number
  * off, which is the whole point of the picture.
  */
-function scaleFor(values: readonly number[], max: number, pinned: number | undefined, rng: Rng): number {
-  if (pinned !== undefined && pinned > 0 && stepsFor(max, pinned) <= MAX_STEPS) return pinned;
+function scaleCandidates(
+  values: readonly number[],
+  max: number,
+  pinned: number | undefined,
+): number[] {
+  if (pinned !== undefined && pinned > 0 && stepsFor(max, pinned) <= MAX_STEPS) return [pinned];
 
   const fits = SCALE_LADDER.filter((step) => {
     const steps = stepsFor(max, step);
@@ -222,10 +202,35 @@ function scaleFor(values: readonly number[], max: number, pinned: number | undef
     values.every((value) => Math.abs(value / step - Math.round(value / step)) < EPSILON),
   );
   const pool = exact.length > 0 ? exact : fits;
-  if (pool.length > 0) return rng.pick(pool);
+  if (pool.length > 0) return pool;
 
   // Past the ladder's reach - a step of the data's own, so the axis still fits.
-  return Math.max(EPSILON, Math.ceil(max / MAX_STEPS));
+  return [Math.max(EPSILON, Math.ceil(max / MAX_STEPS))];
+}
+
+function scaleFor(values: readonly number[], max: number, pinned: number | undefined, rng: Rng): number {
+  // A pick from one candidate is still a pick: a pinned scale and the
+  // past-the-ladder fallback go through the same door as the jittered pool, so
+  // there is one path here rather than three with a draw on only one of them.
+  return rng.pick(scaleCandidates(values, max, pinned));
+}
+
+/**
+ * The widest the axis's own top label can come out, over every scale that could
+ * be picked for this data.
+ *
+ * **The tallest value is not this number**, which is the trap: the axis is
+ * labelled to `steps x scale`, and rounding a value up to a whole step can
+ * carry it into another digit - `'999999'` is six characters and the axis above
+ * it reads `1000000`, which is seven. Anything that reasons about the left
+ * margin has to ask the axis, not the data, or it budgets for a label narrower
+ * than the one that gets drawn: the guard on `MAX_STEP_CHARS` missed that
+ * family entirely, and `categoryBudget` was optimistic by the same digit.
+ */
+function widestAxisTop(values: readonly number[], max: number, pinned: number | undefined): string {
+  return scaleCandidates(values, max, pinned)
+    .map((scale) => formatStep(stepsFor(max, scale) * scale))
+    .reduce((widest, top) => (top.length > widest.length ? top : widest), '');
 }
 
 /**
@@ -275,6 +280,37 @@ function plotShape(stepChars: number, categoryChars: number): { leftBand: number
  * clear the label beside it, at play-screen scale. Measured against the
  * narrowest slot the graph is ever drawn with - the low end of `WIDTH_BAND` -
  * so a label that fits is one that fits on every seed, not on the lucky ones.
+ *
+ * **The room a category label has is not a constant, so it is not written as
+ * one.** `MAX_STEPS` and `MAX_CATEGORIES` are caps the geometry can honour by
+ * choosing differently; how wide a category label may be is settled by the
+ * data instead - a slot is the plot divided by the number of categories, and
+ * no arrangement makes one wider than `DRAWN_SPAN / n`. So this is computed
+ * from the layout the graph will actually get, and a label past it is reported
+ * with the number in the message rather than banned by a figure chosen up
+ * front. A kind with a limit of this shape should do the same: a constant here
+ * would be wrong, and would look derived.
+ *
+ * It is measured at `PLAY_LABEL_SIZE`, and that is the one place in this file
+ * where the larger call site does not get its way. Two failures hide behind
+ * "that label is too big":
+ *
+ * - **Clipping** - ink outside the box, which is simply gone (`labels.ts`,
+ *   lesson 1). Geometry's to prevent, and prevented: `plotShape` sizes the
+ *   drawing so the widest step label *and* the widest category label land
+ *   inside the box **at report scale**, whatever was authored. Nothing here
+ *   relaxes that.
+ * - **Collision** - labels touching. Geometry cannot fix this one, so someone
+ *   has to be told. Judged at play-screen scale because that is where the
+ *   child reads the graph; the same labels do crowd each other in a 64px
+ *   report thumbnail, which is a reminder of a question already answered.
+ *
+ * **It is deliberately self-referential**: `categoryChars` is the label being
+ * judged, and a wider one narrows the plot it is judged against, so a label
+ * over budget makes the budget it failed a little smaller. That is monotone
+ * and it errs strict - it can refuse a label it would have allowed judged
+ * against a roomier plot, never the reverse - which is the safe direction for
+ * a check that decides whether a picture is legible.
  */
 function categoryBudget(count: number, stepChars: number, categoryChars: number): number {
   const slot =
@@ -414,13 +450,21 @@ export const barModule: FigureKindModule<'bar'> = {
     if (typeof raw === 'string' && !values) {
       issues.push(`figure.values: ${JSON.stringify(raw)} is not a comma-separated list of numbers`);
     }
+
+    // Read before the labels below, which need it: how tall the axis is drawn
+    // decides how wide its own labels are, and that decides how much of the
+    // width is left for a category's name.
+    const scale = read(spec.scale, 'figure.scale', 'number');
+    const max = values ? Math.max(...values.map((value) => Math.max(value, 0)), 0) : 0;
+    const pinned = typeof scale === 'number' && scale > 0 ? scale : undefined;
+
     if (values) {
-      // The axis reaches at least as high as the tallest value, so a value
-      // needing more characters than the margin can give guarantees a step
-      // label that wide - whichever scale is chosen for it. Reported rather
-      // than clamped: `build` draws the label at its true width and the plot
+      // Asked of the axis, not of the data: `build` labels the axis at
+      // `steps x scale`, and rounding the tallest value up to a whole step can
+      // carry it into another digit - see `widestAxisTop`. Reported rather than
+      // clamped: `build` draws the label at its true width and the plot
       // narrows, which is honest, but nobody should ship a graph like it.
-      const top = formatStep(Math.max(...values.map((value) => Math.max(value, 0)), 0));
+      const top = widestAxisTop(values, max, pinned);
       if (top.length > MAX_STEP_CHARS) {
         issues.push(
           `figure.values: an axis reaching ${top} needs ${top.length} characters beside` +
@@ -440,6 +484,26 @@ export const barModule: FigureKindModule<'bar'> = {
       }
     }
 
+    if (typeof scale === 'number') {
+      if (scale <= 0) {
+        issues.push(`figure.scale: ${scale} is not a step the axis can be counted in`);
+      } else if (values && values.length > 0) {
+        const steps = stepsFor(max, scale);
+        if (steps > MAX_STEPS) {
+          issues.push(
+            `figure.scale: ${scale} leaves ${steps} steps on the axis, more than the` +
+              ` ${MAX_STEPS} whose labels stay clear of one another, so a step that fits` +
+              ' would be drawn instead',
+          );
+        } else if (steps < MIN_STEPS) {
+          issues.push(
+            `figure.scale: ${scale} leaves the axis a single step, with nothing between` +
+              ' the bottom and the top to read a value against',
+          );
+        }
+      }
+    }
+
     const labels = read(spec.labels, 'figure.labels', 'string');
     if (typeof labels === 'string') {
       const names = parseLabels(labels);
@@ -448,13 +512,13 @@ export const barModule: FigureKindModule<'bar'> = {
       }
       const longest = names.reduce((a, b) => (b.length > a.length ? b : a), '');
       if (values && longest.length > 0) {
-        // The axis reaches at least as high as the tallest value, so its own
-        // label is at least this wide - and a wider one only narrows the plot
-        // further, which makes this budget the generous reading. Erring that
-        // way is deliberate: this refuses content, and it should refuse only
-        // what is certainly unreadable.
-        const stepChars = formatStep(Math.max(...values.map((v) => Math.max(v, 0)), 0)).length;
-        const budget = categoryBudget(values.length, stepChars, longest.length);
+        // The widest axis the scale could give it, so the budget is the one
+        // that holds on every seed rather than on the lucky ones.
+        const budget = categoryBudget(
+          values.length,
+          widestAxisTop(values, max, pinned).length,
+          longest.length,
+        );
         if (longest.length > budget) {
           issues.push(
             `figure.labels: ${JSON.stringify(longest)} needs ${longest.length} characters` +
@@ -471,27 +535,6 @@ export const barModule: FigureKindModule<'bar'> = {
         `figure.style: ${JSON.stringify(style)} is not a graph style` +
           ` (expected ${STYLES.slice(0, -1).join(', ')} or ${STYLES[STYLES.length - 1]})`,
       );
-    }
-
-    const scale = read(spec.scale, 'figure.scale', 'number');
-    if (typeof scale === 'number') {
-      if (scale <= 0) {
-        issues.push(`figure.scale: ${scale} is not a step the axis can be counted in`);
-      } else if (values && values.length > 0) {
-        const steps = stepsFor(Math.max(...values.map((value) => Math.max(value, 0)), 0), scale);
-        if (steps > MAX_STEPS) {
-          issues.push(
-            `figure.scale: ${scale} leaves ${steps} steps on the axis, more than the` +
-              ` ${MAX_STEPS} whose labels stay clear of one another, so a step that fits` +
-              ' would be drawn instead',
-          );
-        } else if (steps < MIN_STEPS) {
-          issues.push(
-            `figure.scale: ${scale} leaves the axis a single step, with nothing between` +
-              ' the bottom and the top to read a value against',
-          );
-        }
-      }
     }
 
     return issues;

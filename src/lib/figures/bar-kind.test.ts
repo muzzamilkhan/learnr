@@ -55,6 +55,27 @@ function expectInsideTheBox(figure: Figure, note = '') {
   }
 }
 
+/**
+ * The furthest any label's ink pokes outside the box, at report scale - zero
+ * when everything is inside. The measuring half of `expectInsideTheBox`, split
+ * out because the sweep below wants the number rather than an assertion.
+ */
+function worstOverflow(figure: Figure): number {
+  let worst = 0;
+  for (const mark of figure.marks) {
+    if (mark.kind !== 'label') continue;
+    const half = (mark.text.length * REPORT_CHAR) / 2;
+    worst = Math.max(
+      worst,
+      -(mark.at[0] - half),
+      mark.at[0] + half - FIGURE_BOX,
+      -(mark.at[1] - REPORT_INK / 2),
+      mark.at[1] + REPORT_INK / 2 - FIGURE_BOX,
+    );
+  }
+  return worst;
+}
+
 /** How tall one bar stands, in the fitted box (y is down there, so this is a span). */
 const height = (points: readonly (readonly [number, number])[]) => {
   const ys = points.map(([, y]) => y);
@@ -211,7 +232,12 @@ describe('the bar figure kind', () => {
       // The most categories, each carrying the longest label that graph allows.
       ['five categories', { kind: 'bar', values: "'4,8,6,2,10'", labels: "'Mo,Tu,We,Th,Fr'" }],
       // Fewer categories buy longer labels; this is that trade at its end.
-      ['long labels', { kind: 'bar', values: "'3,7,5'", labels: "'Mond,Tues,Wedn'" }],
+      ['long labels', { kind: 'bar', values: "'2,3,4'", labels: "'Mond,Tues,Wedn'" }],
+      // The same three categories, with an axis that reaches two digits: the
+      // wider axis takes a character off what a category label may be, so this
+      // is the *same* corner one step along. It is here because the budget
+      // moving with the axis is the thing that was wrong before.
+      ['long labels, wider axis', { kind: 'bar', values: "'3,7,5'", labels: "'Mon,Tue,Wed'" }],
       // The widest value axis, which is the other label that reaches an edge.
       ['a wide axis', { kind: 'bar', values: "'100000,300000,500000'" }],
       // Both at once, plus a category count to squeeze them.
@@ -275,6 +301,66 @@ describe('the bar figure kind', () => {
     expect(figureIssues({ kind: 'bar', values: "'1000000,3000000'" }, {}).join()).toContain(
       'figure.values',
     );
+  });
+
+  it('never clips a label without saying so, whatever it is given', () => {
+    // The invariant the three tests above sample, stated once and swept: a
+    // shape may draw its labels cramped, and it may draw them outside the box
+    // if what it was handed cannot be drawn at all - but it may never do the
+    // second one *silently*. Clipping is invisible on the play screen and
+    // slices a character off in every report row, so a shape that clips has to
+    // be a shape `figureIssues` refuses.
+    //
+    // Eight categories by ten characters is far past anything legal, which is
+    // the point: the guarantee is about the shapes nobody validated, since
+    // those are the ones a child meets mid-session.
+    const magnitudes = [1, 3, 7, 9, 12, 47, 99, 100, 999, 5000, 999998, 999999];
+    const silent: string[] = [];
+
+    for (let count = 1; count <= 8; count++) {
+      for (let chars = 0; chars <= 10; chars++) {
+        for (const magnitude of magnitudes) {
+          const values = Array.from({ length: count }, (_, index) =>
+            Math.max(1, Math.round(magnitude * (1 - index * 0.13))),
+          ).join(',');
+          const names = Array.from({ length: count }, () => 'Wednesday'.slice(0, chars)).join(',');
+          const spec: FigureSpec =
+            chars === 0
+              ? { kind: 'bar', values: `'${values}'` }
+              : { kind: 'bar', values: `'${values}'`, labels: `'${names}'` };
+
+          if (figureIssues(spec, {}).length > 0) continue;
+          for (let seed = 0; seed < 12; seed++) {
+            const outside = worstOverflow(build(spec, `bar-sweep-${seed}`));
+            if (outside > 0) {
+              silent.push(`${count} x ${chars} chars, to ${magnitude}: ${outside.toFixed(2)} out`);
+            }
+          }
+        }
+      }
+    }
+
+    expect(silent).toEqual([]);
+  });
+
+  it('measures the axis it will draw, not the tallest value', () => {
+    // The axis is labelled at `steps x scale`, so rounding the tallest value up
+    // to a whole step can carry it into another digit: every one of these is
+    // six characters of data under a seven-character axis, and judging them by
+    // the data called them clean while the top label was sliced off in a
+    // report row.
+    for (const values of [
+      "'999999'",
+      "'999998'",
+      "'999999,500000'",
+      "'800000,999999'",
+      "'999999,999999,999999'",
+    ]) {
+      const issues = figureIssues({ kind: 'bar', values }, {}).join();
+      expect(issues, values).toContain('figure.values');
+      // Named by what gets drawn, which is the whole point of the fix.
+      expect(issues, values).toContain('1000000');
+    }
   });
 
   it('keeps a scale it is given, and picks one that fits when it is not', () => {

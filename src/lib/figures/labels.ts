@@ -68,8 +68,8 @@ export const REPORT_LABEL_SIZE = 16;
  * is the child's whole question rather than a thumbnail. Exported beside its
  * larger twin because the two together are the *range* a kind is drawing for -
  * and because a limit that genuinely cannot be met at report scale (see
- * `bar-kind.ts`'s `MAX_LABEL_CHARS`) has to be measured against something
- * rather than guessed.
+ * `bar-kind.ts`'s `categoryBudget`, and read why before copying the exception)
+ * has to be measured against something rather than guessed.
  */
 export const PLAY_LABEL_SIZE = 7;
 
