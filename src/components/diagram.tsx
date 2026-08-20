@@ -31,29 +31,38 @@ import type { Figure, Mark } from '@/lib/figures/types';
  * real-pixel frame as every other line here rather than a second, disagreeing
  * one.
  *
- * `label` has no such trick available - SVG has no `vector-effect` for
- * `font-size`, and true scale-independence for text needs a measured
- * counter-transform (a `ResizeObserver`, the way `Prompt` in
- * `play-session.tsx` measures its own box) that nothing has built yet. No
- * template emits a `label` mark today, so `LABEL_SIZE` stays a plain, flat
- * viewBox quantity rather than being derived off `strokeWidth` the way the
- * dot and the dash are - deriving it would be the wrong direction, not just
- * an approximation: `strokeWidth` is a real-pixel number, and the caller
- * choosing a *larger* one is already the signal that the rendered box is
- * larger, which means every viewBox unit already buys more real pixels.
- * Scaling `fontSize` by `strokeWidth` too would double-count that, spreading
- * the rendered label size *further* apart between the two call sites than
- * a flat constant does, not closer - worse than doing nothing. It is inert
- * today, since nothing emits a `label` mark, but it should not be wrong on
- * the way in; whoever adds the first label-emitting figure kind should give
- * it the measured treatment instead of trusting this constant.
+ * `label` has no `vector-effect` trick available - SVG only exempts stroke
+ * geometry from the viewBox's own scaling, never `font-size`, so a `<text>`
+ * shrinks with a small box exactly like an unmarked coordinate would. True
+ * scale-independence would need a measured counter-transform (a
+ * `ResizeObserver`, the way `Prompt` in `play-session.tsx` measures its own
+ * box), which nothing here builds. What is available instead is
+ * `strokeWidth` itself: the caller already picks a bigger one for the play
+ * screen's large box and a smaller one for the report's ~64px thumbnail, so
+ * it is a real-pixel signal for which of the two very differently sized
+ * places this is - the same signal `dotDiameter` and `dash` read, just read
+ * the other way. The dot and the dash *multiply* by `strokeWidth`, because a
+ * heavier line should carry visually heavier marks at whatever size it is
+ * drawn. `LABEL_SIZE_SCALE / strokeWidth` divides instead, because text does
+ * not get `dotDiameter`'s free ride: left alone it already shrinks with the
+ * small box's smaller scale, and a *larger* `strokeWidth` is exactly the sign
+ * that the scale is larger still - multiplying by it would shrink the
+ * report's label a second time rather than counteract the first shrink, the
+ * same mistake spelled out for a future author of this code before anything
+ * called for it. Dividing pushes the opposite way: the play screen's bigger
+ * `strokeWidth` buys a *smaller* viewBox-unit size and the report's smaller
+ * one a bigger one, which narrows how far apart the two sites' rendered label
+ * size ends up rather than widening it - an approximation of the invariance
+ * the strokes get exactly, using the only real-pixel signal this renderer has
+ * without measuring its own box.
  */
 
 /**
- * A plain viewBox constant - see the module comment above for why this one,
- * unlike the dot and the dash, is not derived from `strokeWidth`.
+ * The constant half of `labelSize` - see the module comment above for why
+ * dividing by `strokeWidth`, rather than multiplying like `dotDiameter` and
+ * `dash`, is what keeps a label from reading smaller still in the report.
  */
-const LABEL_SIZE = 10;
+const LABEL_SIZE_SCALE = 24;
 
 export function Diagram({
   figure,
@@ -77,6 +86,7 @@ export function Diagram({
   // caller having picked a different `strokeWidth`.
   const dotDiameter = strokeWidth * 3;
   const dash = `${strokeWidth * 2.5} ${strokeWidth * 1.5}`;
+  const labelSize = LABEL_SIZE_SCALE / strokeWidth;
 
   return (
     <svg
@@ -100,7 +110,7 @@ export function Diagram({
           strokeWidth={strokeWidth}
           dotDiameter={dotDiameter}
           dash={dash}
-          labelSize={LABEL_SIZE}
+          labelSize={labelSize}
         />
       ))}
     </svg>
