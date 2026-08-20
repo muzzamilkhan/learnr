@@ -69,6 +69,16 @@ const WRONG_MIRROR_CLEARANCE = 15;
 export const polygonModule: FigureKindModule<'polygon'> = {
   kind: 'polygon',
 
+  // The shape is the only thing a polygon cannot be drawn without. Leaving the
+  // other three out is the deliberate act: an omitted `rotation` jitters over
+  // the whole turn, and an omitted `mirror` draws no line at all.
+  fields: {
+    shape: 'required',
+    rotation: 'optional',
+    mirror: 'optional',
+    rightAngles: 'optional',
+  },
+
   build(spec: PolygonSpec, scope: Scope, rng: Rng): Mark[] {
     const shape = shapeName(readField(spec.shape, scope));
     const points = unitPolygon(shape, rng);

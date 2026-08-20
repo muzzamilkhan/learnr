@@ -1,6 +1,7 @@
 import { parse, type Node } from '../expr';
 import { isYearLevel, YEAR_LEVELS } from '../curriculum';
 import { figureIssues } from '../figures/build';
+import { figureKindModule } from '../figures/registry';
 import { FIGURE_KINDS } from '../figures/types';
 import { createRng } from '../rng';
 import { generate, tryBindForced } from './generate';
@@ -247,26 +248,23 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
             ` (expected ${FIGURE_KINDS.join(' or ')})`,
         );
       } else {
-        const params: readonly [string, unknown, boolean][] =
-          figure.kind === 'polygon'
-            ? [
-                ['figure.shape', figure.shape, true],
-                ['figure.rotation', figure.rotation, false],
-                ['figure.mirror', figure.mirror, false],
-                ['figure.rightAngles', figure.rightAngles, false],
-              ]
-            : [
-                ['figure.degrees', figure.degrees, true],
-                ['figure.rotation', figure.rotation, false],
-                ['figure.armLength', figure.armLength, false],
-                ['figure.arc', figure.arc, false],
-              ];
+        // Which parameters a kind has is the kind's own to declare
+        // (`FigureKindModule.fields`), not a list kept here: this used to be a
+        // ternary over the kind, which made every new figure kind an edit to
+        // this function as well as to its own file - the third of the three
+        // places the registry exists to collapse into one. The guard above has
+        // already established the kind is one the vocabulary names, so the
+        // module is there; `?? []` is for the type, not for a case that happens.
+        const kindModule = figureKindModule(figure.kind);
 
-        for (const [paramLabel, expr, required] of params) {
+        for (const [name, requirement] of Object.entries(kindModule?.fields ?? {})) {
+          // Read off the untrusted object by name, so it stays `unknown` and is
+          // re-checked by `checkExpr` rather than trusted from the static type.
+          const expr = figure[name];
           // Omitted is what asks for jitter on an optional parameter, and is
           // fine; `checkExpr` itself reports an omitted *required* one.
-          if (expr === undefined && !required) continue;
-          checkExpr(expr, paramLabel, bound);
+          if (expr === undefined && requirement === 'optional') continue;
+          checkExpr(expr, `figure.${name}`, bound);
         }
       }
     }

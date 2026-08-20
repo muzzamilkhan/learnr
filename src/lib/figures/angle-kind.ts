@@ -25,6 +25,16 @@ const DEGREES_RANGE = [1, 359] as const;
 export const angleModule: FigureKindModule<'angle'> = {
   kind: 'angle',
 
+  // Only the angle itself is required - it is the question. The rest omitted is
+  // what asks for jitter: a rotation over the whole turn, and two arms drawn
+  // deliberately unequal (see `angle.ts` for why they must not match).
+  fields: {
+    degrees: 'required',
+    rotation: 'optional',
+    armLength: 'optional',
+    arc: 'optional',
+  },
+
   build(spec: AngleSpec, scope: Scope, rng: Rng): Mark[] {
     const asked = numberValue(readField(spec.degrees, scope));
     const degrees = asked === undefined ? jitter(rng, ...DEGREES_BAND) : clamp(asked, ...DEGREES_RANGE);

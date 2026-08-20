@@ -6,6 +6,20 @@ import { angleModule } from './angle-kind';
 import { polygonModule } from './polygon-kind';
 
 /**
+ * Whether a kind can be drawn without one of its parameters. Two words rather
+ * than a boolean because the states are read very differently and a bare `true`
+ * at the call site says which one it is only to whoever wrote it: an absent
+ * *optional* parameter is what asks for jitter, and an absent *required* one is
+ * an authoring mistake worth a sentence in front of somebody who can fix it.
+ */
+export type FieldRequirement = 'required' | 'optional';
+
+/** Every parameter an author may write on one kind, and which of the two it is. */
+export type FigureFields<K extends FigureKind> = {
+  [P in Exclude<keyof Extract<FigureSpec, { kind: K }>, 'kind'>]-?: FieldRequirement;
+};
+
+/**
  * One kind of figure, in one place: how it is drawn and what an author can get
  * wrong about it.
  *
@@ -18,6 +32,28 @@ import { polygonModule } from './polygon-kind';
  */
 export interface FigureKindModule<K extends FigureKind> {
   kind: K;
+  /**
+   * Every parameter an author may write on this kind. It is what
+   * `validateTemplate` walks to check that each one parses and reads only
+   * variables the template binds - the check that used to be a ternary over the
+   * kind in `validate.ts`, which is the third place a new kind would otherwise
+   * have had to be added.
+   *
+   * **A record rather than a list, so it cannot be written short.** The mapped
+   * type strips the spec's `?` markers, which makes every optional parameter a
+   * required *key here*: a field added to this kind's `FigureSpec` variant and
+   * forgotten in this table is a type error, where a list would simply have
+   * left it unvalidated for good. A key the spec does not declare is refused
+   * from the other side by the same type.
+   *
+   * The order it is written in is the order the errors come out in, since
+   * string keys iterate in insertion order.
+   *
+   * This is a table of *names*, not a validator: what a field means, what type
+   * it has to evaluate to and what values are drawable is `issues`' business,
+   * where the wording and the geometry are.
+   */
+  fields: FigureFields<K>;
   /**
    * The marks this kind draws, in the **maths frame**: x right, y *up*, degrees
    * anticlockwise from east, at whatever scale suits the shape. `fit` in
@@ -62,6 +98,7 @@ export interface FigureKindModule<K extends FigureKind> {
  */
 export interface AnyFigureKindModule {
   kind: FigureKind;
+  fields: Record<string, FieldRequirement>;
   build(spec: FigureSpec, scope: Scope, rng: Rng): Mark[];
   issues(spec: FigureSpec, scope: Scope, read: FieldReader): string[];
 }
