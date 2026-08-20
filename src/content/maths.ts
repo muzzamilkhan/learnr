@@ -14,6 +14,20 @@ const shapeName = (i: Expr): Expr =>
   `${i} == 3 ? 'triangle' : ${i} == 4 ? 'square' : ${i} == 5 ? 'pentagon' : 'hexagon'`;
 
 /**
+ * How many sides the polygon named by the expression `s` has, across the whole
+ * shape vocabulary `src/lib/figures` can draw. Written once because the picture
+ * questions want the same count three ways: as the answer to "how many sides",
+ * as the answer to "how many corners" - a polygon has exactly one corner per
+ * side - and as the number a true/false claim is checked against. Anything that
+ * is not a named triangle or a 5-to-8-sided polygon is a quadrilateral, which
+ * is the entire rest of that vocabulary.
+ */
+const sideCount = (s: Expr): Expr =>
+  `${s} == 'equilateral' || ${s} == 'isosceles' || ${s} == 'scalene' || ` +
+  `${s} == 'right-triangle' ? 3 : ${s} == 'pentagon' ? 5 : ${s} == 'hexagon' ? 6 : ` +
+  `${s} == 'heptagon' ? 7 : ${s} == 'octagon' ? 8 : 4`;
+
+/**
  * Maths course, Kindergarten to Year 6.
  *
  * Content is written against the Australian Curriculum v9.0 (ACARA), using the
@@ -30,9 +44,13 @@ const shapeName = (i: Expr): Expr =>
  *
  * Two rules every template here obeys:
  *
- * - **No question needs a picture.** The curriculum leans heavily on shapes,
- *   number lines and data displays; anything that cannot be asked in words alone
- *   is left out rather than faked.
+ * - **A question may be a picture, and the picture is generated.** The shape,
+ *   symmetry and angle questions carry a `figure` (see `src/lib/figures`), built
+ *   from the same bound scope and the same seeded `Rng` as the prompt around it.
+ *   None of them pins a rotation: an answer that always drew the same diagram
+ *   would teach the diagram, and `validateTemplate` fails a template that does.
+ *   What still cannot be drawn - number lines, bar and picture graphs, clock
+ *   faces - is left out rather than faked.
  * - **A child is never asked to type something the screen cannot express.** The
  *   number pad has no minus key, so the Year 6 integer questions are multiple
  *   choice. Decimal answers start at Year 4, where decimals enter the curriculum.
@@ -47,6 +65,9 @@ export const mathsTemplates: QuestionTemplate[] = [
   // Numbers to 20, subitising, part-part-whole to 10, practical addition,
   // subtraction and sharing, repeating patterns, direct comparison of length
   // and capacity, days of the week, and naming shapes.
+  //
+  // The shape questions are where the first pictures in the course are: three
+  // of them are a drawing with a caption rather than a sentence.
   // ------------------------------------------------------------------
   {
     id: 'maths.K.counting-numbers.next',
@@ -397,6 +418,89 @@ export const mathsTemplates: QuestionTemplate[] = [
         shapeName('mod(n, 4) + 3'),
       ],
     },
+    tags: ['AC9MFSP01'],
+  },
+
+  // The first three questions in the course that are a picture rather than a
+  // sentence. None of them says anything about rotation, so the same shape
+  // arrives turned differently every time - a square recognised only sitting
+  // flat on its base is a square recognised by its picture.
+  {
+    id: 'maths.K.shapes.name-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: 'K',
+    prompt: 'What shape is this?',
+    vars: [
+      { name: 'shape', kind: 'pick', from: ['triangle', 'square', 'rectangle'] },
+      // Equal-sided, two-sides-equal and no-sides-equal are all triangles, and
+      // the drawn one is picked afresh: a child shown only the neat one learns
+      // that picture instead of "three straight sides".
+      { name: 'tri', kind: 'pick', from: ['equilateral', 'isosceles', 'scalene'] },
+      { name: 'drawn', kind: 'expr', expr: "shape == 'triangle' ? tri : shape" },
+    ],
+    answer: 'shape',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'triangle'", "'square'", "'rectangle'"] },
+    figure: { kind: 'polygon', shape: 'drawn' },
+    tags: ['AC9MFSP01'],
+  },
+  {
+    id: 'maths.K.shapes.sides-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: 'K',
+    prompt: 'How many sides does this shape have?',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'isosceles',
+          'scalene',
+          'square',
+          'rectangle',
+          'trapezium',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+    ],
+    answer: sideCount('shape'),
+    hint: 'Touch each side as you count it.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9MFSP01'],
+  },
+  {
+    id: 'maths.K.shapes.is-a-triangle',
+    subject: 'maths',
+    topic: 'shapes',
+    level: 'K',
+    prompt: 'True or false: this shape is a triangle.',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'isosceles',
+          'scalene',
+          'right-triangle',
+          'square',
+          'rectangle',
+          'trapezium',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+      // Through a variable rather than compared inline: `sideCount` is a
+      // ternary chain, and `==` binds tighter than `?:`, so appending the
+      // comparison would quietly test only the chain's last branch.
+      { name: 'sides', kind: 'expr', expr: sideCount('shape') },
+    ],
+    answer: 'sides == 3',
+    figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9MFSP01'],
   },
   {
@@ -761,6 +865,94 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     answer:
       "shape == 'triangle' ? 3 : shape == 'square' ? 4 : shape == 'rectangle' ? 4 : shape == 'pentagon' ? 5 : shape == 'hexagon' ? 6 : 8",
+    tags: ['AC9M1SP01'],
+  },
+  {
+    id: 'maths.1.shapes.name-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '1',
+    prompt: 'What shape is this?',
+    vars: [
+      { name: 'n', kind: 'pick', from: [3, 4, 5, 6] },
+      { name: 'tri', kind: 'pick', from: ['equilateral', 'isosceles', 'scalene'] },
+      {
+        name: 'drawn',
+        kind: 'expr',
+        expr: "n == 3 ? tri : n == 4 ? 'square' : n == 5 ? 'pentagon' : 'hexagon'",
+      },
+    ],
+    answer: shapeName('n'),
+    answerType: 'choice',
+    // The other three shapes, stepped round the 3..6 cycle so they never repeat.
+    choices: {
+      count: 4,
+      distractors: [
+        shapeName('mod(n - 2, 4) + 3'),
+        shapeName('mod(n - 1, 4) + 3'),
+        shapeName('mod(n, 4) + 3'),
+      ],
+    },
+    figure: { kind: 'polygon', shape: 'drawn' },
+    tags: ['AC9M1SP01'],
+  },
+  {
+    id: 'maths.1.shapes.corners-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '1',
+    prompt: 'How many corners does this shape have?',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'isosceles',
+          'right-triangle',
+          'square',
+          'rectangle',
+          'rhombus',
+          'kite',
+          'pentagon',
+          'hexagon',
+          'octagon',
+        ],
+      },
+    ],
+    answer: sideCount('shape'),
+    hint: 'A corner is where two sides meet.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M1SP01'],
+  },
+  {
+    id: 'maths.1.shapes.side-count-claim',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '1',
+    prompt: 'True or false: this shape has {claim} sides.',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'scalene',
+          'square',
+          'rectangle',
+          'trapezium',
+          'kite',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+      { name: 'sides', kind: 'expr', expr: sideCount('shape') },
+      // Claimed as often as not: the false case has to be a near miss rather
+      // than an obviously wrong number, or the picture stops being read.
+      { name: 'claim', kind: 'int', min: '3', max: '6' },
+    ],
+    answer: 'sides == claim',
+    figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9M1SP01'],
   },
   {
@@ -1160,6 +1352,70 @@ export const mathsTemplates: QuestionTemplate[] = [
       "shape == 'triangle' ? 3 : shape == 'quadrilateral' ? 4 : shape == 'pentagon' ? 5 : shape == 'hexagon' ? 6 : shape == 'heptagon' ? 7 : 8",
     tags: ['AC9M2SP01'],
   },
+  {
+    id: 'maths.2.shapes.name-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '2',
+    // The four names a child has to count sides to tell apart - a pentagon and
+    // a hexagon are not told apart at a glance the way a square and a triangle
+    // are, which is the step up from Year 1.
+    prompt: 'What shape is this?',
+    vars: [
+      { name: 'shape', kind: 'pick', from: ['pentagon', 'hexagon', 'heptagon', 'octagon'] },
+    ],
+    answer: 'shape',
+    answerType: 'choice',
+    choices: {
+      count: 4,
+      distractors: ["'pentagon'", "'hexagon'", "'heptagon'", "'octagon'"],
+    },
+    hint: 'Count the sides: 5 pentagon, 6 hexagon, 7 heptagon, 8 octagon.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M2SP01'],
+  },
+  {
+    id: 'maths.2.shapes.sides-picture',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '2',
+    prompt: 'How many sides does this shape have?',
+    vars: [
+      { name: 'shape', kind: 'pick', from: ['pentagon', 'hexagon', 'heptagon', 'octagon'] },
+    ],
+    answer: sideCount('shape'),
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M2SP01'],
+  },
+  {
+    id: 'maths.2.shapes.more-sides-than',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '2',
+    prompt: 'True or false: this shape has more than {n} sides.',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'scalene',
+          'isosceles',
+          'square',
+          'trapezium',
+          'parallelogram',
+          'pentagon',
+          'hexagon',
+          'heptagon',
+          'octagon',
+        ],
+      },
+      { name: 'sides', kind: 'expr', expr: sideCount('shape') },
+      { name: 'n', kind: 'int', min: '3', max: '7' },
+    ],
+    answer: 'sides > n',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M2SP01'],
+  },
 
   // ------------------------------------------------------------------
   // Year 3
@@ -1540,6 +1796,45 @@ export const mathsTemplates: QuestionTemplate[] = [
     vars: [{ name: 'turn', kind: 'pick', from: ['half', 'three-quarter', 'full'] }],
     answer: "turn == 'half' ? 2 : turn == 'three-quarter' ? 3 : 4",
     hint: 'A quarter turn is one right angle.',
+    tags: ['AC9M3M05'],
+  },
+  // The first two angle questions that show the angle. Neither pins a rotation
+  // or an arm length, so the same angle arrives pointing anywhere and drawn
+  // with a long arm and a short one - a child who reads a longer pair of arms
+  // as a bigger angle is making the mistake this content description names.
+  {
+    id: 'maths.3.angles.against-a-right-angle',
+    subject: 'maths',
+    topic: 'angles',
+    level: '3',
+    prompt: 'Is this angle bigger or smaller than a right angle?',
+    vars: [{ name: 'd', kind: 'int', min: '20', max: '160', step: 5 }],
+    // Kept well clear of 90 on either side: an angle five degrees off a right
+    // angle is not a child failing to compare, it is a picture with no
+    // answerable difference in it.
+    constraints: ['abs(d - 90) >= 25'],
+    answer: "d > 90 ? 'bigger' : 'smaller'",
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'bigger'", "'smaller'"] },
+    hint: 'A right angle is the square corner of a page.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M3M05'],
+  },
+  {
+    id: 'maths.3.angles.is-a-right-angle',
+    subject: 'maths',
+    topic: 'angles',
+    level: '3',
+    prompt: 'True or false: this is a right angle.',
+    vars: [
+      { name: 'square', kind: 'pick', from: [1, 0] },
+      { name: 'off', kind: 'int', min: '25', max: '70', step: 5 },
+      { name: 'side', kind: 'pick', from: [1, -1] },
+      { name: 'd', kind: 'expr', expr: 'square == 1 ? 90 : 90 + side * off' },
+    ],
+    answer: 'square == 1',
+    hint: 'A right angle is a quarter turn.',
+    figure: { kind: 'angle', degrees: 'd' },
     tags: ['AC9M3M05'],
   },
   {
@@ -1990,6 +2285,45 @@ export const mathsTemplates: QuestionTemplate[] = [
     tags: ['AC9M4M04'],
   },
   {
+    id: 'maths.4.angles.name-picture',
+    subject: 'maths',
+    topic: 'angles',
+    level: '4',
+    prompt: 'What kind of angle is this?',
+    vars: [
+      { name: 'kind', kind: 'pick', from: ['acute', 'right', 'obtuse', 'straight'] },
+      { name: 'small', kind: 'int', min: '15', max: '80', step: 5 },
+      { name: 'large', kind: 'int', min: '100', max: '170', step: 5 },
+      {
+        name: 'd',
+        kind: 'expr',
+        expr: "kind == 'acute' ? small : kind == 'right' ? 90 : kind == 'obtuse' ? large : 180",
+      },
+    ],
+    answer: 'kind',
+    answerType: 'choice',
+    choices: {
+      count: 4,
+      distractors: ["'acute'", "'right'", "'obtuse'", "'straight'"],
+    },
+    hint: 'Smallest to largest: acute, right, obtuse, straight.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M4M04'],
+  },
+  {
+    id: 'maths.4.angles.is-obtuse',
+    subject: 'maths',
+    topic: 'angles',
+    level: '4',
+    prompt: 'True or false: this angle is obtuse.',
+    vars: [{ name: 'd', kind: 'int', min: '15', max: '170', step: 5 }],
+    constraints: ['abs(d - 90) >= 20'],
+    answer: 'd > 90',
+    hint: 'An obtuse angle is bigger than a right angle and smaller than a straight one.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M4M04'],
+  },
+  {
     id: 'maths.4.symmetry.lines',
     subject: 'maths',
     topic: 'symmetry',
@@ -2006,6 +2340,76 @@ export const mathsTemplates: QuestionTemplate[] = [
     answer:
       "shape == 'square' ? 4 : shape == 'rectangle' ? 2 : shape == 'equilateral triangle' ? 3 : shape == 'regular pentagon' ? 5 : 6",
     hint: 'A regular shape has as many lines of symmetry as it has sides.',
+    tags: ['AC9M4SP03'],
+  },
+  {
+    id: 'maths.4.symmetry.dashed-line',
+    subject: 'maths',
+    topic: 'symmetry',
+    level: '4',
+    prompt: 'True or false: the dashed line is a line of symmetry.',
+    vars: [
+      { name: 'real', kind: 'pick', from: [1, 0] },
+      // Every shape here has at least one axis, so the true case is always
+      // drawable, and none is rounder than a hexagon, so the false case's line
+      // is far enough off a real axis to be seen - a heptagon's wrong line
+      // lands eleven degrees out, which is a picture with no answer in it.
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'isosceles',
+          'trapezium',
+          'kite',
+          'square',
+          'rectangle',
+          'rhombus',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+    ],
+    answer: 'real == 1',
+    hint: 'Fold along the line: would the two halves land on top of each other?',
+    figure: { kind: 'polygon', shape: 'shape', mirror: 'real == 1' },
+    tags: ['AC9M4SP03'],
+  },
+  {
+    id: 'maths.4.symmetry.count-picture',
+    subject: 'maths',
+    topic: 'symmetry',
+    level: '4',
+    prompt: 'How many lines of symmetry does this shape have?',
+    vars: [
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'scalene',
+          'right-triangle',
+          'parallelogram',
+          'isosceles',
+          'trapezium',
+          'kite',
+          'rectangle',
+          'rhombus',
+          'equilateral',
+          'square',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+    ],
+    // None, one, two, then the regular shapes, which have one per side. Zero is
+    // an answer the number pad can give, and a shape with no symmetry at all is
+    // the case the worded version of this question never gets to ask.
+    answer:
+      "shape == 'scalene' || shape == 'right-triangle' || shape == 'parallelogram' ? 0 : " +
+      "shape == 'isosceles' || shape == 'trapezium' || shape == 'kite' ? 1 : " +
+      "shape == 'rectangle' || shape == 'rhombus' ? 2 : shape == 'equilateral' ? 3 : " +
+      "shape == 'square' ? 4 : shape == 'pentagon' ? 5 : 6",
+    figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9M4SP03'],
   },
   {
@@ -2046,8 +2450,8 @@ export const mathsTemplates: QuestionTemplate[] = [
   // Decimals to more than two places, factors, multiples and divisibility,
   // adding fractions with related denominators, percentages, larger
   // multiplication, division with remainders, inverse operations, metric
-  // conversions, perimeter and area, 12- and 24-hour time, and angles in
-  // degrees.
+  // conversions, perimeter and area, 12- and 24-hour time, angles in degrees,
+  // and reflecting a shape onto itself.
   // ------------------------------------------------------------------
   {
     id: 'maths.5.decimals.count-hundredths',
@@ -2458,6 +2862,86 @@ export const mathsTemplates: QuestionTemplate[] = [
     hint: 'Under 90 is acute, between 90 and 180 is obtuse, over 180 is reflex.',
     tags: ['AC9M5M04'],
   },
+  {
+    id: 'maths.5.angles.name-picture',
+    subject: 'maths',
+    topic: 'angles',
+    level: '5',
+    // The same three names as the question above, asked of a drawing rather
+    // than of a number. Naming an angle you are told the size of is arithmetic;
+    // naming one you are shown is the estimating half of this description.
+    prompt: 'Is this angle acute, obtuse or reflex?',
+    vars: [
+      { name: 'kind', kind: 'pick', from: ['acute', 'obtuse', 'reflex'] },
+      { name: 'small', kind: 'int', min: '15', max: '80', step: 5 },
+      { name: 'large', kind: 'int', min: '100', max: '170', step: 5 },
+      { name: 'round', kind: 'int', min: '190', max: '340', step: 5 },
+      {
+        name: 'd',
+        kind: 'expr',
+        expr: "kind == 'acute' ? small : kind == 'obtuse' ? large : round",
+      },
+    ],
+    answer: 'kind',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'acute'", "'obtuse'", "'reflex'"] },
+    hint: 'The marked sweep is the angle - a reflex one goes more than half way round.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M5M04'],
+  },
+  {
+    id: 'maths.5.angles.estimate-degrees',
+    subject: 'maths',
+    topic: 'angles',
+    level: '5',
+    prompt: 'About how many degrees is this angle?',
+    vars: [
+      // Stepped round the five sizes so the two distractors are always a
+      // different pair, and never collide with the answer.
+      { name: 'i', kind: 'pick', from: [0, 1, 2, 3, 4] },
+      { name: 'd', kind: 'expr', expr: '30 + 30 * i' },
+    ],
+    answer: 'd',
+    answerType: 'choice',
+    choices: {
+      count: 3,
+      distractors: ['30 + 30 * mod(i + 1, 5)', '30 + 30 * mod(i + 2, 5)'],
+    },
+    hint: 'A right angle is 90 degrees, and half of one is 45.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M5M04'],
+  },
+  {
+    id: 'maths.5.symmetry.flip-over-the-line',
+    subject: 'maths',
+    topic: 'symmetry',
+    level: '5',
+    // Year 4 asks whether the dashed line is a line of symmetry; Year 5 asks
+    // the same picture as a reflection, which is what this description is
+    // about - what a flip changes and what it leaves alone.
+    prompt: 'True or false: flipping this shape over the dashed line would land it exactly on itself.',
+    vars: [
+      { name: 'real', kind: 'pick', from: [1, 0] },
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'equilateral',
+          'isosceles',
+          'trapezium',
+          'kite',
+          'square',
+          'rectangle',
+          'rhombus',
+          'pentagon',
+          'hexagon',
+        ],
+      },
+    ],
+    answer: 'real == 1',
+    figure: { kind: 'polygon', shape: 'shape', mirror: 'real == 1' },
+    tags: ['AC9M5SP03'],
+  },
 
   // ------------------------------------------------------------------
   // Year 6
@@ -2861,6 +3345,41 @@ export const mathsTemplates: QuestionTemplate[] = [
     vars: [{ name: 'a', kind: 'int', min: '15', max: '165', step: 5 }],
     answer: 'a',
     hint: 'Vertically opposite angles are equal.',
+    tags: ['AC9M6M04'],
+  },
+  {
+    id: 'maths.6.angles.rest-of-a-turn',
+    subject: 'maths',
+    topic: 'angles',
+    level: '6',
+    // The picture is what says which of the two angles at the point is meant.
+    // Told in words alone, "the angle on the other side" is the thing the
+    // question would have to explain before it could ask anything.
+    prompt: 'The marked angle is {d} degrees. How many degrees is the angle on the other side of it?',
+    vars: [{ name: 'd', kind: 'int', min: '20', max: '340', step: 5 }],
+    // A straight angle has no other side worth asking about.
+    constraints: ['d != 180'],
+    answer: '360 - d',
+    hint: 'Angles at a point add to 360 degrees.',
+    figure: { kind: 'angle', degrees: 'd' },
+    tags: ['AC9M6M04'],
+  },
+  {
+    id: 'maths.6.angles.rest-of-a-line',
+    subject: 'maths',
+    topic: 'angles',
+    level: '6',
+    // Nothing says how big the marked angle is, so the relationship has to be
+    // read off the drawing rather than taken from the prompt and subtracted.
+    prompt:
+      'The marked angle sits on a straight line with one more angle. Is that other angle bigger or smaller than this one?',
+    vars: [{ name: 'd', kind: 'int', min: '20', max: '160', step: 5 }],
+    constraints: ['abs(d - 90) >= 25'],
+    answer: "d < 90 ? 'bigger' : 'smaller'",
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'bigger'", "'smaller'"] },
+    hint: 'The two add to 180 degrees, so compare this one with 90.',
+    figure: { kind: 'angle', degrees: 'd' },
     tags: ['AC9M6M04'],
   },
   {
