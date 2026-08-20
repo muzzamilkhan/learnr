@@ -75,12 +75,34 @@ const SQUARE_ENOUGH = 1e-6;
  */
 const OFF_AXIS_SHARE = 0.8;
 
+/**
+ * The daylight a shape has to leave between its axes before `mirror: 'false'`
+ * is a fair question, in degrees.
+ *
+ * The wrong line is drawn as far from every axis as the shape allows, and how
+ * far that is falls as the axes multiply: a regular polygon's axes are `180/n`
+ * apart, so the best any line can do is `90/n`. Fifteen degrees is a hexagon's,
+ * which makes this "no rounder than a hexagon" - but it is written as the angle
+ * rather than as a list of shapes, so a shape added later is judged by its own
+ * geometry rather than by whether somebody remembered to add it.
+ *
+ * The warning exists because the alternative is a question with no answerable
+ * difference on the screen. A heptagon with a line twelve degrees off an axis
+ * is not a child failing to see symmetry; it is a picture that does not contain
+ * the answer, and it would be marked wrong either way.
+ */
+const WRONG_MIRROR_CLEARANCE = 15;
+
 export function buildFigure(spec: FigureSpec, scope: Scope, rng: Rng): Figure {
   // An unrecognised kind lands on the polygon path and, with no shape it knows,
   // on an equilateral triangle - the same fallback an unknown shape name gets,
-  // because "something drawable" is the whole contract here.
+  // because "something drawable" is the whole contract here. `?? {}` is the
+  // same contract one step further out: every field below is read off the spec
+  // and every one of them may be missing, so a spec that is missing entirely is
+  // only the case where all of them are.
+  const safe = (spec ?? {}) as FigureSpec;
   return fit(
-    spec.kind === 'angle' ? angleFigure(spec, scope, rng) : polygonFigure(spec, scope, rng),
+    safe.kind === 'angle' ? angleFigure(safe, scope, rng) : polygonFigure(safe, scope, rng),
   );
 }
 
@@ -223,12 +245,23 @@ function mirrorLine(
 function offAxis(axes: readonly number[], rng: Rng): number {
   if (axes.length === 0) return jitter(rng, 0, 180);
 
-  const clearance = (degrees: number) =>
-    Math.min(...axes.map((axis) => separation(degrees, axis)));
+  const best = bestClearance(axes);
+  return rng.pick(
+    CANDIDATE_LINES.filter((degrees) => clearanceAt(degrees, axes) >= best * OFF_AXIS_SHARE),
+  );
+}
 
-  const candidates = Array.from({ length: 180 }, (_, degrees) => degrees);
-  const best = Math.max(...candidates.map(clearance));
-  return rng.pick(candidates.filter((degrees) => clearance(degrees) >= best * OFF_AXIS_SHARE));
+/** Every line worth considering, to the degree. */
+const CANDIDATE_LINES = Array.from({ length: 180 }, (_, degrees) => degrees);
+
+/** How far one line is from the nearest axis - 90, the most there is, when there are none. */
+function clearanceAt(degrees: number, axes: readonly number[]): number {
+  return axes.length === 0 ? 90 : Math.min(...axes.map((axis) => separation(degrees, axis)));
+}
+
+/** The most daylight any line can find between a shape's axes. */
+function bestClearance(axes: readonly number[]): number {
+  return Math.max(...CANDIDATE_LINES.map((degrees) => clearanceAt(degrees, axes)));
 }
 
 /** How far apart two lines are, in degrees - never more than 90, since a line has no direction. */
@@ -316,6 +349,15 @@ function boundsOf(marks: readonly Mark[]): [number, number, number, number] | nu
  */
 export function figureIssues(spec: FigureSpec, scope: Scope): string[] {
   const issues: string[] = [];
+
+  // Guarded here rather than left to the caller: this is the function that will
+  // be handed content authored outside the app, where the rule is that an
+  // authoring mistake is *reported* and never thrown - and "the figure is not
+  // an object" is the first mistake such a file can make.
+  if (typeof spec !== 'object' || spec === null || Array.isArray(spec)) {
+    return ['figure must be an object'];
+  }
+
   const kind = (spec as { kind?: unknown }).kind;
 
   if (typeof kind !== 'string' || !(FIGURE_KINDS as readonly string[]).includes(kind)) {
@@ -356,6 +398,21 @@ export function figureIssues(spec: FigureSpec, scope: Scope): string[] {
       issues.push(`${label}: expected ${expected}, got ${typeof value} (${JSON.stringify(value)})`);
       return undefined;
     }
+    // **The one place the two halves of this module could disagree.** `NaN` is
+    // a number to `typeof` and fails every comparison, so a `degrees` of `x / y`
+    // with both zero passed both the type check and the range check and was
+    // reported clean - while `buildFigure`, which needs a number it can draw,
+    // threw it away and jittered an angle instead. That is the anchoring
+    // failure this module exists to prevent, arriving through the door marked
+    // "validated": a template asking whether an angle is acute, drawing an
+    // angle unrelated to its own answer, differently on every seed. The
+    // expression language does not guard division, so `0 / 0`, `mod(x, 0)` and
+    // `sqrt(-1)` all arrive here looking like numbers.
+    if (expected === 'number' && !Number.isFinite(value)) {
+      issues.push(`${label}: ${String(value)} is not a number that can be drawn,` +
+        ` so it would be ignored and a jittered value drawn instead`);
+      return undefined;
+    }
     return value;
   };
 
@@ -372,14 +429,22 @@ export function figureIssues(spec: FigureSpec, scope: Scope): string[] {
     check(polygon.rightAngles, 'figure.rightAngles', 'boolean');
 
     const mirror = check(polygon.mirror, 'figure.mirror', 'boolean');
-    if (
-      mirror === true &&
-      typeof shape === 'string' &&
-      (POLYGON_SHAPES as readonly string[]).includes(shape) &&
-      symmetryAxes(shape as PolygonShape).length === 0
-    ) {
+    const known =
+      typeof shape === 'string' && (POLYGON_SHAPES as readonly string[]).includes(shape);
+    const axes = known ? symmetryAxes(shape as PolygonShape) : [];
+
+    const named = known ? `${/^[aeiou]/.test(String(shape)) ? 'an' : 'a'} ${shape}` : '';
+
+    if (mirror === true && known && axes.length === 0) {
       issues.push(
-        `figure.mirror: a ${shape} has no line of symmetry, so no true mirror can be drawn`,
+        `figure.mirror: ${named} has no line of symmetry, so no true mirror can be drawn`,
+      );
+    }
+    if (mirror === false && known && bestClearance(axes) < WRONG_MIRROR_CLEARANCE) {
+      issues.push(
+        `figure.mirror: ${named} has ${axes.length} lines of symmetry, so a wrong one can` +
+          ` only be ${Math.round(bestClearance(axes))} degrees off a real axis - too near for` +
+          ` a child to see the difference`,
       );
     }
   } else {

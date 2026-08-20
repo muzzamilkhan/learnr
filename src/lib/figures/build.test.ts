@@ -128,9 +128,11 @@ describe('buildFigure', () => {
   it('draws a different picture on every seed, which is the whole point', () => {
     // The anchoring rule: a child who is shown the same obtuse angle every time
     // learns that picture, not the property - and the report calls it secure.
+    // Every shape, not a hand-picked few: the rule is the point of the feature,
+    // and a subset chosen once stops being representative the moment a shape
+    // changes how it jitters.
     const specs: FigureSpec[] = [
-      { kind: 'polygon', shape: "'square'" },
-      { kind: 'polygon', shape: "'isosceles'" },
+      ...POLYGON_SHAPES.map((shape): FigureSpec => ({ kind: 'polygon', shape: `'${shape}'` })),
       { kind: 'angle', degrees: '120' },
     ];
 
@@ -214,6 +216,10 @@ describe('buildFigure', () => {
     }
   });
 
+  it('draws something even when handed no spec at all', () => {
+    expect(() => build(null as unknown as FigureSpec, 'nothing')).not.toThrow();
+  });
+
   it('falls back to a triangle when it cannot tell what shape was meant', () => {
     expect(outline(build({ kind: 'polygon', shape: "'trapazoid'" }, 'fallback'))).toHaveLength(3);
     expect(outline(build({ kind: 'polygon', shape: 'unbound' }, 'fallback'))).toHaveLength(3);
@@ -236,6 +242,49 @@ describe('figureIssues', () => {
       figureIssues({ kind: 'polygon', shape: 'name', rotation: 'r' }, { name: 'kite', r: 30 }),
     ).toEqual([]);
     expect(figureIssues({ kind: 'angle', degrees: 'd', arc: 'false' }, { d: 135 })).toEqual([]);
+  });
+
+  it('refuses to throw on something that is not a figure at all', () => {
+    // The one function here that will be handed content written outside the
+    // app, where an authoring mistake is reported and never thrown.
+    expect(figureIssues(null as unknown as FigureSpec, {})).toEqual(['figure must be an object']);
+    expect(figureIssues('polygon' as unknown as FigureSpec, {})).toEqual([
+      'figure must be an object',
+    ]);
+  });
+
+  it('names a number that arithmetic has made undrawable', () => {
+    // `0 / 0` is a number to `typeof` and fails every range comparison, so this
+    // is the one way a spec could read as clean and still be drawn at random.
+    const nan = figureIssues({ kind: 'angle', degrees: 'x / y' }, { x: 0, y: 0 });
+    expect(nan).toHaveLength(1);
+    expect(nan[0]).toContain('NaN');
+
+    const infinite = figureIssues({ kind: 'angle', degrees: 'x / y' }, { x: 1, y: 0 });
+    expect(infinite.join()).toContain('Infinity');
+    // And it says what actually happens, which is not clamping.
+    expect(infinite.join()).not.toContain('clamped');
+
+    expect(figureIssues({ kind: 'polygon', shape: "'square'", rotation: 'x / y' }, { x: 0, y: 0 }))
+      .toHaveLength(1);
+    expect(
+      figureIssues({ kind: 'angle', degrees: '90', armLength: 'sqrt(0 - 1)' }, {}),
+    ).toHaveLength(1);
+  });
+
+  it('names a wrong mirror the shape has no room to draw', () => {
+    // A heptagon's seven axes leave a wrong line about twelve degrees off a
+    // real one, which is not a question about symmetry any more.
+    expect(figureIssues({ kind: 'polygon', shape: "'octagon'", mirror: 'false' }, {}).join())
+      .toContain('too near');
+    expect(figureIssues({ kind: 'polygon', shape: "'heptagon'", mirror: 'false' }, {}).join())
+      .toContain('too near');
+
+    // A hexagon is where that stops, and a shape with two axes has all the room
+    // in the world - as does a true mirror on any of them.
+    expect(figureIssues({ kind: 'polygon', shape: "'hexagon'", mirror: 'false' }, {})).toEqual([]);
+    expect(figureIssues({ kind: 'polygon', shape: "'square'", mirror: 'false' }, {})).toEqual([]);
+    expect(figureIssues({ kind: 'polygon', shape: "'octagon'", mirror: 'true' }, {})).toEqual([]);
   });
 
   it('names an unknown kind', () => {

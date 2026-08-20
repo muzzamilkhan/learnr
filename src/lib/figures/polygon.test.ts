@@ -12,6 +12,16 @@ const SEEDS = Array.from({ length: 60 }, (_, index) => `polygon-${index}`);
 
 const draw = (shape: PolygonShape, seed: string) => unitPolygon(shape, createRng(seed));
 
+/** The shapes whose proportions the name settles, leaving nothing here to jitter. */
+const REGULAR: readonly PolygonShape[] = [
+  'equilateral',
+  'square',
+  'pentagon',
+  'hexagon',
+  'heptagon',
+  'octagon',
+];
+
 /** The side lengths, in order round the shape. */
 function sides(points: readonly Point[]): number[] {
   return points.map((point, index) => {
@@ -124,9 +134,19 @@ describe('unitPolygon', () => {
   });
 
   it('varies its proportions from seed to seed, so no one drawing is the shape', () => {
-    for (const shape of ['isosceles', 'scalene', 'rectangle', 'kite', 'trapezium'] as const) {
+    for (const shape of POLYGON_SHAPES.filter((name) => !REGULAR.includes(name))) {
       const drawings = SEEDS.slice(0, 12).map((seed) => JSON.stringify(draw(shape, seed)));
       expect(new Set(drawings).size).toBe(drawings.length);
+    }
+  });
+
+  it('leaves a regular polygon alone, because its name fixes its proportions', () => {
+    // Not an exception to the anchoring rule but the honest shape of it: there
+    // is nothing to vary in a hexagon but its size, which a uniform fit undoes,
+    // so its whole variation is the rotation `buildFigure` supplies.
+    for (const shape of REGULAR) {
+      const drawings = SEEDS.slice(0, 12).map((seed) => JSON.stringify(draw(shape, seed)));
+      expect(new Set(drawings).size).toBe(1);
     }
   });
 });
@@ -158,9 +178,10 @@ describe('symmetryAxes', () => {
   it('leaves out every line the shape is not symmetric about', () => {
     for (const shape of POLYGON_SHAPES) {
       const axes = symmetryAxes(shape);
-      // The line furthest from anything claimed, which is where a wrong mirror
-      // is drawn - if that one happened to be an axis, `mirror: 'false'` would
-      // be drawing true lines.
+      // Where a wrong mirror is drawn: for a shape with axes, the line furthest
+      // from every axis claimed, which is the likeliest hiding place for one
+      // that was not. A shape with no axes has nothing to be far from, so every
+      // line is equally good a probe and this settles on the first of them.
       const clearance = (degrees: number) =>
         axes.length === 0 ? 90 : Math.min(...axes.map((axis) => gap(degrees, axis)));
       const candidates = Array.from({ length: 180 }, (_, degrees) => degrees);
