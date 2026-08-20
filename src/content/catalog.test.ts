@@ -14,6 +14,9 @@ import {
   levelsForTopic,
   curriculumCodes,
   subjectOverview,
+  SYLLABUSES,
+  syllabusOf,
+  nswStageOfCode,
 } from './catalog';
 
 describe('shipped content', () => {
@@ -179,19 +182,18 @@ describe('curriculumCodes', () => {
     expect(grouped[4].codes.map((c) => c.code)).toContain('AC9M4N02');
   });
 
-  it('counts the templates citing a code and names the topics they practise', () => {
+  it('counts the templates citing a code, from either syllabus', () => {
     const grouped = curriculumCodes('maths', [
-      { ...allTemplates[0], level: '2', topic: 'addition', tags: ['AC9M2N01'] },
-      { ...allTemplates[0], level: '2', topic: 'subtraction', tags: ['AC9M2N01'] },
-      { ...allTemplates[0], level: '2', topic: 'addition', tags: ['AC9M2A01'] },
+      { ...allTemplates[0], level: '3', topic: 'addition', tags: ['AC9M3N01', 'MA2-AR-01'] },
+      { ...allTemplates[0], level: '3', topic: 'subtraction', tags: ['AC9M3N01'] },
     ]);
 
     expect(grouped).toEqual([
       {
-        level: '2',
+        level: '3',
         codes: [
-          { code: 'AC9M2A01', topics: ['addition'], templateCount: 1 },
-          { code: 'AC9M2N01', topics: ['addition', 'subtraction'], templateCount: 2 },
+          { code: 'AC9M3N01', syllabus: 'acara', topics: ['addition', 'subtraction'], templateCount: 2 },
+          { code: 'MA2-AR-01', syllabus: 'nsw', topics: ['addition'], templateCount: 1 },
         ],
       },
     ]);
@@ -207,6 +209,57 @@ describe('curriculumCodes', () => {
 
   it('is empty for a subject with no content', () => {
     expect(curriculumCodes('spelling')).toEqual([]);
+  });
+});
+
+describe('syllabus sources', () => {
+  it('recognises an ACARA content description', () => {
+    expect(syllabusOf('AC9M4N02')).toBe('acara');
+    expect(syllabusOf('AC9MFN01')).toBe('acara');
+  });
+
+  it('recognises an NSW outcome code at every stage', () => {
+    expect(syllabusOf('MAE-RWN-01')).toBe('nsw');
+    expect(syllabusOf('MA1-CSQ-01')).toBe('nsw');
+    expect(syllabusOf('MA2-MR-02')).toBe('nsw');
+    expect(syllabusOf('MA3-RQF-01')).toBe('nsw');
+    expect(syllabusOf('MAO-WM-01')).toBe('nsw');
+  });
+
+  it('accepts a focus-area segment with a digit in it', () => {
+    expect(syllabusOf('MAE-RWN-01')).toBe('nsw');
+    expect(syllabusOf('MA1-CHAN-01')).toBe('nsw');
+    expect(syllabusOf('MA2-2DS-03')).toBe('nsw');
+    expect(syllabusOf('MA3-RQF-02')).toBe('nsw');
+    expect(syllabusOf('MAO-WM-01')).toBe('nsw');
+  });
+
+  it('is not fooled by a tag that is only a note to ourselves', () => {
+    expect(syllabusOf('needs-review')).toBe(null);
+    expect(syllabusOf('MA9-XX-01')).toBe(null);
+    expect(syllabusOf('AC9E4N02')).toBe(null);
+  });
+
+  it('rejects a Stage 4 code, deliberately out of our K-6 scope', () => {
+    expect(syllabusOf('MA4-INT-C-01')).toBe(null);
+  });
+
+  it('reads the stage an NSW code belongs to', () => {
+    expect(nswStageOfCode('MAE-RWN-01')).toBe('ES1');
+    expect(nswStageOfCode('MA1-FG-01')).toBe('S1');
+    expect(nswStageOfCode('MA2-AR-01')).toBe('S2');
+    expect(nswStageOfCode('MA3-GM-03')).toBe('S3');
+  });
+
+  // MAO-WM-01 is Working mathematically, which hangs off every outcome at
+  // every stage rather than belonging to one. It has no stage to read.
+  it('gives the working-mathematically code no stage', () => {
+    expect(nswStageOfCode('MAO-WM-01')).toBe(null);
+    expect(nswStageOfCode('AC9M4N02')).toBe(null);
+  });
+
+  it('names both sources', () => {
+    expect(SYLLABUSES.map((s) => s.id)).toEqual(['acara', 'nsw']);
   });
 });
 

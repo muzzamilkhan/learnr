@@ -1,5 +1,5 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
-import { compareYearLevels, type YearLevel } from '@/lib/curriculum';
+import { compareYearLevels, type Stage, type YearLevel } from '@/lib/curriculum';
 import { mathsTemplates } from './maths';
 
 /**
@@ -78,14 +78,65 @@ export function levelsForTopic(
   ).sort(compareYearLevels);
 }
 
+export type SyllabusId = 'acara' | 'nsw';
+
+export interface Syllabus {
+  id: SyllabusId;
+  name: string;
+  shortName: string;
+  url: string;
+  pattern: RegExp;
+}
+
 /**
- * An Australian Curriculum content description code, as cited in a template's
- * `tags` - `AC9M` + year (`F` for Foundation) + strand + number, e.g. `AC9M4N02`.
+ * The syllabuses a template may cite. Two rather than one because NSW schools
+ * teach the NSW syllabus and not ACARA directly, and a NSW parent should be
+ * able to find their child's stage on the curriculum page.
+ *
+ * A code is a *reference*, which matters legally as well as structurally: ACARA
+ * material is CC BY 4.0 and quotable, NESA material is Crown copyright and is
+ * not. Nothing in this repo stores an outcome statement.
+ *
+ * `MAO` is Working mathematically, which belongs to every stage at once - it
+ * matches as an NSW code and has no stage of its own.
  */
-const CURRICULUM_CODE = /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/;
+export const SYLLABUSES: readonly Syllabus[] = [
+  {
+    id: 'acara',
+    name: 'Australian Curriculum Version 9.0 — Mathematics (Foundation to Year 10)',
+    shortName: 'ACARA v9.0',
+    url: 'https://www.australiancurriculum.edu.au',
+    pattern: /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/,
+  },
+  {
+    id: 'nsw',
+    name: 'NSW Mathematics K–10 Syllabus (2022)',
+    shortName: 'NSW K–10 (2022)',
+    url: 'https://curriculum.nsw.edu.au/learning-areas/mathematics/mathematics-k-10-2022',
+    pattern: /^MA(E|O|[1-3])-[A-Z0-9]+-\d{2}$/,
+  },
+];
+
+export function syllabusOf(code: string): SyllabusId | null {
+  return SYLLABUSES.find((s) => s.pattern.test(code))?.id ?? null;
+}
+
+const STAGE_BY_PREFIX: Record<string, Stage> = {
+  MAE: 'ES1',
+  MA1: 'S1',
+  MA2: 'S2',
+  MA3: 'S3',
+};
+
+/** The stage an NSW outcome code belongs to, or `null` if it names no one stage. */
+export function nswStageOfCode(code: string): Stage | null {
+  if (syllabusOf(code) !== 'nsw') return null;
+  return STAGE_BY_PREFIX[code.slice(0, 3)] ?? null;
+}
 
 export interface CodeUse {
   code: string;
+  syllabus: SyllabusId;
   topics: string[];
   templateCount: number;
 }
@@ -110,14 +161,13 @@ export function curriculumCodes(
     .sort(compareYearLevels)
     .map((level) => {
       const forLevel = forSubject.filter((t) => t.level === level);
-      const codes = unique(
-        forLevel.flatMap((t) => (t.tags ?? []).filter((tag) => CURRICULUM_CODE.test(tag))),
-      )
+      const codes = unique(forLevel.flatMap((t) => (t.tags ?? []).filter((tag) => syllabusOf(tag))))
         .sort()
         .map((code) => {
           const citing = forLevel.filter((t) => t.tags?.includes(code));
           return {
             code,
+            syllabus: syllabusOf(code) as SyllabusId,
             topics: unique(citing.map((t) => t.topic)).sort(),
             templateCount: citing.length,
           };
