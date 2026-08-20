@@ -1,6 +1,15 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
 import { dayName, shapeName, sideCount } from './helpers';
 
+/**
+ * One list every colour in a repeating pattern is drawn from. It is a single
+ * list on purpose: a pattern whose colours come from separate lists makes the
+ * answer identifiable by which list it belongs to, and the options are read
+ * aloud, so a child who cannot read could pick the right button by the sound of
+ * it rather than by the pattern.
+ */
+const PATTERN_COLOURS = ['red', 'blue', 'green', 'yellow', 'orange', 'purple'] as const;
+
 /** Kindergarten - NSW Early Stage 1. */
 export const yearK: QuestionTemplate[] = [
   // ------------------------------------------------------------------
@@ -250,11 +259,17 @@ export const yearK: QuestionTemplate[] = [
     topic: 'patterns',
     level: 'K',
     prompt: 'What comes next? {a}, {b}, {c}, {a}, {b}, {c}, {a}, ?',
+    // All three colours come from one list, kept apart by constraints rather
+    // than by which list they were drawn from. Three disjoint lists made the
+    // answer always the yellow-or-orange one, and narration reads the options
+    // aloud - so a child who cannot read could hear three colours and pick the
+    // right button without ever looking at the pattern.
     vars: [
-      { name: 'a', kind: 'pick', from: ['red', 'blue'] },
-      { name: 'b', kind: 'pick', from: ['yellow', 'orange'] },
-      { name: 'c', kind: 'pick', from: ['green', 'purple'] },
+      { name: 'a', kind: 'pick', from: PATTERN_COLOURS },
+      { name: 'b', kind: 'pick', from: PATTERN_COLOURS },
+      { name: 'c', kind: 'pick', from: PATTERN_COLOURS },
     ],
+    constraints: ['a != b', 'b != c', 'a != c'],
     answer: 'b',
     answerType: 'choice',
     choices: { count: 3, distractors: ['a', 'c'] },

@@ -38,7 +38,9 @@ export const year5: QuestionTemplate[] = [
     answer: 'max(a, b, c)',
     answerType: 'choice',
     // Listing all three is enough: the one equal to the answer is dropped.
-    choices: { count: 3, distractors: ['a', 'b', 'c'] },
+    // The largest of three is the largest option by definition - that is the
+    // question, and comparing hundredths is how a child finds it.
+    choices: { count: 3, distractors: ['a', 'b', 'c'], rankIsTheQuestion: true },
     tags: ['AC9M5N01'],
   },
   {
@@ -50,6 +52,9 @@ export const year5: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '105', max: '995' },
       { name: 'nb', kind: 'int', min: '105', max: '995' },
+      // Which side the whole-number slip falls on, so the answer is not for ever
+      // second-smallest behind a lone hundredth below it.
+      { name: 's', kind: 'pick', from: [-100, 100] },
       { name: 'a', kind: 'expr', expr: 'na / 100' },
       { name: 'b', kind: 'expr', expr: 'nb / 100' },
     ],
@@ -57,7 +62,7 @@ export const year5: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 4,
-      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + 100) / 100'],
+      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + s) / 100'],
     },
     hint: 'Line up the decimal points.',
     tags: ['AC9M5N01'],
@@ -71,14 +76,20 @@ export const year5: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '505', max: '1995' },
       { name: 'nb', kind: 'int', min: '105', max: '495' },
+      // Which side the tenth-sized slip falls on. Adding instead of subtracting
+      // is always the biggest option and losing a hundredth always the smallest,
+      // so without this the answer sat second-smallest every draw.
+      { name: 's', kind: 'pick', from: [-10, 10] },
       { name: 'a', kind: 'expr', expr: 'na / 100' },
       { name: 'b', kind: 'expr', expr: 'nb / 100' },
     ],
+    // Far enough apart that the slip below the answer is still a real amount.
+    constraints: ['na - nb >= 20'],
     answer: '(na - nb) / 100',
     answerType: 'choice',
     choices: {
       count: 4,
-      distractors: ['(na - nb + 10) / 100', '(na - nb - 1) / 100', '(na + nb) / 100'],
+      distractors: ['(na - nb + s) / 100', '(na - nb - 1) / 100', '(na + nb) / 100'],
     },
     tags: ['AC9M5N01'],
   },

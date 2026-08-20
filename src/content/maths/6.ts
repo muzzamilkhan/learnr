@@ -21,10 +21,13 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'a', kind: 'int', min: '1', max: '8' },
       { name: 'd', kind: 'int', min: 'a + 2', max: 'a + 12' },
+      // One degree out either way - the slip a child makes counting past zero,
+      // and what stops the sign errors pinning the answer to one rank.
+      { name: 's', kind: 'pick', from: [-1, 1] },
     ],
     answer: 'a - d',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['d - a', '-(a + d)', 'a + d'] },
+    choices: { count: 4, distractors: ['d - a', '-(a + d)', 'a - d + s'] },
     hint: 'Count down past zero.',
     tags: ['AC9M6N01'],
   },
@@ -37,10 +40,13 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'a', kind: 'int', min: '1', max: '20' },
       { name: 'b', kind: 'int', min: 'a + 2', max: 'a + 20' },
+      // One out either way, counting back past zero. The two sign errors sit on
+      // fixed sides of the answer, so this is what moves its rank.
+      { name: 's', kind: 'pick', from: [-1, 1] },
     ],
     answer: 'a - b',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['b - a', '-(a + b)', 'a + b'] },
+    choices: { count: 4, distractors: ['b - a', '-(a + b)', 'a - b + s'] },
     tags: ['AC9M6N01'],
   },
   {
@@ -106,6 +112,9 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '105', max: '4995' },
       { name: 'nb', kind: 'int', min: '105', max: '4995' },
+      // Which side the whole-number slip falls on, so the answer is not for ever
+      // second-smallest behind a lone hundredth below it.
+      { name: 's', kind: 'pick', from: [-100, 100] },
       { name: 'a', kind: 'expr', expr: 'na / 100' },
       { name: 'b', kind: 'expr', expr: 'nb / 100' },
     ],
@@ -113,7 +122,7 @@ export const year6: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 4,
-      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + 100) / 100'],
+      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + s) / 100'],
     },
     tags: ['AC9M6N04'],
   },
@@ -127,13 +136,18 @@ export const year6: QuestionTemplate[] = [
       { name: 'n', kind: 'int', min: '105', max: '995' },
       { name: 'a', kind: 'expr', expr: 'n / 100' },
       { name: 'p', kind: 'pick', from: [10, 100] },
+      // How far the third place-value slip goes: not shifting at all, or
+      // shifting two places too far. Every distractor used to land above the
+      // answer bar one, which pinned it at rank 2; alternating this one keeps
+      // all three options place-value errors and lets the answer move.
+      { name: 'q', kind: 'pick', from: [1, 10000] },
     ],
     constraints: ['mod(n, 10) != 0'],
     answer: 'n * p / 100',
     answerType: 'choice',
     // Kept clear of each other at both p values: at p = 10, `n * p / 1000` and
     // `n / 100` would be the same number.
-    choices: { count: 4, distractors: ['n * p / 1000', 'n * p / 10', 'n * p'] },
+    choices: { count: 4, distractors: ['n * p / 1000', 'n * p / 10', 'n * p / q'] },
     hint: 'Every digit moves left one place for each zero.',
     tags: ['AC9M6N06'],
   },
@@ -143,11 +157,18 @@ export const year6: QuestionTemplate[] = [
     topic: 'decimals',
     level: '6',
     prompt: 'What is {a} ÷ 10?',
-    vars: [{ name: 'n', kind: 'int', min: '11', max: '999' }, { name: 'a', kind: 'expr', expr: 'n / 10' }],
+    vars: [
+      { name: 'n', kind: 'int', min: '11', max: '999' },
+      { name: 'a', kind: 'expr', expr: 'n / 10' },
+      // How far the third slip goes: not dividing at all, or dividing three
+      // places too far. Both are place-value errors, and alternating them is
+      // what moves the answer off a fixed rank.
+      { name: 'q', kind: 'pick', from: [1, 10000] },
+    ],
     constraints: ['mod(n, 10) != 0'],
     answer: 'n / 100',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 10', 'n / 1000', 'n'] },
+    choices: { count: 4, distractors: ['n / 10', 'n / 1000', 'n / q'] },
     hint: 'Every digit moves one place to the right.',
     tags: ['AC9M6N06'],
   },
@@ -321,11 +342,18 @@ export const year6: QuestionTemplate[] = [
     topic: 'measurement',
     level: '6',
     prompt: 'How many metres is {cm} centimetres?',
-    vars: [{ name: 'n', kind: 'int', min: '3', max: '199' }, { name: 'cm', kind: 'expr', expr: 'n * 5' }],
+    vars: [
+      { name: 'n', kind: 'int', min: '3', max: '199' },
+      { name: 'cm', kind: 'expr', expr: 'n * 5' },
+      // Not converting at all, or shifting two places too far. Both are mistakes
+      // worth offering, and alternating them is what stops the answer being the
+      // second-smallest option every time.
+      { name: 'q', kind: 'pick', from: [1, 10000] },
+    ],
     constraints: ['mod(n * 5, 100) != 0'],
     answer: 'n * 5 / 100',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n * 5 / 10', 'n * 5 / 1000', 'n * 5'] },
+    choices: { count: 4, distractors: ['n * 5 / 10', 'n * 5 / 1000', 'n * 5 / q'] },
     hint: 'There are 100 centimetres in a metre.',
     tags: ['AC9M6M01'],
   },
@@ -335,11 +363,17 @@ export const year6: QuestionTemplate[] = [
     topic: 'measurement',
     level: '6',
     prompt: 'How many kilograms is {g} grams?',
-    vars: [{ name: 'n', kind: 'int', min: '3', max: '199' }, { name: 'g', kind: 'expr', expr: 'n * 50' }],
+    vars: [
+      { name: 'n', kind: 'int', min: '3', max: '199' },
+      { name: 'g', kind: 'expr', expr: 'n * 50' },
+      // Not converting at all, or shifting two places too far. Alternating them
+      // is what stops the answer being the second-smallest option every time.
+      { name: 'q', kind: 'pick', from: [1, 100000] },
+    ],
     constraints: ['mod(n * 5, 100) != 0'],
     answer: 'n * 50 / 1000',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50'] },
+    choices: { count: 4, distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50 / q'] },
     hint: 'There are 1000 grams in a kilogram.',
     tags: ['AC9M6M01'],
   },

@@ -18,11 +18,18 @@ export const year4: QuestionTemplate[] = [
     topic: 'decimals',
     level: '4',
     prompt: 'Write {n} tenths as a decimal.',
-    vars: [{ name: 'n', kind: 'int', min: '1', max: '9' }],
+    vars: [
+      { name: 'n', kind: 'int', min: '1', max: '9' },
+      // Which side the near-miss falls on. The place-value errors sit below the
+      // answer and above it by construction, so without this the answer is the
+      // second-smallest option every single draw.
+      { name: 'k', kind: 'pick', from: [-1, 1] },
+    ],
+    constraints: ['n + k >= 1'],
     answer: 'n / 10',
     // Tapped, not typed: the number pad has no decimal point.
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 100', 'n', '(n + 1) / 10'] },
+    choices: { count: 4, distractors: ['n / 100', 'n', '(n + k) / 10'] },
     hint: 'Tenths go in the first place after the decimal point.',
     tags: ['AC9M4N01'],
   },
@@ -32,11 +39,16 @@ export const year4: QuestionTemplate[] = [
     topic: 'decimals',
     level: '4',
     prompt: 'Write {n} hundredths as a decimal.',
-    vars: [{ name: 'n', kind: 'int', min: '11', max: '99' }],
+    vars: [
+      { name: 'n', kind: 'int', min: '11', max: '99' },
+      // The near-miss straddles: above the answer half the time and below it the
+      // other half, so the two place-value errors cannot fix the answer's rank.
+      { name: 'k', kind: 'pick', from: [-1, 1] },
+    ],
     constraints: ['mod(n, 10) != 0'],
     answer: 'n / 100',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 10', 'n', '(n + 1) / 100'] },
+    choices: { count: 4, distractors: ['n / 10', 'n', '(n + k) / 100'] },
     tags: ['AC9M4N01'],
   },
   {
@@ -52,7 +64,9 @@ export const year4: QuestionTemplate[] = [
     constraints: ['a != b'],
     answer: 'max(a, b)',
     answerType: 'choice',
-    choices: { count: 2, distractors: ['min(a, b)'] },
+    // The larger of two is the larger option by definition - that is the
+    // question, and a child still has to compare the tenths to find it.
+    choices: { count: 2, distractors: ['min(a, b)'], rankIsTheQuestion: true },
     hint: 'Compare the whole numbers first, then the tenths.',
     tags: ['AC9M4N01'],
   },
@@ -67,6 +81,9 @@ export const year4: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '11', max: '99' },
       { name: 'nb', kind: 'int', min: '11', max: '99' },
+      // Which side the whole-number slip falls on. With it always above, the two
+      // tenth-sized near-misses left the answer second-smallest every draw.
+      { name: 's', kind: 'pick', from: [-10, 10] },
       { name: 'a', kind: 'expr', expr: 'na / 10' },
       { name: 'b', kind: 'expr', expr: 'nb / 10' },
     ],
@@ -74,7 +91,7 @@ export const year4: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 4,
-      distractors: ['(na + nb + 1) / 10', '(na + nb - 1) / 10', '(na + nb + 10) / 10'],
+      distractors: ['(na + nb + 1) / 10', '(na + nb - 1) / 10', '(na + nb + s) / 10'],
     },
     hint: 'Add the whole numbers, then add the tenths.',
     tags: ['AC9M4N01'],
