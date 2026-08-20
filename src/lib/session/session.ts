@@ -1,5 +1,6 @@
 import { applyObservation, emptyProfile, type LearnerProfile } from '../analytics/profile';
 import type { YearLevel } from '../curriculum';
+import type { Figure } from '../figures/types';
 import { RECENT_MEMORY, selectTemplate, type SelectionContext } from '../reinforcement/select';
 import { createRng, type Rng } from '../rng';
 import { generateQuestion } from '../templates/generate';
@@ -28,6 +29,14 @@ export interface Attempt {
   expected: string;
   response: string;
   correct: boolean;
+  /**
+   * Present exactly when the question the child answered carried one - the
+   * resolved drawing, not the template's parameters, so a template edited
+   * next month cannot change what a parent is shown about an answer given
+   * today. See `docs/superpowers/specs/2026-08-20-question-diagrams-design.md`,
+   * "Recording".
+   */
+  figure?: Figure;
   /** Capped at `MAX_TIME_MS` - see there for why an uncapped one is not a measurement. */
   timeTakenMs: number;
   answeredAt: number;
@@ -147,6 +156,7 @@ export function submitAnswer(
     timeTakenMs: Math.min(Math.max(0, now - state.questionShownAt), MAX_TIME_MS),
     answeredAt: now,
     offsetMinutes,
+    ...(state.current.figure ? { figure: state.current.figure } : {}),
   };
 
   const draw = state.draw + 1;

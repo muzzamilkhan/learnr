@@ -133,3 +133,105 @@ export const FIGURE_BOX = 100;
  * tell "drawn afresh" from "drawn identically again".
  */
 export const FIGURE_PRECISION = 2;
+
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+function parsePoint(value: unknown): Point | null {
+  if (!Array.isArray(value) || value.length !== 2) return null;
+  const [x, y] = value;
+  return isFiniteNumber(x) && isFiniteNumber(y) ? [x, y] : null;
+}
+
+function parsePoints(value: unknown): Point[] | null {
+  if (!Array.isArray(value)) return null;
+  const points: Point[] = [];
+  for (const raw of value) {
+    const point = parsePoint(raw);
+    if (!point) return null;
+    points.push(point);
+  }
+  return points;
+}
+
+/** One mark, validated against the shape its own `kind` promises. `null` on anything else. */
+function parseMark(value: unknown): Mark | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const mark = value as Record<string, unknown>;
+
+  switch (mark.kind) {
+    case 'path': {
+      const points = parsePoints(mark.points);
+      if (
+        !points ||
+        typeof mark.closed !== 'boolean' ||
+        typeof mark.fill !== 'boolean' ||
+        typeof mark.dashed !== 'boolean'
+      ) {
+        return null;
+      }
+      return { kind: 'path', points, closed: mark.closed, fill: mark.fill, dashed: mark.dashed };
+    }
+
+    case 'arc': {
+      const at = parsePoint(mark.at);
+      if (!at || !isFiniteNumber(mark.radius) || !isFiniteNumber(mark.from) || !isFiniteNumber(mark.to)) {
+        return null;
+      }
+      return { kind: 'arc', at, radius: mark.radius, from: mark.from, to: mark.to };
+    }
+
+    case 'dot': {
+      const at = parsePoint(mark.at);
+      return at ? { kind: 'dot', at } : null;
+    }
+
+    case 'label': {
+      const at = parsePoint(mark.at);
+      return at && typeof mark.text === 'string' ? { kind: 'label', at, text: mark.text } : null;
+    }
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * The boundary on the way a figure comes back out of storage, beside
+ * `parseYearLevel`, `parseTarget` and `parsePhoto`. `Attempt.figure` is
+ * untrusted the moment it is read back: an old row predates this column, a
+ * newer build of the app may have reshaped `Mark`, and a hand-rolled write
+ * could put anything at all in a `Json?` column. Anything that is not a
+ * well-formed `Figure` becomes `null`, so a malformed row draws nothing rather
+ * than throwing inside a parent's report - the same failure mode `parsePhoto`
+ * refuses at the same kind of seam.
+ *
+ * The whole structure is checked, not just that the value is an object: the
+ * box dimensions, and every mark validated against what its own `kind`
+ * promises. **One bad mark fails the whole figure.** A figure is a single
+ * composition read together - a shape's outline, the tick that says a corner
+ * is square, the dashed line that says an axis is real - and silently
+ * dropping just the mark that failed to parse would draw a picture
+ * `buildFigure` never produced: a shape missing the one stroke that made it a
+ * different question from its neighbour, with nothing on screen to say a
+ * stroke went missing. That is a worse failure than drawing nothing, so this
+ * takes the same wholesale refusal `parsePhoto` and `parseTarget` already
+ * make rather than trying to save what it can.
+ */
+export function parseFigure(value: unknown): Figure | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const figure = value as Record<string, unknown>;
+
+  if (!isFiniteNumber(figure.width) || figure.width <= 0) return null;
+  if (!isFiniteNumber(figure.height) || figure.height <= 0) return null;
+  if (!Array.isArray(figure.marks)) return null;
+
+  const marks: Mark[] = [];
+  for (const raw of figure.marks) {
+    const mark = parseMark(raw);
+    if (!mark) return null;
+    marks.push(mark);
+  }
+
+  return { width: figure.width, height: figure.height, marks };
+}

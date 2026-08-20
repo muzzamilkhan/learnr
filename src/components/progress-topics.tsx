@@ -15,6 +15,7 @@ import { localDay } from '@/lib/day';
 import type { Sitting } from '@/lib/records';
 import { createRng } from '@/lib/rng';
 import { generateQuestion } from '@/lib/templates/generate';
+import { Diagram } from './diagram';
 import { Well } from './well';
 
 /**
@@ -265,9 +266,23 @@ function WhatHappened({ answers }: { answers: AnsweredQuestion[] | null }) {
           {answers.map((answer) => (
             <tr key={`${answer.answeredAt}|${answer.prompt}`}>
               {/* The full text is on the cell, since a line that fits is not a line
-                  that always fits and the elision is what keeps the rows comparable. */}
-              <td className="truncate py-1.5 pr-3" title={answer.prompt}>
-                {answer.prompt}
+                  that always fits and the elision is what keeps the rows comparable.
+                  A figure question redraws what the child actually saw - the
+                  stored, resolved figure, not a fresh one off today's template -
+                  small and at report density (`strokeWidth={1.5}`, per `diagram.tsx`),
+                  beside the prompt it was the caption for. Rows with no figure are
+                  unchanged. */}
+              <td className="py-1.5 pr-3" title={answer.prompt}>
+                <div className="flex items-center gap-2">
+                  {answer.figure ? (
+                    <Diagram
+                      figure={answer.figure}
+                      strokeWidth={1.5}
+                      className="h-16 w-16 shrink-0 rounded-xl border border-(--color-line) bg-(--color-paper)"
+                    />
+                  ) : null}
+                  <span className="min-w-0 truncate">{answer.prompt}</span>
+                </div>
               </td>
               <td
                 className={`truncate py-1.5 pr-3 font-semibold ${

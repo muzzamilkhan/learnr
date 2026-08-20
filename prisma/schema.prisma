@@ -240,6 +240,12 @@ model Attempt {
   /// Minutes east of UTC when it was answered. Stored so rebuilding a profile from
   /// history puts each answer on the same day the live fold did.
   offsetMinutes     Int      @default(0)
+  /// The resolved figure the child actually saw, for a question with one - not
+  /// the template's parameters, so a template edited next month cannot change
+  /// what a parent is shown about last week. `null` for the ordinary question
+  /// with nothing to draw; read back through `parseFigure`, which trusts no
+  /// stored row further than it can validate.
+  figure            Json?
 
   learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
 

@@ -9,6 +9,8 @@ import {
 import { EXAMPLE_ANSWERS, type AnsweredQuestion } from './analytics/report';
 import { parseYearLevel, type YearLevel } from './curriculum';
 import { prisma } from './db';
+import type { Prisma } from '@/generated/prisma/client';
+import { parseFigure } from './figures/types';
 import { nextPlayStreak, startedNewDay, noStreak, type PlayStreak } from './rewards/streak';
 import { rounds } from './rewards/stars';
 import {
@@ -193,6 +195,14 @@ export async function recordAttempt(
         timeTakenMs: attempt.timeTakenMs,
         answeredAt: new Date(attempt.answeredAt),
         offsetMinutes: attempt.offsetMinutes,
+        // Stored resolved, as the child actually saw it - see `Attempt.figure`
+        // in the Prisma schema for why. Left unset rather than written as
+        // `null` for the ordinary question with nothing to draw, which is what
+        // every attempt before this column existed already means. Cast past
+        // `InputJsonValue`'s mutable-array shape: `Figure` is plain, already
+        // serialisable data, just declared with `readonly` arrays the way
+        // everything in `lib` is.
+        ...(attempt.figure ? { figure: attempt.figure as unknown as Prisma.InputJsonValue } : {}),
       },
     });
     await updateTopicSkill(userId, attempt);
@@ -689,12 +699,13 @@ export async function readAnsweredQuestions(
         response: string;
         correct: boolean;
         answeredAt: Date;
+        figure: unknown;
       }[]
     >`
-      SELECT "topic", "level", "prompt", "expected", "response", "correct", "answeredAt"
+      SELECT "topic", "level", "prompt", "expected", "response", "correct", "answeredAt", "figure"
       FROM (
         SELECT a."topic", a."level", a."prompt", a."expected", a."response", a."correct",
-               a."answeredAt",
+               a."answeredAt", a."figure",
                ROW_NUMBER() OVER (
                  PARTITION BY a."topic", a."level"
                  -- The id settles a tie, so two reads cannot pick different answers.
@@ -710,17 +721,21 @@ export async function readAnsweredQuestions(
     return rows
       .map((row) => {
         const level = parseYearLevel(row.level);
-        return level
-          ? {
-              topic: row.topic,
-              level,
-              prompt: row.prompt,
-              expected: row.expected,
-              response: row.response,
-              correct: row.correct,
-              answeredAt: row.answeredAt.getTime(),
-            }
-          : undefined;
+        if (!level) return undefined;
+        // Undefined rather than null when there is nothing to draw, so a
+        // question with no figure has no `figure` key at all - matching how
+        // it round-tripped through `Attempt` on the way in.
+        const figure = parseFigure(row.figure) ?? undefined;
+        return {
+          topic: row.topic,
+          level,
+          prompt: row.prompt,
+          expected: row.expected,
+          response: row.response,
+          correct: row.correct,
+          answeredAt: row.answeredAt.getTime(),
+          ...(figure ? { figure } : {}),
+        };
       })
       .filter((answer) => answer !== undefined);
   } catch (error) {

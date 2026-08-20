@@ -1,4 +1,5 @@
 import { compareYearLevels, type YearLevel } from '../curriculum';
+import type { Figure } from '../figures/types';
 import type { DayTotal, TargetAnswer } from '../rewards/target';
 import {
   accuracy,
@@ -160,6 +161,8 @@ export interface AnsweredQuestion {
   response: string;
   correct: boolean;
   answeredAt: number;
+  /** Present when the question the child saw carried one - already validated by `parseFigure`. */
+  figure?: Figure;
 }
 
 /**
