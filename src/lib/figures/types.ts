@@ -64,7 +64,7 @@ export interface Figure {
   marks: readonly Mark[];
 }
 
-export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph', 'spinner'] as const;
+export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph', 'spinner', 'solid'] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
 /**
@@ -166,6 +166,24 @@ export type FigureSpec =
        * the shaded one. Omitted, sectors alternate.
        */
       fills?: Expr;
+      /** Degrees anticlockwise. Omitted, it jitters over the whole turn. */
+      rotation?: Expr;
+    }
+  | {
+      kind: 'solid';
+      /**
+       * A name from `SOLIDS` (`solid-kind.ts`): 'cube', 'cuboid', 'sphere',
+       * 'cone', 'cylinder', 'square-pyramid' or 'triangular-prism'.
+       */
+      solid: Expr;
+      /**
+       * 'object' - the solid itself, in an oblique projection - or 'net', the
+       * flat shape it folds up from. Omitted, it jitters between the two,
+       * which is what a template asking "how many faces?" wants and what a
+       * template whose prompt says "this net" must **not** leave open: the
+       * prompt names the view, so the prompt is what pins it.
+       */
+      view?: Expr;
       /** Degrees anticlockwise. Omitted, it jitters over the whole turn. */
       rotation?: Expr;
     };
