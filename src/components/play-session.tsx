@@ -41,6 +41,7 @@ import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
 import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
+import { Diagram } from './diagram';
 import { ExitIcon } from './exit-icon';
 import { HintIcon } from './hint-icon';
 import { SpeakerIcon } from './speaker-icon';
@@ -68,6 +69,16 @@ const CORRECT_MS = 700;
 
 /** Enough for any answer a child is asked to type, short enough to stay legible. */
 const MAX_ENTRY = { text: 16 } as const;
+
+/**
+ * The one viewport this screen's stacked layout does not fit: a landscape
+ * phone. An iPad in landscape - the shortest screen this otherwise runs on -
+ * is 768px tall, and every phone in portrait clears this too; what is left is
+ * a phone turned sideways, down around 375-430px, where a figure stacked above
+ * the prompt would leave neither any usable room. Below it the two sit side by
+ * side instead - see the figure-and-prompt wrapper below.
+ */
+const SHORT_VIEWPORT = '[@media(max-height:500px)]';
 
 type Feedback = { state: 'correct' } | { state: 'wrong'; expected: string } | null;
 
@@ -589,12 +600,45 @@ export function PlaySession({
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
-        <Prompt
-          key={session.askedCount}
-          prompt={question.prompt}
-          onRepeat={repeatQuestion}
-          repeatable={narrating}
-        />
+        {question.figure ? (
+          // A question with a figure is a picture with a caption underneath it,
+          // not a sentence with a picture squeezed above it - see the design's
+          // "Layout" section. The figure is the one flex-1 item with a cap of
+          // its own (the max-h/max-w pair below); the prompt, rendered exactly
+          // as it always is, is the other flex-1 item and has no cap, so once
+          // the figure's grow hits its ceiling every pixel left over is the
+          // prompt's. `Prompt` needs no change to make that true: its own root
+          // is already `flex-1`, and it already fits itself to whatever box
+          // the flex layout hands it - only the box is smaller now.
+          //
+          // On a landscape phone the column becomes a row instead (the one
+          // flex-direction change under `SHORT_VIEWPORT`), and `items-stretch`
+          // goes with it: in the ordinary column, height is the main axis and
+          // `flex-1` sizes both children along it, but a row's main axis is
+          // width - stretch is what gives them a height at all there, and the
+          // same `max-h` cap still holds once they have one.
+          <div
+            className={`flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 sm:gap-4 ${SHORT_VIEWPORT}:flex-row ${SHORT_VIEWPORT}:items-stretch`}
+          >
+            <Diagram
+              figure={question.figure}
+              className="min-h-0 min-w-0 max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
+            />
+            <Prompt
+              key={session.askedCount}
+              prompt={question.prompt}
+              onRepeat={repeatQuestion}
+              repeatable={narrating}
+            />
+          </div>
+        ) : (
+          <Prompt
+            key={session.askedCount}
+            prompt={question.prompt}
+            onRepeat={repeatQuestion}
+            repeatable={narrating}
+          />
+        )}
 
         <Hint
           hint={question.hint}
