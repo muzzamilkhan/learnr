@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { POLYGON_SHAPES } from '../figures/types';
 import { validateSpec, validateTemplate } from './validate';
 import type { QuestionTemplate } from './types';
 
@@ -230,16 +231,77 @@ describe('validateTemplate figures', () => {
     );
   });
 
+  // A regular hexagon's proportions are fixed by its name; pinning rotation
+  // too leaves nothing left to vary, so every draw is byte-identical.
+  const pinned = { ...hexagon, figure: { ...hexagon.figure, rotation: '0' } };
+
   it('catches a pinned rotation on a regular polygon as an anchored diagram', () => {
-    // A regular hexagon's proportions are fixed by its name; pinning rotation
-    // too leaves nothing left to vary, so every draw is byte-identical.
-    const pinned = { ...hexagon, figure: { ...hexagon.figure, rotation: '0' } };
     expect(errorsFor(pinned)).toContainEqual(
-      expect.stringMatching(/every "hexagon" draws the same picture/i),
+      expect.stringMatching(/the answer "hexagon" always drew the same picture/i),
     );
   });
 
   it('passes the same template once the pin is removed', () => {
-    expect(errorsFor(hexagon)).toEqual([]);
+    // Derived from `pinned` itself, not `hexagon` freshly: the point of the
+    // pair is that removing exactly the field the first test blamed is what
+    // clears the error, not that some other unpinned template happens to pass.
+    const unpinnedFigure = Object.fromEntries(
+      Object.entries(pinned.figure).filter(([key]) => key !== 'rotation'),
+    );
+    expect(errorsFor({ ...pinned, figure: unpinnedFigure })).toEqual([]);
+  });
+
+  // The 50 seeds the anchoring check draws are not the only thing standing
+  // between a bad literal and a clean validation: a `pick` over many names
+  // draws each one with only roughly a 1/n chance per seed, so a wide pick
+  // can go fifty draws without ever trying its worst value. This must catch
+  // that regardless of luck, which is why it does not lean on a template id
+  // that happens to dodge the bad name under the current seeds - it enumerates
+  // every literal a `pick` can produce and asks `figureIssues` about each one
+  // directly. If `figureIssues` goes back to being called only on the draws
+  // the anchoring loop happens to make, this is the test that catches it.
+  it('checks every literal a pick can produce, not just the ones fifty seeds happened to draw', () => {
+    const shapes = POLYGON_SHAPES.map((shape) => (shape === 'rectangle' ? 'bogus' : shape));
+    const template: QuestionTemplate = {
+      ...valid,
+      // This id is not arbitrary: under the seeds `validate-${label}-figure-${i}`
+      // derives, 'bogus' is never once the value fifty draws pick for this
+      // particular id - confirmed by simulating `createRng` directly. A test
+      // that instead trusted the first id it tried would have quietly proven
+      // nothing, exactly as the reviewer's own repro warns.
+      id: 'wide-pick-bad-shape-1',
+      prompt: 'What shape is this?',
+      vars: [{ name: 's', kind: 'pick', from: shapes }],
+      constraints: [],
+      answer: 's',
+      figure: { kind: 'polygon', shape: 's' },
+    };
+    expect(errorsFor(template)).toContainEqual(
+      expect.stringMatching(/figure\.shape.*bogus.*not a known shape/i),
+    );
+  });
+
+  it('does not fold a boolean and a same-spelled text answer into one anchoring group', () => {
+    // `t == 1` pins the hexagon's rotation - an anchored diagram, by itself -
+    // but only on the branch whose answer is the boolean `true`. The other
+    // branch answers the *text* `'true'` and varies its rotation freely. If
+    // the two answers were grouped by `String(answer)` they would collide
+    // (`String(true) === String('true')`) and the varying branch's figures
+    // would hide the pinned branch's failure inside the same group.
+    const template: QuestionTemplate = {
+      ...valid,
+      id: 'boolean-vs-text-answer',
+      prompt: 'What shape is this?',
+      vars: [
+        { name: 't', kind: 'pick', from: [1, 2] },
+        { name: 'j', kind: 'int', min: '0', max: '359' },
+      ],
+      constraints: [],
+      answer: "t == 1 ? true : 'true'",
+      figure: { kind: 'polygon', shape: "'hexagon'", rotation: 't == 1 ? 0 : j' },
+    };
+    expect(errorsFor(template)).toContainEqual(
+      expect.stringMatching(/the answer true always drew the same picture/i),
+    );
   });
 });

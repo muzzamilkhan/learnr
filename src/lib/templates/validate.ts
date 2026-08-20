@@ -267,23 +267,12 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
 
   // Checks 2 and 3 of 3 for a figure: it has to build clean, and it has to vary.
   // Both need a bound scope, so they wait for everything above to have passed -
-  // there is no point judging a figure against a scope that never bound. And
-  // both need more than one scope: `figureIssues` judges a single bound scope,
-  // but a `shape` drawn from a `pick` over several names is several templates
-  // in one, and looking at only the scope one particular draw happened to
-  // produce would silently pass the seven shapes it didn't draw. The anchoring
-  // check (`FIGURE_DRAWS` draws, grouped by the answer they went with) already
-  // has to bind that many scopes to have any statistical force at all, so
-  // `figureIssues` rides along on the same draws rather than paying for a
-  // second pass over the template - a template with no figure still pays
-  // nothing, since this whole block is skipped for it.
+  // there is no point judging a figure against a scope that never bound.
   if (errors.length === 0 && spec.figure !== undefined) {
     const figureSpec = spec.figure;
     const seenIssues = new Set<string>();
-    const byAnswer = new Map<
-      string,
-      { count: number; sample: string | number | boolean; figures: Set<string> }
-    >();
+    const byAnswer = new Map<string, { count: number; figures: Set<string> }>();
+    let lastScope: Record<string, string | number | boolean> | undefined;
 
     for (let i = 0; i < FIGURE_DRAWS; i++) {
       let question;
@@ -302,17 +291,43 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
         break;
       }
 
+      lastScope = question.vars;
       for (const issue of figureIssues(figureSpec, question.vars)) seenIssues.add(issue);
 
-      const key = String(question.answer);
-      const entry = byAnswer.get(key) ?? {
-        count: 0,
-        sample: question.answer,
-        figures: new Set<string>(),
-      };
+      // `JSON.stringify`, not `String`: `String(true)` and `String('true')`
+      // are both `"true"`, which would fold a boolean answer and a text answer
+      // that happens to spell the same word into one group and let a rotation
+      // pinned on only one branch of the answer go unflagged. It also doubles
+      // as the exact text the message below names the answer with, so the two
+      // can never drift apart the way a separately-carried sample could.
+      const key = JSON.stringify(question.answer);
+      const entry = byAnswer.get(key) ?? { count: 0, figures: new Set<string>() };
       entry.count++;
       entry.figures.add(JSON.stringify(question.figure));
       byAnswer.set(key, entry);
+    }
+
+    // A `pick` var's whole vocabulary is a short list of literals sitting
+    // right in the spec, not a distribution to sample and hope covers itself.
+    // `FIGURE_DRAWS` seeds give each one only roughly a `1/n` chance per seed,
+    // so a wide pick can go fifty draws without ever trying its worst value -
+    // and because those seeds are keyed off the template's own id, that is not
+    // flakiness a re-run washes out, it is a permanent silent pass for that
+    // template. So every literal of every `pick` var is checked directly
+    // instead: take the last scope the loop above bound and force that one
+    // var to the literal in turn. That is exact coverage of every value the
+    // figure's own parameters could ever be asked to draw - not a chance of
+    // eventually trying it - at the cost of one more `figureIssues` call per
+    // literal, which is cheap because `figureIssues` takes no `Rng` and does
+    // no generation of its own.
+    if (lastScope) {
+      for (const varSpec of spec.vars as VarSpec[]) {
+        if (varSpec.kind !== 'pick') continue;
+        for (const literal of varSpec.from) {
+          const scope = { ...lastScope, [varSpec.name]: literal };
+          for (const issue of figureIssues(figureSpec, scope)) seenIssues.add(issue);
+        }
+      }
     }
 
     seenIssues.forEach((issue) => errors.push(`figure: ${issue}`));
@@ -322,11 +337,12 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     // once with every one of its figures serialising identically is the
     // anchoring rule's failure case: the picture, not the property, would be
     // what a child learns to recognise.
-    for (const entry of byAnswer.values()) {
+    for (const [key, entry] of byAnswer) {
       if (entry.count > 1 && entry.figures.size === 1) {
         errors.push(
-          `figure: every ${JSON.stringify(entry.sample)} draws the same picture - ` +
-            'vary it, or the diagram becomes the answer',
+          `figure: the answer ${key} always drew the same picture - unpin ` +
+            'figure.rotation, or choose a shape or angle that still has something ' +
+            'left to vary, so the diagram itself does not become the answer',
         );
       }
     }
