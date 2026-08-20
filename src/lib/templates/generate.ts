@@ -1,4 +1,5 @@
 import { evaluate, type Scope, type Value } from '../expr';
+import { buildFigure } from '../figures/build';
 import type { Rng } from '../rng';
 import {
   MAX_CHOICES,
@@ -162,6 +163,16 @@ export function generate(spec: QuestionSpec, rng: Rng, label = 'spec'): Generate
 
   const answerValue = evaluate(spec.answer, scope);
 
+  // `buildFigure` is total by construction - an unknown shape or an unbound
+  // parameter degrades to something drawable rather than throwing, exactly like
+  // the rest of this function - so there is nothing here for `generate` to
+  // guard. Drawn from the same scope and the same `rng` the rest of the
+  // question uses, which is what makes a figure reproduce from its seed the way
+  // everything else here does, and what lets a fixed `rotation` on a regular
+  // polygon draw the same picture every time - the anchoring check in
+  // `validate.ts` is what catches that, not this function.
+  const figure = spec.figure ? buildFigure(spec.figure, scope, rng) : undefined;
+
   /**
    * A boolean answer is a true/false question whatever the spec declared: its
    * two options are implied, so any `choices` are meaningless and are dropped.
@@ -185,6 +196,7 @@ export function generate(spec: QuestionSpec, rng: Rng, label = 'spec'): Generate
         : undefined,
     hint: spec.hint ? renderTemplateString(spec.hint, scope) : undefined,
     vars: { ...scope },
+    figure,
   };
 }
 

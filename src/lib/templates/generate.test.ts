@@ -231,3 +231,34 @@ describe('generate', () => {
     expect(wrapped.level).toBe('1');
   });
 });
+
+describe('generate figures', () => {
+  const shape: QuestionTemplate = {
+    id: 'shape',
+    subject: 'maths',
+    topic: 'shapes',
+    level: 'K',
+    prompt: 'What shape is this?',
+    vars: [{ name: 'n', kind: 'pick', from: ['square', 'pentagon'] }],
+    answer: 'n',
+    figure: { kind: 'polygon', shape: 'n' },
+  };
+
+  it('produces a figure from a scope that carries a figure spec', () => {
+    const q = generateQuestion(shape, createRng('has-figure'));
+    expect(q.figure).toBeDefined();
+    expect(q.figure!.width).toBeGreaterThan(0);
+    expect(q.figure!.marks.length).toBeGreaterThan(0);
+  });
+
+  it('leaves figure undefined for a spec that does not carry one', () => {
+    const q = generateQuestion(subtraction, createRng('no-figure'));
+    expect(q.figure).toBeUndefined();
+  });
+
+  it('reproduces the same figure from the same seed', () => {
+    const a = generateQuestion(shape, createRng('same-figure'));
+    const b = generateQuestion(shape, createRng('same-figure'));
+    expect(a.figure).toEqual(b.figure);
+  });
+});

@@ -191,3 +191,55 @@ describe('validateSpec', () => {
     expect(result.errors.join(' ')).toContain('generation failed');
   });
 });
+
+describe('validateTemplate figures', () => {
+  // A regular shape has no free proportion, so a fixed name and a jittered
+  // rotation are the whole story - which is exactly what should pass.
+  const hexagon: QuestionTemplate = {
+    ...valid,
+    id: 'hexagon',
+    prompt: 'What shape is this?',
+    vars: [],
+    constraints: [],
+    answer: "'hexagon'",
+    figure: { kind: 'polygon', shape: "'hexagon'" },
+  };
+
+  it('accepts a well formed figure template', () => {
+    expect(errorsFor(hexagon)).toEqual([]);
+  });
+
+  it('rejects an unknown figure kind', () => {
+    const template = { ...hexagon, figure: { kind: 'triangle', shape: "'hexagon'" } };
+    expect(errorsFor(template)).toContainEqual(expect.stringMatching(/figure\.kind.*not a figure kind/i));
+  });
+
+  it('rejects a figure parameter that references an unbound variable', () => {
+    const template = { ...hexagon, figure: { kind: 'polygon', shape: 'q' } };
+    expect(errorsFor(template)).toContainEqual(expect.stringMatching(/figure\.shape.*unknown variable: q/i));
+  });
+
+  it('rejects a figure parameter that figureIssues would clamp', () => {
+    const template = {
+      ...hexagon,
+      answer: "'reflex'",
+      figure: { kind: 'angle', degrees: '500' },
+    };
+    expect(errorsFor(template)).toContainEqual(
+      expect.stringMatching(/figure\.degrees.*500.*outside 1-359/i),
+    );
+  });
+
+  it('catches a pinned rotation on a regular polygon as an anchored diagram', () => {
+    // A regular hexagon's proportions are fixed by its name; pinning rotation
+    // too leaves nothing left to vary, so every draw is byte-identical.
+    const pinned = { ...hexagon, figure: { ...hexagon.figure, rotation: '0' } };
+    expect(errorsFor(pinned)).toContainEqual(
+      expect.stringMatching(/every "hexagon" draws the same picture/i),
+    );
+  });
+
+  it('passes the same template once the pin is removed', () => {
+    expect(errorsFor(hexagon)).toEqual([]);
+  });
+});

@@ -1,4 +1,5 @@
 import type { YearLevel } from '../curriculum';
+import type { Figure, FigureSpec } from '../figures/types';
 
 /**
  * Question templates are data, authored outside the app (by hand or by an AI) and
@@ -67,6 +68,16 @@ export interface QuestionSpec {
   choices?: ChoiceSpec;
   /** Optional hint, also supports `{expression}` holes. */
   hint?: string;
+  /**
+   * A diagram the question is about, or shown alongside it. Optional and rare -
+   * most questions are a sentence with a hole in it, and this is the escape
+   * hatch for the ones that are a picture instead. Lives on `QuestionSpec`
+   * rather than `QuestionTemplate`, beside `choices`, because it is a property
+   * of the question and not of where it sits in a course - a speed run
+   * inherits the capability and never uses it, exactly as it inherits `hint`.
+   * See `src/lib/figures` for what a spec can describe and how it is resolved.
+   */
+  figure?: FigureSpec;
 }
 
 /** A spec placed in a course: who is being asked, and what it practises. */
@@ -94,6 +105,8 @@ export interface GeneratedQuestion {
   hint?: string;
   /** The bound variables, kept for debugging and analytics. */
   vars: Record<string, string | number | boolean>;
+  /** Present exactly when the spec carried a `figure` - resolved from the same scope and `Rng`. */
+  figure?: Figure;
 }
 
 /** A template expanded into something a child can actually be shown. */

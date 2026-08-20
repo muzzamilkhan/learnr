@@ -1,8 +1,23 @@
 import { parse, type Node } from '../expr';
 import { isYearLevel, YEAR_LEVELS } from '../curriculum';
+import { figureIssues } from '../figures/build';
+import { FIGURE_KINDS } from '../figures/types';
 import { createRng } from '../rng';
 import { generate } from './generate';
 import { MAX_CHOICES, type QuestionSpec, type QuestionTemplate, type VarSpec } from './types';
+
+/**
+ * How many times a figure template is drawn to enforce the anchoring rule (see
+ * "The anchoring rule" in the design doc): the same template, on distinct
+ * seeds, grouped by the answer it produced - and an answer whose every drawing
+ * came out byte-identical is the failure this whole feature exists to catch.
+ * Fifty is enough that a coin-flip choice inside the builder (which of two axis
+ * bands, which side a rectangle lays down on) is vanishingly unlikely to land
+ * the same way every time by chance, while staying cheap enough that 200
+ * shipped templates - the great majority with no figure at all, and paying
+ * nothing for this - can still be validated on every test run.
+ */
+export const FIGURE_DRAWS = 50;
 
 /**
  * Templates are authored outside the app, so they are untrusted input. Validation
@@ -164,6 +179,56 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     }
   }
 
+  // Check 1 of 3 for a figure: `kind` is one of `FIGURE_KINDS`, and every
+  // parameter it declares is a non-empty expression that parses and reads only
+  // variables bound above - reusing `checkExpr` and `bound` exactly as every
+  // other expression on this spec is checked. This is deliberately narrower
+  // than an authored `FigureSpec`: the input is untrusted, so every field is
+  // read as `unknown` and re-checked at runtime rather than trusted from the
+  // (unenforced) static type. A figure is checked once every variable exists -
+  // unlike `vars`, which enforces a declaration order on itself, a figure's
+  // parameters may reference any of them, in any order, because none of them
+  // declare each other.
+  if (spec.figure !== undefined) {
+    const rawFigure = spec.figure as unknown;
+    if (typeof rawFigure !== 'object' || rawFigure === null || Array.isArray(rawFigure)) {
+      errors.push('figure must be an object');
+    } else {
+      const figure = rawFigure as { kind?: unknown } & Record<string, unknown>;
+      if (
+        typeof figure.kind !== 'string' ||
+        !(FIGURE_KINDS as readonly string[]).includes(figure.kind)
+      ) {
+        errors.push(
+          `figure.kind: ${JSON.stringify(figure.kind)} is not a figure kind` +
+            ` (expected ${FIGURE_KINDS.join(' or ')})`,
+        );
+      } else {
+        const params: readonly [string, unknown, boolean][] =
+          figure.kind === 'polygon'
+            ? [
+                ['figure.shape', figure.shape, true],
+                ['figure.rotation', figure.rotation, false],
+                ['figure.mirror', figure.mirror, false],
+                ['figure.rightAngles', figure.rightAngles, false],
+              ]
+            : [
+                ['figure.degrees', figure.degrees, true],
+                ['figure.rotation', figure.rotation, false],
+                ['figure.armLength', figure.armLength, false],
+                ['figure.arc', figure.arc, false],
+              ];
+
+        for (const [paramLabel, expr, required] of params) {
+          // Omitted is what asks for jitter on an optional parameter, and is
+          // fine; `checkExpr` itself reports an omitted *required* one.
+          if (expr === undefined && !required) continue;
+          checkExpr(expr, paramLabel, bound);
+        }
+      }
+    }
+  }
+
   // Static checks passed - prove it can actually produce questions. `answerType`
   // is usually inferred, so this is also the only place that can tell what kind of
   // question the spec really is.
@@ -196,6 +261,73 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
       } catch (error) {
         errors.push(`generation failed: ${(error as Error).message}`);
         break;
+      }
+    }
+  }
+
+  // Checks 2 and 3 of 3 for a figure: it has to build clean, and it has to vary.
+  // Both need a bound scope, so they wait for everything above to have passed -
+  // there is no point judging a figure against a scope that never bound. And
+  // both need more than one scope: `figureIssues` judges a single bound scope,
+  // but a `shape` drawn from a `pick` over several names is several templates
+  // in one, and looking at only the scope one particular draw happened to
+  // produce would silently pass the seven shapes it didn't draw. The anchoring
+  // check (`FIGURE_DRAWS` draws, grouped by the answer they went with) already
+  // has to bind that many scopes to have any statistical force at all, so
+  // `figureIssues` rides along on the same draws rather than paying for a
+  // second pass over the template - a template with no figure still pays
+  // nothing, since this whole block is skipped for it.
+  if (errors.length === 0 && spec.figure !== undefined) {
+    const figureSpec = spec.figure;
+    const seenIssues = new Set<string>();
+    const byAnswer = new Map<
+      string,
+      { count: number; sample: string | number | boolean; figures: Set<string> }
+    >();
+
+    for (let i = 0; i < FIGURE_DRAWS; i++) {
+      let question;
+      try {
+        question = generate(
+          spec as QuestionSpec,
+          createRng(`validate-${label}-figure-${i}`),
+          label,
+        );
+      } catch (error) {
+        // Every earlier draw of this same spec succeeded (the loop above
+        // proved it), so a failure here would be a template whose constraints
+        // are satisfiable often but not always - worth reporting, not crashing
+        // validation over.
+        errors.push(`figure: generation failed: ${(error as Error).message}`);
+        break;
+      }
+
+      for (const issue of figureIssues(figureSpec, question.vars)) seenIssues.add(issue);
+
+      const key = String(question.answer);
+      const entry = byAnswer.get(key) ?? {
+        count: 0,
+        sample: question.answer,
+        figures: new Set<string>(),
+      };
+      entry.count++;
+      entry.figures.add(JSON.stringify(question.figure));
+      byAnswer.set(key, entry);
+    }
+
+    seenIssues.forEach((issue) => errors.push(`figure: ${issue}`));
+
+    // An answer drawn only once has nothing to compare against and is skipped,
+    // not passed - it is simply untested by this run. An answer drawn more than
+    // once with every one of its figures serialising identically is the
+    // anchoring rule's failure case: the picture, not the property, would be
+    // what a child learns to recognise.
+    for (const entry of byAnswer.values()) {
+      if (entry.count > 1 && entry.figures.size === 1) {
+        errors.push(
+          `figure: every ${JSON.stringify(entry.sample)} draws the same picture - ` +
+            'vary it, or the diagram becomes the answer',
+        );
       }
     }
   }
