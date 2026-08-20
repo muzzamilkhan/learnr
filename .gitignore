@@ -48,3 +48,6 @@ next-env.d.ts
 
 # agent worktrees - a second checkout of this repo, never part of it
 /.claude/worktrees/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
