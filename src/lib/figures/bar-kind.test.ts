@@ -304,36 +304,57 @@ describe('the bar figure kind', () => {
   });
 
   it('never clips a label without saying so, whatever it is given', () => {
-    // The invariant the three tests above sample, stated once and swept: a
-    // shape may draw its labels cramped, and it may draw them outside the box
-    // if what it was handed cannot be drawn at all - but it may never do the
-    // second one *silently*. Clipping is invisible on the play screen and
-    // slices a character off in every report row, so a shape that clips has to
-    // be a shape `figureIssues` refuses.
+    // The invariant the tests above sample, stated once and swept: a shape may
+    // draw its labels cramped, and it may draw them outside the box if what it
+    // was handed cannot be drawn at all - but it may never do the second one
+    // *silently*. Clipping is invisible on the play screen and slices a
+    // character off in every report row, so a shape that clips has to be a
+    // shape `figureIssues` refuses.
     //
-    // Eight categories by ten characters is far past anything legal, which is
+    // Nine categories by eleven characters is far past anything legal, which is
     // the point: the guarantee is about the shapes nobody validated, since
     // those are the ones a child meets mid-session.
-    const magnitudes = [1, 3, 7, 9, 12, 47, 99, 100, 999, 5000, 999998, 999999];
+    //
+    // **The odd-looking members of these two lists are the load-bearing ones,
+    // and a copy of this test should keep their equivalents.** A sweep over
+    // tidy round numbers passed while two whole families clipped in silence:
+    //
+    // - `1e21` is where `String` switches to exponential, so the axis *top*
+    //   prints in five characters while a rung below it prints twenty-one. A
+    //   sweep that never crosses that boundary cannot catch a guard that asks
+    //   the top rung instead of every rung.
+    // - `100.125` and `0.375` are scales whose rungs print wider than the top
+    //   does for the ordinary reason - a fraction that does not divide - and
+    //   pinning a scale is the only way to reach them, since nothing on the
+    //   ladder is fractional.
+    const magnitudes = [1, 3, 7, 9, 12, 47, 99, 100, 400.5, 999, 5000, 999998, 999999, 1e21];
+    const pins: (string | undefined)[] = [undefined, '100.125', '0.375'];
     const silent: string[] = [];
 
-    for (let count = 1; count <= 8; count++) {
-      for (let chars = 0; chars <= 10; chars++) {
+    for (let count = 1; count <= 9; count++) {
+      for (let chars = 0; chars <= 11; chars++) {
         for (const magnitude of magnitudes) {
-          const values = Array.from({ length: count }, (_, index) =>
-            Math.max(1, Math.round(magnitude * (1 - index * 0.13))),
-          ).join(',');
-          const names = Array.from({ length: count }, () => 'Wednesday'.slice(0, chars)).join(',');
-          const spec: FigureSpec =
-            chars === 0
-              ? { kind: 'bar', values: `'${values}'` }
-              : { kind: 'bar', values: `'${values}'`, labels: `'${names}'` };
+          for (const scale of pins) {
+            const values = Array.from({ length: count }, (_, index) =>
+              Math.max(1, magnitude * (1 - index * 0.13)),
+            ).join(',');
+            const names = Array.from({ length: count }, () => 'Wednesday'.slice(0, chars)).join(',');
+            const spec: FigureSpec = {
+              kind: 'bar',
+              values: `'${values}'`,
+              ...(chars === 0 ? {} : { labels: `'${names}'` }),
+              ...(scale === undefined ? {} : { scale }),
+            };
 
-          if (figureIssues(spec, {}).length > 0) continue;
-          for (let seed = 0; seed < 12; seed++) {
-            const outside = worstOverflow(build(spec, `bar-sweep-${seed}`));
-            if (outside > 0) {
-              silent.push(`${count} x ${chars} chars, to ${magnitude}: ${outside.toFixed(2)} out`);
+            if (figureIssues(spec, {}).length > 0) continue;
+            for (let seed = 0; seed < 8; seed++) {
+              const outside = worstOverflow(build(spec, `bar-sweep-${seed}`));
+              if (outside > 0) {
+                silent.push(
+                  `${count} x ${chars} chars, to ${magnitude}, scale ${scale ?? 'open'}:` +
+                    ` ${outside.toFixed(2)} out`,
+                );
+              }
             }
           }
         }

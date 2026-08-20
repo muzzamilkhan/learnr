@@ -209,28 +209,60 @@ function scaleCandidates(
 }
 
 function scaleFor(values: readonly number[], max: number, pinned: number | undefined, rng: Rng): number {
-  // A pick from one candidate is still a pick: a pinned scale and the
-  // past-the-ladder fallback go through the same door as the jittered pool, so
-  // there is one path here rather than three with a draw on only one of them.
+  // A pick from one candidate is still a pick, and that is the point: this
+  // spends **exactly one draw whichever path it takes**, where a pinned scale
+  // and the past-the-ladder fallback used to return without drawing at all.
+  //
+  // Constant consumption is not tidiness. `generate` hands *one* `Rng` through
+  // `tryBind`, then `buildFigure`, then `buildChoices`, so a figure that spent
+  // a variable number of draws would shift everything drawn after it: adding a
+  // `scale` pin to a template silently reshuffled that template's own
+  // distractors, in the very question the figure illustrates. A kind whose
+  // parameters can be pinned should keep this property - spend the same number
+  // of draws pinned as unpinned, rather than skipping the draw it no longer
+  // needs.
   return rng.pick(scaleCandidates(values, max, pinned));
 }
 
 /**
- * The widest the axis's own top label can come out, over every scale that could
- * be picked for this data.
+ * The widest label the value axis can end up carrying, over every rung of it
+ * and every scale that could be picked for this data. It is the same fold
+ * `build` does over its own `stepTexts`, run without an `Rng`, so the two
+ * cannot disagree about how wide the left margin has to be.
  *
- * **The tallest value is not this number**, which is the trap: the axis is
- * labelled to `steps x scale`, and rounding a value up to a whole step can
- * carry it into another digit - `'999999'` is six characters and the axis above
- * it reads `1000000`, which is seven. Anything that reasons about the left
- * margin has to ask the axis, not the data, or it budgets for a label narrower
- * than the one that gets drawn: the guard on `MAX_STEP_CHARS` missed that
- * family entirely, and `categoryBudget` was optimistic by the same digit.
+ * **Neither the tallest value nor the axis's top rung is this number**, and
+ * both are tempting:
+ *
+ * - The *data* is not it, because the axis is labelled at `step x scale` and
+ *   rounding the tallest value up to a whole step can carry it into another
+ *   digit: `'999999'` is six characters and the rung above it reads `1000000`,
+ *   which is seven.
+ * - The *top rung* is not it either, because a rung below the top can print
+ *   longer than the top does. A fractional scale is one way - an axis topping
+ *   out at `400.5` passes through `100.125`, which is two characters wider -
+ *   and JavaScript's own number formatting is another: at 1e21 `String` switches
+ *   to exponential, so an axis whose top prints `1e+21` in five characters
+ *   passes through a rung printing twenty-one.
+ *
+ * So the rule is **ask every label the drawing will actually contain**, not the
+ * input it was derived from and not one representative of it. Any kind whose
+ * labels are *derived* rather than copied - a number line's ticks, a clock's
+ * hour marks, a grid's coordinates - has the same trap, because rounding,
+ * formatting and unit suffixes all change a label's width between the input and
+ * the ink.
  */
-function widestAxisTop(values: readonly number[], max: number, pinned: number | undefined): string {
-  return scaleCandidates(values, max, pinned)
-    .map((scale) => formatStep(stepsFor(max, scale) * scale))
-    .reduce((widest, top) => (top.length > widest.length ? top : widest), '');
+function widestStepLabel(values: readonly number[], max: number, pinned: number | undefined): string {
+  let widest = '';
+  for (const scale of scaleCandidates(values, max, pinned)) {
+    // Bounded by `MAX_STEPS`: `scaleCandidates` keeps a pinned scale only when
+    // it leaves that few rungs, and every scale it picks for itself leaves at
+    // most that many.
+    for (let step = 0; step <= stepsFor(max, scale); step++) {
+      const text = formatStep(step * scale);
+      if (text.length > widest.length) widest = text;
+    }
+  }
+  return widest;
 }
 
 /**
@@ -459,16 +491,17 @@ export const barModule: FigureKindModule<'bar'> = {
     const pinned = typeof scale === 'number' && scale > 0 ? scale : undefined;
 
     if (values) {
-      // Asked of the axis, not of the data: `build` labels the axis at
-      // `steps x scale`, and rounding the tallest value up to a whole step can
-      // carry it into another digit - see `widestAxisTop`. Reported rather than
-      // clamped: `build` draws the label at its true width and the plot
-      // narrows, which is honest, but nobody should ship a graph like it.
-      const top = widestAxisTop(values, max, pinned);
-      if (top.length > MAX_STEP_CHARS) {
+      // Asked of every label the axis will carry, not of the data and not of
+      // the top rung - see `widestStepLabel` for why both of those are wrong.
+      // Reported rather than clamped: `build` draws the label at its true width
+      // and the plot narrows, which is honest, but nobody should ship a graph
+      // like it. Named as a step label rather than as an axis top, because the
+      // rung that does not fit is often not the top one.
+      const rung = widestStepLabel(values, max, pinned);
+      if (rung.length > MAX_STEP_CHARS) {
         issues.push(
-          `figure.values: an axis reaching ${top} needs ${top.length} characters beside` +
-            ` the plot, more than the ${MAX_STEP_CHARS} it has room for`,
+          `figure.values: a step label reading ${rung} needs ${rung.length} characters` +
+            ` beside the plot, more than the ${MAX_STEP_CHARS} it has room for`,
         );
       }
 
@@ -512,11 +545,11 @@ export const barModule: FigureKindModule<'bar'> = {
       }
       const longest = names.reduce((a, b) => (b.length > a.length ? b : a), '');
       if (values && longest.length > 0) {
-        // The widest axis the scale could give it, so the budget is the one
-        // that holds on every seed rather than on the lucky ones.
+        // The widest label the axis could carry, so the budget is the one that
+        // holds on every seed rather than on the lucky ones.
         const budget = categoryBudget(
           values.length,
-          widestAxisTop(values, max, pinned).length,
+          widestStepLabel(values, max, pinned).length,
           longest.length,
         );
         if (longest.length > budget) {
