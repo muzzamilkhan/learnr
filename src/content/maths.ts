@@ -441,7 +441,17 @@ export const mathsTemplates: QuestionTemplate[] = [
     ],
     answer: 'shape',
     answerType: 'choice',
-    choices: { count: 3, distractors: ["'triangle'", "'square'", "'rectangle'"] },
+    // The distractors depend on what was drawn, which no other question here
+    // needs: a square *is* a rectangle, so offering both beside a drawn square
+    // puts two right answers on the screen and marks one of them wrong. When
+    // the square is the answer the third button is a hexagon instead.
+    choices: {
+      count: 3,
+      distractors: [
+        "shape == 'triangle' ? 'square' : 'triangle'",
+        "shape == 'square' ? 'hexagon' : shape == 'triangle' ? 'rectangle' : 'square'",
+      ],
+    },
     figure: { kind: 'polygon', shape: 'drawn' },
     tags: ['AC9MFSP01'],
   },
@@ -947,9 +957,21 @@ export const mathsTemplates: QuestionTemplate[] = [
         ],
       },
       { name: 'sides', kind: 'expr', expr: sideCount('shape') },
-      // Claimed as often as not: the false case has to be a near miss rather
-      // than an obviously wrong number, or the picture stops being read.
-      { name: 'claim', kind: 'int', min: '3', max: '6' },
+      // Right half the time, by construction. Drawn as a free number between 3
+      // and 6 the claim came out true only a quarter of the time, because the
+      // four-sided shapes outnumber the rest - and a child who answered "false"
+      // to everything would have scored 75% on a topic they had learned nothing
+      // about. The false case is a near miss rather than an obviously wrong
+      // number, or the picture stops being read at all.
+      { name: 'right', kind: 'pick', from: [1, 0] },
+      { name: 'nudge', kind: 'pick', from: [1, -1] },
+      {
+        name: 'claim',
+        kind: 'expr',
+        // A triangle can only be missed upwards: "2 sides" is not a claim
+        // anybody weighs up, and it would land back on the true case anyway.
+        expr: 'right == 1 ? sides : sides + (sides == 3 ? 1 : nudge)',
+      },
     ],
     answer: 'sides == claim',
     figure: { kind: 'polygon', shape: 'shape' },
@@ -2292,8 +2314,15 @@ export const mathsTemplates: QuestionTemplate[] = [
     prompt: 'What kind of angle is this?',
     vars: [
       { name: 'kind', kind: 'pick', from: ['acute', 'right', 'obtuse', 'straight'] },
-      { name: 'small', kind: 'int', min: '15', max: '80', step: 5 },
-      { name: 'large', kind: 'int', min: '100', max: '170', step: 5 },
+      // Both bands are held clear of the two angles that are also *options*
+      // here: 25 degrees off the right angle and 20 off the straight one, the
+      // same clearances the two-way questions at Year 3 and Year 4 take. This
+      // is the hardest of the angle questions - four names, no right-angle
+      // tick to give the square corner away, and a rotation that leaves
+      // nothing upright to judge against - so it is the one that can least
+      // afford an acute angle ten degrees off square.
+      { name: 'small', kind: 'int', min: '15', max: '65', step: 5 },
+      { name: 'large', kind: 'int', min: '115', max: '160', step: 5 },
       {
         name: 'd',
         kind: 'expr',
@@ -2409,6 +2438,7 @@ export const mathsTemplates: QuestionTemplate[] = [
       "shape == 'isosceles' || shape == 'trapezium' || shape == 'kite' ? 1 : " +
       "shape == 'rectangle' || shape == 'rhombus' ? 2 : shape == 'equilateral' ? 3 : " +
       "shape == 'square' ? 4 : shape == 'pentagon' ? 5 : 6",
+    hint: 'A regular shape has one for every side, and some shapes have none at all.',
     figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9M4SP03'],
   },
@@ -2451,7 +2481,7 @@ export const mathsTemplates: QuestionTemplate[] = [
   // adding fractions with related denominators, percentages, larger
   // multiplication, division with remainders, inverse operations, metric
   // conversions, perimeter and area, 12- and 24-hour time, angles in degrees,
-  // and reflecting a shape onto itself.
+  // and turning a shape onto itself.
   // ------------------------------------------------------------------
   {
     id: 'maths.5.decimals.count-hundredths',
@@ -2873,8 +2903,12 @@ export const mathsTemplates: QuestionTemplate[] = [
     prompt: 'Is this angle acute, obtuse or reflex?',
     vars: [
       { name: 'kind', kind: 'pick', from: ['acute', 'obtuse', 'reflex'] },
-      { name: 'small', kind: 'int', min: '15', max: '80', step: 5 },
-      { name: 'large', kind: 'int', min: '100', max: '170', step: 5 },
+      // Clear of the right angle by 25 degrees either side, as above. The
+      // obtuse band runs nearer to 180 than the Year 4 one does because
+      // "straight" is not an option here and the drawn sweep, not the arms,
+      // is what separates 170 degrees from 190.
+      { name: 'small', kind: 'int', min: '15', max: '65', step: 5 },
+      { name: 'large', kind: 'int', min: '115', max: '170', step: 5 },
       { name: 'round', kind: 'int', min: '190', max: '340', step: 5 },
       {
         name: 'd',
@@ -2911,35 +2945,87 @@ export const mathsTemplates: QuestionTemplate[] = [
     figure: { kind: 'angle', degrees: 'd' },
     tags: ['AC9M5M04'],
   },
+  // Year 5 turns the shape instead of flipping it. Year 4 already asks both
+  // halves of the line-symmetry question, and asking it again in a different
+  // sentence would be one question wearing two years - a topic is supposed to
+  // recur *harder*, not reworded. A turn is the harder half: a line of
+  // symmetry is there to be seen on the page, and whether a shape comes back
+  // to itself part way round has to be done in the head. It is also the
+  // stronger reading of this description, which is about performing a rotation
+  // and recognising what stays the same, and it is what puts the
+  // parallelogram - no line of symmetry at all, but perfectly unchanged by a
+  // half turn - in front of a child. Neither draws a mirror line, so the
+  // heptagon and the octagon are allowed back in.
   {
-    id: 'maths.5.symmetry.flip-over-the-line',
+    id: 'maths.5.symmetry.half-turn',
     subject: 'maths',
     topic: 'symmetry',
     level: '5',
-    // Year 4 asks whether the dashed line is a line of symmetry; Year 5 asks
-    // the same picture as a reflection, which is what this description is
-    // about - what a flip changes and what it leaves alone.
-    prompt: 'True or false: flipping this shape over the dashed line would land it exactly on itself.',
+    prompt: 'True or false: turning this shape half way round would leave it looking exactly the same.',
     vars: [
-      { name: 'real', kind: 'pick', from: [1, 0] },
       {
         name: 'shape',
         kind: 'pick',
         from: [
           'equilateral',
           'isosceles',
-          'trapezium',
-          'kite',
+          'scalene',
+          'right-triangle',
           'square',
           'rectangle',
           'rhombus',
+          'parallelogram',
+          'trapezium',
+          'kite',
           'pentagon',
           'hexagon',
+          'heptagon',
+          'octagon',
         ],
       },
     ],
-    answer: 'real == 1',
-    figure: { kind: 'polygon', shape: 'shape', mirror: 'real == 1' },
+    // The shapes that come back to themselves after 180 degrees: the four
+    // quadrilaterals with opposite sides in pairs, and the polygons with an
+    // even number of sides.
+    answer:
+      "shape == 'square' || shape == 'rectangle' || shape == 'rhombus' || " +
+      "shape == 'parallelogram' || shape == 'hexagon' || shape == 'octagon'",
+    hint: 'Half a turn is the same as looking at it upside down.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M5SP03'],
+  },
+  {
+    id: 'maths.5.symmetry.turn-matches',
+    subject: 'maths',
+    topic: 'symmetry',
+    level: '5',
+    prompt: 'In one full turn, how many times does this shape look exactly the same as it does now?',
+    vars: [
+      // Every shape here matches at least twice. A shape that matches only on
+      // the way back to where it started is the answer "1", which reads as a
+      // trick rather than a count, so none is offered.
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: [
+          'rectangle',
+          'rhombus',
+          'parallelogram',
+          'equilateral',
+          'square',
+          'pentagon',
+          'hexagon',
+          'heptagon',
+          'octagon',
+        ],
+      },
+    ],
+    answer:
+      "shape == 'rectangle' || shape == 'rhombus' || shape == 'parallelogram' ? 2 : " +
+      "shape == 'equilateral' ? 3 : shape == 'square' ? 4 : shape == 'pentagon' ? 5 : " +
+      "shape == 'hexagon' ? 6 : shape == 'heptagon' ? 7 : 8",
+    hint: 'A regular shape matches once for every side. A rectangle matches only twice.',
+    figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9M5SP03'],
   },
 
@@ -3371,8 +3457,15 @@ export const mathsTemplates: QuestionTemplate[] = [
     level: '6',
     // Nothing says how big the marked angle is, so the relationship has to be
     // read off the drawing rather than taken from the prompt and subtracted.
+    //
+    // Asked as a hypothetical, because the figure draws one angle and no line:
+    // an earlier wording said the marked angle "sits on a straight line with
+    // one more angle", which sent a child looking for a straight line and a
+    // second angle that are not in the picture. Drawing them would mean a new
+    // figure kind for one template. "Would be" is what the drawing can honestly
+    // support - the angle is there, the line is the thing being imagined.
     prompt:
-      'The marked angle sits on a straight line with one more angle. Is that other angle bigger or smaller than this one?',
+      'One more angle beside the marked one would make a straight line. Would that other angle be bigger or smaller than this one?',
     vars: [{ name: 'd', kind: 'int', min: '20', max: '160', step: 5 }],
     constraints: ['abs(d - 90) >= 25'],
     answer: "d < 90 ? 'bigger' : 'smaller'",
