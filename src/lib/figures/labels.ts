@@ -27,6 +27,14 @@ import { FIGURE_BOX, FIGURE_PADDING } from './types';
  * width. If a label sits at the extreme edge of your drawing, size the drawing
  * so its ink lands inside, or the first digit is sliced off in every report row.
  *
+ * The same goes for every mark with extent, not only for text. A `dot` renders
+ * as a round cap `strokeWidth * 3` real pixels across, centred on a point `fit`
+ * bounded as a point - `bar`'s only mark that lands *exactly* on the fitted
+ * bound is the dot of a zero value in an unlabelled dot plot, and it survives
+ * because `FIGURE_PADDING` happens to pay for it, not because the kind budgeted
+ * anything. A kind that puts a heavier mark on its own bound has no such luck,
+ * and would clip in silence.
+ *
  * **2. `fit` is uniform and centring, so varying the overall *size* of a
  * drawing is not varying the drawing.** A figure must never become the anchor
  * for an answer (see `types.ts`), and `validateTemplate` enforces that by
@@ -73,7 +81,24 @@ export const REPORT_LABEL_SIZE = 16;
  */
 export const PLAY_LABEL_SIZE = 7;
 
-/** About what one character costs, as a share of the type size. */
+/**
+ * About what one character costs, as a share of the type size.
+ *
+ * **Before tuning this - or `FIGURE_PADDING`, or `FIGURE_PRECISION` - know what
+ * the three of them are holding up.** A kind that budgets for label ink solves
+ * for it *exactly*, and exact leaves nothing over: in `bar`, at the tightest
+ * legal shape, the binding label's ink lands 0.24 units inside the box with a
+ * one-character axis and **0.01 units** inside it with a six-character one,
+ * where one character is 9.28 units wide. The entire clearance is a single
+ * `10 ** -FIGURE_PRECISION` term in `plotShape`, and it is there to absorb
+ * `fit`'s rounding rather than to leave room.
+ *
+ * So any of the three moving a little turns "just inside" into "just outside",
+ * in a 64px thumbnail, on content that validates - and neither the type system
+ * nor any per-case test would notice. The sweep at the bottom of
+ * `bar-kind.test.ts` is the only alarm wired to it, which is the argument for a
+ * kind that places labels having one of its own.
+ */
 export const CHAR_RATIO = 0.58;
 
 /** Ink height for digits and capitals, as a share of the type size. */

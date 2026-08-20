@@ -150,6 +150,10 @@ export const FIGURE_BOX = 100;
  * by restating it as a literal, which is exactly the drift that ends with a
  * label clipped in a parent's report and no test able to see it.
  *
+ * **Tuning it moves every kind's label budget**, and those budgets are exact -
+ * see `CHAR_RATIO` in `labels.ts` for how little room they leave and what the
+ * only alarm is.
+ *
  * `types.ts` rather than `build.ts` because this file imports nothing.
  * `build.ts` sits at the top of a cycle - it imports the registry, which
  * imports every kind - so a kind importing a *constant* back out of `build.ts`
@@ -179,6 +183,10 @@ export const MAX_MARKS = 200;
  * stored beside an attempt small, and - the reason that matters - it makes two
  * figures comparable as strings, which is what the anchoring check needs to
  * tell "drawn afresh" from "drawn identically again".
+ *
+ * It is also the whole clearance a kind's label-ink budget has to absorb that
+ * rounding with, so tuning it moves a budget that is already exact - see
+ * `CHAR_RATIO` in `labels.ts`.
  */
 export const FIGURE_PRECISION = 2;
 

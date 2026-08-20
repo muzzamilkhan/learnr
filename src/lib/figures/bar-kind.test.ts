@@ -313,7 +313,10 @@ describe('the bar figure kind', () => {
     //
     // Nine categories by eleven characters is far past anything legal, which is
     // the point: the guarantee is about the shapes nobody validated, since
-    // those are the ones a child meets mid-session.
+    // those are the ones a child meets mid-session. **The alphabet has to be at
+    // least as long as the widest label swept** - it was "Wednesday", nine
+    // letters, so the last two widths were silently duplicates of the ninth and
+    // the test did not sweep what this comment said it did.
     //
     // **The odd-looking members of these two lists are the load-bearing ones,
     // and a copy of this test should keep their equivalents.** A sweep over
@@ -338,7 +341,7 @@ describe('the bar figure kind', () => {
             const values = Array.from({ length: count }, (_, index) =>
               Math.max(1, magnitude * (1 - index * 0.13)),
             ).join(',');
-            const names = Array.from({ length: count }, () => 'Wednesday'.slice(0, chars)).join(',');
+            const names = Array.from({ length: count }, () => 'Watermelons'.slice(0, chars)).join(',');
             const spec: FigureSpec = {
               kind: 'bar',
               values: `'${values}'`,
@@ -362,6 +365,58 @@ describe('the bar figure kind', () => {
     }
 
     expect(silent).toEqual([]);
+  });
+
+  it('measures a rung that prints wider than the top of the axis', () => {
+    // The top rung is not the widest one, twice over, and both were silent
+    // until they were swept for. They live here as well as in the sweep
+    // because a sweep failure reads `expected [ ...(208) ] to deeply equal []`,
+    // which says nothing at all about what broke.
+    //
+    // A fractional scale is the arithmetic one: an axis topping out at 400.5
+    // passes through 100.125, two characters wider than its own top.
+    expect(
+      figureIssues({ kind: 'bar', values: "'400.5'", scale: '100.125' }, {}).join(),
+    ).toContain('100.125');
+
+    // And `String` itself is the other: at 1e21 JavaScript switches to
+    // exponential, so an axis whose top prints "1e+21" in five characters
+    // passes through a rung printing twenty-one.
+    expect(figureIssues({ kind: 'bar', values: "'1e21'" }, {}).join()).toContain(
+      '199999999999999970000',
+    );
+  });
+
+  it('says so when two rungs of the axis would read the same', () => {
+    // The one failure no ink sweep can see: these labels fit their box
+    // perfectly, they are simply not distinct. `formatStep` rounds to three
+    // decimals, so a step finer than that prints the same text twice and the
+    // axis stops being a scale.
+    expect(
+      figureIssues({ kind: 'bar', values: "'0.0024'", scale: '0.0006' }, {}).join(),
+    ).toContain('two rungs');
+    expect(
+      figureIssues({ kind: 'bar', values: "'0.0000003'", scale: '0.0000001' }, {}).join(),
+    ).toContain('two rungs');
+
+    // A fractional axis that *does* stay distinct is fine - the check bites on
+    // the rounding, not on the fraction.
+    expect(figureIssues({ kind: 'bar', values: "'0.5,1'", scale: '0.5' }, {})).toEqual([]);
+    expect(
+      figureIssues({ kind: 'bar', values: "'0.004,0.008'", scale: '0.002' }, {}),
+    ).toEqual([]);
+  });
+
+  it('says so when there is nothing to graph at all', () => {
+    // Reachable with no pinned scale, unlike its neighbours above: every value
+    // zero sends the scale past the ladder to a step of nothing, and the axis
+    // comes out as one rung repeated. Named for what the author did rather than
+    // for what it does to the axis, which would send them looking at rounding.
+    for (const values of ["'0'", "'0,0'", "'0,0,0'"]) {
+      expect(figureIssues({ kind: 'bar', values }, {}).join(), values).toContain(
+        'every value is zero',
+      );
+    }
   });
 
   it('measures the axis it will draw, not the tallest value', () => {

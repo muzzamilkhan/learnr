@@ -266,9 +266,49 @@ function widestStepLabel(values: readonly number[], max: number, pinned: number 
 }
 
 /**
+ * The text two rungs of the axis would both carry, or nothing at all if every
+ * rung reads differently.
+ *
+ * **This is the same class of bug as `widestStepLabel` on a different axis: not
+ * how wide a derived label is, but whether it is still the label it should be.**
+ * `formatStep` rounds to three decimals, so a step finer than that prints the
+ * same text twice - an axis reading `0 | 0.001 | 0.001 | 0.002 | 0.002` fits its
+ * box perfectly and cannot be read at all. No amount of measuring ink finds
+ * this, which is exactly why it is a check of its own rather than a wider
+ * sweep: the labels are the right size, they are the wrong labels.
+ *
+ * A kind whose labels are derived owes its authors both questions. Does the
+ * label fit? And is it still distinct from the one next to it? Rounding answers
+ * the first by breaking the second.
+ */
+function repeatedStepLabel(
+  values: readonly number[],
+  max: number,
+  pinned: number | undefined,
+): { text: string; scale: number } | null {
+  for (const scale of scaleCandidates(values, max, pinned)) {
+    const seen = new Set<string>();
+    for (let step = 0; step <= stepsFor(max, scale); step++) {
+      const text = formatStep(step * scale);
+      if (seen.has(text)) return { text, scale };
+      seen.add(text);
+    }
+  }
+  return null;
+}
+
+/**
  * How wide the plot is drawn before the width jitter, and what the left margin
  * costs - the half of the layout that depends on nothing random, so `build` and
  * `categoryBudget` can never disagree about how much room a label has.
+ *
+ * **What it produces is exact, and exact means there is no slack.** At the
+ * tightest legal shape the binding label's ink lands 0.24 units inside the box
+ * with a one-character axis and **0.01 units** inside it with a six-character
+ * one - the `10 ** -FIGURE_PRECISION` term below is the entire clearance, and it
+ * is there to survive rounding rather than to leave room. See `labels.ts` for
+ * which three constants flip that, and for the fact that the sweep in
+ * `bar-kind.test.ts` is the only thing that would notice.
  *
  * The width is whatever is left once the step labels have their margin,
  * narrowed until **every label's ink** lands inside the box at report scale.
@@ -503,6 +543,28 @@ export const barModule: FigureKindModule<'bar'> = {
           `figure.values: a step label reading ${rung} needs ${rung.length} characters` +
             ` beside the plot, more than the ${MAX_STEP_CHARS} it has room for`,
         );
+      }
+
+      // Whether the axis can be *read*, which measuring its ink cannot answer:
+      // an axis of repeated labels fits its box perfectly. The all-zero case is
+      // split out because it is the one reachable without pinning a scale, and
+      // "every value is zero" is what its author actually did wrong - a
+      // sentence about rounding would send them looking in the wrong place.
+      if (max === 0) {
+        if (!values.some((value) => value < 0)) {
+          issues.push(
+            'figure.values: every value is zero, so the graph has no bar to read' +
+              ' and its axis is a single rung',
+          );
+        }
+      } else {
+        const repeated = repeatedStepLabel(values, max, pinned);
+        if (repeated) {
+          issues.push(
+            `figure.values: a step of ${repeated.scale} makes two rungs of the axis both` +
+              ` read ${repeated.text}, so it cannot be read as a scale`,
+          );
+        }
       }
 
       const below = values.find((value) => value < 0);
