@@ -6,6 +6,7 @@ import { figureKindModule } from './registry';
 import {
   FIGURE_BOX,
   FIGURE_KINDS,
+  FIGURE_PADDING,
   FIGURE_PRECISION,
   type Figure,
   type FigureSpec,
@@ -42,13 +43,6 @@ export { fieldReader, type FieldReader } from './fields';
  * into a rectangle doing it.
  */
 
-/**
- * Kept clear inside the box, so a stroke drawn along the outline has somewhere
- * to be: the marks are lines with width, and a figure fitted to the very edge
- * of its box loses half that width to the clip.
- */
-const PADDING = 6;
-
 export function buildFigure(spec: FigureSpec, scope: Scope, rng: Rng): Figure {
   // An unrecognised kind lands on the polygon path and, with no shape it knows,
   // on an equilateral triangle - the same fallback an unknown shape name gets,
@@ -78,7 +72,7 @@ function fit(marks: readonly Mark[]): Figure {
 
   const [minX, minY, maxX, maxY] = bounds;
   const span = Math.max(maxX - minX, maxY - minY);
-  const scale = span > 0 ? (FIGURE_BOX - 2 * PADDING) / span : 1;
+  const scale = span > 0 ? (FIGURE_BOX - 2 * FIGURE_PADDING) / span : 1;
   const midX = (minX + maxX) / 2;
   const midY = (minY + maxY) / 2;
 

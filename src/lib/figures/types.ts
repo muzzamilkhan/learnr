@@ -138,6 +138,29 @@ export type FigureSpec =
 export const FIGURE_BOX = 100;
 
 /**
+ * Kept clear inside the box by `fit`, so a stroke drawn along the outline has
+ * somewhere to be: the marks are lines with width, and a figure fitted to the
+ * very edge of its box loses half that width to the clip.
+ *
+ * **It lives in the vocabulary rather than in `build.ts`, which is the file
+ * that spends it, because a kind that places labels has to know it too** - the
+ * slack between the drawing and the box is the only room a label's ink has to
+ * hang outside the anchor point `fit` measures it by (see `labels.ts`). It was
+ * private to `build.ts` while nothing else needed it, and `bar-kind.ts` began
+ * by restating it as a literal, which is exactly the drift that ends with a
+ * label clipped in a parent's report and no test able to see it.
+ *
+ * `types.ts` rather than `build.ts` because this file imports nothing.
+ * `build.ts` sits at the top of a cycle - it imports the registry, which
+ * imports every kind - so a kind importing a *constant* back out of `build.ts`
+ * reads it before it is initialised, and under Vite that is `undefined` rather
+ * than a `ReferenceError`: every share derived from it becomes `NaN`, `fit`
+ * finds no finite bounds, and the figure comes back **empty** with nothing
+ * thrown. Measured, not assumed - see the task 6 report, round 1.
+ */
+export const FIGURE_PADDING = 6;
+
+/**
  * The ceiling `parseFigure` holds `marks.length` to. A real figure is a
  * handful of marks - a shape's outline, maybe a tick or a mirror line, maybe a
  * dot and an arc for an angle - so a couple of hundred is generous by two

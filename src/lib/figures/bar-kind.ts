@@ -1,6 +1,7 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField } from './fields';
+import { CHAR_SHARE, DRAWN_SPAN, PITCH_SHARE, reportLabelWidth } from './labels';
 import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
 
@@ -26,17 +27,14 @@ import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
  * categories are a continuous run - which is a claim about the data, not a
  * drawing choice - so it has to be asked for.
  *
- * **The labels are laid out for the report, not for the play screen.** The
- * same figure is drawn at `labelSize={7}` on the play screen and
- * `labelSize={16}` in a 64px report thumbnail (`src/components/diagram.tsx`),
- * so one glyph is roughly 2.3x wider in the box's own units there than here -
- * and `buildFigure` cannot see which of the two it is being built for, since
- * it is built once and rendered twice. Spacing that clears the play screen's
- * glyph collides in the report, so every gap below is measured against the
- * report's: it is the number of *axis steps* that this pays for, since the
- * report's type size is what says a 100-unit box holds six lines of it and no
- * more. That is `MAX_STEPS`, and it is why `scale` exists at all - a graph of
- * values up to 20 is drawn in steps of 5, not 20 rungs of 1.
+ * **The labels are laid out for the report, not for the play screen** -
+ * `labels.ts` is where that is measured and why. What it costs *this* kind is
+ * the number of rungs on the value axis: a 100-unit box holds about six lines
+ * of report-scale type, so `MAX_STEPS` is five, and that is the whole reason
+ * `scale` is a parameter - a graph of values up to 20 is drawn in steps of 5,
+ * not 20 rungs of 1. The layout below is in a frame whose height is exactly 1
+ * and whose width is never more, which is what makes `labels.ts`' shares
+ * directly comparable with the geometry here.
  *
  * The one thing this cannot buy back is a *descender* in a category label at
  * report scale: the lowest label is the bottom of the drawing by construction,
@@ -56,38 +54,6 @@ const JITTERED_STYLES: readonly BarStyle[] = ['column', 'dot'];
 
 /** Comparing values against a step, where both came out of floating-point arithmetic. */
 const EPSILON = 1e-9;
-
-/**
- * The type size a figure is drawn at in a parent's report, in the fitted box's
- * own units, and what a character of it costs there.
- * `progress-topics.tsx` passes `labelSize={16}`; the ratios are the ones
- * `src/lib/chart/axis-labels.ts` measures its own labels with.
- */
-const REPORT_LABEL_SIZE = 16;
-const CHAR_RATIO = 0.58;
-const INK_RATIO = 0.72;
-/** Daylight between two lines of it, so a stack of numbers reads as a stack. */
-const LINE_CLEARANCE = 1.15;
-
-/**
- * What `fit` leaves a drawing inside `FIGURE_BOX` once its padding is taken
- * off both sides - `build.ts`'s `PADDING`, which is not exported and is named
- * here rather than imported. It is used only to turn a report-scale label into
- * a share of the drawing's own span, so the two would have to disagree by a
- * lot before a label moved.
- */
-const DRAWN_SPAN = FIGURE_BOX - 12;
-
-/**
- * The three above, as shares of the drawing's own span. Everything below is
- * laid out in a frame whose height is exactly 1 and whose width is never more
- * than that, so the span *is* 1 and these are directly comparable with the
- * geometry - which is the only reason the labels can be spaced without knowing
- * what scale the figure will be fitted to.
- */
-const CHAR_SHARE = (REPORT_LABEL_SIZE * CHAR_RATIO) / DRAWN_SPAN;
-const INK_SHARE = (REPORT_LABEL_SIZE * INK_RATIO) / DRAWN_SPAN;
-const PITCH_SHARE = INK_SHARE * LINE_CLEARANCE;
 
 /** How far the axes run past the last step and the last category. */
 const TOP_OVERHANG = 0.06;
@@ -272,7 +238,7 @@ export const barModule: FigureKindModule<'bar'> = {
     // anchor the fit measures, and an SVG clips at its own edge, so the
     // drawing has to stay narrow enough for that half to land inside.
     const roomForInk =
-      (FIGURE_BOX / 2 - (stepChars * REPORT_LABEL_SIZE * CHAR_RATIO) / 2) / (DRAWN_SPAN / 2);
+      (FIGURE_BOX / 2 - reportLabelWidth(stepChars) / 2) / (DRAWN_SPAN / 2);
     const outside = RIGHT_OVERHANG + leftBand - (stepChars * CHAR_SHARE) / 2;
     const widest = clamp((roomForInk - outside) / available, MIN_PLOT_WIDTH, 1);
     const plotWidth = available * widest * jitter(rng, ...WIDTH_BAND);
