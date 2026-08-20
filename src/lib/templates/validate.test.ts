@@ -364,3 +364,93 @@ describe('validateTemplate figures', () => {
     );
   });
 });
+
+describe('choice leakage', () => {
+  // The shipped shape that fails: place-value distractors always sort into the
+  // same order, so the answer sits at a fixed rank every single draw.
+  it('rejects a choice question whose answer is always the same sorted rank', () => {
+    const result = validateTemplate({
+      id: 'maths.6.measurement.leaky',
+      subject: 'maths', topic: 'measurement', level: '6',
+      prompt: 'How many kilograms is {g} grams?',
+      vars: [
+        { name: 'n', kind: 'int', min: '3', max: '199' },
+        { name: 'g', kind: 'expr', expr: 'n * 50' },
+      ],
+      answer: 'n * 50 / 1000',
+      answerType: 'choice',
+      choices: { count: 4, distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50'] },
+      tags: ['AC9M6M01'],
+    });
+
+    expect(result.errors.join(' ')).toMatch(/rank/i);
+  });
+
+  // Finding the largest IS the question, so a fixed rank is honest here - but
+  // only because the template says so.
+  it('accepts a fixed rank when the template declares that is the question', () => {
+    const spec = {
+      id: 'maths.5.decimals.largest',
+      subject: 'maths', topic: 'decimals', level: '5',
+      prompt: 'Which of these is the largest: {a}, {b} or {c}?',
+      vars: [
+        { name: 'a', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+        { name: 'b', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+        { name: 'c', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+      ],
+      constraints: ['a != b', 'b != c', 'a != c'],
+      answer: 'max(a, max(b, c))',
+      answerType: 'choice',
+      tags: ['AC9M5N01'],
+    } as const;
+
+    const leaky = validateTemplate({ ...spec, choices: { count: 3, distractors: ['a', 'b', 'c'] } });
+    expect(leaky.errors.join(' ')).toMatch(/rank/i);
+
+    const declared = validateTemplate({
+      ...spec,
+      choices: { count: 3, distractors: ['a', 'b', 'c'], rankIsTheQuestion: true },
+    });
+    expect(declared.errors).toEqual([]);
+  });
+
+  // The Kindergarten pattern shape: three colours from three disjoint pick
+  // lists, and the answer is always the one from the middle list. Narration
+  // reads the options aloud, so this is beatable without reading at all.
+  it('rejects a choice question whose answer never appears as a wrong option', () => {
+    const result = validateTemplate({
+      id: 'maths.K.patterns.leaky',
+      subject: 'maths', topic: 'patterns', level: 'K',
+      prompt: 'What comes next? {a}, {b}, {c}, {a}, {b}, {c}, {a}, ?',
+      vars: [
+        { name: 'a', kind: 'pick', from: ['red', 'blue'] },
+        { name: 'b', kind: 'pick', from: ['yellow', 'orange'] },
+        { name: 'c', kind: 'pick', from: ['green', 'purple'] },
+      ],
+      answer: 'b',
+      answerType: 'choice',
+      choices: { count: 3, distractors: ['a', 'c'] },
+      tags: ['AC9MFA01'],
+    });
+
+    expect(result.errors.join(' ')).toMatch(/option set|never a distractor|announces/i);
+  });
+
+  it('accepts a choice question whose options genuinely mix', () => {
+    const result = validateTemplate({
+      id: 'maths.2.addition.sound',
+      subject: 'maths', topic: 'addition', level: '2',
+      prompt: 'What is {x} + {y}?',
+      vars: [
+        { name: 'x', kind: 'int', min: '10', max: '40' },
+        { name: 'y', kind: 'int', min: '10', max: '40' },
+      ],
+      answer: 'x + y',
+      answerType: 'choice',
+      choices: { count: 4, jitter: { min: '1', max: '9' } },
+      tags: ['AC9M2N01'],
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+});

@@ -44,6 +44,13 @@ export interface ChoiceSpec {
   distractors?: readonly Expr[];
   /** Fallback distractor generator: correct answer +/- a random offset in this range. */
   jitter?: { min: Expr; max: Expr };
+  /**
+   * The answer's rank among the sorted options is fixed *because finding the
+   * extreme is the question* - "Which is largest?". Declared so the leakage
+   * check does not flag it, and declared deliberately: an undeclared fixed
+   * rank is a question a child can beat without doing the maths.
+   */
+  rankIsTheQuestion?: boolean;
 }
 
 /**

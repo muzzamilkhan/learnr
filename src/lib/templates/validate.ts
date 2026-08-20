@@ -36,6 +36,40 @@ export const FIGURE_DRAWS = 50;
 export const FIGURE_PICK_COMBINATIONS_CAP = 200;
 
 /**
+ * How many times a template carrying `choices` is drawn to look for a question
+ * that answers itself - the sibling of `FIGURE_DRAWS`, and there for the same
+ * reason: a shortcut a child can learn is a shortcut the analytics will then
+ * call mastery. Forty is enough that a rank which merely *tends* to repeat
+ * will have moved at least once (four options shuffled independently would
+ * have to land the same way forty times running), and cheap enough to pay on
+ * every validate for the roughly half of shipped templates that are multiple
+ * choice.
+ */
+export const CHOICE_DRAWS = 40;
+
+/**
+ * Fewer usable draws than this and neither leakage check says anything. A rank
+ * that happened to hold three times, or an answer that took two values because
+ * only two draws survived their constraints, is not evidence of a shortcut.
+ */
+const MIN_CHOICE_DRAWS = 10;
+
+/**
+ * The most distinct values the answer may take before the option-set check
+ * stops reading disjointness as structure. The leak this catches is a *closed*
+ * set - three colours, two units, "morning or afternoon" - where the answer is
+ * always drawn from one named list and the wrong options from another, so a
+ * child (or a narrator reading the options aloud) can pick the odd one out
+ * without doing the maths. A template whose answer takes a hundred-odd distinct
+ * numbers has no such list: if its answers happen never to coincide with its
+ * distractors, that is arithmetic coincidence, not a tell, and firing on it
+ * would block good content. Measured, not guessed - one shipped template with
+ * 178 distinct numeric answers is disjoint from its own distractors and must
+ * not be flagged.
+ */
+export const CLOSED_SET_MAX = 8;
+
+/**
  * How many times a single forced combination is retried - with everything
  * not forced redrawn - before it is treated as unsatisfiable and simply not
  * checked. Far fewer than `MAX_ATTEMPTS` in `generate.ts`: that runs once per
@@ -306,10 +340,18 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     }
   }
 
+  // Everything below here draws the template repeatedly, which is only worth
+  // doing - and only meaningful - once the spec is known to bind and generate.
+  // Captured rather than re-read as `errors.length === 0` at each block, so
+  // that a leak reported by one of them cannot silently switch the next one
+  // off: the figure check and the choice check are independent questions about
+  // the same template, and a template with both should be told about both.
+  const generates = errors.length === 0;
+
   // Checks 2 and 3 of 3 for a figure: it has to build clean, and it has to vary.
   // Both need a bound scope, so they wait for everything above to have passed -
   // there is no point judging a figure against a scope that never bound.
-  if (errors.length === 0 && spec.figure !== undefined) {
+  if (generates && spec.figure !== undefined) {
     const figureSpec = spec.figure;
     const seenIssues = new Set<string>();
     const byAnswer = new Map<string, { count: number; figures: Set<string> }>();
@@ -425,6 +467,96 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
           `figure: the answer ${key} always drew the same picture - unpin ` +
             'figure.rotation, or choose a shape or angle that still has something ' +
             'left to vary, so the diagram itself does not become the answer',
+        );
+      }
+    }
+  }
+
+  // The anchoring rule's sibling, for multiple choice. A figure that never
+  // varies teaches a child to recognise the picture instead of the property;
+  // an option set that never varies teaches them to recognise the *button*.
+  // Both are the same failure - the child gets it right, the profile calls the
+  // topic secure, and the thing they learned was not the maths - so both are
+  // caught the same way: draw the template many times and look at what stayed
+  // the same. Two shapes are worth reporting.
+  if (generates && spec.choices !== undefined) {
+    const choiceSpec = spec.choices;
+    const ranks = new Set<number>();
+    const optionCounts = new Set<number>();
+    const answerValues = new Set<string>();
+    const wrongValues = new Set<string>();
+    let usable = 0;
+    // Whether *every* option of *every* draw was a number. A sort is the only
+    // thing a rank can mean, and there is no meaningful sort over "red" beside
+    // 7, so one mixed or wordy draw takes the rank check off the table.
+    let everyOptionNumeric = true;
+
+    for (let i = 0; i < CHOICE_DRAWS; i++) {
+      let question;
+      try {
+        question = generate(spec as QuestionSpec, createRng(`validate-${label}-choice-${i}`), label);
+      } catch {
+        // Skipped rather than reported: the generation proof above is what
+        // reports a template that cannot generate, and a draw that failed is
+        // simply not evidence about the options. `usable` is what the two
+        // checks below key off, so skipping costs a draw and never a verdict.
+        continue;
+      }
+
+      // A boolean answer renders two fixed buttons and any authored choices
+      // are dropped, so there is no option set here to have leaked.
+      const options = question.choices;
+      if (!options) continue;
+      usable++;
+
+      // Compared as the text a child reads off the button, which is what any
+      // shortcut is actually keyed to - and a `choice` answer is never a
+      // boolean, so there is no `true`/`"true"` pair for `String` to conflate.
+      const answerKey = String(question.answer);
+      answerValues.add(answerKey);
+      for (const option of options) {
+        const key = String(option);
+        if (key !== answerKey) wrongValues.add(key);
+      }
+
+      if (options.every((option) => typeof option === 'number')) {
+        const sorted = [...(options as number[])].sort((a, b) => a - b);
+        ranks.add(sorted.indexOf(question.answer as number));
+        optionCounts.add(options.length);
+      } else {
+        everyOptionNumeric = false;
+      }
+    }
+
+    if (usable >= MIN_CHOICE_DRAWS) {
+      // Rank. One rank has to account for *every* usable draw. A rank that
+      // holds 90% of the time is a content smell and not a defect - the child
+      // who bets on it is wrong often enough to have to look - and a check
+      // that blocks a build on a smell blocks legitimate content. So the bar
+      // is constancy, not skew.
+      if (everyOptionNumeric && ranks.size === 1 && !choiceSpec.rankIsTheQuestion) {
+        const rank = [...ranks][0] + 1;
+        const count = Math.max(...optionCounts);
+        errors.push(
+          `choices: sorted smallest to largest, the answer was rank ${rank} of ${count} in ` +
+            `every one of ${usable} draws - "never the biggest, never the smallest" beats ` +
+            'this question without doing the maths. Vary the distractors so the answer ' +
+            'moves, or set choices.rankIsTheQuestion if finding the extreme *is* the question',
+        );
+      }
+
+      // Option set. The answer is always drawn from one closed list and the
+      // wrong options from another, so the answer is the odd one out - which
+      // narration reads aloud, making it beatable by a child who cannot read.
+      // The size guard is what keeps this about structure: see CLOSED_SET_MAX.
+      const disjoint = [...answerValues].every((value) => !wrongValues.has(value));
+      if (answerValues.size <= CLOSED_SET_MAX && disjoint) {
+        const sample = [...answerValues].sort().slice(0, 4).join(', ');
+        errors.push(
+          `choices: across ${usable} draws the answer only ever took ${answerValues.size} ` +
+            `distinct values (${sample}), and not one of them was ever offered as a wrong ` +
+            'option - the option set announces which button is the answer. Draw the ' +
+            'distractors from the same values the answer itself can take',
         );
       }
     }
