@@ -64,7 +64,15 @@ export interface Figure {
   marks: readonly Mark[];
 }
 
-export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph', 'spinner', 'solid'] as const;
+export const FIGURE_KINDS = [
+  'polygon',
+  'angle',
+  'bar',
+  'pictograph',
+  'spinner',
+  'solid',
+  'number-line',
+] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
 /**
@@ -198,6 +206,32 @@ export type FigureSpec =
        * polygon's pinned rotation has to be refused outright.
        */
       rotation?: Expr;
+    }
+  | {
+      kind: 'number-line';
+      /** The value the arrow points at. */
+      at: Expr;
+      /**
+       * Omitted, the builder picks a range containing `at` - and a *different*
+       * one on a different seed, which is this kind's answer to the anchoring
+       * rule: a 7 is drawn on 0-10 and on 0-20. A range it picks for itself
+       * always has a tick under the arrow, so the child can read the answer
+       * off it; a range **pinned** here is drawn as written, arrow between two
+       * ticks and all, since estimating is a real question to ask.
+       */
+      from?: Expr;
+      to?: Expr;
+      /** Distance between labelled ticks. Omitted, jitters over what divides the range. */
+      step?: Expr;
+      /**
+       * Draw minor ticks between the labelled ones. Omitted, jitters - but
+       * **only where the arrow is already standing on a labelled tick**.
+       * Otherwise the small ticks are the only thing saying which number the
+       * arrow is on, so they are always drawn, and this is the one optional
+       * field whose absence is not a free coin toss. Pinning it false is still
+       * honoured exactly as written.
+       */
+      minorTicks?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

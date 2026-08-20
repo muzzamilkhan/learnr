@@ -4,6 +4,7 @@ import type { FieldReader } from './fields';
 import type { FigureKind, FigureSpec, Mark } from './types';
 import { angleModule } from './angle-kind';
 import { barModule } from './bar-kind';
+import { numberLineModule } from './number-line-kind';
 import { pictographModule } from './pictograph-kind';
 import { polygonModule } from './polygon-kind';
 import { solidModule } from './solid-kind';
@@ -138,6 +139,7 @@ for (const kindModule of [
   pictographModule,
   spinnerModule,
   solidModule,
+  numberLineModule,
 ]) {
   registerFigureKind(kindModule);
 }
