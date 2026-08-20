@@ -222,8 +222,15 @@ function MarkShape({
  * direction `0`. A negative delta walks the other way and flips it. The
  * large-arc flag is the ordinary one: whichever direction is walked, going
  * further than a half turn is the "large" arc.
+ *
+ * **Exported only so it can be tested.** Nothing outside this file calls it, and
+ * it is the one piece of the renderer that is arithmetic rather than markup -
+ * two reviewers have now re-derived the minus and the two flags by hand to
+ * satisfy themselves it is right, which is exactly the work a test is for.
+ * `diagram.test.ts` asserts where the endpoints land rather than the string, so
+ * a change to how the numbers are formatted is not a failure.
  */
-function arcPath(mark: Extract<Mark, { kind: 'arc' }>): string {
+export function arcPath(mark: Extract<Mark, { kind: 'arc' }>): string {
   const [cx, cy] = mark.at;
   const start = pointOnArc(cx, cy, mark.radius, mark.from);
   const end = pointOnArc(cx, cy, mark.radius, mark.to);

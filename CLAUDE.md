@@ -31,6 +31,7 @@ the rule that keeps the app testable; don't break it for convenience.
 
 ```
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
+src/lib/figures/     the questions that are a picture: shapes, angles, jitter
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
@@ -134,9 +135,11 @@ that aren't school years, and unsatisfiable constraints, then proves the templat
 can actually generate. `src/content/catalog.test.ts` validates everything shipped
 and checks the rest of what makes content usable: an id shaped
 `subject.level.topic.variant`, a curriculum content description in `tags`, at
-least 20 templates per year, and no typed answer the number pad cannot enter.
+least 20 templates per year, and no typed answer the number pad cannot enter. A
+template carrying a `figure` is also drawn fifty times and made to prove it never
+draws one answer the same way twice - see **Question diagrams** below.
 
-Content ships for K-6, 200 templates, written against ACARA's *Mathematics: Scope
+Content ships for K-6, 221 templates, written against ACARA's *Mathematics: Scope
 and sequence F-10 (v9.0)*. Every template cites the content description it
 practises (e.g. `AC9M4N02`) in `tags`, so the curriculum link is checkable rather
 than claimed.
@@ -173,6 +176,156 @@ a lie told in the type system, in the one place a level is guaranteed to be a
 real Australian school year. `specsFor` in `src/lib/speedrun/modes.ts` returns
 bare `QuestionSpec`s for exactly this reason, and reuses `generate` unchanged.
 
+## Question diagrams
+
+Some questions are a picture rather than a sentence. "What shape is this?" has no
+hole to fill - the figure *is* the question and the prompt is only its caption.
+`src/lib/figures/` is the pure half, geometry judged by tests rather than by eye
+for the reason `photo/crop.ts` and `chart/axis-labels.ts` are already there, and
+`src/components/diagram.tsx` is a dumb renderer: marks to SVG, no geometry and no
+decisions, which is what lets the play screen and a row in the parent's report
+draw the same figure five times apart in size.
+
+It exists because of a gap in what a sentence can ask. Counting the ACARA content
+descriptions cited in `src/content/maths.ts` before any of this was written,
+Number, Algebra and Measurement were close to complete while Space carried
+**one** description each in K, 1, 2, 4 and 6 and **none at all** in Year 3 or
+Year 5. That was not an accident about which topics somebody got round to: Space
+and Statistics are the strands where the question is a picture, and an app that
+can only render a sentence cannot ask them.
+
+**No single diagram may become the anchor for an answer.** This is the rule the
+whole design is shaped around, and everything below is a consequence of it. If
+every obtuse angle is drawn the same way, a child learns to recognise that
+picture rather than an obtuse angle - and the app would be teaching the wrong
+thing while its analytics called the topic secure. That is the worst failure
+available here: a wrong answer is visible and a mislearned one is not, and the
+selector would be putting the topic away as mastered on the strength of it.
+
+So a figure is never an asset chosen by the answer. It is **generated**, from the
+same bound scope and the same injected `Rng` the question already uses, and it
+**varies by default**: a template pins the property the question is about and
+says nothing about rotation, size or proportion, which the builder jitters for
+itself. Omitting an optional parameter is what asks for variation; supplying one
+pins it. An author who wants an upright figure writes `rotation: '0'` on purpose,
+and pinning is the exception rather than the default because forgetting is the
+failure mode.
+
+**And because forgetting is invisible - an anchored figure looks perfectly
+correct - the rule is enforced rather than intended.** `validateTemplate` draws a
+figure template `FIGURE_DRAWS` (50) times on different seeds, groups the resolved
+figures by the answer each one accompanied, and fails any answer that always
+produced the same picture. `catalog.test.ts` runs it over everything shipped, so
+an anchored diagram cannot reach a child without a test going red first.
+Coordinates are rounded at build time (`FIGURE_PRECISION`), which keeps the JSON
+stored beside an attempt small and - the reason that actually matters - makes two
+figures comparable as strings, which is the only thing that lets "drawn
+identically again" be detected at all.
+
+**Pinning `rotation: '0'` on a regular polygon therefore fails validation,
+deliberately and with no escape hatch.** Such a shape has no free proportion
+left, so a pinned rotation is one fixed picture and the check rejects it. That is
+the check working, not a limitation to route around: a regular hexagon drawn the
+same way every time is an anchor for "hexagon", however deliberately it was
+pinned. An opt-out flag was the obvious kindness and was left out on purpose,
+because the author who reaches for it is precisely the author about to make this
+mistake, and a comment on the flag would then be the only thing between a child
+and a memorised picture. Pinning stays available wherever something else still
+varies - a scalene triangle's proportions, an angle's two arms - which is the
+whole of the rule.
+
+**`FigureSpec` and `Figure` are the split `QuestionSpec` and a generated question
+already make**: what an author writes, and what the engine resolved it into. A
+`FigureSpec` is expressions - every parameter is an expression string over the
+bound scope, exactly as `min`/`max` already are - and a `Figure` is a
+serialisable drawing in a 0-100 box made of four `Mark` kinds: `path` (points,
+closed, filled, dashed), `arc`, `dot` and `label`. Four, and a renderer must
+handle every one of them, which is the reason there are so few: anything
+`diagram.tsx` has to know how to draw is a decision that has escaped `lib`. A
+right-angle tick is a three-point open `path` and a mirror line is a dashed one
+for that reason rather than for economy. `arc` is the one mark carrying both
+coordinate frames at once - its `at` is in screen coordinates, y down, where
+`fit` left it, while `from`/`to` never left the maths frame the figure was
+authored in, anticlockwise from east - which is why `arcPath` is exported and
+tested rather than read carefully by the next person.
+
+**`buildFigure` is total and clamps; `figureIssues` reports.** The same division
+`generateQuestion` and `validateTemplate` already make, for the same reason:
+generation runs mid-session with a child waiting, so an unknown shape name or a
+400-degree angle degrades into something drawable rather than throwing a stack
+trace into the middle of a question, exactly as `MAX_CHOICES` clamps a fifth
+option away. `figureIssues` takes the spec and the scope and no `Rng` at all - it
+judges the authored spec, not one of the drawings that spec can produce - and
+validation is its only caller, which is what makes the quiet clamping safe: the
+mistake is caught, just not in front of the child.
+
+**`parseFigure` is the boundary**, beside `parseYearLevel`, `parseTarget` and
+`parsePhoto`. A figure is stored on `Attempt` and read back later, so an old row
+predates the column, a newer build may have reshaped `Mark`, and a hand-rolled
+write can put anything at all in a `Json?` column. One bad mark fails the whole
+figure rather than being dropped: a figure is a single composition read together,
+and silently losing the tick that said a corner was square would draw a picture
+`buildFigure` never produced, with nothing on screen to say a stroke went
+missing. `MAX_MARKS` caps the count for the reason `MAX_PHOTO_BYTES` caps a
+photograph - real content is two orders of magnitude short of it, and a crafted
+payload is not.
+
+**The two kinds are `polygon` and `angle`** (`FIGURE_KINDS`), and the shape
+vocabulary is closed (`POLYGON_SHAPES`: the triangles, the quadrilaterals, and
+pentagon through octagon). A count of sides would be less to author with and not
+enough to author *from* - it cannot tell a rhombus from a kite, and a randomly
+wobbled quadrilateral has no axis of symmetry at all, so the true/false symmetry
+question would have no true case to draw. A polygon takes `shape`, `rotation`,
+`mirror` and `rightAngles`; an angle takes `degrees`, `rotation`, `armLength` and
+`arc`. `mirror` is a **boolean** - whether the dashed line is a genuine axis -
+and which true axis, or which plausible wrong line, is the builder's to vary; the
+template's own variable is what the answer reads. An angle's two arms are
+unequal by default, both because equal arms are an anchor and because children
+read longer arms as a bigger angle, a misconception ACARA names outright. There
+is never a right-angle square: a box in the corner answers "what kind of angle is
+this?" before the child has looked at it, the same reason the play screen's
+header counts nothing.
+
+Two content rules, both learned the hard way. **A `mirror` that evaluates falsy
+is reported on a shape whose symmetry axes sit closer than
+`WRONG_MIRROR_CLEARANCE` (15 degrees) apart.** The wrong line is drawn as far
+from every axis as the shape allows, and how far that is falls as the axes
+multiply - a regular polygon's are `180/n` apart, so the best any line can manage
+is `90/n`. A heptagon's "deliberately wrong" mirror therefore lands a few degrees
+off a real one, which is not a child failing to see symmetry but a picture that
+does not contain the answer, and it would be marked wrong either way. The bound
+is written as an angle rather than as a list of shapes, so a kind added later is
+judged by its own geometry instead of by whether somebody remembered to add it to
+a list. And **the existing answer-type rules apply unchanged**: no word answer
+below Year 4, so shape names are `choice` there. That nothing had to be relaxed
+to fit figures in is the best evidence available that the
+`QuestionSpec`/`QuestionTemplate` split was already in the right place - a figure
+is a property of the spec, beside `choices`, so a speed run inherits the
+capability and never uses it, exactly as it inherits `hint`.
+
+**A figure question reads its prompt aloud and stops.** The picture is the part
+you look at and it cannot be described without giving the answer away - "a shape
+with three sides" *is* the answer. A pre-literate child can still answer, since
+seeing a triangle needs no reading, and the figure is not a second control: it
+takes no tap, and tapping the question still repeats the words.
+
+**The figure outranks the prompt on the play screen.** Ordinarily the prompt is
+measured and fitted into the room between header and pad; with a figure, the
+figure claims that room first and the prompt fits into what is left, because when
+there is a picture the picture is the question. The existing `ResizeObserver`
+re-runs when its box changes, so the prompt shrinks correctly with no new
+machinery. The exception is the viewport that has already run out of height - a
+landscape phone, where a figure stacked above a prompt leaves both unusable - and
+there the two sit side by side, under the `max-height:500px` query that **UI**
+below names as one of the app's two.
+
+**Deliberately not in this pass**, and each of them a new figure kind and no
+engine change, which is the test of whether any of the above was right: bar and
+picture graphs (the Statistics hole), analogue clock faces, number lines, arrays,
+fractions of a shape, grids and coordinates, and nets. `label` is the one `Mark`
+nothing emits yet and it is already there, because those kinds are unreadable
+without one and a renderer is cheaper to write once than to extend.
+
 ## Sessions
 
 A session never ends. The child picks subject + year and answers until they stop;
@@ -186,10 +339,20 @@ questions. A daily target, if a parent has set one, adds a bar with no numbers
 on it; see **Daily targets** below for why it carries none.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
-correct/incorrect, the response as typed, and the UTC offset it was given at) and
-folded into that child's `TopicSkill` for the topic. Attempts are the history; the
-skill row is that history rolled forward, and a cache of it - never a second
-truth, so `buildProfile` over the attempts has to reproduce the row.
+correct/incorrect, the response as typed, the UTC offset it was given at, and -
+for a question that had one - the figure the child looked at) and folded into
+that child's `TopicSkill` for the topic. Attempts are the history; the skill row
+is that history rolled forward, and a cache of it - never a second truth, so
+`buildProfile` over the attempts has to reproduce the row.
+
+**The figure is stored resolved, not as the template's parameters**, for the
+reason `prompt` is stored as text rather than re-rendered: a template edited next
+month must not change what a parent is shown about last week. Figures make that
+argument twice over, since they are jittered - even an untouched template redraws
+a different picture on a different seed, so the parameters would name a shape and
+still not be the picture. It is read back through `parseFigure`, and only a
+figure question pays for the column: an ordinary one leaves it unset rather than
+writing `null`, which is already what every attempt from before the column means.
 
 Keeping that true costs a **row lock**: `updateTopicSkill` reads with
 `SELECT ... FOR UPDATE` inside a transaction, so answers landing at once queue up
@@ -303,8 +466,27 @@ simple enough for a child to pick up with no explanation.
   with `overflow-hidden`; the answer pad is fixed-height and the question area
   flexes. Check both orientations after changing that layout, and check a phone
   as well as an iPad - a phone is where it runs out of height first.
-- **Height, not width, is what the play screen is short of.** The pad takes about
-  40% of a phone and 43% of an iPad, and what is left over is the question's.
+- **Height, not width, is what the play screen is short of.** The pad takes 40%
+  of the height it is given, phone or tablet, and what is left over is the
+  question's. What differs is the floor and ceiling on that 40%, and those now
+  ask for **height as well as width**. `sm:` is a width breakpoint standing in
+  for "tablet", and a landscape phone breaks the proxy rather than the reasoning:
+  it is wide - often past the 640px line - and short at the same time, so it took
+  the tablet's 16rem floor, built for a device with height to spare, on exactly
+  the device with the least of it, and left the question no room at all. The
+  larger bounds sit behind `[@media(min-width:640px)_and_(min-height:501px)]`
+  instead, so a landscape phone keeps the phone-sized clamp however wide it is
+  and every tablet clears both halves and is untouched. The speed run's pad
+  carries the identical query, because the two screens must not disagree about
+  what "tablet" means.
+- **Two short-viewport lines, and a third should not be invented.**
+  `max-height:600px` hides the speed run result's right / missed / answered
+  tally, and `max-height:500px` means "landscape phone" - it turns a figure and
+  its prompt into a row, and it is the same boundary the pad's bounds above take
+  from the other side, as `min-height:501px`. Both are written out as literal
+  class names rather than kept in a variable, since Tailwind reads class names
+  as literals and a composed one compiles to nothing. Reach for whichever of the
+  two means what you mean before adding a number beside them.
 - **The question is measured and fitted, not declared** (`Prompt`). The room it
   has depends on the device, the orientation, whether a target bar is showing and
   how long the prompt is, so the box is measured and the largest whole pixel size
@@ -1273,8 +1455,13 @@ played gets a sentence, not empty charts.
 **"Needs a hand" unfolds the questions themselves.** A percentage says a topic
 is hard and only the questions say *how* it is going wrong, so each struggling
 topic carries a disclosure with its last `EXAMPLE_ANSWERS` (3) answers - the
-prompt as the child saw it, what they answered, and what it should have been -
-one row each, elided rather than wrapped so the column can be read down. Three
+prompt as the child saw it, the diagram beside it where the question had one,
+what they answered, and what it should have been - one row each, elided rather
+than wrapped so the column can be read down. The diagram is the **stored** figure
+redrawn small (`Diagram` again, at report density), never a fresh draw off
+today's template: a jittered figure drawn again is a different picture, and a
+parent asking how a question went wrong has to be looking at the one their child
+was looking at. Three
 is enough to see a pattern and few enough to unfold without a page of history.
 It is a plain `<details>`: the rows are rendered with the page and the
 disclosure is the whole interaction, so nothing here needs a client component.

@@ -399,8 +399,15 @@ export function SpeedRun({
 
       {/* The same fixed-height slot the play screen gives its pads, for the same
           reason: the screen may not scroll, so the pad's share of the height is
-          decided once and the question takes what is left. */}
-      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center sm:h-[clamp(16rem,40vh,22rem)]">
+          decided once and the question takes what is left. Including the same
+          height query on the larger bounds - `sm:` alone is a width breakpoint
+          standing in for "tablet", and a landscape phone is wide (often past
+          640px) and short at once, so it took the 16rem tablet floor on exactly
+          the device with the least height to give it. These two screens are
+          siblings and must not disagree about what "tablet" means. Written out
+          as a literal class name, since Tailwind reads class names as literals
+          and a composed one compiles to nothing. */}
+      <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center [@media(min-width:640px)_and_(min-height:501px)]:h-[clamp(16rem,40vh,22rem)]">
         <NumberPad
           disabled={phase !== 'running'}
           canCheck={entry !== ''}

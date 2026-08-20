@@ -641,7 +641,18 @@ export function PlaySession({
           // targets - see the report's per-viewport table - so it is a defence
           // against an unreasonably tall window rather than the thing that
           // actually decides the figure's size) and floored at 64px (see the
-          // note above) so it is never asked to draw as a sliver. `Prompt`'s
+          // note above) so it is never asked to draw as a sliver.
+          //
+          // That ceiling keeps a plain `sm:` where the pad below has moved to a
+          // height query, and the difference is the point: a cap written in
+          // `vh` is already a share of the viewport's own height, so it shrinks
+          // on the short viewport by itself and cannot make the mistake the
+          // pad's absolute `16rem` floor made - `sm:` there raised a bound
+          // built for a tall device on a wide short one, while here it only
+          // chooses between two shares of whatever height there actually is,
+          // both of which sit well above what a landscape phone hands this box.
+          //
+          // `Prompt`'s
           // own slot is deliberately *not* flex-1: an earlier version gave it
           // `flex-1` too, which - both siblings then wanting equal shares of a
           // `flex: 1 1 0%` split - meant the figure's cap never bound at all,
