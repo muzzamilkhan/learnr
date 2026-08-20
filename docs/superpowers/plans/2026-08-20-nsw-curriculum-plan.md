@@ -18,6 +18,11 @@
 - **All logic in `src/lib` stays pure** — no React, network, clock, database. `now` and `Rng` are always injected.
 - **Answer-type rules are unchanged**: no `text` answer below Year 4; no typed answer the number pad cannot enter (digits and one decimal point, no minus key); at most 4 choices.
 - **The anchoring rule holds for every new kind**: a figure is built from the bound scope and the injected `Rng`, varies by default, and `validateTemplate` fails any answer that always produced the same picture.
+- **No multiple-choice question may be answerable without engaging with it.** Two ways it happens, both found in shipped content (see Tasks 25 and 26):
+  - **Rank leak** — sort the options numerically and the answer's rank is the same every draw, so "never the biggest, never the smallest" beats the question. Caused by distractors built as scalings of the answer (`n/10`, `n/1000`, `n`), which always sort into a fixed order.
+  - **Option-set leak** — the answer is always drawn from a distinguishable subset of the option space, so the option set announces it. Worse under narration, which reads word options aloud: a pre-literate child hears three colours and applies the rule without reading the question.
+
+  Where a fixed rank is legitimate *because finding the extreme is the question* ("Which is largest?"), declare it with `rankIsTheQuestion: true`. Declaring is the exception, exactly as pinning a figure's `rotation` is — because forgetting is the failure mode and an anchored question looks perfectly correct.
 - **Template ids are `subject.level.topic.variant`**, lowercase kebab variant.
 - Every template cites at least one syllabus code. NSW codes must match their level's stage.
 - Run `npm test` and `npm run typecheck` before every commit.
@@ -905,3 +910,257 @@ grep -c "id: 'maths" src/content/maths/*.ts | awk -F: '{s+=$2} END {print s}'   
 ```
 
 And confirm by eye, because no test can: `/curriculum` names both sources, renders the integer disagreement, and quotes no NSW outcome text anywhere.
+
+---
+
+## Phase 1b — Choice leakage (inserted mid-flight; run these straight after Task 5)
+
+A review of the shipped content found multiple-choice questions answerable
+without engaging with them. Measured over 200 seeded draws per template: **14
+templates have a fixed answer rank**, of which 12 are genuine leaks and 2 are
+legitimate ("Which is the largest?" — the answer is the max because that is the
+question). **1 template has an option-set leak.** 13 to rework.
+
+This is the same failure the figure anchoring rule exists to prevent — a child
+learns the shortcut, the analytics call the topic secure, and the wrong thing
+was learned. It is enforced rather than intended for the same reason: a leaking
+question looks perfectly correct.
+
+These two tasks come before Phase 2 and Phase 3 because Phase 3 writes 129 new
+templates, many of them `choice`. The check has to exist before the content, or
+it is 129 more chances to author the same bug.
+
+### Task 25: Refuse a multiple-choice question that answers itself
+
+**Files:**
+- Modify: `src/lib/templates/validate.ts`, `src/lib/templates/types.ts`
+- Test: `src/lib/templates/validate.test.ts`
+
+**Interfaces:**
+- Consumes: `generate`, `createRng` (already used by the figure anchoring check)
+- Produces: `export const CHOICE_DRAWS = 40;` and a new optional field on the
+  authored choices spec:
+
+```ts
+choices?: {
+  count: number;
+  distractors?: Expr[];
+  jitter?: { min: Expr; max: Expr };
+  /**
+   * The answer's rank among the sorted options is fixed *because finding the
+   * extreme is the question* — "Which is largest?". Declared so the leakage
+   * check does not flag it, and declared deliberately: an undeclared fixed
+   * rank is a question a child can beat without doing the maths.
+   */
+  rankIsTheQuestion?: boolean;
+}
+```
+
+- [ ] **Step 1: Write the failing tests**
+
+Add to `src/lib/templates/validate.test.ts`. These four cases are the whole
+contract — a leak of each kind, and a legitimate case of each kind:
+
+```ts
+describe('choice leakage', () => {
+  // The shipped shape that fails: place-value distractors always sort into the
+  // same order, so the answer sits at a fixed rank every single draw.
+  it('rejects a choice question whose answer is always the same sorted rank', () => {
+    const result = validateTemplate({
+      id: 'maths.6.measurement.leaky',
+      subject: 'maths', topic: 'measurement', level: '6',
+      prompt: 'How many kilograms is {g} grams?',
+      vars: [
+        { name: 'n', kind: 'int', min: '3', max: '199' },
+        { name: 'g', kind: 'expr', expr: 'n * 50' },
+      ],
+      answer: 'n * 50 / 1000',
+      answerType: 'choice',
+      choices: { count: 4, distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50'] },
+      tags: ['AC9M6M01'],
+    });
+
+    expect(result.errors.join(' ')).toMatch(/rank/i);
+  });
+
+  // Finding the largest IS the question, so a fixed rank is honest here - but
+  // only because the template says so.
+  it('accepts a fixed rank when the template declares that is the question', () => {
+    const spec = {
+      id: 'maths.5.decimals.largest',
+      subject: 'maths', topic: 'decimals', level: '5',
+      prompt: 'Which of these is the largest: {a}, {b} or {c}?',
+      vars: [
+        { name: 'a', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+        { name: 'b', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+        { name: 'c', kind: 'number', min: '0.1', max: '9.9', decimals: '1' },
+      ],
+      constraints: ['a != b', 'b != c', 'a != c'],
+      answer: 'max(a, max(b, c))',
+      answerType: 'choice',
+      tags: ['AC9M5N01'],
+    } as const;
+
+    const leaky = validateTemplate({ ...spec, choices: { count: 3, distractors: ['a', 'b', 'c'] } });
+    expect(leaky.errors.join(' ')).toMatch(/rank/i);
+
+    const declared = validateTemplate({
+      ...spec,
+      choices: { count: 3, distractors: ['a', 'b', 'c'], rankIsTheQuestion: true },
+    });
+    expect(declared.errors).toEqual([]);
+  });
+
+  // The Kindergarten pattern shape: three colours from three disjoint pick
+  // lists, and the answer is always the one from the middle list. Narration
+  // reads the options aloud, so this is beatable without reading at all.
+  it('rejects a choice question whose answer never appears as a wrong option', () => {
+    const result = validateTemplate({
+      id: 'maths.K.patterns.leaky',
+      subject: 'maths', topic: 'patterns', level: 'K',
+      prompt: 'What comes next? {a}, {b}, {c}, {a}, {b}, {c}, {a}, ?',
+      vars: [
+        { name: 'a', kind: 'pick', from: ['red', 'blue'] },
+        { name: 'b', kind: 'pick', from: ['yellow', 'orange'] },
+        { name: 'c', kind: 'pick', from: ['green', 'purple'] },
+      ],
+      answer: 'b',
+      answerType: 'choice',
+      choices: { count: 3, distractors: ['a', 'c'] },
+      tags: ['AC9MFA01'],
+    });
+
+    expect(result.errors.join(' ')).toMatch(/option set|never a distractor|announces/i);
+  });
+
+  it('accepts a choice question whose options genuinely mix', () => {
+    const result = validateTemplate({
+      id: 'maths.2.addition.sound',
+      subject: 'maths', topic: 'addition', level: '2',
+      prompt: 'What is {x} + {y}?',
+      vars: [
+        { name: 'x', kind: 'int', min: '10', max: '40' },
+        { name: 'y', kind: 'int', min: '10', max: '40' },
+      ],
+      answer: 'x + y',
+      answerType: 'choice',
+      choices: { count: 4, jitter: { min: '1', max: '9' } },
+      tags: ['AC9M2N01'],
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+});
+```
+
+- [ ] **Step 2: Run the tests, watch them fail**
+
+Run: `npx vitest run src/lib/templates/validate.test.ts`
+Expected: FAIL — no leakage check exists yet.
+
+- [ ] **Step 3: Implement the check**
+
+In `validate.ts`, beside the figure anchoring check and modelled on it. For a
+spec with `choices`, draw `CHOICE_DRAWS` times (skip draws that throw, as the
+figure check does), and gather per draw: the answer, the options, and the
+answer's rank among the options sorted ascending when **every** option is a
+number.
+
+Report two errors:
+
+- **Rank**: when every draw was fully numeric and one rank accounts for **every**
+  draw (not merely most — a near-constant rank is a content smell, a constant
+  one is a defect, and only the defect should block a build), and
+  `rankIsTheQuestion` is not set. Word the error so it names the rank and the
+  option count, and says to vary the distractors or declare
+  `rankIsTheQuestion`.
+- **Option set**: when the set of values the answer took across all draws is
+  **disjoint** from the set of values that ever appeared as a wrong option,
+  **and** the answer took at most `CLOSED_SET_MAX` (8) distinct values. The
+  size guard is what stops it firing on a template with 178 distinct numeric
+  answers, where disjointness is arithmetic coincidence rather than structure.
+  Set `CLOSED_SET_MAX = 8` as a named constant with that reasoning in a comment.
+
+Both checks need at least ~10 usable draws before they conclude anything.
+
+- [ ] **Step 4: Run tests and typecheck**
+
+Run: `npm test` and `npm run typecheck`
+
+`src/content/catalog.test.ts` validates all shipped content, so **this step will
+now fail on the 13 leaking templates**. That is correct and expected — Task 26
+fixes them. Commit this task with the check implemented; if the suite is red at
+the end of this task, say so in your report and do NOT weaken the check to make
+it pass.
+
+- [ ] **Step 5: Commit**
+
+Stage `src/lib/templates/` and commit with the message:
+`Refuse a multiple-choice question a child can beat without reading it`
+
+---
+
+### Task 26: Rework the thirteen questions that answer themselves
+
+**Files:**
+- Modify: `src/content/maths/4.ts`, `5.ts`, `6.ts`, `k.ts` (after Task 5's split)
+
+**The twelve rank leaks.** All share one cause: distractors built by scaling the
+answer by powers of ten, which always sort into a fixed order.
+
+```
+maths.4.decimals.add-tenths                  maths.6.decimals.add
+maths.4.decimals.hundredths                  maths.6.decimals.divide-by-powers-of-ten
+maths.4.decimals.tenths                      maths.6.decimals.multiply-by-powers-of-ten
+maths.5.decimals.add                         maths.6.integers.subtract
+maths.5.decimals.subtract                    maths.6.integers.temperature
+maths.6.measurement.centimetres-to-metres    maths.6.measurement.grams-to-kilograms
+```
+
+**Keep the place-value distractors** — `n/10` for `n/100` is the mistake a child
+actually makes, and replacing them with random noise would make the questions
+easier and less diagnostic. Fix the *ordering* instead, by either:
+
+- offering a **near-miss that straddles the answer** — e.g. add `(n + 1) / 100`
+  or `(n - 1) / 100` alongside the place-value errors, so the answer is
+  sometimes above and sometimes below its neighbour; or
+- **varying which distractors appear**, so the set is not the same three
+  scalings every time.
+
+Whichever you choose, the acceptance test is Task 25's check passing, not your
+judgement of the shape.
+
+**Two templates are NOT leaks** and must be left working, with
+`rankIsTheQuestion: true` added and a one-line comment saying why:
+
+```
+maths.4.decimals.larger      "Which is larger, {a} or {b}?"
+maths.5.decimals.largest     "Which of these is the largest: {a}, {b} or {c}?"
+```
+
+**The one option-set leak: `maths.K.patterns.repeating-three`.** Answer `b`,
+distractors `a` and `c`, where the three `pick` lists are disjoint colour sets —
+so the answer is always the `{yellow, orange}` one. Narration reads word options
+aloud, so a pre-literate child can hear three colours and apply the rule without
+engaging with the pattern at all. Fix so the answer is not always drawn from the
+same list: draw all three colours from **one shared list** with constraints
+keeping them distinct, so any colour can be the answer and any can be a
+distractor. Keep it a `choice` question (K may not spell).
+
+- [ ] **Step 1: Confirm the check catches all thirteen**
+
+Run the suite and record how many templates the leakage check names, before
+changing anything. That count is your baseline.
+
+- [ ] **Step 2: Fix the twelve rank leaks**
+- [ ] **Step 3: Declare the two legitimate ones**
+- [ ] **Step 4: Fix the Kindergarten pattern**
+- [ ] **Step 5: Verify**
+
+Run: `npm test` and `npm run typecheck`
+Expected: fully green. Every shipped template passes the leakage check.
+
+- [ ] **Step 6: Commit**
+
+Stage `src/content/` and commit with the message:
+`Rework the questions a child could beat by position rather than by maths`
