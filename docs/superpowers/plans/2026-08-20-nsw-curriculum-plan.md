@@ -515,7 +515,15 @@ git commit -m "Give each school year its own content file, before adding half ag
 
 ## Phase 2 — The nine figure kinds
 
-**Parallel-safe.** Each task: one new module file, one new `FigureSpec` union member, one entry appended to `FIGURE_KINDS`, one test file. Collisions are confined to two one-line additions in `types.ts`.
+**Parallel-safe.** Each task: one new module file, one new `FigureSpec` union member, one entry appended to `FIGURE_KINDS`, one line appended to the registry's list in `registry.ts`, one test file. Collisions are confined to one-line additions.
+
+**A kind module has four members** (Task 3 defines them; read `task-3-report.md`
+for the verbatim signatures): `kind`, `build`, `issues`, and `fields`. `fields`
+declares the kind's authored parameters and which are required, and it is what
+`src/lib/templates/validate.ts` reads to check each parameter is a well-formed
+expression over the bound scope. Declaring a parameter in the `FigureSpec` union
+but omitting it from `fields` means it is never validated — so add every
+parameter to both.
 
 Every task in this phase follows the same shape, and every task must satisfy these, which are **not** repeated per task:
 
