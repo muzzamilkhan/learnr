@@ -64,7 +64,7 @@ export interface Figure {
   marks: readonly Mark[];
 }
 
-export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph'] as const;
+export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph', 'spinner'] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
 /**
@@ -147,6 +147,27 @@ export type FigureSpec =
        * rather than quietly rounded into the same picture as its neighbour.
        */
       halves?: Expr;
+    }
+  | {
+      kind: 'spinner';
+      /**
+       * Sector sizes as parts of the whole, comma-joined, e.g. "'1,1,2'". The
+       * list is a *multiset*: how many parts each sector is worth is the
+       * question, and where each one sits round the disc is the builder's to
+       * vary - see `spinner-kind.ts` for why that is the one arrangement a
+       * chance question's answer survives.
+       */
+      sectors: Expr;
+      /**
+       * Which sectors share an appearance, comma-joined, one name per sector -
+       * "'red,blue,red'" is two red parts and a blue one. The names are the
+       * author's; only how many *groups* they make is drawn, and a figure has
+       * exactly two appearances (shaded and plain), so the first-named group is
+       * the shaded one. Omitted, sectors alternate.
+       */
+      fills?: Expr;
+      /** Degrees anticlockwise. Omitted, it jitters over the whole turn. */
+      rotation?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */
