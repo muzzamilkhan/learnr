@@ -752,6 +752,13 @@ The per-year new-template counts:
 
 Answer-type reminders that bite hardest in this phase: solid names and angle names are `choice` below Year 4, never `text`; a fraction answered as a fraction must be `choice` (the pad types digits and one decimal point, so `3/4` is untypeable); a time answered as `3:30` is untypeable and must be `choice` or split into a number of minutes.
 
+**A prompt may only name what the figure actually draws.** A figure has exactly two appearances
+(`Mark.fill` is a boolean, rendered as one brand tint or nothing), and a kind that emits no
+`label` marks carries no text at all. So a `spinner` question says **"the shaded part"**, never
+"the red part" — the fill names in a template are grouping keys that never reach the screen.
+Where a question genuinely needs three or more distinguishable regions, it needs a kind that
+emits `label` marks; check what the kind draws before writing the prompt.
+
 - [ ] **Task 15: Year K** — `src/content/maths/k.ts`, 12 new templates, MAE- codes on all existing. Commit: `Give Kindergarten graphs, solids, a clock face and a number line`
 - [ ] **Task 16: Year 1** — `src/content/maths/1.ts`, 19 new, MA1- codes. Adds the `fractions` topic to Year 1. Commit: `Give Year 1 chance, coordinates and halves of a shape`
 - [ ] **Task 17: Year 2** — `src/content/maths/2.ts`, 19 new, MA1- codes. Commit: `Give Year 2 the data and chance it never had`
