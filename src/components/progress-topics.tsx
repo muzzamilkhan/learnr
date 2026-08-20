@@ -278,6 +278,7 @@ function WhatHappened({ answers }: { answers: AnsweredQuestion[] | null }) {
                     <Diagram
                       figure={answer.figure}
                       strokeWidth={1.5}
+                      labelSize={16}
                       className="h-16 w-16 shrink-0 rounded-xl border border-(--color-line) bg-(--color-paper)"
                     />
                   ) : null}

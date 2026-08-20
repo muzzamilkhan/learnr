@@ -678,6 +678,7 @@ export function PlaySession({
             <Diagram
               figure={question.figure}
               strokeWidth={3.5}
+              labelSize={7}
               // `64px` is the floor documented above, written out rather than
               // read from a constant: a class built by interpolating a JS
               // value into the string is exactly the mistake this file

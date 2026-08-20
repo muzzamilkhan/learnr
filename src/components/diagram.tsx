@@ -31,42 +31,53 @@ import type { Figure, Mark } from '@/lib/figures/types';
  * real-pixel frame as every other line here rather than a second, disagreeing
  * one.
  *
- * `label` has no `vector-effect` trick available - SVG only exempts stroke
- * geometry from the viewBox's own scaling, never `font-size`, so a `<text>`
- * shrinks with a small box exactly like an unmarked coordinate would. True
- * scale-independence would need a measured counter-transform (a
+ * **`label` cannot be derived off `strokeWidth` the way the dot and the dash
+ * are, and is a second prop (`labelSize`) instead.** SVG 2 defines
+ * `vector-effect: non-scaling-size`, which would cover `font-size` the way
+ * `non-scaling-stroke` covers a line - but no shipping engine implements it,
+ * so a `<text>` here scales with the viewBox like an unmarked coordinate, and
+ * true scale-independence would still need a measured counter-transform (a
  * `ResizeObserver`, the way `Prompt` in `play-session.tsx` measures its own
- * box), which nothing here builds. What is available instead is
- * `strokeWidth` itself: the caller already picks a bigger one for the play
- * screen's large box and a smaller one for the report's ~64px thumbnail, so
- * it is a real-pixel signal for which of the two very differently sized
- * places this is - the same signal `dotDiameter` and `dash` read, just read
- * the other way. The dot and the dash *multiply* by `strokeWidth`, because a
- * heavier line should carry visually heavier marks at whatever size it is
- * drawn. `LABEL_SIZE_SCALE / strokeWidth` divides instead, because text does
- * not get `dotDiameter`'s free ride: left alone it already shrinks with the
- * small box's smaller scale, and a *larger* `strokeWidth` is exactly the sign
- * that the scale is larger still - multiplying by it would shrink the
- * report's label a second time rather than counteract the first shrink, the
- * same mistake spelled out for a future author of this code before anything
- * called for it. Dividing pushes the opposite way: the play screen's bigger
- * `strokeWidth` buys a *smaller* viewBox-unit size and the report's smaller
- * one a bigger one, which narrows how far apart the two sites' rendered label
- * size ends up rather than widening it - an approximation of the invariance
- * the strokes get exactly, using the only real-pixel signal this renderer has
- * without measuring its own box.
+ * box) that nothing here builds. `strokeWidth` looked like a substitute
+ * signal - the caller already picks a bigger one for the bigger box - but it
+ * is a real-pixel line weight, not a proxy for box size, and treating it as
+ * one is exactly the mistake this comment used to make: deriving `labelSize`
+ * from it (either direction) means a `strokeWidth` chosen for purely visual
+ * weight - a thicker line for emphasis, a hairline for a crisper report row -
+ * silently resizes every label on the figure, which is not what either edit
+ * is about and not what either caller would expect. `strokeWidth` is a prop
+ * "because it is the caller who knows which of the two very differently sized
+ * places this is" (above); that argument applies to the label exactly as it
+ * applies to the line, so `labelSize` is the same kind of prop, set
+ * independently by each caller - roughly 7 on the play screen, roughly 16 in
+ * a report thumbnail, which is what a divide-by-`strokeWidth` formula once
+ * computed here, kept as plain numbers now that nothing ties them to
+ * `strokeWidth`'s value. Across the range of real device sizes this still
+ * only narrows the two sites' rendered label size to roughly 2.3-3.6:1 apart
+ * rather than equalising it - a caller choosing these numbers is estimating
+ * its own box, the same approximation the derivation used to make, just made
+ * by a human who can see the screen instead of a formula that cannot. Below
+ * roughly a 150px play-screen box the two sites' ratio inverts (the play
+ * figure, this small, needs *more* real pixels per label than the standing
+ * report thumbnail, not fewer) - measurement is still the only fix for that,
+ * and nothing here builds it.
+ *
+ * **A label's width in user units is not a constant, and geometry cannot see
+ * `labelSize` to account for it.** At the report's `labelSize`, a two-digit
+ * label is roughly 18 units wide in the figure's 100-unit box; at the play
+ * screen's it is roughly 7 - a ~2.3x difference this renderer sees and
+ * `src/lib/figures/` never will, since figures are built once, before either
+ * caller has picked a `strokeWidth` or a `labelSize` (`buildFigure`'s
+ * signature carries no scale). Any figure kind that places labels by geometry
+ * - `bar`, `number-line` and `grid` among the kinds about to - has to leave
+ * spacing for the *larger* (report) case, or ticks spaced correctly on the
+ * play screen will collide once the same figure renders at report scale.
  */
-
-/**
- * The constant half of `labelSize` - see the module comment above for why
- * dividing by `strokeWidth`, rather than multiplying like `dotDiameter` and
- * `dash`, is what keeps a label from reading smaller still in the report.
- */
-const LABEL_SIZE_SCALE = 24;
 
 export function Diagram({
   figure,
   strokeWidth,
+  labelSize,
   className,
 }: {
   figure: Figure;
@@ -76,6 +87,14 @@ export function Diagram({
    * caller who knows which of the two very differently sized places this is.
    */
   strokeWidth: number;
+  /**
+   * ViewBox units - `label` has no `vector-effect` equivalent to pin a real-
+   * pixel size, so unlike `strokeWidth` this is not real pixels and does not
+   * itself derive anything. Roughly 7 on the play screen, roughly 16 in a
+   * report row - see the module comment for why it is a caller's estimate of
+   * its own box rather than something computed from `strokeWidth`.
+   */
+  labelSize: number;
   className?: string;
 }) {
   // A dot noticeably heavier than the line it marks, so "the arms alone do
@@ -86,7 +105,6 @@ export function Diagram({
   // caller having picked a different `strokeWidth`.
   const dotDiameter = strokeWidth * 3;
   const dash = `${strokeWidth * 2.5} ${strokeWidth * 1.5}`;
-  const labelSize = LABEL_SIZE_SCALE / strokeWidth;
 
   return (
     <svg
