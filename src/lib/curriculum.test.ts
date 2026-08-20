@@ -7,6 +7,9 @@ import {
   yearLabel,
   compareYearLevels,
   resolveInitialLevel,
+  STAGES,
+  stageForLevel,
+  stageLabel,
 } from './curriculum';
 
 describe('YEAR_LEVELS', () => {
@@ -91,5 +94,35 @@ describe('resolveInitialLevel', () => {
 
   it('returns null when there is no content at all', () => {
     expect(resolveInitialLevel('K', [])).toBeNull();
+  });
+});
+
+describe('stageForLevel', () => {
+  // NSW stages span two school years. The mapping is total, which is why a
+  // stage is derived here rather than stored on a template where it could
+  // drift from the level beside it.
+  it('maps every school year onto its NSW stage', () => {
+    expect(stageForLevel('K')).toBe('ES1');
+    expect(stageForLevel('1')).toBe('S1');
+    expect(stageForLevel('2')).toBe('S1');
+    expect(stageForLevel('3')).toBe('S2');
+    expect(stageForLevel('4')).toBe('S2');
+    expect(stageForLevel('5')).toBe('S3');
+    expect(stageForLevel('6')).toBe('S3');
+  });
+
+  it('covers every level with a stage', () => {
+    for (const level of ['K', '1', '2', '3', '4', '5', '6'] as const) {
+      expect(STAGES).toContain(stageForLevel(level));
+    }
+  });
+});
+
+describe('stageLabel', () => {
+  it('names each stage the way NSW does', () => {
+    expect(stageLabel('ES1')).toBe('Early Stage 1');
+    expect(stageLabel('S1')).toBe('Stage 1');
+    expect(stageLabel('S2')).toBe('Stage 2');
+    expect(stageLabel('S3')).toBe('Stage 3');
   });
 });

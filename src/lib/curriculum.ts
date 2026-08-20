@@ -77,3 +77,39 @@ export function resolveInitialLevel(
   if (available.includes('K')) return 'K';
   return [...available].sort(compareYearLevels)[0];
 }
+
+/**
+ * The NSW Mathematics K-10 Syllabus (2022) organises content by stage, where a
+ * stage spans two school years. LearnR's level is a single year, so the mapping
+ * is total in this direction and lossy in the other - which is why a stage is
+ * *derived* here and never stored on a template. A stored stage is a second
+ * truth that can disagree with the level sitting beside it, the same objection
+ * `TopicSkill` answers by being a cache rather than a second history.
+ */
+export const STAGES = ['ES1', 'S1', 'S2', 'S3'] as const;
+export type Stage = (typeof STAGES)[number];
+
+const STAGE_BY_LEVEL: Record<YearLevel, Stage> = {
+  K: 'ES1',
+  '1': 'S1',
+  '2': 'S1',
+  '3': 'S2',
+  '4': 'S2',
+  '5': 'S3',
+  '6': 'S3',
+};
+
+export function stageForLevel(level: YearLevel): Stage {
+  return STAGE_BY_LEVEL[level];
+}
+
+const STAGE_LABELS: Record<Stage, string> = {
+  ES1: 'Early Stage 1',
+  S1: 'Stage 1',
+  S2: 'Stage 2',
+  S3: 'Stage 3',
+};
+
+export function stageLabel(stage: Stage): string {
+  return STAGE_LABELS[stage];
+}
