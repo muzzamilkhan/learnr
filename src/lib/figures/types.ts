@@ -64,7 +64,7 @@ export interface Figure {
   marks: readonly Mark[];
 }
 
-export const FIGURE_KINDS = ['polygon', 'angle', 'bar'] as const;
+export const FIGURE_KINDS = ['polygon', 'angle', 'bar', 'pictograph'] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
 /**
@@ -132,6 +132,21 @@ export type FigureSpec =
       style?: Expr;
       /** Units per axis step. Omitted, jitters over 1, 2, 5 and 10 as the values allow. */
       scale?: Expr;
+    }
+  | {
+      kind: 'pictograph';
+      /** Counts of the icon per row, comma-joined, e.g. "'3,7,5'". */
+      counts: Expr;
+      /** Row labels, comma-joined. Omitted, rows go unlabelled. */
+      labels?: Expr;
+      /** How many things one icon stands for. Omitted, jitters over 1, 2, 5, 10. */
+      key?: Expr;
+      /**
+       * Allow a half icon for a remainder. Omitted, false - and then a key can
+       * only say multiples of itself, so a count it cannot say is *reported*
+       * rather than quietly rounded into the same picture as its neighbour.
+       */
+      halves?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

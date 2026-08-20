@@ -4,6 +4,7 @@ import type { FieldReader } from './fields';
 import type { FigureKind, FigureSpec, Mark } from './types';
 import { angleModule } from './angle-kind';
 import { barModule } from './bar-kind';
+import { pictographModule } from './pictograph-kind';
 import { polygonModule } from './polygon-kind';
 
 /**
@@ -128,4 +129,6 @@ export function figureKindModule(kind: string): AnyFigureKindModule | undefined 
  * circular import that fails at load rather than in a test. Listing them costs
  * a new kind one line, in the file whose test insists every kind has one.
  */
-for (const kindModule of [polygonModule, angleModule, barModule]) registerFigureKind(kindModule);
+for (const kindModule of [polygonModule, angleModule, barModule, pictographModule]) {
+  registerFigureKind(kindModule);
+}
