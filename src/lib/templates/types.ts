@@ -51,6 +51,17 @@ export interface ChoiceSpec {
    * rank is a question a child can beat without doing the maths.
    */
   rankIsTheQuestion?: boolean;
+  /**
+   * The answer's values are disjoint from the distractors' *because sorting by
+   * that property is the question* - "Which of these is even?". An odd
+   * distractor can never be an even answer, so the usual remedy (draw the
+   * distractors from the values the answer can take) is arithmetically
+   * impossible, and there is no shortcut to declare away: the magnitudes
+   * overlap, so the property is the only thing telling the buttons apart.
+   * Deliberately separate from `rankIsTheQuestion` - each suppresses one check
+   * and neither is a blanket "trust me".
+   */
+  propertyIsTheQuestion?: boolean;
 }
 
 /**

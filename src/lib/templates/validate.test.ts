@@ -436,6 +436,88 @@ describe('choice leakage', () => {
     expect(result.errors.join(' ')).toMatch(/option set|never a distractor|announces/i);
   });
 
+  // "Which of these is even?" is disjoint by definition - an odd distractor
+  // can never be an even answer - so the usual remedy is arithmetically
+  // impossible, and there is no shortcut: the magnitudes overlap, so parity is
+  // the only thing telling the buttons apart. `e` is small here on purpose;
+  // that is the K-3 scale of this question, and the scale the check fires at.
+  const evenAndOdd = {
+    id: 'maths.2.even-and-odd.which',
+    subject: 'maths', topic: 'even and odd', level: '2',
+    prompt: 'Which of these numbers is even?',
+    vars: [
+      { name: 'e', kind: 'int', min: '1', max: '6' },
+      { name: 'o', kind: 'int', min: '0', max: '8' },
+      { name: 'p', kind: 'int', min: '0', max: '8' },
+    ],
+    constraints: ['o != p'],
+    answer: 'e * 2',
+    answerType: 'choice',
+    tags: ['AC9M2N01'],
+  } as const;
+
+  const evenChoices = { count: 3, distractors: ['o * 2 + 1', 'p * 2 + 1'] };
+
+  it('accepts a disjoint option set when the template declares the property is the question', () => {
+    const undeclared = validateTemplate({ ...evenAndOdd, choices: evenChoices });
+    expect(undeclared.errors.join(' ')).toMatch(/option set/i);
+
+    const declared = validateTemplate({
+      ...evenAndOdd,
+      choices: { ...evenChoices, propertyIsTheQuestion: true },
+    });
+    expect(declared.errors).toEqual([]);
+  });
+
+  it('keeps the two opt-outs apart', () => {
+    // Declaring the property does not excuse a fixed rank.
+    const rankLeak = validateTemplate({
+      id: 'maths.6.measurement.leaky',
+      subject: 'maths', topic: 'measurement', level: '6',
+      prompt: 'How many kilograms is {g} grams?',
+      vars: [
+        { name: 'n', kind: 'int', min: '3', max: '199' },
+        { name: 'g', kind: 'expr', expr: 'n * 50' },
+      ],
+      answer: 'n * 50 / 1000',
+      answerType: 'choice',
+      choices: {
+        count: 4,
+        distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50'],
+        propertyIsTheQuestion: true,
+      },
+      tags: ['AC9M6M01'],
+    });
+    expect(rankLeak.errors.join(' ')).toMatch(/rank/i);
+
+    // And declaring the rank does not excuse a disjoint option set.
+    const optionSetLeak = validateTemplate({
+      ...evenAndOdd,
+      choices: { ...evenChoices, rankIsTheQuestion: true },
+    });
+    expect(optionSetLeak.errors.join(' ')).toMatch(/option set/i);
+  });
+
+  it('says nothing about an option set that was still growing when the draws ran out', () => {
+    // Eight possible answers is exactly `CLOSED_SET_MAX`, so the size guard
+    // cannot be what silences this - a new answer value was still turning up
+    // in the last third of the draws, which means the draws ran out before the
+    // answer's range did. Whether nine possible answers show eight or nine in
+    // forty draws is a fact about the seeds, and a gate must not turn on it.
+    const result = validateTemplate({
+      ...evenAndOdd,
+      id: 'maths.2.even-and-odd.wider',
+      vars: [
+        { name: 'e', kind: 'int', min: '1', max: '8' },
+        { name: 'o', kind: 'int', min: '0', max: '8' },
+        { name: 'p', kind: 'int', min: '0', max: '8' },
+      ],
+      choices: evenChoices,
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('accepts a choice question whose options genuinely mix', () => {
     const result = validateTemplate({
       id: 'maths.2.addition.sound',

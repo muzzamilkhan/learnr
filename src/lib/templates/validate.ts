@@ -486,6 +486,17 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     const answerValues = new Set<string>();
     const wrongValues = new Set<string>();
     let usable = 0;
+    /**
+     * Which usable draw last *added* a value to `answerValues`. A set counted
+     * at the end says how many values happened to turn up in
+     * `CHOICE_DRAWS` draws, which is not the same question as how many the
+     * answer can take: nine possible answers often show only eight in forty
+     * draws, so whether a template shipped would turn on which values the
+     * seeds happened to reveal. That is exactly the flakiness this codebase
+     * injects its RNG to avoid. So the size is only believed once it has
+     * stopped moving - see `settled` below.
+     */
+    let lastAnswerGrowth = 0;
     // Whether *every* option of *every* draw was a number. A sort is the only
     // thing a rank can mean, and there is no meaningful sort over "red" beside
     // 7, so one mixed or wordy draw takes the rank check off the table.
@@ -509,11 +520,20 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
       if (!options) continue;
       usable++;
 
-      // Compared as the text a child reads off the button, which is what any
-      // shortcut is actually keyed to - and a `choice` answer is never a
-      // boolean, so there is no `true`/`"true"` pair for `String` to conflate.
+      // `String` is a structural identity for the value, and it happens to
+      // agree with what the child sees today because `answerOptions` and
+      // `formatAnswer` (`src/lib/session/answers.ts`) label a choice with
+      // `String(choice)` too. It is not read as a promise about the rendering:
+      // should the pad ever format its options, this stays a comparison of
+      // values. The consequence to know is float noise -
+      // `1.2000000000000002` and `1.2` count as two values, not one - which
+      // inflates the answer set and so pushes a template *away* from being
+      // called a closed set. Wrong in the silent direction, which is the right
+      // way round for a check that blocks a build.
       const answerKey = String(question.answer);
+      const before = answerValues.size;
       answerValues.add(answerKey);
+      if (answerValues.size !== before) lastAnswerGrowth = usable;
       for (const option of options) {
         const key = String(option);
         if (key !== answerKey) wrongValues.add(key);
@@ -550,13 +570,32 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
       // narration reads aloud, making it beatable by a child who cannot read.
       // The size guard is what keeps this about structure: see CLOSED_SET_MAX.
       const disjoint = [...answerValues].every((value) => !wrongValues.has(value));
-      if (answerValues.size <= CLOSED_SET_MAX && disjoint) {
-        const sample = [...answerValues].sort().slice(0, 4).join(', ');
+      // The set has to have stopped growing as well as being small. If a new
+      // answer value was still turning up in the last third of the draws, the
+      // draws ran out before the answer's range did, and however many values
+      // were counted is a fact about the seeds rather than about the template.
+      // Raising `CHOICE_DRAWS` would not fix that - it only moves the fuzzy
+      // band further out - so the check stays silent instead.
+      const settled = lastAnswerGrowth <= usable - Math.ceil(usable / 3);
+      if (
+        answerValues.size <= CLOSED_SET_MAX &&
+        settled &&
+        disjoint &&
+        !choiceSpec.propertyIsTheQuestion
+      ) {
+        // Sorted as numbers where they are numbers, so a sample of a numeric
+        // answer set reads `2, 10, 12, 100` rather than the string sort's
+        // `10, 100, 12, 2`.
+        const values = [...answerValues];
+        const numeric = values.every((value) => value !== '' && Number.isFinite(Number(value)));
+        values.sort(numeric ? (a, b) => Number(a) - Number(b) : undefined);
         errors.push(
           `choices: across ${usable} draws the answer only ever took ${answerValues.size} ` +
-            `distinct values (${sample}), and not one of them was ever offered as a wrong ` +
-            'option - the option set announces which button is the answer. Draw the ' +
-            'distractors from the same values the answer itself can take',
+            `distinct values (${values.slice(0, 4).join(', ')}), and not one of them was ` +
+            'ever offered as a wrong option - the option set announces which button is the ' +
+            'answer. Draw the distractors from the same values the answer itself can take, ' +
+            'or set choices.propertyIsTheQuestion if telling that property apart *is* the ' +
+            'question ("which of these is even?"), where no distractor could ever be an answer',
         );
       }
     }
