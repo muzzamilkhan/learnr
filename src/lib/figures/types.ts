@@ -223,6 +223,15 @@ export type FigureSpec =
        * written, arrow between two ticks and all, and refused for nothing:
        * estimating is a real question to ask, and only the builder's own
        * choice is the builder's to answer for.
+       *
+       * **One case where the range does not vary, and it is worth knowing
+       * before authoring against it:** a value with a decimal place, like
+       * `1.1`, needs ticks every tenth, and only a line one unit wide carries
+       * ten of those in a parent's report row - so there is exactly one round
+       * line to draw it on and every seed draws it. The picture still varies
+       * (the step and the tick and arrow proportions all move), but the range
+       * does not. Whole numbers are offered two framings or more. Pin `from`
+       * and `to` yourself if a decimals question wants a particular line.
        */
       from?: Expr;
       to?: Expr;

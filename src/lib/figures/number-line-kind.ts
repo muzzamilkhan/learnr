@@ -506,23 +506,78 @@ function rangeCandidates(
   const seen = new Set<string>();
   const ranges: [number, number][] = [];
 
-  for (const base of SPAN_BASES) {
-    const span = base * magnitude;
-    const low =
-      from ?? (to !== undefined ? to - span : Math.floor(at / span) * span);
+  const offer = (low: number, span: number) => {
     const high = low + span;
     // A span that has overflowed to `Infinity` - which the biggest bases do
     // for an `at` near the top of what a double holds - is not a line.
     if (!(high > low) || !Number.isFinite(high) || at < low - EPSILON || at > high + EPSILON) {
-      continue;
+      return;
     }
     const key = `${low}:${high}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) return;
     seen.add(key);
     ranges.push([low, high]);
+  };
+
+  for (const base of SPAN_BASES) {
+    const span = base * magnitude;
+    const low = from ?? (to !== undefined ? to - span : Math.floor(at / span) * span);
+    offer(low, span);
+
+    // The second framing of the same width. Only where the builder is choosing
+    // both ends: an author who gave one has said where the line starts.
+    if (from === undefined && to === undefined) {
+      const shifted = shiftedStart(at, low, span);
+      if (shifted !== undefined) offer(shifted, span);
+    }
   }
 
   return ranges;
+}
+
+/**
+ * The same span started half a span along, or nothing where that would draw
+ * uglier numbers than the span grid already does.
+ *
+ * **Why there is a second offset at all.** One start per span means a value the
+ * grid can only frame one way gets exactly one line, on every seed - and
+ * measured, that was 36 of the integers 0-100 (11, 13, 17, 19, 21 ...) and 40
+ * of the one-decimal values. Their pictures still differed, because the step
+ * and the two proportional jitters still moved, so `validateTemplate` - which
+ * compares whole figures - passed them. That is worse than a check failing: a
+ * child answering 11 saw the same line every time and could learn "the tick
+ * after the 10" instead of reading the number, which is the mislearning the
+ * anchoring rule exists to prevent, slipping *under* the check rather than
+ * through it. Half a span along is `5..15` beside `10..20`, and 11 sits on a
+ * minor tick of both.
+ *
+ * **The roundness constraint, and why it is asked of the text.** An arbitrary
+ * offset trades one unreadable picture for another - `3..13` labelled 3, 8, 13
+ * is no better than a line with no tick under the arrow. Half a span keeps the
+ * numbers round where half the span is itself round, and does not where it is
+ * not: half of 5 is 2.5, so a `7` would be offered `2.5..7.5`. So the test is
+ * the one this file applies to every other derived label - **ask the text that
+ * gets drawn**: an endpoint that *prints* longer than the one the span grid
+ * would have used is an endpoint that has grown a decimal, and the candidate is
+ * dropped rather than drawn. No second candidate beats an ugly one.
+ *
+ * The shift never takes a non-negative value below zero, which is the same
+ * invariant `Math.floor(at / span) * span` already gives the span grid: a child
+ * asked about 3 is not shown negative numbers to get there.
+ */
+function shiftedStart(at: number, low: number, span: number): number | undefined {
+  const half = span / 2;
+  // Whichever of the two neighbouring half-grid starts still contains `at`.
+  const shifted = at <= low + half + EPSILON ? low - half : low + half;
+
+  if (at >= 0 && shifted < 0) return undefined;
+  if (!Number.isFinite(shifted)) return undefined;
+  // Longer text is a decimal the span grid did not have: 10 -> 5 is fine, 5 ->
+  // 2.5 is not, and neither end may grow.
+  if (formatTick(shifted).length > formatTick(low).length) return undefined;
+  if (formatTick(shifted + span).length > formatTick(low + span).length) return undefined;
+
+  return shifted;
 }
 
 /**

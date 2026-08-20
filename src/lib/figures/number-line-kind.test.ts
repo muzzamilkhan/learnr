@@ -232,6 +232,46 @@ describe('the number-line figure kind', () => {
     expect(shares.size).toBeGreaterThan(2);
   });
 
+  it('frames a value the span grid can only frame one way in more than one way', () => {
+    // **The second offset per span, and the class it exists for.** A span
+    // offers one start - the multiple of itself at or below `at` - so a value
+    // like 11 had exactly one line it could ever be drawn on: 10..20, since
+    // reading 11 needs ticks at every 1 and only a ten-wide line carries ten
+    // of them in a report row. Measured, that was 36 of the integers 0-100 -
+    // the odd non-multiples of five - so this samples the class rather than
+    // pinning on the one value that turned it up.
+    //
+    // It slipped *under* the anchoring check rather than through it: the step
+    // and the two proportional jitters still moved, so no two of fifty figures
+    // were identical and `validateTemplate` passed them, while the range a
+    // child actually reads never changed. Half a span along is the second
+    // framing: 5..15 beside 10..20, with 11 on a minor tick of both.
+    for (const at of ['11', '13', '17', '19', '23', '29', '37', '41']) {
+      const ranges = new Set<string>();
+      for (let seed = 0; seed < 60; seed++) {
+        const figure = build({ kind: 'number-line', at }, `nl-offset-${at}-${seed}`);
+        const [low, high] = drawnRange(figure);
+        ranges.add(`${low}..${high}`);
+        // The offset only ever buys a **round** line. Half of ten is five;
+        // where half a span is not round - half of five is 2.5 - no second
+        // line is offered at all, because a line labelled 2.5, 5, 7.5 trades
+        // one unreadable picture for another.
+        expect(Number.isInteger(low), `${at} on ${low}..${high}`).toBe(true);
+        expect(Number.isInteger(high), `${at} on ${low}..${high}`).toBe(true);
+      }
+      expect(ranges.size, at).toBeGreaterThan(1);
+    }
+
+    // The rejection arm, on the value whose span-5 shift is the ugly one: an
+    // unconstrained half-span offset would frame a 7 as 2.5..7.5.
+    const sevens = new Set<string>();
+    for (let seed = 0; seed < 80; seed++) {
+      sevens.add(drawnRange(build({ kind: 'number-line', at: '7' }, `nl-round-${seed}`)).join('..'));
+    }
+    expect(sevens).not.toContain('2.5..7.5');
+    expect(sevens.size).toBeGreaterThan(2);
+  });
+
   it('picks a step that divides the range evenly, so the last tick is the end of the line', () => {
     for (const [from, to] of [
       [0, 10],
