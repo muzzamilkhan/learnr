@@ -344,7 +344,12 @@ describe('the pictograph figure kind', () => {
     //   label prints in five characters rather than twenty-two - the derived
     //   label's first question, asked of the text that gets drawn.
     // - `0.375` is a fractional pinned key, reachable no other way, whose label
-    //   rounds where an integer's never would.
+    //   rounds where an integer's never would - and `0.75` is here **only so
+    //   that key is ever accepted**. Every other magnitude is refused against
+    //   it, so without a count it divides the fractional key exercised the
+    //   refusal arm alone and no fractional key was ever actually drawn. A
+    //   load-bearing input that only ever lands on `continue` is a comment
+    //   claiming coverage the sweep does not have.
     //
     // Counts come in two families, and **both are load-bearing**: multiples of
     // the magnitude are the ones a key can say exactly, so they are what gets
@@ -352,7 +357,7 @@ describe('the pictograph figure kind', () => {
     // over awkward counts alone accepts almost nothing past one row and
     // silently stops testing the layout it claims to. Awkward counts are what
     // gets *refused*, which is the other half.
-    const magnitudes = [1, 2.5, 7, 9, 24, 40, 999, 1e21];
+    const magnitudes = [0.75, 1, 2.5, 7, 9, 24, 40, 999, 1e21];
     const pins: (string | undefined)[] = [undefined, '1', '5', '0.375', '10^21'];
     const families = [
       (magnitude: number, index: number) => magnitude * (index + 1),

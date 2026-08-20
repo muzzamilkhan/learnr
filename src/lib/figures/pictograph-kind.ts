@@ -217,7 +217,14 @@ function iconBudget(labelChars: number): number {
 
 /**
  * The half of the layout that depends on nothing random, so `build` and the
- * budgets in `issues` can never disagree about how much room anything has.
+ * budgets in `issues` agree about how much room anything has - for every figure
+ * that validates, which is the guarantee worth having and not quite the same as
+ * "always". The two read their inputs slightly differently on content `issues`
+ * has already refused: `issues` measures the longest of *all* the names it was
+ * given while `build` measures only those falling within `counts`, and `build`
+ * slices the rows to `MAX_DRAWN_ROWS` where `issues` counts them all. Both
+ * divergences need a spec `issues` reports (a label count mismatch, or more rows
+ * than `MAX_ROWS`), so nothing that ships can reach either.
  *
  * The key legend is left-aligned with the **drawing's** left edge rather than
  * with the icons, so its width is measured against the whole frame instead of
@@ -518,13 +525,27 @@ export const pictographModule: FigureKindModule<'pictograph'> = {
       const budget = iconBudget(longest.length);
       // Asked of every key the graph could be drawn with, not of the one a
       // lucky seed happens to pick: `build` picks from this same list, so a bad
-      // key anywhere in it is a picture some child will meet. Each *kind* of
-      // fault is reported once, naming the first key it bites on - four
-      // candidates all failing the same way is one authoring mistake, and
-      // saying it four times only buries the other three faults.
+      // key anywhere in it is a picture some child will meet.
+      //
+      // Each *kind* of fault is reported once, naming the first key it bites
+      // on - four candidates all failing the same way is one authoring mistake,
+      // and saying it four times only buries the other three faults. **The
+      // dedup is keyed on a tag, never on a phrase from the message itself**:
+      // the prose is the half that gets reworded, and a dedup searching for a
+      // substring nobody kept still compiles, still passes, and silently stops
+      // deduping. That is exactly what happened here - `'too many icons'`
+      // matched no message this file emits - and it was invisible because the
+      // branch it guards is only reachable from a single pinned key.
+      const reported = new Set<string>();
+      const firstOfItsKind = (fault: string): boolean => {
+        if (reported.has(fault)) return false;
+        reported.add(fault);
+        return true;
+      };
+
       for (const candidate of keyCandidates(counts, halves, budget, pinned)) {
         const slots = slotsFor(counts, candidate, halves);
-        if (slots > budget && !said(issues, 'too many icons')) {
+        if (slots > budget && firstOfItsKind('budget')) {
           issues.push(
             `figure.counts: a key of ${candidate} draws ${slots} icons across the widest row,` +
               ` more than the ${budget} that can be counted apart in a report` +
@@ -533,7 +554,7 @@ export const pictographModule: FigureKindModule<'pictograph'> = {
         }
 
         const rounded = counts.find((count) => count > 0 && !isExact(count, candidate, halves));
-        if (rounded !== undefined && !said(issues, 'cannot say')) {
+        if (rounded !== undefined && firstOfItsKind('inexact')) {
           const drawn = iconsFor(rounded, candidate, halves);
           issues.push(
             `figure.counts: a key of ${candidate} cannot say ${rounded}` +
@@ -551,7 +572,7 @@ export const pictographModule: FigureKindModule<'pictograph'> = {
           const icons = iconsFor(count, candidate, halves);
           const already = seen.get(icons);
           if (already !== undefined && already !== count) {
-            if (!said(issues, 'the same picture')) {
+            if (firstOfItsKind('duplicate')) {
               issues.push(
                 `figure.counts: a key of ${candidate} draws both ${already} and ${count} as` +
                   ` ${icons} ${icons === 1 ? 'icon' : 'icons'}, so two rows have the same picture`,
@@ -564,7 +585,7 @@ export const pictographModule: FigureKindModule<'pictograph'> = {
 
         const keyText = formatKey(candidate);
         const room = keyCharBudget(counts.length, longest.length, slots);
-        if (keyText.length > room && !said(issues, 'figure.key: the key reads')) {
+        if (keyText.length > room && firstOfItsKind('key label')) {
           issues.push(
             `figure.key: the key reads ${JSON.stringify(keyText)}, which needs` +
               ` ${keyText.length} characters where the graph has room for ${room}`,
@@ -576,11 +597,6 @@ export const pictographModule: FigureKindModule<'pictograph'> = {
     return issues;
   },
 };
-
-/** Whether this fault has already been reported against another candidate key. */
-function said(issues: readonly string[], phrase: string): boolean {
-  return issues.some((issue) => issue.includes(phrase));
-}
 
 function iconAt(cx: number, cy: number, size: number, points: readonly Point[]): Mark {
   return {
