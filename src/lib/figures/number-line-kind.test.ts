@@ -352,8 +352,9 @@ describe('the number-line figure kind', () => {
     // no child could ever see, which is exactly what `solid`'s `flip` taught:
     // variation the file can measure and a child cannot is a way of passing
     // the anchoring check while anchoring. So the spread itself is asserted.
-    // Both bands run 1.7 wide by construction and measure 1.64 over these
-    // seeds; anything under 1.4 is a lever that has quietly stopped being one.
+    // The bands run 1.7 (`TICK_BAND`) and 1.667 (`ARROW_BAND`) wide by
+    // construction and both measure 1.64 over these seeds; anything under 1.4
+    // is a lever that has quietly stopped being one.
     const spreadOf = (measure: (figure: Figure) => number): number => {
       const seen = seeds.map((seed) => measure(build(spec, seed)));
       return Math.max(...seen) / Math.min(...seen);

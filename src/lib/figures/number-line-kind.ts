@@ -25,10 +25,13 @@ import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from '.
  *
  * 1. **The range**, when `from` and `to` are left open - the headline lever,
  *    and the one this kind most needs. A question answered 7 draws on 0-10 on
- *    one seed and on 0-20 on the next, so the arrow sits seven tenths along
- *    one time and a little over a third the next. Without it a child would
- *    learn "the answer is the tick most of the way along" and the analytics
- *    would call the topic secure on the strength of it.
+ *    one seed and on 5-15 on the next, so the arrow sits seven tenths along
+ *    one time and a fifth of the way the next. Without it a child would learn
+ *    "the answer is the tick most of the way along" and the analytics would
+ *    call the topic secure on the strength of it. (0-20 was the example here
+ *    until the minor ticks were measured in a report row: reading a 7 needs
+ *    ticks at every 1, and twenty of them in a 64px thumbnail is a band. It is
+ *    still drawn for values its ticks *can* reach, an even one like 4.)
  * 2. **The step**, when it is left open: which of the values get a number
  *    under them, out of the steps that divide the range and still leave labels
  *    a reader can tell apart.
@@ -205,7 +208,9 @@ const MIN_LINE_SPAN = 0.1;
  * the one their child was looking at". A contrary precedent exists; it was
  * read, and it is about a mark that carries no answer.
  *
- * What it costs is written down in `SPAN_BASES`.
+ * What this costs a template - the ranges it stops being able to draw, and the
+ * one case where a range cannot vary at all - is written on `from` in
+ * `types.ts`, which is where an author will meet it.
  */
 const REPORT_BOX_PX = 64;
 const REPORT_STROKE_PX = 1.5;
@@ -488,9 +493,10 @@ function fallbackRange(
 
 /**
  * The ranges a builder-chosen line could take: nice spans around `at`'s own
- * magnitude, each starting at the multiple of itself at or below `at`. That is
- * what puts a 7 on 0-10 and on 0-20 - the same number, two different pictures,
- * which is the whole of this kind's answer to the anchoring rule.
+ * magnitude, each offered twice - started at the multiple of itself at or below
+ * `at`, and again half a span along (`shiftedStart`). That is what puts a 7 on
+ * 0-10 and on 5-15 - the same number, two different pictures - which is the
+ * whole of this kind's answer to the anchoring rule.
  *
  * A range the author pinned at both ends is the only candidate there is: it is
  * their line, and the builder does not go looking for a better one.
