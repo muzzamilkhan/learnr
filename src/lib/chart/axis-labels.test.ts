@@ -67,13 +67,15 @@ describe('axisLabels', () => {
   });
 
   it('brings the type size down to keep a tilted label off the one below it', () => {
-    const tight = axisLabels({ width: PHONE, count: 8, longestChars: 24, wide: false });
-    const roomy = axisLabels({ width: DESKTOP, count: 8, longestChars: 24, wide: false });
+    // More bars than the report itself draws, which is the point: the type is
+    // what gives way when the bars get too close for a label to fit between.
+    const tight = axisLabels({ width: PHONE, count: 16, longestChars: 24, wide: false });
+    const roomy = axisLabels({ width: PHONE, count: 8, longestChars: 24, wide: false });
 
     // The clearance between two tilted labels is the band across the tilt.
-    const band = (PHONE - 44 - tight.gutter) / 8;
+    const band = (PHONE - 44 - tight.gutter) / 16;
     expect(tight.fontSize).toBeLessThan(roomy.fontSize);
-    expect(tight.fontSize).toBeLessThanOrEqual(band * Math.sin(Math.PI / 6));
+    expect(tight.fontSize).toBeLessThanOrEqual(band * Math.sin((LABEL_ANGLE * Math.PI) / 180));
   });
 
   it('leaves flat labels at full size, where nothing can collide with them', () => {
@@ -108,7 +110,9 @@ describe('axisLabels', () => {
     expect(clipped).toEqual([]);
   });
 
-  it('is a shallow angle, so a label is read without tilting your head', () => {
-    expect(LABEL_ANGLE).toBe(30);
+  it('is a tilt rather than a turn, and not so flat it eats the left margin', () => {
+    // Flatter reads more easily and reaches further sideways, so the gutter it
+    // needs grows as the angle falls - which is what settled on this one.
+    expect(LABEL_ANGLE).toBe(45);
   });
 });

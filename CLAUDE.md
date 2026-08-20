@@ -1310,7 +1310,7 @@ deliberately, and without that line a parent reads 76% as a C.
 is questions and the fill is correct answers; the remainder is line grey rather
 than `--color-wrong`, because it is "the rest of the questions" and not a column
 of failures. **Its labels lie flat where there is room and tilt to
-`LABEL_ANGLE` (30 degrees) where there isn't**: a topic name is several words
+`LABEL_ANGLE` (45 degrees) where there isn't**: a topic name is several words
 and a year's worth of topics puts a dozen bars across a panel, so on a phone
 flat labels collided however they were wrapped. Flat is the better read where
 it fits, so from `md` up they lie down, and what limits them there is the bar's
@@ -1319,7 +1319,7 @@ only ever as wide as the band it sits under. When even that leaves nothing
 legible (`MIN_CHARS`) they tilt. Anything longer than its budget is elided
 either way, and the tooltip still names the topic in full.
 
-**They used to turn fully on their side, and 30 degrees is the trade that
+**They used to turn fully on their side, and the tilt is the trade that
 replaced it.** Vertical labels cannot collide whatever the bar width and need no
 width at all, which is exactly why they fit a phone - but reading one means
 turning the phone, and a label nobody reads is not doing its job. The geometry
@@ -1332,7 +1332,12 @@ for free, and both are measured rather than hoped for. **Horizontal room**: a
 label leans up and to the left, an SVG clips at its own edge, and what runs off
 is simply gone - so the chart takes a **gutter** on its left, sized to what the
 longest name actually needs, capped at `MAX_GUTTER_SHARE` of the width so the
-bars never become slivers, and nothing at all when the names are short.
+bars never become slivers, and nothing at all when the names are short. **The
+angle is set against that gutter**, since the two pull opposite ways: a flatter
+label is the easier read and reaches further sideways, so it wants a wider
+gutter to lean into. 30 degrees spent most of a phone's panel on one and read as
+a hole punched in the corner of it; 45 halves the gutter - to nothing at all on
+a laptop - and costs about four characters of the longest topic name.
 **Clearance from the label next door**: tilted labels are parallel strips
 separated by the band *across* the tilt rather than the bar width, and length
 cannot help since two strips are the same distance apart however long they are -

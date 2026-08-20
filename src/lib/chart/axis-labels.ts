@@ -7,11 +7,11 @@
  * `src/lib` rule exists to prevent. A phone is the case that goes wrong, and a
  * phone is the hardest thing to keep checking by hand.
  *
- * **The tilt is 30 degrees from horizontal, and the labels used to be
+ * **The tilt is `LABEL_ANGLE` from horizontal, and the labels used to be
  * vertical.** Vertical labels cannot collide with each other whatever the bar
  * width, which is why they were the narrow screen's answer - but a parent has
  * to turn the phone on its side to read one, and a label nobody reads is not
- * doing its job. At 30 degrees a name is read with a glance instead.
+ * doing its job. Tilted, a name is read with a glance instead.
  *
  * Tilting costs two things vertical labels got for nothing, and both are
  * measured here rather than hoped for:
@@ -26,16 +26,24 @@
  *
  * **Clearance from the label next door.** Tilted labels are parallel strips,
  * and what separates two of them is not the bar width but the bar width across
- * the tilt - half of it, at 30 degrees. Vertical labels are parallel to the
- * gap between the bars and so can never touch however narrow it gets; these can.
+ * the tilt - about seven tenths of it, at 45 degrees. Vertical labels are
+ * parallel to the gap between the bars and so can never touch however narrow it
+ * gets; these can.
  * Length is no help, since two strips are the same distance apart however long
  * they are, so what gives way is the **type size**: it comes down as far as
  * `MIN_FONT` to keep a descender off the name below it. A slightly smaller name
  * is a fair price, and it buys back characters as well as clearance.
  */
 
-/** Degrees from horizontal. Shallow enough to read straight on. */
-export const LABEL_ANGLE = 30;
+/**
+ * Degrees from horizontal. Shallow enough to read straight on, steep enough
+ * not to spend the left of the chart on getting there - the two pull opposite
+ * ways, since a flatter label reaches further sideways and so needs a wider
+ * gutter to lean into. At 30 degrees that gutter was most of a phone's margin
+ * and read as a hole in the corner of the panel; 45 halves it and costs about
+ * four characters of the longest topic name.
+ */
+export const LABEL_ANGLE = 45;
 
 const RADIANS = (LABEL_ANGLE * Math.PI) / 180;
 /** How far a tilted label reaches down from the axis, per pixel of its length. */
