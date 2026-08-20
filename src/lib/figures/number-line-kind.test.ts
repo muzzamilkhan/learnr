@@ -66,6 +66,15 @@ const arrow = (figure: Figure): PathMark => paths(figure).find((path) => path.cl
 const dot = (figure: Figure): Point =>
   figure.marks.flatMap((mark) => (mark.kind === 'dot' ? [mark.at] : []))[0];
 
+/** The labelled ticks' own length, which is one of the two jitters left when all is pinned. */
+const longestTick = (figure: Figure): number => Math.max(...ticks(figure).map(lengthOf));
+
+/** The arrow tip to tail, which is the other. */
+const arrowHeight = (figure: Figure): number => {
+  const ys = arrow(figure).points.map(([, y]) => y);
+  return Math.max(...ys) - Math.min(...ys);
+};
+
 /** The numbers the axis actually says, left to right. */
 const labelValues = (figure: Figure): number[] => labels(figure).map((label) => Number(label.text));
 
@@ -197,19 +206,30 @@ describe('the number-line figure kind', () => {
     }
   });
 
-  it('draws 7 on nought to ten and on nought to twenty, and not always the same line', () => {
+  it('draws the same 7 on a genuinely different line on a different seed', () => {
     // **The anchoring case.** A question answered 7 must not always produce one
     // picture: a child who learns "the answer is the tick seven tenths along"
     // has learned the drawing instead of the number, and the analytics would
     // call the topic secure on the strength of it.
+    //
+    // **This asserts the requirement, not the illustration.** It used to insist
+    // on the literal `0..20`, which was the brief's *example* of a varying
+    // range - and 0-20 stopped being drawable for a 7 when the minor-tick limit
+    // moved to report scale, since 7 needs ticks at every 1 there and twenty of
+    // them in a 64px row is a band rather than something countable. The
+    // requirement is that the range varies, and it does.
     const ranges = new Set<string>();
+    const shares = new Set<string>();
     for (let seed = 0; seed < 80; seed++) {
-      ranges.add(drawnRange(build({ kind: 'number-line', at: '7' }, `nl-anchor-${seed}`)).join('..'));
+      const figure = build({ kind: 'number-line', at: '7' }, `nl-anchor-${seed}`);
+      ranges.add(drawnRange(figure).join('..'));
+      shares.add(arrowShare(figure).toFixed(3));
     }
 
-    expect(ranges).toContain('0..10');
-    expect(ranges).toContain('0..20');
     expect(ranges.size).toBeGreaterThan(2);
+    // And the arrow genuinely moves along the line, rather than the line being
+    // redrawn around a fixed position - which is the thing a child would learn.
+    expect(shares.size).toBeGreaterThan(2);
   });
 
   it('picks a step that divides the range evenly, so the last tick is the end of the line', () => {
@@ -244,7 +264,15 @@ describe('the number-line figure kind', () => {
     // free jitter: a range it chose for itself must let the child read the
     // answer off it. An arrow floating between two ticks with nothing to count
     // is a question nobody can answer.
-    for (const at of [0, 3, 7, 12, 25, 45, -3]) {
+    //
+    // **Every value here is asserted to be one validation accepts**, which is
+    // what makes this the guarantee rather than a sample of where it happens to
+    // hold: accepted, plus builder-chosen, now implies a tick under the arrow.
+    // The list is deliberately not all integers - `2.5`, `0.5`, `3.7` and `7.5`
+    // are the fractional values that reach the minor ticks, and they are where
+    // the old sample of round numbers could not have caught anything.
+    for (const at of [0, 3, 7, 12, 25, 45, -3, 2.5, 0.5, 3.7, 7.5, 100]) {
+      expect(figureIssues({ kind: 'number-line', at: String(at) }, {}), String(at)).toEqual([]);
       for (let seed = 0; seed < 20; seed++) {
         const figure = build({ kind: 'number-line', at: String(at) }, `nl-ontick-${at}-${seed}`);
         const where = dot(figure)[0];
@@ -273,14 +301,30 @@ describe('the number-line figure kind', () => {
     };
     expect(figureIssues(spec, {})).toEqual([]);
 
-    const drawings = new Set(
-      Array.from({ length: 20 }, (_, seed) => JSON.stringify(build(spec, `nl-pinned-${seed}`))),
-    );
+    const seeds = Array.from({ length: 20 }, (_, seed) => `nl-pinned-${seed}`);
+    const drawings = new Set(seeds.map((seed) => JSON.stringify(build(spec, seed))));
 
     expect(drawings.size).toBeGreaterThan(15);
+
+    // **Distinct is not the same as visible, and only the second is worth
+    // having.** Coordinates are rounded at `FIGURE_PRECISION`, so a band of
+    // any width at all produces twenty different JSON strings - including one
+    // no child could ever see, which is exactly what `solid`'s `flip` taught:
+    // variation the file can measure and a child cannot is a way of passing
+    // the anchoring check while anchoring. So the spread itself is asserted.
+    // Both bands run 1.7 wide by construction and measure 1.64 over these
+    // seeds; anything under 1.4 is a lever that has quietly stopped being one.
+    const spreadOf = (measure: (figure: Figure) => number): number => {
+      const seen = seeds.map((seed) => measure(build(spec, seed)));
+      return Math.max(...seen) / Math.min(...seen);
+    };
+
+    expect(spreadOf(longestTick)).toBeGreaterThan(1.4);
+    expect(spreadOf(arrowHeight)).toBeGreaterThan(1.4);
+
     // And the answer is untouched by all of it.
-    for (let seed = 0; seed < 20; seed++) {
-      expect(arrowShare(build(spec, `nl-pinned-${seed}`))).toBeCloseTo(0.35, 2);
+    for (const seed of seeds) {
+      expect(arrowShare(build(spec, seed))).toBeCloseTo(0.35, 2);
     }
   });
 
@@ -305,6 +349,35 @@ describe('the number-line figure kind', () => {
     for (let index = 1; index < all.length; index++) {
       expect(all[index] - all[index - 1]).toBeCloseTo(gap, 1);
     }
+  });
+
+  it('picks a range with the arrow on a numbered tick when the minor ticks are pinned off', () => {
+    // Pinning them off is honoured exactly, and the readability guarantee is
+    // kept the only way left: by choosing a range where `at` lands on a
+    // *labelled* tick. The pin narrows what the builder may choose rather than
+    // being quietly overridden - and rather than being honoured into a picture
+    // that cannot answer its own question.
+    for (const at of ['0', '3', '7', '10', '25']) {
+      const spec: FigureSpec = { kind: 'number-line', at, minorTicks: 'false' };
+      expect(figureIssues(spec, {}), at).toEqual([]);
+
+      for (let seed = 0; seed < 20; seed++) {
+        const figure = build(spec, `nl-nominor-${at}-${seed}`);
+        expect(minorTicks(figure), at).toHaveLength(0);
+        const numbered = majorTicks(figure).map((tick) => tick.points[0][0]);
+        expect(
+          Math.min(...numbered.map((x) => Math.abs(x - dot(figure)[0]))),
+          `${at} on ${drawnRange(figure).join('..')}`,
+        ).toBeLessThan(0.05);
+      }
+    }
+
+    // A value the labelled ticks cannot reach on any range is reported rather
+    // than drawn with the arrow floating - 12 needs ticks at every 1, and no
+    // line the builder can label that finely fits.
+    expect(
+      figureIssues({ kind: 'number-line', at: '12', minorTicks: 'false' }, {}).join(),
+    ).toContain('has a tick under it');
   });
 
   it('leaves the minor ticks off and on across seeds when the arrow does not need them', () => {
@@ -495,9 +568,24 @@ describe('the number-line figure kind', () => {
 
   it('never draws two ticks with the same label on a shape it accepts', () => {
     // The third question a derived label owes, swept: rounding can make two
-    // different values print the same text, and an axis reading `0 | 0 | 0`
+    // different values print the same text, and a line reading `0 | 0 | 0`
     // fits its box perfectly and says nothing. No amount of measuring ink
     // finds it.
+    //
+    // **This is a smoke test, and the guard is elsewhere - say so rather than
+    // let a green sweep be mistaken for one.** It accepts six of its twenty
+    // specs, and not one of them *can* repeat: a repeat needs two tick values
+    // under a thousandth apart, which prints five characters (`0.001`) and is
+    // refused for width long before rounding could collide. The single family
+    // that escapes that - a line whose numbers all round to the same *short*
+    // text - is `0 -> 0.0004`, and it is refused by the distinctness check
+    // itself, so the sweep skips it. **The real guard is the targeted test
+    // `says so when two ticks would read the same`**: delete
+    // `repeatedTickLabel` and that one goes red while this one stays green.
+    // What this sweep is worth is the standing invariant - nothing validation
+    // accepts ever draws a repeated number, on any seed.
+    let accepted = 0;
+
     for (const [at, from, to] of [
       ['0', '0', '10'],
       ['7', '0', '20'],
@@ -514,6 +602,7 @@ describe('the number-line figure kind', () => {
           ...(step === undefined ? {} : { step }),
         };
         if (figureIssues(spec, {}).length > 0) continue;
+        accepted++;
         for (let seed = 0; seed < 6; seed++) {
           const texts = labels(build(spec, `nl-distinct-${seed}`)).map((label) => label.text);
           expect(new Set(texts).size, `${at} on ${from}..${to} / ${step ?? 'open'}`).toBe(
@@ -522,6 +611,10 @@ describe('the number-line figure kind', () => {
         }
       }
     }
+
+    // Counted, so a sweep that quietly stopped accepting anything at all would
+    // fail rather than pass by refusing everything.
+    expect(accepted).toBeGreaterThan(4);
   });
 });
 
@@ -632,10 +725,62 @@ describe('what the number-line kind reports to an author', () => {
     // And it names a field the author actually wrote. With no range given, the
     // value is what forced one this wide, so pointing at `figure.to` would send
     // them looking for something they never typed.
-    const alone = figureIssues({ kind: 'number-line', at: '12345' }, {}).join();
-    expect(alone).toContain('characters');
-    expect(alone).toContain('figure.at');
-    expect(alone).not.toContain('figure.to');
+    const alone = figureIssues({ kind: 'number-line', at: '12345' }, {});
+    expect(alone.join()).toContain('characters');
+    // Asserted on the field each issue is *filed under*, not on a substring of
+    // the joined prose - one of these messages names `figure.from` and
+    // `figure.to` in its advice, and matching on that would be reading the
+    // sentence rather than the verdict.
+    for (const issue of alone) expect(issue.split(':')[0], issue).toBe('figure.at');
+  });
+
+  it('says so when no line it can draw has a tick under the arrow', () => {
+    // **The figure that cannot answer its own question**, and the reason it is
+    // a report rather than a clamp: snapping the arrow to the nearest tick
+    // would draw a different number from the one the template committed to,
+    // and drawing it floating asks a child to read a value the picture does
+    // not contain. `1 / 3` is not contrived - it is exactly what a fractions
+    // template computes, and no range and step whose numbers fit at report
+    // scale ever steps onto it.
+    for (const at of ['1 / 3', '0.123456', '0.35']) {
+      expect(figureIssues({ kind: 'number-line', at }, {}).join(), at).toContain(
+        'has a tick under it',
+      );
+    }
+
+    // The values a template actually asks about are untouched, which is what
+    // stops this being a check that refuses half the content.
+    for (const at of ['0', '3', '7', '2.5', '0.5', '3.7', '45', '100', '0 - 3']) {
+      expect(figureIssues({ kind: 'number-line', at }, {}), at).toEqual([]);
+    }
+
+    // **A range the author pinned is theirs.** An arrow deliberately between
+    // two ticks is a real question there - "is it nearer 0 or 1?" - so the same
+    // value that is refused above is accepted the moment the line is given.
+    expect(figureIssues({ kind: 'number-line', at: '1 / 3', from: '0', to: '1' }, {})).toEqual([]);
+  });
+
+  it('reads minorTicks the same way when it validates as when it draws', () => {
+    // `minorTicks: '0'` is not a truth value, so it is reported as the wrong
+    // type - but it still pins the small ticks off when the figure is drawn,
+    // because `build` takes the expression language's own reading of truth.
+    // Validation used to ask `typeof value === 'boolean'` instead, which a `0`
+    // is not, so it judged the lines a figure *with* minor ticks could take
+    // while `build` drew one without them. Nothing could ship on such a spec,
+    // but it was the one place "validation recomputes what the builder does"
+    // did not hold, and a property with an exception is not one to rely on.
+    //
+    // 3.7 is a value where the two readings give **different verdicts**, so the
+    // disagreement is visible rather than theoretical: fine with the small
+    // ticks, stranded without them.
+    const asNumber = figureIssues({ kind: 'number-line', at: '3.7', minorTicks: '0' }, {});
+    const asBoolean = figureIssues({ kind: 'number-line', at: '3.7', minorTicks: 'false' }, {});
+
+    expect(asNumber.filter((issue) => !issue.includes('expected boolean'))).toEqual(asBoolean);
+    expect(asBoolean.join()).toContain('has a tick under it');
+    // Left open it is perfectly drawable, which is what makes the verdict turn
+    // on this field and the test bite.
+    expect(figureIssues({ kind: 'number-line', at: '3.7' }, {})).toEqual([]);
   });
 
   it('names a minorTicks that is not a truth value', () => {

@@ -214,10 +214,15 @@ export type FigureSpec =
       /**
        * Omitted, the builder picks a range containing `at` - and a *different*
        * one on a different seed, which is this kind's answer to the anchoring
-       * rule: a 7 is drawn on 0-10 and on 0-20. A range it picks for itself
-       * always has a tick under the arrow, so the child can read the answer
-       * off it; a range **pinned** here is drawn as written, arrow between two
-       * ticks and all, since estimating is a real question to ask.
+       * rule.
+       *
+       * A range it picks for itself always has a tick under the arrow, so the
+       * child can read the answer off it; where no range it can draw manages
+       * that - `1/3` is the case - the template is **refused** rather than
+       * drawn with the arrow floating. A range **pinned** here is drawn as
+       * written, arrow between two ticks and all, and refused for nothing:
+       * estimating is a real question to ask, and only the builder's own
+       * choice is the builder's to answer for.
        */
       from?: Expr;
       to?: Expr;
@@ -228,8 +233,13 @@ export type FigureSpec =
        * **only where the arrow is already standing on a labelled tick**.
        * Otherwise the small ticks are the only thing saying which number the
        * arrow is on, so they are always drawn, and this is the one optional
-       * field whose absence is not a free coin toss. Pinning it false is still
-       * honoured exactly as written.
+       * field whose absence is not a free coin toss.
+       *
+       * Pinning it false is honoured exactly as written, and narrows what the
+       * builder may choose rather than being overridden: it then picks a range
+       * where `at` falls on a *labelled* tick, and refuses the template where
+       * no such range exists. How close two ticks may be drawn is judged in a
+       * parent's 64px report row, not on the play screen - see `MIN_TICK_GAP`.
        */
       minorTicks?: Expr;
     };

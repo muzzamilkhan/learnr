@@ -3,7 +3,7 @@ import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField, truthy } from './fields';
 import { CHAR_SHARE, DRAWN_SPAN } from './labels';
 import type { FigureKindModule } from './registry';
-import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
+import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from './types';
 
 /**
  * The `number-line` kind: a ruled line with numbers under some of its ticks
@@ -51,13 +51,26 @@ import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
  * often stands *between* two numbers, where the only thing that says which
  * value it is on is the run of small ticks the child counts along.
  *
- * So **where the builder chose the range itself, it guarantees the arrow
- * stands on a drawn tick**: it picks among ranges and steps that can express
- * `at`, and it draws the minor ticks whenever `at` is not on a labelled one,
- * jittering them only where they say nothing the child has to read. Choosing a
- * range that hides its own answer would be the builder's fault, not the
- * author's, and `spinner`'s lesson is that a figure contradicting its own
- * question is worse than one that anchors.
+ * So **where the builder chose the range itself, the arrow stands on a drawn
+ * tick**: it picks only among ranges and steps that can express `at`, and it
+ * draws the minor ticks whenever `at` is not on a labelled one, jittering them
+ * only where they say nothing the child has to read. Choosing a range that
+ * hides its own answer would be the builder's fault, not the author's, and
+ * `spinner`'s lesson is that a figure contradicting its own question is worse
+ * than one that anchors - a wrong answer is visible where a picture that
+ * cannot be read is just a child guessing.
+ *
+ * **Where no range can express `at`, that is reported, not drawn around.**
+ * `1 / 3` is the case: a fractions template computes it and nothing on the
+ * ladder of ranges and steps steps onto it. `build` still draws a line,
+ * because it never refuses and a child is waiting - but `arrowIsStranded`
+ * fails the template first, so the only figure a child meets with the arrow
+ * floating is one an author deliberately asked for by pinning the range. The
+ * guarantee lives across the two halves, exactly as `MAX_CHOICES` does: the
+ * builder clamps quietly and validation is what makes the clamping safe.
+ * Stated this way because the previous wording promised it of `build` alone,
+ * which was never true of the code - and `clock` (an `at` between minute
+ * marks) and `grid` (a point off the lattice) face this same question.
  *
  * **Where the author pinned the range, the author's line is drawn.** An arrow
  * deliberately between two ticks is a real question - "is it nearer 10 or
@@ -168,32 +181,43 @@ const MAX_LABEL_GAPS = Math.floor((1 - CHAR_SHARE) / ((1 + LABEL_DAYLIGHT) * CHA
 const MIN_LINE_SPAN = 0.1;
 
 /**
- * The play screen's own numbers (`play-session.tsx` passes `strokeWidth={3.5}`
- * into a figure area that is the child's whole question), used to say how
- * close two tick strokes may be.
+ * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
+ * pixels (`progress-topics.tsx`), against the play screen's whole question
+ * area. Both numbers are exact rather than estimated - the report row is
+ * `h-16 w-16` and passes `strokeWidth={1.5}`.
  *
- * **Tick crowding is judged here rather than at report scale, and that is
- * `bar`'s precedent rather than a new rule**: `bar` measures its category
- * labels for *clipping* at report scale, because clipped ink is simply gone,
- * and for *collision* at play scale, "because that is where the child reads
- * the graph". Counting minor ticks is the same act. A 64px report thumbnail
- * whose small ticks merge into a textured line still reads as a number line,
- * which is all a parent's report row asks of it - it is a reminder of a
- * question already answered, not something read for detail.
+ * **The minor ticks are measured against this smaller surface, and that is
+ * `spinner`'s argument rather than a taste**: a figure is built **once**,
+ * `buildFigure`'s signature carries no scale, so the smaller of the two call
+ * sites governs anything that has to stay countable. `spinner-kind.ts` states
+ * it outright, and its `MIN_SECTOR_DEGREES` is derived exactly this way.
  *
- * The box is the phone-portrait estimate, which is the smallest the figure is
- * *designed* to be; the 64px floor `play-session.tsx` keeps for a landscape
- * phone is the degenerate viewport that layout already treats as an exception.
+ * **`bar` makes the opposite choice for its category labels, and it does not
+ * transfer here.** Read `categoryBudget`: it judges *collision* at play scale
+ * on the ground that crowded labels in a thumbnail are "a reminder of a
+ * question already answered" - redundant with the prompt, so nothing is lost
+ * by letting them crowd. Minor ticks are the opposite of redundant. This
+ * kind's whole reason for drawing them (see the module comment) is that when
+ * the arrow stands between two numbers they are the only thing saying which
+ * value it is on, so a report row where they merge into a band is a row that
+ * cannot answer its own question - and CLAUDE.md keeps the stored figure
+ * precisely so "a parent asking how a question went wrong has to be looking at
+ * the one their child was looking at". A contrary precedent exists; it was
+ * read, and it is about a mark that carries no answer.
+ *
+ * What it costs is written down in `SPAN_BASES`.
  */
-const PLAY_BOX_PX = 320;
-const PLAY_STROKE_PX = 3.5;
+const REPORT_BOX_PX = 64;
+const REPORT_STROKE_PX = 1.5;
 
 /**
  * How far apart two tick strokes have to be to be two ticks: two stroke
- * widths, so there is a stroke of daylight between them. In this file's own
- * frame units, where 1 is the whole drawn span.
+ * widths, so a whole stroke of daylight stands between them. Under that they
+ * are one thick line at report scale, and a child counting along the line in
+ * the report is counting a band. In this file's own frame units, where 1 is
+ * the whole drawn span.
  */
-const MIN_TICK_GAP = ((PLAY_STROKE_PX * 2) / PLAY_BOX_PX) * (FIGURE_BOX / DRAWN_SPAN);
+const MIN_TICK_GAP = ((REPORT_STROKE_PX * 2) / REPORT_BOX_PX) * (FIGURE_BOX / DRAWN_SPAN);
 
 /**
  * How many minor ticks one labelled step is cut into, in the order they are
@@ -323,6 +347,24 @@ function repeatedTickLabel(texts: readonly string[]): string | null {
     seen.add(text);
   }
   return null;
+}
+
+/**
+ * Whether the small ticks may be drawn at all.
+ *
+ * **The one reading, shared by `build` and `issues`**, which is what stops the
+ * two judging different candidate sets. They used to read this field
+ * differently: `build` took `truthy` of whatever the expression evaluated to,
+ * so `minorTicks: '0'` pinned them off, while `issues` asked
+ * `typeof value === 'boolean'`, which a `0` is not, so validation inspected
+ * the lines a figure *with* minor ticks could take. Such a spec is already
+ * reported as the wrong type, so nothing could ship on it - but it was the one
+ * place the "validation recomputes what the builder does" property did not
+ * hold, and a property with an exception is not one anybody can rely on.
+ */
+function minorsAllowedBy(expr: Expr | undefined, scope: Scope): boolean {
+  const asked = readField(expr, scope);
+  return asked === undefined || truthy(asked);
 }
 
 /** Whether a value lands on a lattice of this spacing starting at `from`. */
@@ -496,16 +538,60 @@ function linesToDraw(
   minorsAllowed: boolean,
 ): [number, number][] {
   const ranges = rangeCandidates(at, from, to);
-  const standing = ranges.filter(([low, high]) =>
-    stepsToDraw(low, high, at, pinnedStep, minorsAllowed).some((step) => {
-      const gaps = tickCount(low, high, step);
-      if (gaps < 1) return false;
-      const chars = widestLabel(tickTexts(low, step, gaps));
-      return standsOnATick(low, step, gaps, at, chars, minorsAllowed);
-    }),
-  );
+  const standing = ranges.filter((range) => lineStands(range, at, pinnedStep, minorsAllowed));
+  // Falling back to the whole list is `build` keeping its side of the bargain -
+  // it draws *something* mid-session and never refuses. It is not the guarantee
+  // quietly giving way: `arrowIsStranded` reports exactly this case, so no
+  // template reaching a child can be one where `standing` was empty.
   const pool = standing.length > 0 ? standing : ranges;
   return pool.length > 0 ? pool : [fallbackRange(at, from, to)];
+}
+
+/**
+ * Whether any step this line could be labelled in leaves a tick under the
+ * arrow. Shared by `linesToDraw` and by `arrowIsStranded`, so what validation
+ * judges cannot drift from what the builder picks between.
+ */
+function lineStands(
+  [low, high]: [number, number],
+  at: number,
+  pinnedStep: number | undefined,
+  minorsAllowed: boolean,
+): boolean {
+  return stepsToDraw(low, high, at, pinnedStep, minorsAllowed).some((step) => {
+    const gaps = tickCount(low, high, step);
+    if (gaps < 1) return false;
+    const chars = widestLabel(tickTexts(low, step, gaps));
+    return standsOnATick(low, step, gaps, at, chars, minorsAllowed);
+  });
+}
+
+/**
+ * Whether the arrow would end up floating between two ticks on **every** line
+ * the builder could choose - the authoring mistake behind a figure that cannot
+ * answer its own question.
+ *
+ * Only asked where the builder is picking at least one end of the range. A
+ * range the author pinned at both ends is theirs, and an arrow deliberately
+ * between two ticks is a real question there ("is it nearer 10 or 20?"); it is
+ * only when the *builder* chose the line that a line without the answer on it
+ * is the builder's fault. That split is stated on `from` in `types.ts` as well,
+ * because it is the contract an author acts on.
+ *
+ * `1 / 3` is the case this exists for: a fractions template computes it, no
+ * range and step whose numbers fit steps onto it, and before this check the
+ * figure validated clean and drew an arrow pointing at nothing.
+ */
+function arrowIsStranded(
+  at: number,
+  from: number | undefined,
+  to: number | undefined,
+  pinnedStep: number | undefined,
+  minorsAllowed: boolean,
+  lines: readonly [number, number][],
+): boolean {
+  if (from !== undefined && to !== undefined) return false;
+  return !lines.some((range) => lineStands(range, at, pinnedStep, minorsAllowed));
 }
 
 /**
@@ -569,8 +655,7 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
     const askedTo = numberValue(readField(spec.to, scope));
     const pinnedStep = numberValue(readField(spec.step, scope));
 
-    const askedMinors = readField(spec.minorTicks, scope);
-    const minorsPinnedOff = askedMinors !== undefined && !truthy(askedMinors);
+    const minorsAllowed = minorsAllowedBy(spec.minorTicks, scope);
 
     // **Five draws, always, whichever of these is pinned.** `generate` threads
     // one `Rng` through `tryBind`, `buildFigure` and then `buildChoices`, so a
@@ -578,9 +663,9 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
     // the distractors of the very question it illustrates - see `bar`'s
     // `scaleFor`. A pick from a single candidate is still a pick.
     const [from, to] = drawableRange(
-      rng.pick(linesToDraw(at, askedFrom, askedTo, pinnedStep, !minorsPinnedOff)),
+      rng.pick(linesToDraw(at, askedFrom, askedTo, pinnedStep, minorsAllowed)),
     );
-    const step = rng.pick(stepsToDraw(from, to, at, pinnedStep, !minorsPinnedOff));
+    const step = rng.pick(stepsToDraw(from, to, at, pinnedStep, minorsAllowed));
     const minorsJittered = rng.next() < 0.5;
     const tickLength = jitter(rng, ...TICK_BAND);
     const arrowLength = jitter(rng, ...ARROW_BAND);
@@ -594,7 +679,7 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
 
     // The small ticks are only free to come and go where the arrow is already
     // standing on a numbered one - otherwise they are the answer, not decoration.
-    const minorsOn = minorsPinnedOff ? false : onLattice(at, from, step) ? minorsJittered : true;
+    const minorsOn = !minorsAllowed ? false : onLattice(at, from, step) ? minorsJittered : true;
     const parts = minorsOn ? minorPartsFor(from, step, gaps, at, chars) : undefined;
 
     const along = (value: number) => ((value - from) / span) * lineSpan;
@@ -637,7 +722,10 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
     const low = read(spec.from, 'figure.from', 'number');
     const high = read(spec.to, 'figure.to', 'number');
     const step = read(spec.step, 'figure.step', 'number');
-    const minors = read(spec.minorTicks, 'figure.minorTicks', 'boolean');
+    // Read for its own sake: this is what reports a `minorTicks` that is not a
+    // truth value. What the field *means* to the geometry is read through
+    // `minorsAllowedBy` below, the same call `build` makes.
+    read(spec.minorTicks, 'figure.minorTicks', 'boolean');
 
     const at = typeof value === 'number' ? value : undefined;
     const from = typeof low === 'number' ? low : undefined;
@@ -665,7 +753,7 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
     // value to build a line around. A missing `at` has already been reported.
     if (at === undefined) return issues;
 
-    const minorsAllowed = !(typeof minors === 'boolean' && !minors);
+    const minorsAllowed = minorsAllowedBy(spec.minorTicks, scope);
     const lines =
       from !== undefined && to !== undefined && !(to > from)
         ? []
@@ -690,6 +778,18 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
               ' holding it runs off the end of the numbers arithmetic can tell apart',
       );
       return issues;
+    }
+
+    // The picture that cannot answer its own question. `build` still draws it -
+    // it never refuses - so this report is the only thing standing between a
+    // child and an arrow pointing at nothing between two ticks.
+    if (arrowIsStranded(at, from, to, pinned, minorsAllowed, lines)) {
+      issues.push(
+        `figure.at: no line the builder can draw around ${at} has a tick under it -` +
+          ' every range and step whose numbers fit steps straight past it, so the arrow' +
+          ' would stand between two ticks with nothing to count. Pin figure.from and' +
+          ' figure.to to a range whose ticks include it.',
+      );
     }
 
     // **One fault, one message**, keyed on a tag rather than on a phrase from
