@@ -3,7 +3,7 @@ import { isYearLevel, YEAR_LEVELS } from '../curriculum';
 import { figureIssues } from '../figures/build';
 import { FIGURE_KINDS } from '../figures/types';
 import { createRng } from '../rng';
-import { generate } from './generate';
+import { generate, tryBindForced } from './generate';
 import { MAX_CHOICES, type QuestionSpec, type QuestionTemplate, type VarSpec } from './types';
 
 /**
@@ -18,6 +18,49 @@ import { MAX_CHOICES, type QuestionSpec, type QuestionTemplate, type VarSpec } f
  * nothing for this - can still be validated on every test run.
  */
 export const FIGURE_DRAWS = 50;
+
+/**
+ * The most combinations of `pick` literals the anchoring check will cross
+ * before falling back to checking each `pick` var's literals on its own.
+ * Two wide picks crossed - fourteen shape names against a five-value pick -
+ * is 70, comfortably under this; three wide picks is thousands, and this
+ * check runs on every `validateTemplate` call, so the cross product is
+ * capped rather than left to grow with however many `pick` vars a template
+ * happens to declare. Below the cap every combination is checked, which is
+ * what catches a bad pairing reachable only when two picks land on
+ * particular values *together*; over it, every literal of every pick is
+ * still checked on its own (see the fallback below) - a weaker guarantee,
+ * not none.
+ */
+export const FIGURE_PICK_COMBINATIONS_CAP = 200;
+
+/**
+ * How many times a single forced combination is retried - with everything
+ * not forced redrawn - before it is treated as unsatisfiable and simply not
+ * checked. Far fewer than `MAX_ATTEMPTS` in `generate.ts`: that runs once per
+ * question, this runs once per combination, up to
+ * `FIGURE_PICK_COMBINATIONS_CAP` times, so a bound generous enough that one
+ * unlucky draw of an unrelated variable is not mistaken for the combination
+ * itself being impossible still has to stay cheap multiplied out that far.
+ */
+const FORCED_BIND_ATTEMPTS = 20;
+
+/**
+ * Every combination of every `pick` var's literals, crossed. `[{}]` is the
+ * base the fold starts from, so a spec with a single `pick` var still yields
+ * one combination per literal rather than none.
+ */
+function pickCombinations(
+  pickVars: readonly Extract<VarSpec, { kind: 'pick' }>[],
+): Record<string, string | number>[] {
+  return pickVars.reduce<Record<string, string | number>[]>(
+    (combinations, varSpec) =>
+      combinations.flatMap((combination) =>
+        varSpec.from.map((literal) => ({ ...combination, [varSpec.name]: literal })),
+      ),
+    [{}],
+  );
+}
 
 /**
  * Templates are authored outside the app, so they are untrusted input. Validation
@@ -272,7 +315,6 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     const figureSpec = spec.figure;
     const seenIssues = new Set<string>();
     const byAnswer = new Map<string, { count: number; figures: Set<string> }>();
-    let lastScope: Record<string, string | number | boolean> | undefined;
 
     for (let i = 0; i < FIGURE_DRAWS; i++) {
       let question;
@@ -291,7 +333,6 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
         break;
       }
 
-      lastScope = question.vars;
       for (const issue of figureIssues(figureSpec, question.vars)) seenIssues.add(issue);
 
       // `JSON.stringify`, not `String`: `String(true)` and `String('true')`
@@ -313,19 +354,62 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     // so a wide pick can go fifty draws without ever trying its worst value -
     // and because those seeds are keyed off the template's own id, that is not
     // flakiness a re-run washes out, it is a permanent silent pass for that
-    // template. So every literal of every `pick` var is checked directly
-    // instead: take the last scope the loop above bound and force that one
-    // var to the literal in turn. That is exact coverage of every value the
-    // figure's own parameters could ever be asked to draw - not a chance of
-    // eventually trying it - at the cost of one more `figureIssues` call per
-    // literal, which is cheap because `figureIssues` takes no `Rng` and does
-    // no generation of its own.
-    if (lastScope) {
-      for (const varSpec of spec.vars as VarSpec[]) {
-        if (varSpec.kind !== 'pick') continue;
-        for (const literal of varSpec.from) {
-          const scope = { ...lastScope, [varSpec.name]: literal };
-          for (const issue of figureIssues(figureSpec, scope)) seenIssues.add(issue);
+    // template. So every literal of every `pick` var is checked directly,
+    // through `tryBindForced` rather than by patching a finished scope:
+    // patching only the forced variable would leave any `expr` variable
+    // derived from it - a `shape` read through an intermediate variable
+    // rather than the pick itself - looking at whatever stale value the scope
+    // it was copied from happened to have. And where two `pick` vars both
+    // feed the figure, forcing them one at a time while the other sits at
+    // whatever a single draw happened to bind never tries the pair
+    // *together* - a bad combination reachable only when both land on
+    // particular values at once would escape exactly the way a single bad
+    // literal used to. So below, every combination of every `pick` var's
+    // literals is walked, not each var on its own, bounded by
+    // `FIGURE_PICK_COMBINATIONS_CAP` - crossing three wide picks is thousands
+    // of combinations for a check that runs on every validate.
+    const pickVars = (spec.vars as VarSpec[]).filter(
+      (varSpec): varSpec is Extract<VarSpec, { kind: 'pick' }> => varSpec.kind === 'pick',
+    );
+
+    if (pickVars.length > 0) {
+      const combinationCount = pickVars.reduce((total, varSpec) => total * varSpec.from.length, 1);
+
+      const checkCombination = (forced: Record<string, string | number>) => {
+        // A forced combination can still fail the spec's own `constraints` -
+        // an angle template might pin two variables such that a comparison
+        // between them no longer holds for this particular pairing. Retried a
+        // bounded number of times with everything *not* forced redrawn, so a
+        // single unlucky draw of an unrelated variable is not mistaken for
+        // the combination itself being impossible; if every attempt still
+        // fails, it is a combination no child would ever be asked, and there
+        // is nothing to check a figure against - not an error of its own, so
+        // nothing is reported for it.
+        for (let attempt = 0; attempt < FORCED_BIND_ATTEMPTS; attempt++) {
+          const scope = tryBindForced(
+            spec as QuestionSpec,
+            createRng(`validate-${label}-figure-forced-${JSON.stringify(forced)}-${attempt}`),
+            forced,
+          );
+          if (scope) {
+            for (const issue of figureIssues(figureSpec, scope)) seenIssues.add(issue);
+            return;
+          }
+        }
+      };
+
+      if (combinationCount <= FIGURE_PICK_COMBINATIONS_CAP) {
+        // Under the cap: cross every pick's literals with every other pick's -
+        // this is what actually closes the two-pick gap described above.
+        for (const forced of pickCombinations(pickVars)) checkCombination(forced);
+      } else {
+        // Over the cap: fall back to forcing one pick var at a time. Still
+        // exact per literal - still routed through `tryBindForced`, so still
+        // correct for an `expr` derived from the forced pick - just not
+        // crossed with any other pick's literals. Degrading to that beats
+        // skipping the check.
+        for (const varSpec of pickVars) {
+          for (const literal of varSpec.from) checkCombination({ [varSpec.name]: literal });
         }
       }
     }

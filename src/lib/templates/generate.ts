@@ -90,6 +90,43 @@ function tryBind(spec: QuestionSpec, rng: Rng): Record<string, Value> | null {
   return scope;
 }
 
+/**
+ * `tryBind`, except one or more variables are *forced* to a given value
+ * rather than drawn - the mechanism the anchoring check's `pick`-literal
+ * coverage needs (see `validate.ts`). Overwriting a value in an
+ * already-finished scope leaves anything derived from it stale: an `expr`
+ * variable further down `spec.vars` that reads a forced pick would still see
+ * whatever that pick drew the first time. Walking `spec.vars` in the same
+ * declared order `tryBind` does, and substituting only at the point a forced
+ * variable is bound, is what lets every variable declared after it see the
+ * forced value instead - exactly as it would if that value had genuinely
+ * been drawn.
+ *
+ * Returns null exactly as `tryBind` does when a constraint rejects the
+ * binding. A forced combination the spec's own constraints refuse is a
+ * combination no child would ever be asked, so a caller checking a figure
+ * against it has nothing to check - not an error of its own.
+ */
+export function tryBindForced(
+  spec: QuestionSpec,
+  rng: Rng,
+  forced: Readonly<Record<string, Value>>,
+): Record<string, Value> | null {
+  const scope: Record<string, Value> = Object.create(null);
+
+  for (const varSpec of spec.vars) {
+    scope[varSpec.name] = Object.hasOwn(forced, varSpec.name)
+      ? forced[varSpec.name]
+      : bindVar(varSpec, scope, rng);
+  }
+
+  for (const constraint of spec.constraints ?? []) {
+    if (!evaluate(constraint, scope)) return null;
+  }
+
+  return scope;
+}
+
 /** Replace `{expression}` holes with their evaluated values. */
 export function renderTemplateString(text: string, scope: Scope): string {
   return text.replace(/\{([^{}]+)\}/g, (_match, expr: string) => String(evaluate(expr, scope)));

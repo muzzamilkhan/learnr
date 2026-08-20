@@ -304,4 +304,63 @@ describe('validateTemplate figures', () => {
       expect.stringMatching(/the answer true always drew the same picture/i),
     );
   });
+
+  it('derives a figure parameter routed through an expr var, not just one bound directly', () => {
+    // `shapeName` is an `expr` var reading the pick, not the pick itself -
+    // and `figure.shape` reads `shapeName`. Forcing `s` by patching a
+    // finished scope (the mechanism this replaced) leaves `shapeName` at
+    // whatever value the scope it was copied from already had, so the forced
+    // literal never actually reaches the figure. `tryBindForced` walks
+    // `spec.vars` in order instead, so `shapeName` is recomputed against the
+    // forced `s` the way it would be for a real draw.
+    const shapes = POLYGON_SHAPES.map((shape) => (shape === 'rectangle' ? 'bogus' : shape));
+    const template: QuestionTemplate = {
+      ...valid,
+      // Confirmed by simulating `createRng` directly, the same way as above:
+      // 'bogus' is never the value any of this id's fifty draws pick.
+      id: 'expr-pick-bad-shape-105',
+      prompt: 'What shape is this?',
+      vars: [
+        { name: 's', kind: 'pick', from: shapes },
+        { name: 'shapeName', kind: 'expr', expr: 's' },
+      ],
+      constraints: [],
+      answer: 's',
+      figure: { kind: 'polygon', shape: 'shapeName' },
+    };
+    expect(errorsFor(template)).toContainEqual(
+      expect.stringMatching(/figure\.shape.*bogus.*not a known shape/i),
+    );
+  });
+
+  it('crosses two pick vars rather than forcing them one at a time', () => {
+    // `mirror: true` on a scalene triangle is the bad case `figureIssues`
+    // flags - a scalene has no line of symmetry - and it only arises when
+    // `shape` and `wantMirror` land on `'scalene'` and `true` *together*.
+    // Forcing one pick var while the other sits at whatever a single earlier
+    // draw happened to bind (the mechanism this replaced) only reaches that
+    // pairing if the earlier draw already half-matched it by chance; this id
+    // was confirmed by simulation to dodge the pairing both in the fifty
+    // draws themselves and in that one-at-a-time fallback.
+    // `from` is `readonly (string | number)[]` on a `pick` var, so the two
+    // "want a mirror" states are `0`/`1` rather than `false`/`true` - the
+    // index a `pick` draws (and therefore the RNG calls it costs) is the same
+    // either way, so the simulation used to pick this id still applies.
+    const shapes = ['equilateral', 'scalene', 'square', 'pentagon', 'hexagon', 'heptagon', 'octagon', 'kite'];
+    const template: QuestionTemplate = {
+      ...valid,
+      id: 'two-pick-bad-pair-51',
+      prompt: 'Is the dashed line a line of symmetry?',
+      vars: [
+        { name: 'shape', kind: 'pick', from: shapes },
+        { name: 'wantMirror', kind: 'pick', from: [0, 1] },
+      ],
+      constraints: [],
+      answer: 'wantMirror == 1',
+      figure: { kind: 'polygon', shape: 'shape', mirror: 'wantMirror == 1' },
+    };
+    expect(errorsFor(template)).toContainEqual(
+      expect.stringMatching(/figure\.mirror.*scalene.*no line of symmetry/i),
+    );
+  });
 });
