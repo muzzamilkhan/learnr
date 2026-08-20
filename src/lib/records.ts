@@ -9,7 +9,6 @@ import {
 import { EXAMPLE_ANSWERS, type AnsweredQuestion } from './analytics/report';
 import { parseYearLevel, type YearLevel } from './curriculum';
 import { prisma } from './db';
-import type { Prisma } from '@/generated/prisma/client';
 import { parseFigure } from './figures/types';
 import { nextPlayStreak, startedNewDay, noStreak, type PlayStreak } from './rewards/streak';
 import { rounds } from './rewards/stars';
@@ -198,11 +197,17 @@ export async function recordAttempt(
         // Stored resolved, as the child actually saw it - see `Attempt.figure`
         // in the Prisma schema for why. Left unset rather than written as
         // `null` for the ordinary question with nothing to draw, which is what
-        // every attempt before this column existed already means. Cast past
-        // `InputJsonValue`'s mutable-array shape: `Figure` is plain, already
-        // serialisable data, just declared with `readonly` arrays the way
-        // everything in `lib` is.
-        ...(attempt.figure ? { figure: attempt.figure as unknown as Prisma.InputJsonValue } : {}),
+        // every attempt before this column existed already means. Spread
+        // rather than passed through: `Figure` is declared as an `interface`
+        // (`figures/types.ts`), and an interface gets no implicit index
+        // signature, which is the whole of why it doesn't structurally match
+        // `InputJsonObject` on its own - nothing to do with the `readonly`
+        // arrays inside it, which `InputJsonArray` already accepts. A plain
+        // object literal built from its own keys has an index signature and
+        // needs no cast, and unlike a cast it keeps tsc checking that `Figure`
+        // stays JSON-serialisable - lose that and a later field typed `Date`
+        // or `Map` fails silently inside this `try`, costing the attempt.
+        ...(attempt.figure ? { figure: { ...attempt.figure } } : {}),
       },
     });
     await updateTopicSkill(userId, attempt);

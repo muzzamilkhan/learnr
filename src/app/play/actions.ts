@@ -12,6 +12,7 @@ import {
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 import { parseOffsetMinutes } from '@/lib/day';
+import { parseFigure } from '@/lib/figures/types';
 import { requestNow } from '@/app/now';
 
 /**
@@ -43,9 +44,26 @@ export async function recordAttemptAction(
   // The offset is the browser's word, and it ends up in a stored day number, so
   // it is bounded here. An answer with a nonsense offset is still worth keeping;
   // it is recorded at UTC rather than dropped.
+  //
+  // The figure is bounded here too, and for a sharper reason: `prompt` and
+  // `response` are already unvalidated client strings by design - the design
+  // doc's boundary for a figure is explicitly "on the way back out", the same
+  // read `readAnsweredQuestions` already guards - but `figure` is structured
+  // data, and a hand-rolled call to this action is not bound to what a
+  // session ever produces. Without a check here, a crafted `{ marks: [...
+  // tens of thousands of dots] }` would be stored verbatim and then rendered
+  // as that many SVG nodes inside a parent's report. `parseFigure` (with its
+  // `MAX_MARKS` cap) is the same normaliser the report already trusts, run at
+  // the same seam `parsePhoto` uses inbound, and destructured out of `attempt`
+  // first so an invalid figure cannot ride through on the `...rest` spread -
+  // the answer is still recorded, just without a figure that failed to parse.
+  const { figure: rawFigure, ...rest } = attempt;
+  const figure = parseFigure(rawFigure) ?? undefined;
+
   return recordAttempt(session.user.id, learningSessionId, {
-    ...attempt,
+    ...rest,
     offsetMinutes: parseOffsetMinutes(attempt.offsetMinutes) ?? 0,
+    ...(figure ? { figure } : {}),
   });
 }
 

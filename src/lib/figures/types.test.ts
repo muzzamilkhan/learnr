@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseFigure } from './types';
+import { MAX_MARKS, parseFigure } from './types';
 
 const triangle = {
   width: 100,
@@ -50,5 +50,14 @@ describe('parseFigure', () => {
       marks: [{ kind: 'path', points: [[0, 0], [1, 1]], closed: true, fill: false }],
     };
     expect(parseFigure(missingField)).toBeNull();
+  });
+
+  it('refuses more marks than a real figure ever has, a hand-rolled call the only way to reach it', () => {
+    const dot = { kind: 'dot', at: [1, 1] };
+    const atCap = { width: 100, height: 100, marks: Array(MAX_MARKS).fill(dot) };
+    const overCap = { width: 100, height: 100, marks: Array(MAX_MARKS + 1).fill(dot) };
+
+    expect(parseFigure(atCap)).not.toBeNull();
+    expect(parseFigure(overCap)).toBeNull();
   });
 });

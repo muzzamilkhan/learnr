@@ -127,6 +127,20 @@ export type FigureSpec =
 export const FIGURE_BOX = 100;
 
 /**
+ * The ceiling `parseFigure` holds `marks.length` to. A real figure is a
+ * handful of marks - a shape's outline, maybe a tick or a mirror line, maybe a
+ * dot and an arc for an angle - so a couple of hundred is generous by two
+ * orders of magnitude over anything `buildFigure` produces. This is defence
+ * against a hand-rolled call to the recording action, not against a child's
+ * session: `Attempt.figure` is read off the browser before it is ever
+ * validated (see `recordAttemptAction`), and without a cap a crafted payload
+ * of tens of thousands of marks would be stored verbatim and then rendered as
+ * that many SVG nodes inside a parent's report - the same reasoning
+ * `MAX_PHOTO_BYTES` gives for its own cap.
+ */
+export const MAX_MARKS = 200;
+
+/**
  * Coordinates are rounded to this many places at build time. It keeps the JSON
  * stored beside an attempt small, and - the reason that matters - it makes two
  * figures comparable as strings, which is what the anchoring check needs to
@@ -217,6 +231,10 @@ function parseMark(value: unknown): Mark | null {
  * stroke went missing. That is a worse failure than drawing nothing, so this
  * takes the same wholesale refusal `parsePhoto` and `parseTarget` already
  * make rather than trying to save what it can.
+ *
+ * `marks.length` is also held to `MAX_MARKS` - see there for why, and for who
+ * this defends against. Real content never gets near it; a hand-rolled write
+ * to the recording action does.
  */
 export function parseFigure(value: unknown): Figure | null {
   if (typeof value !== 'object' || value === null) return null;
@@ -224,7 +242,7 @@ export function parseFigure(value: unknown): Figure | null {
 
   if (!isFiniteNumber(figure.width) || figure.width <= 0) return null;
   if (!isFiniteNumber(figure.height) || figure.height <= 0) return null;
-  if (!Array.isArray(figure.marks)) return null;
+  if (!Array.isArray(figure.marks) || figure.marks.length > MAX_MARKS) return null;
 
   const marks: Mark[] = [];
   for (const raw of figure.marks) {
