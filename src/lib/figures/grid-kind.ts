@@ -779,7 +779,7 @@ export const gridModule: FigureKindModule<'grid'> = {
         (pinnedRows === undefined && y > MIN_GRID_DIMENSION);
 
       issues.push(
-        `figure: a grid ${columns} by ${rows}` +
+        `a grid ${columns} by ${rows}` +
           `${labels === 'none' ? ' with no labels' : ` labelled in ${labels}`} leaves` +
           ` ${reportPitchPx(layout.cell).toFixed(1)}px between its lines in a parent's` +
           ` ${REPORT_BOX_PX}px report row, under the ${reportPitchPx(needed.cell).toFixed(1)}px` +

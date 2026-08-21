@@ -12,6 +12,7 @@ import {
 } from '@/lib/analytics/report';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { localDay } from '@/lib/day';
+import { REPORT_LABEL_SIZE, REPORT_STROKE_PX } from '@/lib/figures/labels';
 import type { Sitting } from '@/lib/records';
 import { createRng } from '@/lib/rng';
 import { generateQuestion } from '@/lib/templates/generate';
@@ -269,16 +270,20 @@ function WhatHappened({ answers }: { answers: AnsweredQuestion[] | null }) {
                   that always fits and the elision is what keeps the rows comparable.
                   A figure question redraws what the child actually saw - the
                   stored, resolved figure, not a fresh one off today's template -
-                  small and at report density (`strokeWidth={1.5}`, per `diagram.tsx`),
-                  beside the prompt it was the caption for. Rows with no figure are
-                  unchanged. */}
+                  small and at report density, beside the prompt it was the caption
+                  for. Rows with no figure are unchanged.
+
+                  The two numbers come from `figures/labels.ts`, which is where the
+                  kinds read them to leave room for a label: this component is what
+                  they are facts *about*, so a literal here would be the copy that
+                  disagrees the first time the report's density is tuned. */}
               <td className="py-1.5 pr-3" title={answer.prompt}>
                 <div className="flex items-center gap-2">
                   {answer.figure ? (
                     <Diagram
                       figure={answer.figure}
-                      strokeWidth={1.5}
-                      labelSize={16}
+                      strokeWidth={REPORT_STROKE_PX}
+                      labelSize={REPORT_LABEL_SIZE}
                       className="h-16 w-16 shrink-0 rounded-xl border border-(--color-line) bg-(--color-paper)"
                     />
                   ) : null}

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildFigure, figureIssues } from './build';
 import { CUBE_NETS, cuboidEdges, MIN_CUBOID_RATIO, SOLIDS, type SolidName } from './solid-kind';
 import { createRng, type Rng } from '../rng';
-import { FIGURE_BOX, type Figure, type FigureSpec, type Point } from './types';
+import { type Figure, type FigureSpec, type Point } from './types';
 
 /**
  * The `solid` kind, read through the two public doors - `buildFigure` and
@@ -574,15 +574,19 @@ describe('the solid figure kind', () => {
           const figure = build(spec(solid, view), seed);
           const where = `${solid} / ${view} / ${seed}`;
 
+          // Every solid draws something, and every path is a line rather than
+          // a point. Finiteness is the one coordinate claim worth making:
+          // `fit` scales a drawing into the box, so asserting the points land
+          // inside it asserts what `fit` guarantees and could not fail - and a
+          // test that cannot fail, sitting beside ones that can, reads as
+          // coverage of the kind while covering nothing. A NaN is different:
+          // it survives the fit, and a drawing that is all NaN comes back
+          // empty with nothing thrown.
           expect(figure.marks.length, where).toBeGreaterThan(0);
           for (const path of paths(figure)) {
             expect(path.points.length, where).toBeGreaterThan(1);
             for (const [x, y] of path.points) {
               expect(Number.isFinite(x) && Number.isFinite(y), where).toBe(true);
-              expect(x, where).toBeGreaterThanOrEqual(0);
-              expect(x, where).toBeLessThanOrEqual(FIGURE_BOX);
-              expect(y, where).toBeGreaterThanOrEqual(0);
-              expect(y, where).toBeLessThanOrEqual(FIGURE_BOX);
             }
           }
         }

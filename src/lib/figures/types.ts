@@ -316,6 +316,20 @@ export type FigureSpec =
        * A clean `validateTemplate` result means "the common mistake was not
        * detected", not "this template is safe to leave unpinned" - judge it
        * by what the answer means, not by whether a check happened to fire.
+       *
+       * **And the same blindness runs the other way, which is the trap worth
+       * knowing about.** `array-kind.ts` refuses the array with no lever left
+       * - both dimensions fixed by the template *and* a fixed orientation -
+       * but "fixed by the template" is decided textually, by `isClosed` on
+       * the expression, because a kind sees one draw at a time and cannot
+       * know that `rows: 'r'` bound the same number on all fifty of them. So
+       * `{ rows: 'r', columns: 'c', orientation: "'rows'" }`, with `r` and
+       * `c` declared as `expr` constants, is exactly the anchored figure that
+       * check exists to refuse and it validates completely clean: one picture
+       * for one answer, every draw, with nothing on screen or in the suite to
+       * say so. Nothing shipped does this. If you write a dimension through a
+       * variable, the variable has to actually vary - and if it does not,
+       * write the constant in the figure where the check can read it.
        */
       orientation?: Expr;
     }
@@ -450,10 +464,14 @@ export const FIGURE_BOX = 100;
 export const FIGURE_PADDING = 6;
 
 /**
- * The ceiling `parseFigure` holds `marks.length` to. A real figure is a
+ * The ceiling `parseFigure` holds `marks.length` to. Most real figures are a
  * handful of marks - a shape's outline, maybe a tick or a mirror line, maybe a
- * dot and an arc for an angle - so a couple of hundred is generous by two
- * orders of magnitude over anything `buildFigure` produces. This is defence
+ * dot and an arc for an angle - but the headroom here is nearer three times
+ * than the two orders of magnitude this comment used to claim. Measured over
+ * all 127 shipped figure templates on 200 seeds each, the worst is **68**: a
+ * clock face, whose dial is sixty minute ticks before it has drawn a hand.
+ * A kind that rules a fine scale is the shape to watch, and a cap raised for
+ * one would want measuring again. This is defence
  * against a hand-rolled call to the recording action, not against a child's
  * session: `Attempt.figure` is read off the browser before it is ever
  * validated (see `recordAttemptAction`), and without a cap a crafted payload

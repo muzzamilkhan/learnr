@@ -75,6 +75,15 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   the answer *asks*, not how it is spelled.
 - A fully pinned array — both dimensions literal, orientation pinned — is refused: it has no
   free proportion left, the same reason a regular polygon may not pin its rotation.
+- **That refusal is textual, and a constant written through a variable walks straight past
+  it.** `{ rows: 'r', columns: 'c', orientation: "'rows'" }` with `r` and `c` declared as
+  `expr` constants is the identical anchored picture — one drawing per answer, every draw —
+  and it validates completely clean. The kind decides "fixed by the template" with `isClosed`
+  on the expression text because it sees one draw at a time and cannot know that `r` bound the
+  same number on all fifty of them; there is no cheap fix, which is why this is written down
+  rather than caught. Nothing shipped does it. **If a dimension goes through a variable, make
+  sure the variable varies — and if it is really a constant, write it in the figure**, where
+  the check can read it.
 
 ### `number-line`
 - **A line carries 3–5 labelled numbers, and how many depends on how wide they are.** `0–10`

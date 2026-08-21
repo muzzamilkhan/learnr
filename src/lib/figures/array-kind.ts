@@ -331,7 +331,7 @@ export const arrayModule: FigureKindModule<'array'> = {
       const longest = Math.max(rows, columns);
       if (longest > MAX_ARRAY_DIMENSION) {
         issues.push(
-          `figure: ${rows} rows by ${columns} columns is ${longest} along its longer side, over` +
+          `${rows} rows by ${columns} columns is ${longest} along its longer side, over` +
             ` the ${MAX_ARRAY_DIMENSION} a report row can keep as separate dots - at` +
             ` ${REQUIRED_PITCH_PX.toFixed(1)}px needed between centres for a` +
             ` ${DOT_DIAMETER_PX.toFixed(1)}px dot, more would draw a grey block instead`,
@@ -353,7 +353,7 @@ export const arrayModule: FigureKindModule<'array'> = {
 
         if (rows === columns || orientationFixed) {
           issues.push(
-            `figure: rows and columns are both fixed by the template (${rows} by ${columns})` +
+            `rows and columns are both fixed by the template (${rows} by ${columns})` +
               (rows === columns
                 ? ', and square, so figure.orientation cannot change the picture either way'
                 : ` and figure.orientation is fixed to ${JSON.stringify(orientation)}`) +

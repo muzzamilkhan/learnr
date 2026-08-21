@@ -281,7 +281,13 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     }
   }
 
-  // Check 1 of 3 for a figure: `kind` is one of `FIGURE_KINDS`, and every
+  // The checks below are numbered so a reader can follow this function in one
+  // pass, and the numbers carry no total - "1 of 3" was true until a `1b` was
+  // inserted and false again the moment the choice checks arrived, and a
+  // heading that lies about how many there are is worse than one that only
+  // says where it sits in the run.
+  //
+  // Check 1, for a figure: `kind` is one of `FIGURE_KINDS`, and every
   // parameter it declares is a non-empty expression that parses and reads only
   // variables bound above - reusing `checkExpr` and `bound` exactly as every
   // other expression on this spec is checked. This is deliberately narrower
@@ -390,7 +396,7 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
   // the same template, and a template with both should be told about both.
   const generates = errors.length === 0;
 
-  // Checks 2 and 3 of 3 for a figure: it has to build clean, and it has to vary.
+  // Checks 2 and 3, for a figure: it has to build clean, and it has to vary.
   // Both need a bound scope, so they wait for everything above to have passed -
   // there is no point judging a figure against a scope that never bound.
   if (generates && spec.figure !== undefined) {
@@ -514,8 +520,9 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     }
   }
 
-  // The anchoring rule's sibling, for multiple choice. A figure that never
-  // varies teaches a child to recognise the picture instead of the property;
+  // Checks 4, 5 and 6 - the anchoring rule's sibling, for multiple choice. A
+  // figure that never varies teaches a child to recognise the picture
+  // instead of the property;
   // an option set that never varies teaches them to recognise the *button*.
   // Both are the same failure - the child gets it right, the profile calls the
   // topic secure, and the thing they learned was not the maths - so both are
@@ -590,7 +597,7 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
         if (key !== answerKey) wrongValues.add(key);
       }
 
-      const setKey = options.map(String).sort().join(' ');
+      const setKey = options.map(String).sort().join('\u0000');
       const seen = answersBySet.get(setKey) ?? new Set<string>();
       seen.add(answerKey);
       answersBySet.set(setKey, seen);

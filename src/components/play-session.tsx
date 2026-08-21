@@ -29,6 +29,7 @@ import {
   type DailyTarget,
   type TargetAnswer,
 } from '@/lib/rewards/target';
+import { PLAY_LABEL_SIZE } from '@/lib/figures/labels';
 import {
   awardRoundAction,
   awardTargetAction,
@@ -678,7 +679,12 @@ export function PlaySession({
             <Diagram
               figure={question.figure}
               strokeWidth={3.5}
-              labelSize={7}
+              // The size every kind that places a label leaves room against,
+              // from `figures/labels.ts` - a literal here would be the private
+              // copy that comment warns about, in the one file the number is
+              // actually a fact about. Not a class name, so the scanner
+              // argument immediately below does not apply to it.
+              labelSize={PLAY_LABEL_SIZE}
               // `64px` is the floor documented above, written out rather than
               // read from a constant: a class built by interpolating a JS
               // value into the string is exactly the mistake this file
