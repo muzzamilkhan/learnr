@@ -104,16 +104,23 @@ describe('shipped content', () => {
     }
   });
 
-  // NSW places hour time on an analog clock at Early Stage 1 - Kindergarten -
-  // where ACARA places reading a clock face at Year 2 (AC9M2M04). Foundation's
-  // only time description, AC9MFM02, is about sequencing the days of the week
-  // and the times of the day, which is not what reading a dial practises, so
-  // these two cite NSW alone rather than the nearest ACARA code that fits
-  // badly. It is the Year 6 integer exception pointed the other way, and the
+  // Two places where NSW teaches something a year or more before ACARA writes
+  // it down, so the template cites NSW alone rather than the nearest ACARA
+  // code that fits badly.
+  //
+  // - **Hour time on an analog clock.** NSW puts it at Early Stage 1;
+  //   ACARA puts reading a clock face at Year 2 (AC9M2M04). Foundation's only
+  //   time description, AC9MFM02, is about sequencing the days of the week and
+  //   the times of the day, which is not what reading a dial practises.
+  // - **Halves and quarters of a shape.** NSW puts them at Stage 1
+  //   (MA1-GM-03); ACARA's first fraction description is AC9M2N03, at Year 2,
+  //   and Year 1 has none to cite.
+  //
+  // It is the Year 6 integer exception pointed the other way, and the
   // curriculum page renders the disagreement either way round. Naming them here
   // means dropping the asterisk later has to be a decision somebody makes,
-  // rather than a test going quietly green when a well-meaning edit adds an
-  // AC9MF code that does not belong.
+  // rather than a test going quietly green when a well-meaning edit adds a
+  // code that does not belong.
   //
   // **The list is closed from both ends, and the second end is the one that
   // matters.** Asserting only that these two lack an ACARA code catches an
@@ -122,8 +129,11 @@ describe('shipped content', () => {
   // any of the other templates would otherwise pass green. So the exception is
   // also asserted as exhaustive - a template with no ACARA code has to be one
   // of the ids named here.
-  it('cites no ACARA description for the content ACARA places beyond Kindergarten', () => {
-    const nswOnly = ['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`);
+  it('cites no ACARA description for the content ACARA places a year later than NSW', () => {
+    const nswOnly = [
+      ...['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`),
+      ...['half-shaded', 'how-much-shaded'].map((v) => `maths.1.fractions.${v}`),
+    ];
 
     for (const id of nswOnly) {
       const template = allTemplates.find((t) => t.id === id);
@@ -158,7 +168,7 @@ describe('levels and topics are many-to-many', () => {
   it('carries a topic across several years, harder each time', () => {
     expect(levelsForTopic('maths', 'counting numbers')).toEqual(['K', '1', '2', '3']);
     expect(levelsForTopic('maths', 'multiplication')).toEqual(['2', '3', '4', '5']);
-    expect(levelsForTopic('maths', 'fractions')).toEqual(['2', '3', '4', '5', '6']);
+    expect(levelsForTopic('maths', 'fractions')).toEqual(['1', '2', '3', '4', '5', '6']);
   });
 
   it('round-trips: every topic of a year lists that year back', () => {
