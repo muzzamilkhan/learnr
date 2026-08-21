@@ -31,17 +31,17 @@ the rule that keeps the app testable; don't break it for convenience.
 
 ```
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
-src/lib/figures/     the questions that are a picture: shapes, angles, jitter
+src/lib/figures/     the questions that are a picture: eleven kinds, a registry
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
 src/lib/reinforcement/ which question to ask next
 src/lib/rewards/     stars for a round, the day streak, and the daily target
 src/lib/speech/      turning a question into words worth hearing
-src/lib/curriculum.ts school years, labels and ordering
+src/lib/curriculum.ts school years, NSW stages, labels and ordering
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
-src/content/         the shipped course content + catalog lookups
+src/content/         the shipped course content, a year a file + catalog lookups
 src/components/      UI
 src/app/             routes and server actions
 ```
@@ -122,6 +122,36 @@ Design rules that keep this flexible:
   true/false template are dropped, and more than `MAX_CHOICES` options are
   clamped. That is exactly why content must be validated before it ships.
 
+**A multiple-choice question can answer itself, and that is the anchoring rule's
+sibling.** A figure that never varies teaches a child to recognise the picture;
+an option set that never varies teaches them to recognise the *button*. Both are
+the same failure - the child gets it right, the profile calls the topic secure,
+and the thing that was learned was not the maths - so both are caught the same
+way, by drawing the template many times and looking at what stayed the same.
+`validateTemplate` draws a `choices` template `CHOICE_DRAWS` (40) times and
+refuses two shapes: an answer that always holds the same **rank** among the
+numerically sorted options, and an answer always drawn from a different list
+than its distractors (a closed set - three colours, two units - where the odd
+one out is pickable without doing the arithmetic). A sweep of the content
+written before the check existed found **14 templates with a fixed answer rank
+and one option-set leak**. Thirteen of the fifteen needed reworking; the other
+two were "which is largest?", where the rank *is* the question. That is what
+`rankIsTheQuestion` and `propertyIsTheQuestion` are for - two flags rather than
+one blanket "trust me", each suppressing exactly one check, and both visible in
+review, because an undeclared fixed rank is a question a child can beat.
+
+**Both checks stand down exactly where a figure question lives, so on those,
+measurement is the only net there is.** The rank check needs every option of
+every draw to be a number, and a shape name or a grid reference is not; the
+closed-set check stops reading disjointness as structure above `CLOSED_SET_MAX`
+(8) distinct answers, and a three-by-three grid reaches nine. Every leak found
+while writing this branch's figure content was found by *measuring* - keying
+each draw by its prompt and sorted option set, learning the modal answer on one
+sample and scoring it on a held-out one against the blind baseline - and in five
+successive years of new content not one of them could have been found by
+validation. A green suite says nothing about a new `choice` template that
+carries a figure. Measure it.
+
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
 isEven isOdd`.
@@ -134,15 +164,23 @@ catches unbound variables, out-of-order references, malformed expressions, level
 that aren't school years, and unsatisfiable constraints, then proves the template
 can actually generate. `src/content/catalog.test.ts` validates everything shipped
 and checks the rest of what makes content usable: an id shaped
-`subject.level.topic.variant`, a curriculum content description in `tags`, at
+`subject.level.topic.variant`, a curriculum citation in `tags`, at
 least 20 templates per year, and no typed answer the number pad cannot enter. A
 template carrying a `figure` is also drawn fifty times and made to prove it never
 draws one answer the same way twice - see **Question diagrams** below.
 
-Content ships for K-6, 221 templates, written against ACARA's *Mathematics: Scope
-and sequence F-10 (v9.0)*. Every template cites the content description it
-practises (e.g. `AC9M4N02`) in `tags`, so the curriculum link is checkable rather
-than claimed.
+Content ships for K-6 as **350 templates, one file per school year** under
+`src/content/maths/` - `k.ts` through `6.ts`, concatenated in school order by
+`index.ts`. It was a single 3,500-line `maths.ts` until half again as many
+questions were about to be written into it, and the split is filing rather than
+structure: `mathsTemplates` is the same array in the same order it always was,
+and `catalog.ts` never learned there is more than one file. What it buys is that
+a year is the unit a content change touches, so two years being written no
+longer means one file being edited twice.
+
+Every template cites the content it practises in `tags` - `AC9M4N02`,
+`MA2-AR-01` - so the curriculum link is checkable rather than claimed. There are
+**two** syllabuses behind those codes, which is the next section.
 
 All four answer types render, so any of them is safe to author. **Pick the type
 the pad can express**:
@@ -176,6 +214,98 @@ a lie told in the type system, in the one place a level is guaranteed to be a
 real Australian school year. `specsFor` in `src/lib/speedrun/modes.ts` returns
 bare `QuestionSpec`s for exactly this reason, and reuses `generate` unchanged.
 
+## Two syllabuses
+
+Content is written against **two** curriculum documents at once: ACARA's
+*Mathematics: Scope and sequence F-10 (v9.0)* and the **NSW Mathematics K-10
+Syllabus (2022)**. `SYLLABUSES` in `src/content/catalog.ts` names both, and
+`syllabusOf` tells a tag's family apart by its shape. NSW is there because NSW
+schools teach the NSW syllabus and not ACARA directly: a parent reading
+`/curriculum` should be able to find their child's **stage**, which is the word
+their child's school actually uses.
+
+**A stage is derived and never stored** (`stageForLevel`): Early Stage 1 is
+Kindergarten, Stage 1 is Years 1-2, Stage 2 is Years 3-4, Stage 3 is Years 5-6.
+A stage spans two years where a level is one, so the mapping is total in this
+direction and lossy in the other - and a stage written onto a template would be
+a second truth free to disagree with the level beside it, the same objection
+`TopicSkill` answers by being a cache rather than a second history. It is also
+why one Stage 2 code honestly sits on a Year 3 template *and* a Year 4 one, and
+why the check below is against a template's stage and never its year. The one
+place the mapping is written down is `STAGE_BY_LEVEL`; `levelsForStage` inverts
+it rather than restating it, because Stage 2 being Years 3 and 4 rather than
+Year 2 is a thing this app has already got wrong more than once.
+
+**The two halves of this feature look different because the copyright is
+different.** ACARA's material is CC BY 4.0, so a content description is quoted
+in full on `/curriculum`. NESA's is Crown copyright, so an NSW outcome is
+**cited and never reproduced** - no outcome statement, and no gloss of one,
+goes into a `tags` array, a code comment or the page. That is the one rule here
+whose breach would be a licensing problem rather than a bug, which is exactly
+why it is not left to be judged one comment at a time. It had to be swept for
+twice: comments in four content files and in `catalog.test.ts` had drifted into
+restating what an outcome *covers* rather than where the syllabus *places* it,
+and each of them read as an obviously harmless line on its own. Say where a
+syllabus puts something; do not say what it says.
+
+**There are no Part A / Part B tags.** NESA says outright that Part A does not
+equate to Year 3 - which part of a stage a concept is taught in is a teacher's
+programming decision, not a property of the content. Tagging it would put a
+guess into the one field that exists to be checkable, which is the lie in the
+type system the `QuestionSpec`/`QuestionTemplate` split already refuses to tell.
+
+**And no topic was renamed into NSW's vocabulary.** NSW would fold `money` into
+additive relations and `algebra` into additive and multiplicative relations;
+both are naming rather than coverage, and `topic` is *stored*, on `Attempt` and
+on `TopicSkill`. A rename orphans every child's history and breaks
+`buildProfile`'s obligation to reproduce the stored row from the attempts. A
+second vocabulary rides in the tag, which is where a second vocabulary belongs.
+
+**Four rules are enforced over all 350 templates**, and the order they were
+added in is the argument for the last two:
+
+- **Every template cites at least one syllabus.** Either satisfies it alone,
+  because the two disagree about which year some content belongs to. An uncited
+  question is a claim about the curriculum that nothing can check.
+- **An NSW code may only come from the stage its template's year falls in.**
+  The characteristic bug of a second citation family, and invisible by
+  inspection across 350 templates: a Stage 2 code on a Year 5 template reads as
+  perfectly plausible and is simply wrong.
+- **An NSW code has to be one the syllabus actually has**, checked against the
+  73 codes transcribed into `catalog.test.ts` from
+  `docs/superpowers/notes/nsw-outcome-codes.md`. This is the only one of the
+  four that checks a citation for *truth* rather than for shape, **and it
+  exists because all three of the others pass on a typo**: `MA3-RFQ-01` for
+  `MA3-RQF-01` is code-shaped, cites a syllabus, and reports the right stage,
+  and the curriculum page would then invite a parent to look up an outcome that
+  does not exist. Transcribed rather than parsed out of the notes file because a
+  regex that stops matching yields an *empty* list, and an empty membership list
+  waves every code through - a green test is the one failure mode this net must
+  not have. It fails safe only against omissions, so a wrong entry stays green
+  forever and the manual two-way diff against the notes file is the only guard
+  there is.
+- **Every tag is a recognised code**, not merely free of whitespace. A
+  whitespace test refuses prose and waves through both a hyphen-joined
+  `interprets-data-displays` and a shape-broken `MA3-DATA-1` - and
+  `curriculumCodes` silently *drops* a tag it does not recognise, so a broken
+  code reached the curriculum page as a missing citation rather than a visible
+  error, which nobody would ever have noticed. It commits the repo to every tag
+  being a curriculum code, so a `needs-review` note is no longer free to add.
+
+**Where the two syllabuses disagree the template cites one of them, and the
+divergence is named by a test.** Six templates cite NSW alone, because NSW
+teaches reading a clock face and halves of a shape earlier than ACARA writes
+them down; ten cite ACARA alone, three of them because NSW places integers at
+Stage 4 and seven across four other topics where the honest stage code does not
+reach the content. Both lists are asserted as **set equalities** and not as
+memberships, because the useful half is the other end: with "cites at least one
+syllabus" satisfied by either, a citation quietly dropped from any *other*
+template would pass green. Closed from both ends, a divergence cannot appear or
+disappear without somebody deciding it should. `DIVERGENCE_NOTES` carries the
+sentence explaining each one and lives beside the derivation rather than in the
+page, since a note in `page.tsx` cannot carry a test - and this whole
+cross-reference exists to replace trusted citations with enforced ones.
+
 ## Question diagrams
 
 Some questions are a picture rather than a sentence. "What shape is this?" has no
@@ -187,7 +317,7 @@ decisions, which is what lets the play screen and a row in the parent's report
 draw the same figure five times apart in size.
 
 It exists because of a gap in what a sentence can ask. Counting the ACARA content
-descriptions cited in `src/content/maths.ts` before any of this was written,
+descriptions cited in the maths content before any of this was written,
 Number, Algebra and Measurement were close to complete while Space carried
 **one** description each in K, 1, 2, 4 and 6 and **none at all** in Year 3 or
 Year 5. That was not an accident about which topics somebody got round to: Space
@@ -222,6 +352,21 @@ stored beside an attempt small and - the reason that actually matters - makes tw
 figures comparable as strings, which is the only thing that lets "drawn
 identically again" be detected at all.
 
+**Those fifty draws are shared across all of a template's answers, so the check
+gets stricter as the answers multiply** - which is the opposite of what anyone
+assumes and is worth knowing before authoring a wide question. A template with
+four answers gets a dozen drawings each; one with nine gets five or six, and two
+identical pictures is the whole of the evidence the check needs. For an answer
+whose only lever is a small discrete set - a coordinate plane, where the dot and
+the grid's extent decide the picture between them - the chance an answer's *n*
+drawings all land on one of *e* extents is `e^(1-n)`, which is roughly one
+refusal in six for nine answers over six extents and essentially never for four.
+The seeds are keyed off the template's own id, so that refusal is the same on
+every run and every machine: the risk of a wide answer set is a cost the author
+meets once, at validation, and never something a child sees. The fix is not to
+narrow the question but to widen what varies, or to offer the same few answers
+on every draw and let the picture grow around them.
+
 **Pinning `rotation: '0'` on a regular polygon therefore fails validation,
 deliberately and with no escape hatch.** Such a shape has no free proportion
 left, so a pinned rotation is one fixed picture and the check rejects it. That is
@@ -233,6 +378,33 @@ mistake, and a comment on the flag would then be the only thing between a child
 and a memorised picture. Pinning stays available wherever something else still
 varies - a scalene triangle's proportions, an angle's two arms - which is the
 whole of the rule.
+
+**Two kinds fight that rule, and between them they are the two patterns to
+reach for.** Ordinarily a kind varies the thing being drawn: a spinner turns,
+a number line reframes its range. **`clock` cannot.** Three o'clock is three
+o'clock - the hands *are* the answer and may not move, and a dial turned even
+slightly is not a picture of the same time drawn differently, it is a different
+time. So the variation moves off the answer and onto the presentation around
+it: whether the numerals are drawn, whether the minute track is, and how long
+each hand is as a share of the dial. That last one is the one that survives a
+template pinning the other two, and it has to be a *proportion* rather than a
+size, because `fit` is uniform and centring, so a bigger dial is the same
+drawing. Any kind whose answer fully determines its geometry has to find its
+variation somewhere else, and this is how. **`solid` has the opposite
+problem**: a cube has **eleven** nets, so "which solid does this net fold into?"
+answered `cube` has many correct pictures and the failure available is picking a
+favourite - show the cross fifty times and a child learns the cross. `CUBE_NETS`
+is all eleven, laid one of the eight ways round a square and then turned, so
+nothing about a cube's net is pinnable at all, which is what makes the rule hold
+even for the author who pins the rotation.
+
+**What a kind can actually be asked to draw is measured, not assumed**, and
+lives in `docs/superpowers/notes/figure-content-notes.md` beside
+`figure-kind-author-notes.md` for adding a kind. Every limit in there was found
+by drawing the thing and reading the refusal, and none of it is derivable from
+the types: a labelled coordinate plane may be wider than it is tall (5x4 draws,
+4x5 is refused), and a bar graph's room for a category name shrinks when the
+*value axis* reaches two digits, so "Ball" fits until the values reach 10.
 
 **`FigureSpec` and `Figure` are the split `QuestionSpec` and a generated question
 already make**: what an author writes, and what the engine resolved it into. A
@@ -270,9 +442,25 @@ missing. `MAX_MARKS` caps the count for the reason `MAX_PHOTO_BYTES` caps a
 photograph - real content is two orders of magnitude short of it, and a crafted
 payload is not.
 
-**The two kinds are `polygon` and `angle`** (`FIGURE_KINDS`), and the shape
-vocabulary is closed (`POLYGON_SHAPES`: the triangles, the quadrilaterals, and
-pentagon through octagon). A count of sides would be less to author with and not
+**There are eleven kinds** (`FIGURE_KINDS`), and each is a module behind a
+registry: `polygon` and `angle` came first, then `bar`, `pictograph`, `spinner`,
+`solid`, `number-line`, `clock`, `array`, `fraction-shape` and `grid`.
+`buildFigure` used to be a ternary over the kind with `figureIssues` branching
+beside it, which is fine for two and is a queue for eleven - every new kind an
+edit to the same two functions, with a kind's drawing and its validation written
+a hundred lines apart and nothing but discipline keeping them describing the
+same fields. A `FigureKindModule` (`registry.ts`) puts a kind's two halves in
+one file and reduces adding one to a file and a line. Two details are load
+bearing rather than tidy: the lookup is a `Map` and not a record literal because
+it is keyed by a string off untrusted content, the same reason `src/lib/expr`
+reads its variables off null-prototype tables; and a module's `fields` table is
+a record whose mapped type strips the spec's `?` markers, so a parameter added
+to a kind and forgotten there is a type error, where a list would simply have
+left it unvalidated for good.
+
+The shape vocabulary is closed (`POLYGON_SHAPES`: the triangles, the
+quadrilaterals, and pentagon through octagon). A count of sides would be less to
+author with and not
 enough to author *from* - it cannot tell a rhombus from a kite, and a randomly
 wobbled quadrilateral has no axis of symmetry at all, so the true/false symmetry
 question would have no true case to draw. A polygon takes `shape`, `rotation`,
@@ -319,12 +507,30 @@ landscape phone, where a figure stacked above a prompt leaves both unusable - an
 there the two sit side by side, under the `max-height:500px` query that **UI**
 below names as one of the app's two.
 
-**Deliberately not in this pass**, and each of them a new figure kind and no
-engine change, which is the test of whether any of the above was right: bar and
-picture graphs (the Statistics hole), analogue clock faces, number lines, arrays,
-fractions of a shape, grids and coordinates, and nets. `label` is the one `Mark`
-nothing emits yet and it is already there, because those kinds are unreadable
-without one and a renderer is cheaper to write once than to extend.
+**The first pass deferred a list, and said of it that each would be a new figure
+kind and no engine change - which is the test of whether any of the above was
+right.** The list was bar and picture graphs (the Statistics hole), analogue
+clock faces, number lines, arrays, fractions of a shape, grids and coordinates,
+and nets. **All of them now ship, and the prediction held.** `FigureSpec` gained
+variants and `FIGURE_KINDS` gained names, but `Figure`, `Mark`, `fit`,
+`parseFigure`, `MAX_MARKS`, the anchoring check and the answer-type rules are
+what they were. The one structural change is the registry, and that was a
+consequence of the *count* rather than of any kind - eleven branches in two
+functions, not a capability the design turned out to be missing.
+
+`label` was in `Mark` before anything emitted one, on the argument that those
+kinds are unreadable without it and a renderer is cheaper to write once than to
+extend. **That is the one place the bill came due.** Five kinds emit a label
+now, and it cost `Diagram` a second prop: SVG has no `vector-effect` for
+`font-size`, so unlike `strokeWidth` a label's size cannot be pinned to real
+pixels and each caller estimates its own box (`labelSize`, roughly 7 on the play
+screen and 16 in a report row). It also costs the kinds `labels.ts`, the shared
+arithmetic for what a label takes from the geometry around it - and a figure is
+built once for both call sites, so a kind that places labels by geometry has to
+leave room for the *larger* of the two or its ticks collide in the report. Even
+so, the four `Mark` kinds are still four, which is the claim that was actually
+at risk: every one of the nine kinds draws itself out of paths, arcs, dots and
+labels, so no new decision escaped into `diagram.tsx`.
 
 ## Sessions
 
