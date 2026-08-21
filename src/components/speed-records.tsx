@@ -9,7 +9,7 @@ import { StarIcon } from './star-icon';
  * best runs at that mode, highest first.
  *
  * **The card is the leaderboard's card**, deliberately: the same coloured title
- * bar carrying the whole name ("Add - Easy", "Multiply - 7 times table"), the
+ * bar carrying the whole name ("Add - Easy", "Multiply - 7x"), the
  * same foil sheen, the same fixed portrait frame and the same
  * `OPERATION_ACCENT`. The two screens answer neighbouring questions - how the
  * house is going and how *I* am going - and a child moving between them should

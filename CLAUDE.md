@@ -865,16 +865,31 @@ and mixed, the ten single tables plus four named bundles for multiplication.
 Fewer modes than a free range would give, and every one of them accumulates a
 record with some history behind it rather than being set once and forgotten.
 
-**There is no ten times table**, though ten is still in the bundles and in what
-a mixed run draws from. Multiplying by ten is a place-value rule rather than a
-fact to recall - write the digit, write a nought - so a whole run of it measures
-how fast a child can type, and a mode is a thing to come back to and beat. That
-is `SINGLE_TABLES` beside `TABLES` in `modes.ts`: the tables offered as a mode
-of their own, and every table there is. "Tables 10-12" would not be that bundle
-without the ten, so what went is the drill and not the number. Any
-`multiply.10` already banked simply stops appearing - every reader of a stored
-key runs it through `parseMode` and skips what comes back null, which is the
-whole of what retiring a mode costs.
+**Nothing drills the ten times table**, in a mode of its own or in a bundle.
+Multiplying by ten is a place-value rule rather than a fact to recall - write
+the digit, write a nought - so a run of it measures how fast a child can type,
+and a mode is a thing to come back to and beat. That is `SINGLE_TABLES` beside
+`TABLES` in `modes.ts`: the tables offered as a mode of their own, and every
+table there is. The top bundle is `11-12` rather than `10-12` for the same
+reason at a third the strength - three tables' worth of ninety seconds with one
+of them free is a third of the run measuring nothing. Ten stays in **`all`**,
+which means all of them and would be lying otherwise, and in what a **mixed**
+run draws from, where the easy question among the hard ones is the point. Any
+`multiply.10` or `multiply.10-12` already banked simply stops appearing - every
+reader of a stored key runs it through `parseMode` and skips what comes back
+null, which is the whole of what retiring a mode costs.
+
+**A single table is labelled the way it is said: "7x", not "7 times table".**
+Fourteen chips reading "n times table" are fourteen labels differing in one
+character, which is the slowest thing to scan and the widest thing to draw, and
+the short form is what lets the picker lay the singles out five to a row instead
+of two. A bundle keeps the same notation at both ends - "2x to 5x", "11x to
+12x" - so it reads as a run of the chips above it rather than as a different
+kind of thing named a different way; `all` is the one that cannot be written
+that way and stays "All tables". **`recordBanners` keeps the prose form
+regardless** ("a personal best in the 7 times table", "in tables 11-12"), which
+is the `operationLabel`/`operationNoun` split again: a chip is a control and a
+banner is a sentence.
 
 **An operation is labelled with the verb, not the noun**: "Add", "Subtract",
 "Multiply", "Divide". A card, a heading and a button all name something to *do*,
@@ -1039,13 +1054,29 @@ build the same URL, so there is one way to name a run rather than two.
 **The picker is a `<details>`, not client state**, exactly as the report's
 "Needs a hand" rows are: the modes render with the page, the disclosure is the
 whole interaction, and `SpeedCards` stays a server component that a browser
-running no JavaScript can still open. All twenty-six modes are in the HTML. Two
-operations open at once is allowed rather than prevented - nothing here is
-exclusive, and closing somebody's card because they opened another is a decision
-the control has no reason to make. The cards became a **stack** rather than a
-two-column grid when they gained something to open: a card that opens has to
-open the full width or its modes are chips in a column, and a grid with one cell
-three times the height of its neighbour is a hole in a row.
+running no JavaScript can still open. All twenty-six modes are in the HTML. The
+cards became a **stack** rather than a two-column grid when they gained
+something to open: a card that opens has to open the full width or its modes are
+chips in a column, and a grid with one cell three times the height of its
+neighbour is a hole in a row.
+
+**Opening one closes the others, and that is `name` on the `<details>`** rather
+than an `onToggle` and a piece of state - the five share a name, which is the
+platform's own accordion and the whole reason this still needs no client
+component. An engine too old to know the attribute leaves them independently
+openable, which is a screen that works rather than a broken one. Exclusive
+because the open card is four rows tall at its worst, and two of those at once
+is a section a child scrolls past rather than reads.
+
+**Multiply gets two grids, because it has two kinds of chip.** A single table
+reads "7x" and a bundle reads "11x to 12x", and a grid wide enough for the
+second wastes most of a row on the first - which is what made fourteen multiply
+modes seven rows of mostly white space. The ten singles get a dense run of small
+square targets, four or five to a row, and the four bundles the ordinary wide
+row beneath them, so the tallest card in the picker is four rows. `isSingleTable`
+is what splits them and it lives in `modes.ts`, not in the component: what counts
+as a single table is that module's business. Every other operation has no singles
+at all and draws one grid.
 
 **The way out of a result is the door, top-left, exactly where the play
 screen puts it.** It was a third button in the row under the score, which made
@@ -1210,7 +1241,7 @@ just moved. Equally fresh modes keep `MODES` order between them.
 
 **A mode is a collectible card, and its result is a podium.** One card per
 mode, twenty-six of them: a coloured title bar carrying the whole name -
-"Add - Easy", "Multiply - 7 times table" - and the podium as the picture
+"Add - Easy", "Multiply - 7x" - and the podium as the picture
 beneath it. A child reads a wall of them the way they read a wall of cards, by
 colour and by who is on the front. The mode used to be a subtitle under the bar,
 which split one name across two zones and spent a line of the card's height

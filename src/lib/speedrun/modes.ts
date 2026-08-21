@@ -20,7 +20,7 @@ export type Difficulty = 'easy' | 'moderate' | 'hard';
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'moderate', 'hard'];
 
 /** A single table, a named bundle of them, or the lot. */
-export type TableChoice = number | '2-5' | '6-9' | '10-12' | 'all';
+export type TableChoice = number | '2-5' | '6-9' | '11-12' | 'all';
 
 export type Mode =
   | { op: 'add' | 'subtract' | 'divide' | 'mixed'; difficulty: Difficulty }
@@ -42,13 +42,20 @@ export const TABLES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
  * seconds of it measures how fast they can type. A mode is a thing to come
  * back to and beat, and there is nothing here to get better at.
  *
- * It stays *inside* the bundles - "Tables 10-12" would not be that bundle
- * without it, and a mixed run wants the easy question among the hard ones.
- * What is gone is the drill, not the number.
+ * It is gone from the **bundles** too, which is why the top one is `11-12`
+ * rather than `10-12`: a bundle is three tables' worth of ninety seconds, and
+ * one of the three being free is a third of the run measuring typing speed.
+ * The bundle that named it retires the way `multiply.10` did - every reader of
+ * a stored key runs it through `parseMode` and skips what comes back null - so
+ * a banked `multiply.10-12` simply stops appearing.
+ *
+ * It stays in **`all`**, which means all of them and would be lying otherwise,
+ * and in what a **mixed** run draws from, where the easy question among the
+ * hard ones is the point.
  */
 export const SINGLE_TABLES: readonly number[] = TABLES.filter((table) => table !== 10);
 
-export const TABLE_BUNDLES: readonly TableChoice[] = ['2-5', '6-9', '10-12', 'all'];
+export const TABLE_BUNDLES: readonly TableChoice[] = ['2-5', '6-9', '11-12', 'all'];
 
 /** Every answer is a non-negative integer: subtraction never goes negative and
  * division is built from the quotient up, so there is nothing for the number
@@ -172,8 +179,8 @@ function tableList(tables: TableChoice): readonly number[] {
       return [2, 3, 4, 5];
     case '6-9':
       return [6, 7, 8, 9];
-    case '10-12':
-      return [10, 11, 12];
+    case '11-12':
+      return [11, 12];
     case 'all':
       return TABLES;
   }
@@ -241,15 +248,46 @@ export function modesFor(op: Operation): readonly Mode[] {
   return MODES.filter((mode) => mode.op === op);
 }
 
-/** What the chip says: "7 times table", "All tables", "Easy". */
+/**
+ * What the chip says: "7x", "6x to 9x", "All tables", "Easy".
+ *
+ * A single table is written the way it is said - "7x" rather than "7 times
+ * table" - because fourteen chips reading "n times table" are fourteen labels
+ * differing in one character, which is the slowest possible thing to scan and
+ * the widest possible thing to draw. Short labels are also what lets the picker
+ * lay the singles out several to a row instead of two.
+ *
+ * A bundle keeps both ends in the same notation - "2x to 5x", not "Tables 2-5"
+ * - so a bundle reads as a run of the chips above it rather than as a different
+ * kind of thing named a different way. `all` is the one that cannot be written
+ * that way and stays prose.
+ *
+ * `recordBanners` keeps its own prose form regardless ("the 7 times table",
+ * "tables 11-12"), which is the `operationLabel`/`operationNoun` split again: a
+ * chip is a control and a banner is a sentence.
+ */
 export function modeLabel(mode: Mode): string {
   if (mode.op === 'multiply') {
     if (mode.tables === 'all') return 'All tables';
-    if (typeof mode.tables === 'number') return `${mode.tables} times table`;
-    return `Tables ${mode.tables}`;
+    if (typeof mode.tables === 'number') return `${mode.tables}x`;
+    const [from, to] = mode.tables.split('-');
+    return `${from}x to ${to}x`;
   }
   const { difficulty } = mode;
   return difficulty[0].toUpperCase() + difficulty.slice(1);
+}
+
+/**
+ * One times table, rather than a bundle of them or anything else.
+ *
+ * The picker's only reason for asking: a single table's label is two or three
+ * characters and a bundle's is ten, so they want different grids - a dense run
+ * of small targets, then a short row of wide ones. A predicate here rather than
+ * `typeof mode.tables === 'number'` written out in a component, because what
+ * counts as a single table is this module's business.
+ */
+export function isSingleTable(mode: Mode): boolean {
+  return mode.op === 'multiply' && typeof mode.tables === 'number';
 }
 
 /**

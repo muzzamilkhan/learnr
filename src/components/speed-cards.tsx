@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import {
+  isSingleTable,
+  type Mode,
   modeKey,
   modeLabel,
   modesFor,
@@ -23,10 +25,16 @@ import { ChevronIcon } from './chevron-icon';
  * **A `<details>`, not client state**, exactly as the report's "Needs a hand"
  * rows are: the modes are rendered with the page and the disclosure is the
  * whole interaction, so this stays a server component with no hydration and no
- * `'use client'`, and a browser that never runs the JS still opens it. Two
- * operations open at once is allowed rather than prevented - nothing here is
- * exclusive, and closing somebody's card because they opened another one is a
- * decision the control has no reason to make.
+ * `'use client'`, and a browser that never runs the JS still opens it.
+ *
+ * **Opening one closes the others**, and that is `name` on the `<details>`
+ * rather than an `onToggle` and a piece of state: the five share a name, which
+ * is the platform's own accordion and the whole reason not to reach for a
+ * client component to get it. An engine too old to know the attribute leaves
+ * them all independently openable, which is the behaviour this had before and
+ * not a broken screen. Exclusive because the open card is fourteen chips tall
+ * at its worst, and two of those open at once is a section a child scrolls
+ * past rather than reads.
  *
  * **The cards are a stack, not a grid.** A card that opens has to open to the
  * full width of the screen or its modes are chips in a column, and a two-column
@@ -130,7 +138,15 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
  *
  * The mode chips carry that same split, and their sizes are the ones the
  * chooser screen used before it was folded in here: a child's are thumb-sized
- * targets in two or three columns, a parent's are a denser grid of four.
+ * targets, a parent's a denser grid.
+ *
+ * **Two grids, because multiply has two kinds of chip.** A single table reads
+ * "7x" and a bundle reads "11x to 12x", and a grid wide enough for the second
+ * wastes most of a row on the first - which is what made fourteen multiply
+ * modes seven rows of mostly white space. The singles get a dense run of small
+ * square targets and the bundles the ordinary wide row beneath them, so the
+ * tallest card in the picker is four rows rather than seven. Every other
+ * operation has no singles at all and draws one grid, exactly as before.
  */
 const SCALES = {
   child: {
@@ -140,7 +156,8 @@ const SCALES = {
     tile: 'size-14 rounded-2xl text-2xl',
     label: 'text-2xl',
     chevron: 'size-6',
-    modes: 'grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-3 sm:gap-4',
+    tables: 'grid grid-cols-4 gap-3 px-5 pt-1 sm:grid-cols-5 sm:gap-4',
+    modes: 'grid grid-cols-2 gap-3 px-5 pt-3 pb-5 sm:grid-cols-3 sm:gap-4',
     mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 text-lg sm:min-h-18 sm:text-xl',
   },
   parent: {
@@ -150,7 +167,8 @@ const SCALES = {
     tile: 'size-9 rounded-lg text-base',
     label: 'text-base',
     chevron: 'size-4',
-    modes: 'grid grid-cols-3 gap-2 px-3 pb-3 sm:grid-cols-4',
+    tables: 'grid grid-cols-5 gap-2 px-3 sm:grid-cols-6',
+    modes: 'grid grid-cols-2 gap-2 px-3 pt-2 pb-3 sm:grid-cols-4',
     mode: 'min-h-11 rounded-xl border px-2 py-1.5 text-sm',
   },
 } as const;
@@ -169,10 +187,28 @@ export function SpeedCards({
     <ul className={style.list}>
       {OPERATIONS.map((op) => {
         const accent = OPERATION_ACCENT[op];
+        const modes = modesFor(op);
+        // Only multiply has both; every other operation puts its lot in the
+        // second grid and never draws the first.
+        const tables = modes.filter(isSingleTable);
+        const rest = modes.filter((mode) => !isSingleTable(mode));
+
+        const chip = (mode: Mode) => (
+          <Link
+            key={modeKey(mode)}
+            href={`${basePath}/${modeKey(mode)}`}
+            className={`flex items-center justify-center border-(--color-line) bg-(--color-card) text-center leading-tight font-semibold transition active:scale-95 ${style.mode} ${accent.border}`}
+          >
+            {modeLabel(mode)}
+          </Link>
+        );
 
         return (
           <li key={op}>
             <details
+              // The five share a name, so opening one closes the rest - the
+              // platform's own accordion, and the reason this needs no state.
+              name="speed-operation"
               className={`group no-select overflow-hidden border-(--color-line) bg-(--color-card) transition ${style.card} ${accent.border}`}
             >
               {/* `list-none` and the WebKit pseudo-element together are what
@@ -199,17 +235,10 @@ export function SpeedCards({
               {/* Every chip is a plain link into the run, and there is no Start
                   button under them: the mode is the last question there is, so
                   answering it is the thing that begins the ninety seconds. */}
-              <div className={style.modes}>
-                {modesFor(op).map((mode) => (
-                  <Link
-                    key={modeKey(mode)}
-                    href={`${basePath}/${modeKey(mode)}`}
-                    className={`flex items-center justify-center border-(--color-line) bg-(--color-card) text-center leading-tight font-semibold transition active:scale-95 ${style.mode} ${accent.border}`}
-                  >
-                    {modeLabel(mode)}
-                  </Link>
-                ))}
-              </div>
+              {tables.length > 0 && (
+                <div className={style.tables}>{tables.map(chip)}</div>
+              )}
+              <div className={style.modes}>{rest.map(chip)}</div>
             </details>
           </li>
         );

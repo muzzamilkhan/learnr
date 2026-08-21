@@ -5,6 +5,7 @@ import { validateSpec } from '../templates/validate';
 import {
   MODES,
   modeKey,
+  isSingleTable,
   modeLabel,
   modesFor,
   parseMode,
@@ -36,15 +37,18 @@ describe('the mode space', () => {
   });
 
   // Multiplying by ten is a place-value rule rather than a fact to recall, so
-  // a whole run of it measures typing speed. The number stays in the bundles a
-  // run can draw from - what went is the drill, not the ten.
-  it('offers no ten times table of its own, but keeps ten in the bundles', () => {
+  // a whole run of it measures typing speed. It is gone from the drills and
+  // from the top bundle - a third of that run would otherwise be free - and it
+  // stays in `all`, which would be lying without it.
+  it('drills no tens, in a table of its own or in a bundle', () => {
     expect(parseMode('multiply.10')).toBeNull();
+    expect(parseMode('multiply.10-12')).toBeNull();
     expect(MODES).not.toContainEqual({ op: 'multiply', tables: 10 });
 
-    const prompts = (mode: Mode) =>
-      draws(mode, 400).map((question) => question.prompt);
-    expect(prompts({ op: 'multiply', tables: '10-12' }).some((p) => p.startsWith('10 ×'))).toBe(true);
+    const prompts = (mode: Mode) => draws(mode, 400).map((question) => question.prompt);
+    expect(prompts({ op: 'multiply', tables: '11-12' }).some((p) => p.startsWith('10 ×'))).toBe(
+      false,
+    );
     expect(prompts({ op: 'multiply', tables: 'all' }).some((p) => p.startsWith('10 ×'))).toBe(true);
   });
 
@@ -68,9 +72,25 @@ describe('the mode space', () => {
   });
 
   it('names every mode', () => {
-    expect(modeLabel({ op: 'multiply', tables: 7 })).toBe('7 times table');
+    // A single table is written the way it is said, so a run of them can be
+    // scanned rather than read; a bundle keeps the same notation at both ends
+    // so it reads as a run of those chips rather than a different kind of thing.
+    expect(modeLabel({ op: 'multiply', tables: 7 })).toBe('7x');
+    expect(modeLabel({ op: 'multiply', tables: '2-5' })).toBe('2x to 5x');
+    expect(modeLabel({ op: 'multiply', tables: '6-9' })).toBe('6x to 9x');
+    expect(modeLabel({ op: 'multiply', tables: '11-12' })).toBe('11x to 12x');
     expect(modeLabel({ op: 'multiply', tables: 'all' })).toBe('All tables');
     expect(modeLabel({ op: 'add', difficulty: 'easy' })).toBe('Easy');
+  });
+
+  it('tells a single table from everything else', () => {
+    // What the picker asks, so it can give the short labels a dense grid and
+    // the long ones a wide row.
+    expect(modesFor('multiply').filter(isSingleTable)).toHaveLength(10);
+    expect(isSingleTable({ op: 'multiply', tables: 7 })).toBe(true);
+    expect(isSingleTable({ op: 'multiply', tables: '2-5' })).toBe(false);
+    expect(isSingleTable({ op: 'multiply', tables: 'all' })).toBe(false);
+    expect(isSingleTable({ op: 'add', difficulty: 'easy' })).toBe(false);
   });
 
   it('parses operations at the boundary', () => {
@@ -147,7 +167,7 @@ describe('the difficulty bands mean what they say', () => {
       [{ op: 'multiply', tables: 7 }, [7]],
       [{ op: 'multiply', tables: '2-5' }, [2, 3, 4, 5]],
       [{ op: 'multiply', tables: '6-9' }, [6, 7, 8, 9]],
-      [{ op: 'multiply', tables: '10-12' }, [10, 11, 12]],
+      [{ op: 'multiply', tables: '11-12' }, [11, 12]],
       [{ op: 'multiply', tables: 'all' }, [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]],
     ];
 
