@@ -1,11 +1,8 @@
 import Link from 'next/link';
 import { OPERATIONS, operationGlyph, operationLabel, type Operation } from '@/lib/speedrun/modes';
-import { scoreTabHref } from '@/lib/speedrun/tabs';
-import { StarIcon } from './star-icon';
-import { TrophyIcon } from './trophy-icon';
 
 /**
- * The five operations, as cards, and a link to the cabinet.
+ * The five operations, as cards.
  *
  * Follows `SubjectCards`' treatment - a coloured glyph tile, the name in large
  * type - but stripped of the topic chips, since a speed run has no topics to
@@ -22,13 +19,11 @@ import { TrophyIcon } from './trophy-icon';
  * parent's routes nest rather than sitting beside the child's as a second
  * top-level path).
  *
- * **The two links under the cards are optional, and the speed screens turn them
- * off.** They lead to the scores, which on `/speed` and `/progress/speed` are
- * the top of the very page the cards sit on - a link out of a screen to
- * something already on it. What is left for them is the child's home screen,
- * which offers a run without showing what it has been worth, and there they are
- * still the only way in. They point at the tabs rather than at routes of their
- * own (`scoreTabHref`).
+ * **There are no links to the scores under them any more.** There used to be
+ * two, and every screen that draws these cards now draws the scores directly
+ * above them (`SpeedScores`) - so the links were a way out of a screen to
+ * something already on it. The cards are what this component is; where they are
+ * shown is what says how they got there.
  */
 /**
  * One accent per operation, and every class written out in full.
@@ -109,85 +104,48 @@ const SCALES = {
     card: 'gap-4 rounded-3xl border-2 p-5 shadow-sm hover:shadow-md',
     tile: 'size-14 rounded-2xl text-2xl',
     label: 'text-2xl',
-    records: 'mt-4 gap-3 rounded-2xl border-2 px-5 py-3.5 text-lg',
-    star: 'h-6 w-6',
-    recordsArrow: 'text-2xl',
   },
   parent: {
     grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
     card: 'gap-3 rounded-xl border p-3',
     tile: 'size-9 rounded-lg text-base',
     label: 'text-base',
-    records: 'mt-3 gap-2 rounded-xl border px-3 py-2 text-sm',
-    star: 'h-4 w-4',
-    recordsArrow: 'text-base',
   },
 } as const;
 
 export function SpeedCards({
   basePath = '/speed',
-  links = true,
   scale = 'child',
 }: {
   /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
   basePath?: string;
-  /** Whether the two ways to the scores are drawn under the cards. */
-  links?: boolean;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
 
   return (
-    <>
-      <ul className={style.grid}>
-        {OPERATIONS.map((op) => {
-          const accent = OPERATION_ACCENT[op];
-          return (
-            <li key={op}>
-              <Link
-                href={`${basePath}/${op}`}
-                className={`no-select flex items-center border-(--color-line) bg-(--color-card) transition active:scale-[0.98] ${style.card} ${accent.border}`}
+    <ul className={style.grid}>
+      {OPERATIONS.map((op) => {
+        const accent = OPERATION_ACCENT[op];
+        return (
+          <li key={op}>
+            <Link
+              href={`${basePath}/${op}`}
+              className={`no-select flex items-center border-(--color-line) bg-(--color-card) transition active:scale-[0.98] ${style.card} ${accent.border}`}
+            >
+              <span
+                aria-hidden
+                className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
               >
-                <span
-                  aria-hidden
-                  className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
-                >
-                  {operationGlyph(op)}
-                </span>
-                <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
-                  {operationLabel(op)}
-                </span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-
-      {links ? (
-        <>
-          <Link
-            href={scoreTabHref(basePath, 'records')}
-            className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
-          >
-            <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
-            Your records
-            <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-              &rarr;
-            </span>
-          </Link>
-
-          <Link
-            href={scoreTabHref(basePath, 'leaderboard')}
-            className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
-          >
-            <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
-            Family leaderboard
-            <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-              &rarr;
-            </span>
-          </Link>
-        </>
-      ) : null}
-    </>
+                {operationGlyph(op)}
+              </span>
+              <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
+                {operationLabel(op)}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

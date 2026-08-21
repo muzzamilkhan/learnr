@@ -927,14 +927,20 @@ and the score centres itself in the viewport rather than sitting under a panel
 that is no longer there.
 
 **The cards, the cabinet and the leaderboard are one screen**, and the scores
-are the top of it. `/speed` and `/progress/speed` each carry the two walls
-above the five cards that start a run, with **your records on the left tab**.
+are the top of it. **Every screen that offers a run shows them**: `/speed`,
+`/progress/speed`, and the child's home screen under "Speed run" - which is the
+start page a child actually uses, since its cards go straight into a run without
+passing through `/speed` at all. Your records is the left tab.
+
 It was three screens - the cards, and the two walls behind links underneath
 them - which meant the only way to compare a card with itself was out and back
 in, and the links were an invitation to leave a screen to look at cards about
-the modes it was already offering. The links go with them (`SpeedCards` takes
-`links={false}`), and what is left for them is the child's home screen, which
-offers a run without showing what it has been worth.
+the modes it was already offering. **`SpeedCards` has no links under it any
+more**, and not a flag to turn them off either: every caller draws
+`SpeedScores` directly above the cards, so there was no screen left for a true
+value to serve. `SpeedScores` is the shared half - the tabs, the two reads and
+the signed-out and no-household sentences - because three screens rendering the
+same thing from three copies is three chances to drift.
 
 **The two walls are `?tab=` on that one page, not a route each**
 (`parseScoreTab`, `scoreTabHref` in `src/lib/speedrun/tabs.ts`). It is still
@@ -947,14 +953,21 @@ normalise stored keys and real content, where this only picks which of two
 panels is drawn, so a mistyped tab opens the records rather than 404ing a screen
 that works perfectly.
 
-**The scores sit above the cards** because what a player opens this screen for,
+**The scores sit above the cards** because what a player opens the screen for,
 after their first run, is how they are doing - and the cards are five, so
-reaching them costs a short scroll rather than a screen. The child's home screen
-still goes straight into a run from its own copy of the cards, so the shortest
-way to play never comes through here at all. The parent's copy is two `Well`s,
-"Scores" and "Start a run", because that is how every other parent screen
-separates two questions - and the board there lost the line explaining that a
-parent's own runs are on it, since their face on the podium says it better.
+reaching them costs a short scroll rather than a screen. The parent's copy is
+two `Well`s, "Scores" and "Start a run", because that is how every other parent
+screen separates two questions - and the board there lost the line explaining
+that a parent's own runs are on it, since their face on the podium says it
+better.
+
+**On the home screen the tabs carry an anchor** (`scoreTabHref`'s `hash`,
+`#speed-run`). The speed section is below practice there, so a tab switch is a
+navigation that would otherwise land a child at the top of the screen, several
+scrolls from the wall they were reading. It is the one screen that needs it, and
+the reason it is a parameter rather than always-on: on `/speed` and
+`/progress/speed` the tabs are already at the top, and a fragment on those would
+be a jump to where the page already is.
 
 **Every card carries a Try button, and it goes straight into the run.** A card
 names a mode and shows what has been scored at it; until it had a button, doing
@@ -1090,8 +1103,8 @@ player who had records saw blank cards while the leaderboard, still reading
 `SpeedRecord`, showed those same scores back to them.
 
 **The family leaderboard ranks the household, per mode, first to third.**
-the leaderboard tab of `/speed` and of `/progress/speed`, beside the cabinet
-and linked from the child's home screen. A household is `User.parentId` read
+the leaderboard tab, beside the cabinet on every screen that offers a run - the
+child's home screen, `/speed` and `/progress/speed`. A household is `User.parentId` read
 from both ends - a parent and the children they manage - which `householdId`
 (`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
 for the reason ownership always is, so there is no second column to drift out of

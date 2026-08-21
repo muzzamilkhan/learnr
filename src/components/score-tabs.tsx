@@ -41,12 +41,15 @@ const SCALES = {
 export function ScoreTabs({
   basePath,
   tab,
+  hash,
   scale = 'child',
 }: {
-  /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
+  /** `/` and `/speed` for a child, `/progress/speed` for a parent's own runs. */
   basePath: string;
   /** Which half is on screen - the page's own answer, already normalised. */
   tab: ScoreTab;
+  /** Where a switch should land, where the tabs are a long way down a screen. */
+  hash?: string;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -56,7 +59,7 @@ export function ScoreTabs({
       {SCORE_TABS.map((each) => (
         <Link
           key={each}
-          href={scoreTabHref(basePath, each)}
+          href={scoreTabHref(basePath, each, hash)}
           aria-current={each === tab ? 'page' : undefined}
           className={`${style.tab} ${
             each === tab

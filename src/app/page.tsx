@@ -13,11 +13,13 @@ import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
 import { RoleChooser } from '@/components/role-chooser';
 import { SpeedCards } from '@/components/speed-cards';
+import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
 import { readAccount } from '@/lib/accounts';
 import { readViewableChildren } from '@/lib/sharing';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
+import { parseScoreTab } from '@/lib/speedrun/tabs';
 import { requestNow } from './now';
 
 // The screen is per-child: it opens on the level that child last chose, so it
@@ -84,7 +86,19 @@ function CurriculumLink() {
   );
 }
 
-export default async function HomePage() {
+/**
+ * The anchor a tab switch lands on. The scores sit below the practice section,
+ * so switching tabs is a navigation that would otherwise put a child back at
+ * the top of the screen, several scrolls from the wall they were reading.
+ */
+const SPEED_SECTION = 'speed-run';
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const scoreTab = parseScoreTab((await searchParams).tab);
   const session = isAuthConfigured ? await auth() : null;
   const subjects = listSubjects();
   const levels = listLevels();
@@ -261,12 +275,23 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section>
+      {/* The child's own speed screen, whole: the scores, then the five ways to
+          start a run. This is the speed run's start page for a child - the cards
+          here go straight into a run without passing through `/speed` - so what
+          has been scored belongs on it, the same way it does on a parent's
+          `/progress/speed`. It used to be the cards and two links out to walls
+          on other screens, which asked a child to leave the screen they were on
+          to look at cards about the very modes it was offering. */}
+      <section id={SPEED_SECTION} className="scroll-mt-6">
         <SectionHeading
           title="Speed run"
           subtitle="Beat the clock - no year needed."
           icon={<BoltIcon className="h-8 w-8 text-(--color-sun)" />}
         />
+
+        <SpeedScores tab={scoreTab} basePath="/" hash={SPEED_SECTION} userId={userId} />
+
+        <h3 className="mt-8 mb-4 text-2xl font-bold tracking-tight">Start a run</h3>
         <SpeedCards />
       </section>
 

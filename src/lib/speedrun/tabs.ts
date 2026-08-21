@@ -26,7 +26,15 @@ export function parseScoreTab(value: string | undefined | null): ScoreTab {
   return SCORE_TABS.includes(value as ScoreTab) ? (value as ScoreTab) : 'records';
 }
 
-/** Where a tab lives: records is the bare screen, the board is a query on it. */
-export function scoreTabHref(basePath: string, tab: ScoreTab): string {
-  return tab === 'records' ? basePath : `${basePath}?tab=${tab}`;
+/**
+ * Where a tab lives: records is the bare screen, the board is a query on it.
+ *
+ * `hash` is for the screen where the tabs are a long way down - the child's home
+ * screen, which is practice first and the speed run below it. Without it,
+ * switching tabs is a navigation that lands at the top of the page and leaves
+ * the child to scroll back to the wall they were looking at.
+ */
+export function scoreTabHref(basePath: string, tab: ScoreTab, hash?: string): string {
+  const fragment = hash ? `#${hash}` : '';
+  return tab === 'records' ? `${basePath}${fragment}` : `${basePath}?tab=${tab}${fragment}`;
 }

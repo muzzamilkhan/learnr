@@ -1,9 +1,6 @@
-import { FamilyLeaderboard } from '@/components/family-leaderboard';
-import { ScoreTabs } from '@/components/score-tabs';
 import { SpeedCards } from '@/components/speed-cards';
-import { SpeedRecordsCabinet } from '@/components/speed-records';
+import { SpeedScores } from '@/components/speed-scores';
 import { Well } from '@/components/well';
-import { readFamilyRecords, readSpeedAttempts } from '@/lib/speed-records';
 import { parseScoreTab } from '@/lib/speedrun/tabs';
 import { readParent } from '../../parent';
 
@@ -39,27 +36,11 @@ export default async function ParentSpeedPage({
   return (
     <div className="space-y-4">
       <Well title="Scores">
-        <ScoreTabs basePath="/progress/speed" tab={tab} scale="parent" />
-        <div className="mt-3">
-          {tab === 'records' ? (
-            <SpeedRecordsCabinet
-              attempts={await readSpeedAttempts(userId)}
-              basePath="/progress/speed"
-              scale="parent"
-            />
-          ) : (
-            <FamilyLeaderboard
-              records={await readFamilyRecords(userId)}
-              basePath="/progress/speed"
-              scale="parent"
-            />
-          )}
-        </div>
+        <SpeedScores tab={tab} basePath="/progress/speed" userId={userId} scale="parent" />
       </Well>
 
       <Well title="Start a run">
-        {/* No links to the scores: they are the well above this one. */}
-        <SpeedCards basePath="/progress/speed" links={false} scale="parent" />
+        <SpeedCards basePath="/progress/speed" scale="parent" />
       </Well>
     </div>
   );
