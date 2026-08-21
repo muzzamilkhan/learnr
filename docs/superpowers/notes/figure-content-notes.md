@@ -61,10 +61,18 @@ question needs three or more distinguishable regions, it needs a kind that emits
 - **A K–2 counting question should pin `step` — and `step` cannot be pinned alone.** Left open,
   a whole number in 0–9 is sometimes drawn on a line reading `3 | 3.5 | 4`, which is legitimate
   and wrong for the year. But pinning `step` by itself fails validation, because `issues` asks
-  the pinned step about *every* candidate range and reports each one it cannot divide. **Pin
-  `from`, `to` and `step` together**, and remember the anchoring rule still applies: a fully
-  pinned line draws one picture, so vary something the answer does not depend on, or let the
-  answer itself carry the variation across seeds.
+  the pinned step about *every* candidate range and reports each one it cannot divide — and the
+  candidate list includes one-unit-wide spans a step of 2 can never divide. **Pin `from`, `to`
+  and `step` together**; with both ends given there is exactly one candidate range, so the
+  conflict disappears.
+
+  **Then vary something yourself, because nothing will make you.** A fully pinned line is *not*
+  one picture — `build` jitters tick and arrow lengths continuously on every draw, so it
+  produces hundreds of distinct figures and passes the anchoring check without difficulty. That
+  variation is not something a child reads, so a question whose answer is the arrow's position
+  can still be an anchored question while validating clean. Move the variation into the
+  content — a different stretch of the line, a different starting number — rather than waiting
+  for a validation failure that will never arrive.
 
 ### `grid`
 - **Grid map ≤ 5×5. Coordinate plane ≤ 4×4. Unlabelled ≤ 18.** Labels bind before lines, and
@@ -104,15 +112,36 @@ question needs three or more distinguishable regions, it needs a kind that emits
 ### `bar` / `pictograph`
 - Both draw derived labels and both refuse an axis whose rungs read the same. A label that does
   not fit is reported, not truncated.
-- **`bar` allows roughly four characters per category name at three categories**, and fewer as
-  categories multiply. "Banana" is refused. Pick short nouns — "Cat", "Dog", "Bus", "Red" — or
-  cut a category.
-- **`pictograph` at `key: '1'` allows at most four icons in a row.** Raising the key is what
-  buys a longer row, and raising the key is exactly what an early-years question cannot do —
-  one icon standing for two is a Stage 2 idea. So a K–1 pictograph counts to four, or it needs
-  a `bar` instead.
-- One icon may stand for more than one thing in a `pictograph` — say so in the prompt when it
-  does.
+- **`bar`'s category-name budget depends on the value axis as well as the category count.**
+  `categoryBudget` is fed the width of the widest *rung* label, so a graph whose axis reaches
+  10 has a two-character rung and gets less room for its names than one that stops at 5:
+
+  | categories | 1-char axis | 2-char axis |
+  | --- | --- | --- |
+  | 3 | 4 characters | 3 characters |
+  | 4 | 3 characters | fewer still |
+
+  "Banana" is refused at three categories; so is "Ball" once the axis reaches 10. Pick short
+  nouns — "Cat", "Dog", "Bus", "Red" — or cut a category. Only a graph whose values stay under
+  10 gets the roomier column.
+
+- **A `bar` figure needs its maximum constrained above the scale.** An axis of a single step
+  is refused ("nothing between the bottom and the top to read a value against"), so three
+  values each drawn `1..5` at `scale: '1'` are all 1 about once in 125 draws — and
+  `figureIssues` is sampled over 50 seeds, so a template like that **validates by luck rather
+  than by construction** and ships. Constrain the maximum (`min: '2'` on one value, or a
+  constraint over the three) rather than trusting the sample.
+
+- **A `pictograph`'s row length is capped by its row-label width, not by its key:**
+
+  | label characters | 0 | 1–2 | 3 | 4 | 5–6 | 7 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | icons in a row | 6 | 5 | 4 | 3 | 2 | 1 |
+
+  At `key: '1'` that cap **is** the largest count you may graph, so short row labels are what
+  buy a longer row. Raising the key buys length too — but one icon standing for two is a Stage 2
+  idea, so an early-years question cannot reach for it, and a K–1 pictograph is bounded by the
+  table above. Say so in the prompt whenever one icon does stand for more than one thing.
 
 ---
 
