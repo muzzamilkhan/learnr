@@ -13,6 +13,8 @@ import {
   topicsForLevel,
   levelsForTopic,
   curriculumCodes,
+  syllabusDivergences,
+  DIVERGENCE_NOTES,
   subjectOverview,
   SYLLABUSES,
   syllabusOf,
@@ -532,6 +534,88 @@ describe('curriculumCodes', () => {
 
   it('is empty for a subject with no content', () => {
     expect(curriculumCodes('spelling')).toEqual([]);
+  });
+});
+
+// What the `/curriculum` page draws an em dash for. The two set-equality tests
+// above already fix *which* templates cite one syllabus alone; this is the same
+// fact grouped the way a reader meets it - by year and topic - so the page can
+// derive the disagreement rather than transcribe a list that would go stale.
+describe('syllabusDivergences', () => {
+  it('names the year and topic where one syllabus has no code, and which one does', () => {
+    const divergences = syllabusDivergences('maths', [
+      // Cited by both: not a divergence.
+      { ...allTemplates[0], level: '3', topic: 'addition', tags: ['AC9M3N01', 'MA2-AR-01'] },
+      // ACARA alone, twice over in one topic.
+      { ...allTemplates[0], level: '3', topic: 'position', tags: ['AC9M3SP02'] },
+      { ...allTemplates[0], level: '3', topic: 'position', tags: ['AC9M3SP02'] },
+      // NSW alone, in a year of its own.
+      { ...allTemplates[0], level: '4', topic: 'time', tags: ['MA2-NSM-02'] },
+    ]);
+
+    expect(divergences).toEqual([
+      { level: '3', topic: 'position', cites: 'acara', templateCount: 2, reason: null },
+      { level: '4', topic: 'time', cites: 'nsw', templateCount: 1, reason: null },
+    ]);
+  });
+
+  // A topic can hold both kinds of template - Year 1's clock faces cite NSW
+  // alone while the durations beside them cite ACARA - so the count has to be
+  // of the templates that actually diverge, not of the topic.
+  it('counts only the templates that diverge, not the whole topic', () => {
+    const divergences = syllabusDivergences('maths', [
+      { ...allTemplates[0], level: '1', topic: 'time', tags: ['MA1-NSM-02'] },
+      { ...allTemplates[0], level: '1', topic: 'time', tags: ['AC9M1M03', 'MA1-NSM-02'] },
+    ]);
+
+    expect(divergences).toEqual([
+      {
+        level: '1',
+        topic: 'time',
+        cites: 'nsw',
+        templateCount: 1,
+        reason: expect.stringContaining('NSW places half past at Stage 1'),
+      },
+    ]);
+  });
+
+  it('is empty for a subject with no content', () => {
+    expect(syllabusDivergences('spelling')).toEqual([]);
+  });
+
+  it('finds the disagreement in both directions in the shipped content', () => {
+    const shipped = syllabusDivergences('maths');
+
+    expect(shipped).toContainEqual(
+      expect.objectContaining({ level: '6', topic: 'integers', cites: 'acara', templateCount: 3 }),
+    );
+    expect(shipped).toContainEqual(
+      expect.objectContaining({ level: '1', topic: 'fractions', cites: 'nsw', templateCount: 2 }),
+    );
+  });
+
+  // The page renders every one of these, and a divergence with no note is an em
+  // dash with nothing beside it - the easy case explained and the rest hidden,
+  // which is the opposite of what that page is for.
+  it('explains every divergence the shipped content produces', () => {
+    const unexplained = syllabusDivergences('maths')
+      .filter((d) => d.reason === null)
+      .map((d) => `${d.cites}: ${d.level} ${d.topic}`);
+
+    expect(unexplained).toEqual([]);
+  });
+
+  // And the same list closed from the other end, which is the half that catches
+  // the sentence nobody deleted: a note whose divergence has since been resolved
+  // by a citation would otherwise sit here reading perfectly well and explaining
+  // nothing on the page.
+  it('records no note that has outlived its divergence', () => {
+    const live = syllabusDivergences('maths').map((d) => `${d.cites}:${d.level}:${d.topic}`);
+    const orphans = DIVERGENCE_NOTES.map((n) => `${n.cites}:${n.level}:${n.topic}`).filter(
+      (key) => !live.includes(key),
+    );
+
+    expect(orphans).toEqual([]);
   });
 });
 
