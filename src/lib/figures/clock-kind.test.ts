@@ -3,13 +3,12 @@ import { buildFigure, figureIssues } from './build';
 import {
   HAND_LENGTH_GAP,
   MIN_HAND_DIFFERENCE,
-  MIN_MARK_GAP_PX,
   MINUTE_STEP,
   dialDirection,
   handAngles,
   reportMarkPitchPx,
 } from './clock-kind';
-import { CHAR_RATIO, INK_RATIO, REPORT_LABEL_SIZE } from './labels';
+import { CHAR_RATIO, INK_RATIO, MIN_MARK_GAP_PX, REPORT_LABEL_SIZE } from './labels';
 import { createRng, type Rng } from '../rng';
 import { FIGURE_BOX, FIGURE_PADDING, MAX_MARKS, type Figure, type FigureSpec, type Point } from './types';
 
@@ -30,9 +29,9 @@ import { FIGURE_BOX, FIGURE_PADDING, MAX_MARKS, type Figure, type FigureSpec, ty
  *   clockwise from twelve, the builder draws anticlockwise from east - and the
  *   whole point of it being a named function is that it can be checked rather
  *   than re-derived by whoever reads `90 - x` next.
- * - `reportMarkPitchPx` and `MIN_MARK_GAP_PX` are the measurement `MINUTE_STEP`
- *   rests on, and `MINUTE_STEP` is what decides which times this kind can draw
- *   at all.
+ * - `reportMarkPitchPx` and `labels.ts`' `MIN_MARK_GAP_PX` are the measurement
+ *   `MINUTE_STEP` rests on, and `MINUTE_STEP` is what decides which times this
+ *   kind can draw at all.
  */
 
 const build = (spec: FigureSpec, seed: string): Figure => buildFigure(spec, {}, createRng(seed));
@@ -80,12 +79,25 @@ const clockwiseOf = ([x, y]: Point): number =>
 
 const lengthOf = ([x, y]: Point): number => Math.hypot(x - CENTRE, y - CENTRE);
 
-/** The two hands, told apart the way a child tells them apart: by length. */
+/**
+ * The two hands, **told apart by the order the builder emitted them in** - hour
+ * first, then minute (`clock-kind.ts`'s `build`).
+ *
+ * It used to sort them by length and call the shorter one the hour hand, which
+ * quietly made "the hour hand is the shorter one" unfalsifiable: every length
+ * assertion below became `min < max` after a sort, and at noon - where both
+ * angles are 0 and nothing else disambiguates - a builder that swapped the two
+ * bands would have drawn a stubby minute hand and a long hour hand with the
+ * whole suite still green. Reading the emission order instead costs nothing and
+ * turns every one of those assertions, and every angle assertion, into a claim
+ * about **which** hand is which.
+ */
 function handsOf(figure: Figure): { hour: { angle: number; length: number }; minute: { angle: number; length: number } } {
   const drawn = figure.marks
     .flatMap((mark) => (mark.kind === 'path' && !mark.closed && isHand(mark.points) ? [mark.points[1]] : []))
-    .map((tip) => ({ angle: clockwiseOf(tip), length: lengthOf(tip) }))
-    .sort((a, b) => a.length - b.length);
+    .map((tip) => ({ angle: clockwiseOf(tip), length: lengthOf(tip) }));
+  // Two, in that order, or the identification above is meaningless.
+  expect(drawn).toHaveLength(2);
   return { hour: drawn[0], minute: drawn[1] };
 }
 
@@ -113,6 +125,31 @@ function inkBox(label: { at: Point; text: string }): [number, number, number, nu
 
 const overlap = (a: [number, number, number, number], b: [number, number, number, number]) =>
   a[0] < b[1] && b[0] < a[1] && a[2] < b[3] && b[2] < a[3];
+
+/**
+ * Whether a two-point mark passes through a box - the slab method, so it is
+ * exact rather than a sampled approximation. What it is for is a tick stroke
+ * laid across a numeral's glyph, which no ink-versus-the-box measurement sees.
+ */
+function crosses([from, to]: readonly Point[], [minX, maxX, minY, maxY]: [number, number, number, number]): boolean {
+  let low = 0;
+  let high = 1;
+  const spans: [number, number, number, number][] = [
+    [from[0], to[0] - from[0], minX, maxX],
+    [from[1], to[1] - from[1], minY, maxY],
+  ];
+  for (const [start, delta, min, max] of spans) {
+    if (delta === 0) {
+      if (start < min || start > max) return false;
+      continue;
+    }
+    const a = (min - start) / delta;
+    const b = (max - start) / delta;
+    low = Math.max(low, Math.min(a, b));
+    high = Math.min(high, Math.max(a, b));
+  }
+  return low < high;
+}
 
 const clockSpec = (fields: Partial<Record<'hour' | 'minute' | 'numerals' | 'minuteTicks', string>>): FigureSpec =>
   ({ kind: 'clock', hour: '3', minute: '0', ...fields }) as FigureSpec;
@@ -167,8 +204,11 @@ describe('what a report row can hold, and what it costs this kind', () => {
 
   it('reads the time only off marks it can tell apart', () => {
     // So the minute hand may only stand on an hour mark, and `MINUTE_STEP` is
-    // that fact rather than a chosen five: were the ticks countable it would
-    // be one, and this kind would draw every minute.
+    // that fact rather than a chosen five. Both halves of the derivation are
+    // asserted above, and they are what make this 5: the minute track fails the
+    // gap, the hour marks clear it. Were the row drawn bigger it would be 1;
+    // were it drawn small enough for the hour marks to merge it would be 15,
+    // the quarters needing no mark at all.
     expect(MINUTE_STEP).toBe(5);
   });
 });
@@ -233,11 +273,13 @@ describe('the clock figure kind', () => {
   });
 
   it('draws the hour hand clearly shorter than the minute hand, at every time and on every seed', () => {
-    // Length is the only thing telling the two apart - `Mark` has no stroke
-    // width - so the difference has to be one a 64px report row can show: three
-    // stroke widths of it. The bands the two hands are drawn from are disjoint
-    // by more than that whatever the seed does, which is the guarantee, and the
-    // drawings below are what proves the bands are what the builder uses.
+    // Length is the only thing telling the two apart on screen - `Mark` has no
+    // stroke width - so the difference has to be one a 64px report row can
+    // show: three stroke widths of it. The bands the two hands are drawn from
+    // are disjoint by more than that whatever the seed does, which is the
+    // guarantee, and the drawings below are what proves the builder took the
+    // hour hand from the shorter band - `handsOf` names them by emission order,
+    // so this cannot pass by sorting.
     expect(HAND_LENGTH_GAP).toBeGreaterThan(MIN_HAND_DIFFERENCE);
     const minimum = MIN_HAND_DIFFERENCE * FITTED_RADIUS;
 
@@ -357,6 +399,29 @@ describe('the clock figure kind', () => {
     }
   });
 
+  it('stands the numerals clear of the marks round the rim, at report scale', () => {
+    // The same report-scale standard that ruled out twelve numerals, applied to
+    // the other thing a numeral can collide with: a tick stroke laid across a
+    // glyph. It is not answer-bearing - no template may rest an answer on
+    // numerals half the seeds omit - but holding the rule for glyph-on-glyph
+    // and dropping it for glyph-on-stroke would be holding it inconsistently.
+    //
+    // **The hands are deliberately not in this check.** A hand passing under
+    // the numeral it points at is what an analogue clock does, the numerals are
+    // painted last so the glyph stays on top, and the test above is what keeps
+    // that order true. A mark round the rim has no such excuse: it is not
+    // pointing at anything.
+    const figure = build(clockSpec({ numerals: 'true', minuteTicks: 'true' }), 'clock-clearance');
+    const ink = labels(figure).map(inkBox);
+    expect(ink).toHaveLength(4);
+    expect(ticks(figure)).toHaveLength(60);
+
+    const collisions = ticks(figure).flatMap((points) =>
+      ink.filter((box) => crosses(points, box)).map((box) => `${points.join('/')} through ${box.join()}`),
+    );
+    expect(collisions).toEqual([]);
+  });
+
   it('draws the numerals last, so a hand reaching one passes under it', () => {
     // The minute hand stands on a numeral at every quarter, and marks are
     // painted in order - a numeral drawn first would be crossed out by the hand
@@ -373,6 +438,11 @@ describe('the clock figure kind', () => {
     // longer one is how twelve o'clock looks. What must not happen is a hand
     // going missing from the drawing, which is what a de-duplicating renderer
     // or a builder skipping a zero-length mark would do.
+    //
+    // It is also the one time where the angles cannot tell the two hands apart,
+    // so it is the case that needs `handsOf`'s identification by emission order
+    // rather than by length: swap the two bands and only this assertion, and
+    // the sweep's, would notice.
     const figure = build(clockSpec({ hour: '12', minute: '0' }), 'clock-noon');
     const hands = handsOf(figure);
 

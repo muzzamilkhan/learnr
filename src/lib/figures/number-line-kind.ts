@@ -1,7 +1,7 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField, truthy } from './fields';
-import { CHAR_SHARE, DRAWN_SPAN } from './labels';
+import { CHAR_SHARE, DRAWN_SPAN, MIN_MARK_GAP_PX, REPORT_BOX_PX } from './labels';
 import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from './types';
 
@@ -184,12 +184,15 @@ const MAX_LABEL_GAPS = Math.floor((1 - CHAR_SHARE) / ((1 + LABEL_DAYLIGHT) * CHA
 const MIN_LINE_SPAN = 0.1;
 
 /**
- * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
- * pixels (`progress-topics.tsx`), against the play screen's whole question
- * area. Both numbers are exact rather than estimated - the report row is
- * `h-16 w-16` and passes `strokeWidth={1.5}`.
+ * How close two of this line's ticks may be drawn, in this file's own frame
+ * units, where 1 is the whole drawn span. `MIN_MARK_GAP_PX` in `labels.ts` is
+ * the shared half - two stroke widths in a report row's real pixels, so a whole
+ * stroke of daylight stands between them - and the conversion into a share of
+ * the span is this kind's own arithmetic. Under it two ticks are one thick line
+ * at report scale, and a child counting along the line in the report is
+ * counting a band.
  *
- * **The minor ticks are measured against this smaller surface, and that is
+ * **The minor ticks are measured against that smaller surface, and that is
  * `spinner`'s argument rather than a taste**: a figure is built **once**,
  * `buildFigure`'s signature carries no scale, so the smaller of the two call
  * sites governs anything that has to stay countable. `spinner-kind.ts` states
@@ -212,17 +215,7 @@ const MIN_LINE_SPAN = 0.1;
  * one case where a range cannot vary at all - is written on `from` in
  * `types.ts`, which is where an author will meet it.
  */
-const REPORT_BOX_PX = 64;
-const REPORT_STROKE_PX = 1.5;
-
-/**
- * How far apart two tick strokes have to be to be two ticks: two stroke
- * widths, so a whole stroke of daylight stands between them. Under that they
- * are one thick line at report scale, and a child counting along the line in
- * the report is counting a band. In this file's own frame units, where 1 is
- * the whole drawn span.
- */
-const MIN_TICK_GAP = ((REPORT_STROKE_PX * 2) / REPORT_BOX_PX) * (FIGURE_BOX / DRAWN_SPAN);
+const MIN_TICK_GAP = (MIN_MARK_GAP_PX / REPORT_BOX_PX) * (FIGURE_BOX / DRAWN_SPAN);
 
 /**
  * How many minor ticks one labelled step is cut into, in the order they are

@@ -82,6 +82,35 @@ export const REPORT_LABEL_SIZE = 16;
 export const PLAY_LABEL_SIZE = 7;
 
 /**
+ * The report row itself: a 64px square drawn at a stroke of 1.5 real pixels.
+ * Both are exact rather than estimated - `progress-topics.tsx` renders the
+ * figure in an `h-16 w-16` box and passes `strokeWidth={1.5}`.
+ *
+ * **They are facts about that component, not about any one kind**, which is why
+ * they live here beside `REPORT_LABEL_SIZE` rather than being restated in each
+ * file that measures ink. Three kinds now derive a legibility limit from them -
+ * `spinner`'s thinnest sector, `number-line`'s tick gap, `clock`'s minute
+ * track - and three private copies would disagree the first time the report's
+ * density was tuned, which is the drift `FIGURE_PADDING` was moved into
+ * `types.ts` to prevent.
+ */
+export const REPORT_BOX_PX = 64;
+export const REPORT_STROKE_PX = 1.5;
+
+/**
+ * How far apart two strokes have to be, in a report row's real pixels, to read
+ * as two marks rather than one thick one: two stroke widths, so a whole stroke
+ * of daylight stands between them.
+ *
+ * The shared half of a rule two kinds had derived separately - `number-line`
+ * converts it into its own frame units as `MIN_TICK_GAP`, `clock` compares it
+ * against the pitch of a dial's marks - because *how far apart two strokes must
+ * be* is a fact about the row, while *what that costs a straight line or a
+ * dial* is each kind's own arithmetic and stays in each kind's own file.
+ */
+export const MIN_MARK_GAP_PX = REPORT_STROKE_PX * 2;
+
+/**
  * About what one character costs, as a share of the type size.
  *
  * **Before tuning this - or `FIGURE_PADDING`, or `FIGURE_PRECISION` - know what

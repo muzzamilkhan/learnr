@@ -1,7 +1,13 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { jitter, numberValue, readField, truthy } from './fields';
-import { CHAR_SHARE, INK_SHARE } from './labels';
+import {
+  CHAR_SHARE,
+  INK_SHARE,
+  MIN_MARK_GAP_PX,
+  REPORT_BOX_PX,
+  REPORT_STROKE_PX,
+} from './labels';
 import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } from './types';
 
@@ -63,9 +69,9 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  *
  * Measured on that row: the dial's fitted radius is 28.16 real pixels, so
  * **sixty minute ticks land 2.95px apart against a 1.5px stroke** - under the
- * two stroke widths (`MIN_MARK_GAP_PX`) that `number-line` derived for two
- * ticks being two ticks rather than one band. The twelve hour marks land
- * 14.7px apart and are countable with room to spare.
+ * two stroke widths (`MIN_MARK_GAP_PX` in `labels.ts`, shared with
+ * `number-line`, which converts the same rule into its own frame units). The
+ * twelve hour marks land 14.7px apart and are countable with room to spare.
  *
  * Two consequences, and they are the whole shape of this kind:
  *
@@ -96,22 +102,27 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  * 1. **Is it the label that gets drawn?** Every measurement below folds over
  *    `String(n)`, the text the mark carries, and never over the hour it came
  *    from. That is what makes `12` two characters and `3` one.
- * 2. **Does all of it fit?** `NUMERAL_RADIUS` is the rim less the widest
- *    numeral's report-scale ink reach, whichever way round the ring that
- *    numeral is turned - so its ink lands inside the rim, and the rim is what
- *    `fit` bounded the drawing by. Containment is then an identity rather than
- *    a solved inequality, which is the technique `pictograph` found and
- *    `labels.ts` recommends. Measured over the sweep, the worst numeral's ink
- *    lands 9.52 units inside the box, where `FIGURE_PADDING` alone would have
- *    been 6 - so `FIGURE_PADDING` is never asked to pay for a numeral at all.
+ * 2. **Does all of it fit?** `NUMERAL_RADIUS` is where the hour marks stop,
+ *    less the widest numeral's report-scale ink reach, whichever way round the
+ *    ring that numeral is turned - so its ink lands inside the rim *and* clear
+ *    of the mark above it, and the rim is what `fit` bounded the drawing by.
+ *    Containment is then an identity rather than a solved inequality, which is
+ *    the technique `pictograph` found and `labels.ts` recommends. Measured, the
+ *    worst numeral's ink lands 15.68 units inside the box, where
+ *    `FIGURE_PADDING` alone would have been 6 - so `FIGURE_PADDING` is never
+ *    asked to pay for a numeral at all. Clearing the *marks* rather than only
+ *    the box is where the first version of this went wrong; see
+ *    `NUMERAL_RADIUS`.
  * 3. **Is it still distinct from its neighbour?** And this is the question that
  *    decided **which** numerals a face carries. The twelve of them cannot be
- *    drawn: the ring can be no further out than `RADIUS - CHAR_SHARE`
- *    (question 2), and two-character numerals 30 degrees apart at the top of
- *    that ring - the 11 and the 12 - are 0.197 units apart where their own ink
- *    needs 0.211, before any daylight at all. Separating them would need a ring
- *    at 0.422 against the 0.395 that fits, so no radius satisfies both. They
- *    overlap, at report scale, on a face that looks perfectly correct.
+ *    drawn, and it fails even at the most generous ring the box would allow -
+ *    `RADIUS - CHAR_SHARE`, which is 0.395, further out than the ring actually
+ *    used. Two-character numerals 30 degrees apart at the top of that ring -
+ *    the 11 and the 12 - are 0.197 units apart where their own ink needs 0.211,
+ *    before any daylight at all. Separating them would need a ring at 0.422, so
+ *    no radius satisfies both and the requirement is unsatisfiable rather than
+ *    tight. They overlap, at report scale, on a face that looks perfectly
+ *    correct.
  *    **The four quarter numerals are what fits**: 90 degrees apart, distinct as
  *    text, and clear of one another by more than twice their own ink. It is a
  *    real clock design and a real cost - a template cannot ask a child to read
@@ -153,29 +164,11 @@ const MINUTES_PER_HOUR = 60;
 /** How many minutes one hour mark stands for - a fact about clocks, not a choice. */
 const MINUTES_PER_HOUR_MARK = MINUTES_PER_HOUR / HOURS;
 
-/**
- * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
- * pixels (`progress-topics.tsx`), against the play screen's whole question
- * area. Both numbers are exact rather than estimated - the report row is
- * `h-16 w-16` and passes `strokeWidth={1.5}`.
- */
-const REPORT_BOX_PX = 64;
-const REPORT_STROKE_PX = 1.5;
-
 /** What `fit` leaves the drawing, and so the dial's radius, in the box's units. */
 const FITTED_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
 
 /** The dial's radius in a report row's own real pixels. */
 const REPORT_RADIUS_PX = (FITTED_RADIUS / FIGURE_BOX) * REPORT_BOX_PX;
-
-/**
- * How far apart two marks round the rim have to be to read as two marks: two
- * stroke widths, so a whole stroke of daylight stands between them. Closer than
- * that and a child counting round the dial in a report row is counting a band.
- * `number-line-kind.ts`'s `MIN_TICK_GAP` is the same quantity for a straight
- * line, derived the same way.
- */
-export const MIN_MARK_GAP_PX = REPORT_STROKE_PX * 2;
 
 /**
  * Centre to centre of two neighbouring marks, in a report row's real pixels,
@@ -193,13 +186,31 @@ export function reportMarkPitchPx(marks: number): number {
 /**
  * The finest run of marks the minute hand may be read against, in minutes.
  *
- * Written as the measurement rather than as a five: the minute ticks are 2.95px
- * apart in a report row against a 1.5px stroke, under `MIN_MARK_GAP_PX`, so
- * only the twelve hour marks can be counted and a minute has to land on one of
- * them. Were the row ever drawn bigger this would become 1 on its own.
+ * Written as the measurement rather than as a five, and **asked of each run of
+ * marks in turn rather than only of the finest**: every minute if the minute
+ * track can be counted in a report row, every five if only the hour marks can,
+ * and the quarters if even those merge. The quarters need no mark at all, since
+ * up, right, down and left are directions rather than marks, so that last
+ * branch cannot fail however small the row gets.
+ *
+ * As measured today the minute ticks are 2.95px apart against a 1.5px stroke -
+ * under `MIN_MARK_GAP_PX` - and the hour marks are 14.74px apart, so this is 5.
+ * Were the row ever drawn bigger it would become 1, and were it drawn much
+ * smaller it would become 15, both without a constant here being touched.
  */
 export const MINUTE_STEP =
-  reportMarkPitchPx(MINUTES_PER_HOUR) >= MIN_MARK_GAP_PX ? 1 : MINUTES_PER_HOUR_MARK;
+  reportMarkPitchPx(MINUTES_PER_HOUR) >= MIN_MARK_GAP_PX
+    ? 1
+    : reportMarkPitchPx(HOURS) >= MIN_MARK_GAP_PX
+      ? MINUTES_PER_HOUR_MARK
+      : MINUTES_PER_HOUR / 4;
+
+/** How far the marks round the rim reach inward, as shares of the dial's radius. */
+const HOUR_TICK = 0.14;
+const MINUTE_TICK = 0.07;
+
+/** Where the hour marks stop, measured from the centre - the numerals' ceiling. */
+const TICK_INNER_RADIUS = RADIUS * (1 - HOUR_TICK);
 
 /**
  * The numerals a face carries when it carries any: the quarters, and **not all
@@ -219,8 +230,27 @@ const NUMERAL_INK_REACH = Math.max(
   ...NUMERALS.map((numeral) => Math.max((String(numeral).length * CHAR_SHARE) / 2, INK_SHARE / 2)),
 );
 
-/** The ring the numerals stand on: as far out as their own ink still fits inside the dial. */
-const NUMERAL_RADIUS = RADIUS - NUMERAL_INK_REACH;
+/**
+ * The ring the numerals stand on: as far out as their own ink still clears the
+ * hour mark above it.
+ *
+ * **Measured against the mark, not against the dial**, which is the difference
+ * between this and the first version of it. Sitting the ring at
+ * `RADIUS - NUMERAL_INK_REACH` keeps a numeral's ink inside the box, and inside
+ * the *rim* - but the hour marks reach `HOUR_TICK` of the way in from that rim,
+ * so a numeral's ink and the tick above it overlapped: 0.03 of the frame at the
+ * 12 and the 6, which is 1.69 real pixels in a report row - more than a whole
+ * 1.5px stroke laid across a glyph - and 0.017, or 0.97px, at the 3 and the 9.
+ * (The two differ because the reach that matters is the one *along the radius*:
+ * a numeral's ink height where it sits north or south, its width east or west.)
+ * That is the same report-scale standard that ruled out twelve numerals two
+ * comments above, and applying it to glyph-on-glyph while tolerating
+ * glyph-on-stroke would have been the rule held inconsistently one line later.
+ *
+ * The reach is the widest numeral's, whichever way round the ring it is turned,
+ * so one ring clears every mark rather than each numeral needing its own.
+ */
+const NUMERAL_RADIUS = TICK_INNER_RADIUS - NUMERAL_INK_REACH;
 
 /**
  * How far the two hands reach, as shares of the dial's radius. Bands rather than
@@ -251,10 +281,6 @@ export const MIN_HAND_DIFFERENCE = (REPORT_STROKE_PX * 3) / REPORT_RADIUS_PX;
 
 /** The shortest the minute hand is, less the longest the hour hand is. */
 export const HAND_LENGTH_GAP = MINUTE_HAND_BAND[0] - HOUR_HAND_BAND[1];
-
-/** How far the marks round the rim reach inward, as shares of the dial's radius. */
-const HOUR_TICK = 0.14;
-const MINUTE_TICK = 0.07;
 
 /** Where a time nobody could read lands - still a clock, just not the asked one. */
 const FALLBACK_HOUR = 3;

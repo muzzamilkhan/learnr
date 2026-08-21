@@ -1,6 +1,7 @@
 import type { Scope } from '../expr';
 import { createRng, type Rng } from '../rng';
 import { jitter, numberValue, readField } from './fields';
+import { REPORT_BOX_PX, REPORT_STROKE_PX } from './labels';
 import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } from './types';
 
@@ -124,9 +125,11 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  * centring fit. A disc of fixed radius turned about its own centre is precisely
  * the shape that would otherwise fit to an identical drawing every time.
  *
- * There are no labels on a spinner, so `labels.ts` is not imported and none of
- * its budgets apply. The two limits below are still measured against a parent's
- * report thumbnail, because ink is ink.
+ * There are no labels on a spinner, so none of `labels.ts`' *label* budgets
+ * apply - only the two constants describing the report row itself, which live
+ * there because they are facts about `progress-topics.tsx` rather than about
+ * type. The two limits below are measured against that thumbnail, because ink
+ * is ink.
  */
 
 type SpinnerSpec = Extract<FigureSpec, { kind: 'spinner' }>;
@@ -145,14 +148,12 @@ const RADIUS = 1;
 
 /**
  * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
- * pixels (`progress-topics.tsx`), against the play screen's whole question
- * area. A figure is built **once** for both - `buildFigure`'s signature carries
- * no scale - so a spinner that is only readable on the play screen is a
- * spinner that is unreadable in every report row, and both limits below are
- * measured against the smaller.
+ * pixels (`REPORT_BOX_PX` and `REPORT_STROKE_PX` in `labels.ts`), against the
+ * play screen's whole question area. A figure is built **once** for both -
+ * `buildFigure`'s signature carries no scale - so a spinner that is only
+ * readable on the play screen is a spinner that is unreadable in every report
+ * row, and both limits below are measured against the smaller.
  */
-const REPORT_BOX_PX = 64;
-const REPORT_STROKE_PX = 1.5;
 
 /** What `fit` leaves the drawing, and so the rim's radius, in the box's units. */
 const FITTED_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
