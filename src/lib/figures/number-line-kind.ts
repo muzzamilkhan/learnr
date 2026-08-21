@@ -1,7 +1,7 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField, truthy } from './fields';
-import { CHAR_SHARE, DRAWN_SPAN, MIN_MARK_GAP_PX, REPORT_BOX_PX } from './labels';
+import { CHAR_SHARE, DRAWN_SPAN, LABEL_DAYLIGHT, MIN_MARK_GAP_PX, REPORT_BOX_PX } from './labels';
 import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from './types';
 
@@ -138,13 +138,6 @@ const EPSILON = 1e-9;
 
 /** How close to a tick a value has to be to count as standing on it. */
 const LATTICE_TOLERANCE = 1e-6;
-
-/**
- * Clear air between two numbers along the line, in characters - what a space
- * between them would be worth. Two labels closer than their own half-widths
- * plus this are touching.
- */
-const LABEL_DAYLIGHT = 0.5;
 
 /**
  * The most characters a number under this line may carry. **Derived, not

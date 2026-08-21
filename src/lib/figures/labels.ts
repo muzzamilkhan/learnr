@@ -172,6 +172,20 @@ export const INK_RATIO = 0.72;
 export const LINE_CLEARANCE = 1.15;
 
 /**
+ * `LINE_CLEARANCE`'s sideways twin: clear air between two labels laid out
+ * *along* a rule, in characters - what a space between them would be worth.
+ * Two labels closer than their own half-widths plus this are touching.
+ *
+ * Here rather than in a kind for the reason stated at the top of this file:
+ * it is a fact about type, not about number lines. `number-line` spaces the
+ * numbers under its ticks by it and `grid` spaces the names under its columns
+ * by it, and two kinds ruling numbers along a line must not disagree about how
+ * far apart they have to be - which is exactly what a private copy in each
+ * would have allowed the first time one of them was tuned.
+ */
+export const LABEL_DAYLIGHT = 0.5;
+
+/**
  * What `fit` leaves a drawing inside `FIGURE_BOX` once its padding is taken off
  * both sides. Derived from the two constants rather than restated, so a change
  * to either cannot leave a kind measuring against a box that no longer exists.

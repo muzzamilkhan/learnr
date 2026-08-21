@@ -1,10 +1,11 @@
-import { evaluate, type Scope, type Value } from '../expr';
+import { type Scope, type Value } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, numberValue, readField, truthy } from './fields';
 import {
   CHAR_SHARE,
   DRAWN_SPAN,
   INK_SHARE,
+  LABEL_DAYLIGHT,
   MIN_MARK_GAP_PX,
   PITCH_SHARE,
   REPORT_BOX_PX,
@@ -90,6 +91,32 @@ import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from '.
  * The practical consequence, worth knowing before authoring: **pin the
  * notation and leave the extent open.** Pinning both is refused.
  *
+ * ## And mark a point with room to spare - the corner leaves no lever either
+ *
+ * Leaving the extent open is only half a lever, because how much it can vary
+ * depends on **where the mark is**. `extentCandidates` keeps the grids big
+ * enough to hold the point and legible enough to read, and a point at the
+ * density corner leaves exactly one of them - so the figure is byte-identical
+ * again, for a reason that has nothing to do with what the template pinned.
+ * Measured, with the notation pinned as it must be, over twenty seeds:
+ *
+ * | the mark at | distinct pictures |
+ * | --- | --- |
+ * | cell (2,3) | 10 |
+ * | cell (5,4) or (4,5) | 2 |
+ * | **cell (5,5)** | **1** |
+ * | point (2,3) on the lines | 8 |
+ * | **point (5,4) on the lines** | **1** |
+ *
+ * So the content rule is **"a map up to 5 by 5 and a plane up to 4 by 4, *and*
+ * a point with room to spare"**, not the size alone. The corner is caught -
+ * the generic anchoring check sees one picture and refuses it - but its
+ * message says "always drew the same picture ... unpin figure.rotation", which
+ * names a field this kind does not have and says nothing about `figure.at`.
+ * An author meeting that error is looking at the wrong end of their template,
+ * which is why the rule is written here and on `at` in `types.ts` rather than
+ * left to be inferred from the density limit.
+ *
  * ## The frame is pinned by the labels, so nothing clips
  *
  * The layout is normalised so the drawing's larger side is exactly 1, which is
@@ -123,15 +150,29 @@ import { FIGURE_BOX, type Expr, type FigureSpec, type Mark, type Point } from '.
  *
  * 1. **Is it the label that gets drawn?** Every measurement below folds over
  *    `columnTexts`/`rowTexts` - the strings - and never over the counts they
- *    came from. `A` and `10` are one character and two.
+ *    came from. A name of two characters (`10`, `AA`) is twice the width of a
+ *    name of one, and the count it came from says neither.
  * 2. **Does all of it fit?** `widestNeighbours` asks *every adjacent pair*
  *    rather than the widest label or the last one, because the two names that
  *    crowd each other need not be the two longest.
  * 3. **Is it still distinct from its neighbour?** Here, uniquely among the
  *    label kinds, this one is answered **by construction**: consecutive
- *    integers never print the same string, and `columnLabel` is a bijection.
+ *    integers never print the same string, and `columnLabel` is one to one.
  *    That is asserted rather than assumed - the sweep reads the drawn texts
  *    back and insists no axis repeats itself.
+ *
+ * **Every one of those is defending the refusal arm, not the shipped one, and
+ * that is worth saying plainly.** The density limit stops a labelled grid at
+ * five columns, and `0`-`5`, `1`-`5` and `A`-`E` are all one character - so
+ * **every figure that validates carries single-character names**, the sweep
+ * never exercises a two-character one, and `widestNeighbours`' per-pair
+ * arithmetic and the alphabet wrap below both cost nothing at the sizes
+ * content actually uses. They are here because `build` is total and must draw
+ * the grid an author got wrong before `issues` has told them so, and because
+ * the limit that keeps names to one character is itself derived - retune the
+ * report row and the second character arrives without anybody deciding to
+ * allow it. A reader should not take the machinery as evidence that the
+ * variety exists today.
  *
  * And the fourth, which is question 3 in the costume only this kind wears:
  * **A to Z runs out.** `columnLabel` wraps to `AA`, `AB`, ... rather than
@@ -162,14 +203,6 @@ export const MIN_GRID_DIMENSION = 2;
 
 /** Daylight between the grid's edge and the ink of the names beside it. */
 const LABEL_GAP = 0.02;
-
-/**
- * Clear air between two names along the bottom, in characters - what a space
- * between them would be worth. `number-line`'s `LABEL_DAYLIGHT` and its value,
- * deliberately: two kinds spacing numbers along a rule should not disagree
- * about how far apart they have to be.
- */
-const LABEL_DAYLIGHT = 0.5;
 
 /**
  * How close two of this grid's lines may be drawn, as a share of the drawn
@@ -558,19 +591,15 @@ function gridMarks(layout: GridLayout, point: Point): Mark[] {
 }
 
 /**
- * An expression's value where the template alone fixes it - evaluable with no
- * scope at all. `array-kind.ts`'s `isClosed` in the form `answerIssues` needs:
+ * An expression's value where the template alone fixes it - `readField` against
+ * an **empty scope**, so anything reading a bound variable comes back as
+ * nothing. It is `array-kind.ts`'s `isClosed` in the form `answerIssues` needs:
  * deliberately syntactic rather than a range analysis, so it never claims to
- * know something a bound variable could move.
+ * know something a bound variable could move. `array` had to write its own
+ * because it wants a boolean; this wants the value, which is exactly what
+ * `readField` already returns, so it is that call and not a second copy of it.
  */
-function closedValue(expr: Expr | undefined): Value | undefined {
-  if (typeof expr !== 'string' || expr.trim() === '') return undefined;
-  try {
-    return evaluate(expr, {});
-  } catch {
-    return undefined;
-  }
-}
+const closedValue = (expr: Expr | undefined): Value | undefined => readField(expr, {});
 
 /**
  * Which notation a piece of text is a cell reference in, or nothing at all if

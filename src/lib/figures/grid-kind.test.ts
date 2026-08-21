@@ -220,25 +220,36 @@ describe('the grid figure kind', () => {
   });
 
   it('never draws a coordinate outside the first quadrant, whatever it is handed', () => {
+    // **Both assertions here are about grid coordinates, not fitted ones.**
+    // Asserting the emitted points lie in [0, FIGURE_BOX] would look like this
+    // requirement and be a tautology: `fit` clamps every coordinate into
+    // exactly that range for every kind and every spec, so such a check passes
+    // whatever this file does. What carries the requirement is the two below -
+    // no axis is named with a negative number, and the mark itself lands
+    // inside the grid rather than off its bottom-left corner.
     for (const at of ["'2,3'", "'-1,-4'", "'0,0'", "'nonsense'", "'2.4,3.6'"]) {
       for (const onLines of ['false', 'true']) {
         const figure = build({ kind: 'grid', at, onLines } as FigureSpec, `quadrant-${at}-${onLines}`);
-        // Every axis label is a non-negative whole number or a run of letters:
-        // a negative one would be a second quadrant this kind has no business
+        const where = `${at} / onLines=${onLines}`;
+
+        // A negative one would be a second quadrant this kind has no business
         // drawing, and the number pad has no minus key to answer it with.
         for (const mark of labelMarks(figure)) {
-          expect(mark.text, `${at} / ${onLines}`).toMatch(/^(?:[0-9]+|[A-Z]+)$/);
+          expect(mark.text, where).toMatch(/^(?:[0-9]+|[A-Z]+)$/);
         }
-        // And nothing lands outside the box a renderer is handed.
-        for (const mark of figure.marks) {
-          const points = mark.kind === 'path' ? mark.points : [mark.at];
-          for (const [x, y] of points) {
-            expect(x, `${at} x`).toBeGreaterThanOrEqual(0);
-            expect(y, `${at} y`).toBeGreaterThanOrEqual(0);
-            expect(x).toBeLessThanOrEqual(FIGURE_BOX);
-            expect(y).toBeLessThanOrEqual(FIGURE_BOX);
-          }
-        }
+
+        // The mark is inside the ruled lattice - between the first and last
+        // line on each axis. A `-1,-4` clamped anywhere but into the grid
+        // would land outside this, and so would one drawn at a negative cell.
+        const [x, y] = dotAt(figure);
+        const columns = verticals(figure);
+        const rows = horizontals(figure);
+        expect(x, `${where} x`).toBeGreaterThanOrEqual(columns[0]);
+        expect(x, `${where} x`).toBeLessThanOrEqual(columns[columns.length - 1]);
+        // `horizontals` is sorted bottom-first, which in screen units is
+        // largest-first, so the grid's own top and bottom are the two ends.
+        expect(y, `${where} y`).toBeLessThanOrEqual(rows[0]);
+        expect(y, `${where} y`).toBeGreaterThanOrEqual(rows[rows.length - 1]);
       }
     }
   });
@@ -384,6 +395,58 @@ describe('what a grid reports to its author', () => {
       axisLabels: "'none'",
     });
     expect(bare).toEqual([]);
+  });
+
+  it('holds a map to 5 by 5 and a coordinate plane to 4 by 4, exactly', () => {
+    // **The two numbers Phase 3 is planning content against, pinned as a
+    // contract rather than derived alongside the implementation.** The tests
+    // above find whatever the largest accepted square happens to be and check
+    // the next one is refused, which stays green if a regression moves the cap
+    // from 5 to 3 - these do not. If either number changes, this fails and the
+    // content plan has to be revisited rather than quietly shipping smaller
+    // grids.
+    expect(issuesFor({ at: "'1,1'", columns: '5', rows: '5', axisLabels: "'letters'" })).toEqual([]);
+    expect(
+      issuesFor({ at: "'1,1'", columns: '6', rows: '6', axisLabels: "'letters'" }),
+    ).not.toEqual([]);
+
+    // A plane labels its lines, so it carries one more name per axis than a
+    // map of the same size and runs out of room a square sooner.
+    const plane = { at: "'1,1'", axisLabels: "'numbers'", onLines: 'true' };
+    expect(issuesFor({ ...plane, columns: '4', rows: '4' })).toEqual([]);
+    expect(issuesFor({ ...plane, columns: '5', rows: '5' })).not.toEqual([]);
+  });
+
+  it('leaves a point at the density corner with no extent left to vary', () => {
+    // The corner case the module comment and `at`'s field doc both name: with
+    // the notation pinned, as it must be, the number of grids the builder can
+    // choose from falls to one as the mark approaches the far corner - and the
+    // figure then stops varying for a reason nothing in this kind reports.
+    // The generic anchoring check catches it, naming figure.rotation, which is
+    // why the rule "mark a point with room to spare" is written down.
+    const pictures = (at: string, onLines: string) =>
+      new Set(
+        Array.from({ length: 20 }, (_, seed) =>
+          JSON.stringify(
+            build(
+              {
+                kind: 'grid',
+                at,
+                axisLabels: onLines === 'true' ? "'numbers'" : "'letters'",
+                onLines,
+              } as FigureSpec,
+              `corner-${at}-${onLines}-${seed}`,
+            ),
+          ),
+        ),
+      ).size;
+
+    expect(pictures("'2,3'", 'false')).toBeGreaterThan(1);
+    expect(pictures("'5,4'", 'false')).toBeGreaterThan(1);
+    expect(pictures("'5,5'", 'false')).toBe(1);
+
+    expect(pictures("'2,3'", 'true')).toBeGreaterThan(1);
+    expect(pictures("'5,4'", 'true')).toBe(1);
   });
 
   it('draws an unlabelled grid as densely as the report row allows and no denser', () => {

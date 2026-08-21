@@ -346,6 +346,17 @@ export type FigureSpec =
        * has no minus key to answer one with. A cell grid counts its columns
        * and rows from 1; with `onLines` the origin is 0 and is a real place to
        * stand.
+       *
+       * **Mark a point with room to spare.** How much the extent below can
+       * vary depends on where this is: the builder only offers grids big
+       * enough to hold it, so a point at the far corner of what a report row
+       * can hold leaves exactly *one* grid and the figure stops varying at
+       * all. Measured, with the notation pinned: cell (2,3) draws 10 different
+       * pictures, cell (5,4) draws 2, and cell **(5,5) draws 1** - as does
+       * point **(5,4)** on the lines. The last two are refused, but by the
+       * *generic* anchoring check, whose message says "unpin figure.rotation"
+       * and names nothing here. If you meet that error on a grid, this field
+       * is where to look.
        */
       at: Expr;
       /**
