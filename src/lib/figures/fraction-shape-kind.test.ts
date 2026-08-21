@@ -42,6 +42,27 @@ const shadedPaths = (figure: Figure) => closedPaths(figure).filter((mark) => mar
 /** The one closed, unfilled path - the outline (a strip/rectangle) or the rim (a circle). */
 const outline = (figure: Figure) => closedPaths(figure).find((mark) => !mark.fill);
 
+/** Partition-line divider marks, split by whether they run vertically or horizontally. */
+function dividerCounts(figure: Figure): { vertical: number; horizontal: number } {
+  const dividers = openPaths(figure);
+  const vertical = dividers.filter((mark) => mark.points[0][0] === mark.points[1][0]).length;
+  const horizontal = dividers.filter((mark) => mark.points[0][1] === mark.points[1][1]).length;
+  return { vertical, horizontal };
+}
+
+/**
+ * Which of the three shapes drew a figure, read off the geometry alone: a
+ * circle's outline is `DISC_RIM_POINTS` long and the other two are a 4-point
+ * box, told apart by their dividers - a strip's are all vertical, a
+ * rectangle's (with `rows, columns >= 2`) run both ways.
+ */
+function drawnShape(figure: Figure): 'circle' | 'strip' | 'rectangle' {
+  const rim = outline(figure)!.points.length;
+  if (rim > 4) return 'circle';
+  const { vertical, horizontal } = dividerCounts(figure);
+  return vertical > 0 && horizontal > 0 ? 'rectangle' : 'strip';
+}
+
 /** The shoelace-formula area of a closed path, in the figure's own fitted units. */
 function area(points: readonly Point[]): number {
   let sum = 0;
@@ -155,22 +176,16 @@ describe('fraction-shape build: equal parts are exactly equal', () => {
 });
 
 describe('fraction-shape build: what varies', () => {
-  it('varies which shape is drawn across seeds when shape is omitted', () => {
+  it('varies which shape is drawn across seeds when shape is omitted, all three of them', () => {
     const spec = fractionSpec({ numerator: '1', denominator: '4' });
-    const shapes = new Set<number>();
-    for (let seed = 0; seed < 40; seed++) {
-      shapes.add(closedPaths(build(spec, `shape-jitter-${seed}`)).length);
+    const shapes = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) {
+      shapes.add(drawnShape(build(spec, `shape-jitter-${seed}`)));
     }
-    // Different shapes draw different numbers of closed paths for the same
-    // 1/4 (a circle: 1 wedge + 1 rim = 2; a strip: 1 fill + 1 outline = 2; a
-    // rectangle: 1 fill + 1 outline = 2) - so distinguish by outline shape
-    // (4 corners for strip/rectangle, RIM_POINTS for a circle) instead.
-    const rimSizes = new Set<number>();
-    for (let seed = 0; seed < 40; seed++) {
-      const figure = build(spec, `shape-jitter-${seed}`);
-      rimSizes.add(outline(figure)!.points.length);
-    }
-    expect(rimSizes.size).toBeGreaterThan(1);
+    // Not just "more than one outline size" - all three shapes have to turn
+    // up, or a jitter that quietly never produces a strip (say) would still
+    // pass a two-bucket check.
+    expect(shapes).toEqual(new Set(['circle', 'strip', 'rectangle']));
   });
 
   it('draws a different picture on a different seed with numerator, denominator and shape pinned', () => {
@@ -191,8 +206,14 @@ describe('fraction-shape build: what varies', () => {
     expect(drawings.size).toBeGreaterThan(2);
   });
 
-  it('draws a different picture on a different seed for a pinned rectangle too', () => {
-    const spec = fractionSpec({ numerator: '5', denominator: '12', shape: "'rectangle'" });
+  it('draws a different picture on a different seed for a pinned rectangle too, isolating offset', () => {
+    // 9 = 3x3 is the *only* factor split of 9 (`gridFactorPairs(9)` has one
+    // entry), so with `shape` pinned the factor-pair lever has nothing to
+    // vary and this isolates `offset` alone - the rectangle equivalent of the
+    // circle test above. A multi-pair denominator like 12 would pass even if
+    // `offset` did nothing, riding entirely on which pair got picked.
+    expect(gridFactorPairs(9)).toEqual([[3, 3]]);
+    const spec = fractionSpec({ numerator: '5', denominator: '9', shape: "'rectangle'" });
     expect(figureIssues(spec, {})).toEqual([]);
     const drawings = new Set(
       Array.from({ length: 30 }, (_, seed) => JSON.stringify(build(spec, `pin-rect-${seed}`))),
@@ -209,25 +230,46 @@ describe('fraction-shape build: what varies', () => {
   });
 });
 
+describe('fraction-shape build: rectangle regression - Set iteration order is not a lever', () => {
+  it('draws exactly one picture for a fully-shaded rectangle, whatever offset the Rng chose', () => {
+    // Regression for fix round 1, finding 1: `shadedSlots` returns a `Set`
+    // whose *insertion* order depends on `offset`, and the old `rectangleMarks`
+    // walked that `Set` directly - so every offset shaded the identical nine
+    // cells (numerator === denominator) but emitted their `Mark`s in a
+    // different order, serialising as a different figure for a picture no
+    // child could tell apart on screen. `circleMarks` and `stripMarks` never
+    // had this bug, because they always walked their parts by index.
+    const spec = fractionSpec({ numerator: '9', denominator: '9', shape: "'rectangle'" });
+    expect(figureIssues(spec, {})).toEqual([]);
+    const drawings = new Set(
+      Array.from({ length: 50 }, (_, seed) => JSON.stringify(build(spec, `full-rect-${seed}`))),
+    );
+    expect(drawings.size).toBe(1);
+  });
+
+  it('draws exactly one picture for a fully-shaded circle or strip too, as a baseline', () => {
+    for (const shape of ["'circle'", "'strip'"]) {
+      const spec = fractionSpec({ numerator: '4', denominator: '4', shape, rotation: '0' });
+      const drawings = new Set(
+        Array.from({ length: 50 }, (_, seed) => JSON.stringify(build(spec, `full-${shape}-${seed}`))),
+      );
+      expect(drawings.size, shape).toBe(1);
+    }
+  });
+});
+
 describe('fraction-shape build: a denominator a shape cannot divide evenly is not chosen for it', () => {
   it('never draws a rectangle for a prime denominator when shape is omitted', () => {
     const spec = fractionSpec({ numerator: '2', denominator: '7' });
     for (let seed = 0; seed < 40; seed++) {
       const figure = build(spec, `prime-${seed}`);
-      // A rectangle's outline is a 4-point axis-aligned box; so is a strip's.
-      // A circle's is RIM_POINTS long. Distinguishing rectangle from strip
-      // from the drawing alone isn't needed here - what matters is that a
-      // *7-cell* rectangle, which cannot exist, never appears: a rectangle
-      // drawing 7 parts would need 6 partition lines whose x and y values
-      // both vary, which a strip's (all-vertical) or a circle's (radial)
-      // lines never produce.
-      const dividers = openPaths(figure);
-      const vertical = dividers.filter((mark) => mark.points[0][0] === mark.points[1][0]);
-      const horizontal = dividers.filter((mark) => mark.points[0][1] === mark.points[1][1]);
       // A true 2D grid of 7 cells is impossible (7 is prime), so this must
       // never look like one: never both a vertical and a horizontal divider
-      // at once for this denominator.
-      expect(vertical.length === 0 || horizontal.length === 0, `seed ${seed}`).toBe(true);
+      // at once for this denominator - a rectangle drawing 7 parts would need
+      // 6 partition lines whose x and y values both vary, which a strip's
+      // (all-vertical) or a circle's (radial) lines never produce.
+      const { vertical, horizontal } = dividerCounts(figure);
+      expect(vertical === 0 || horizontal === 0, `seed ${seed}`).toBe(true);
     }
   });
 

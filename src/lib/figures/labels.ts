@@ -111,6 +111,41 @@ export const REPORT_STROKE_PX = 1.5;
 export const MIN_MARK_GAP_PX = REPORT_STROKE_PX * 2;
 
 /**
+ * The disc geometry a kind that fits a circle into `FIGURE_BOX` needs -
+ * `spinner`'s sectors and `fraction-shape`'s circular parts are literally the
+ * same disc, cut into equal or unequal wedges by the same rule, and this is
+ * that rule written once. It used to be a private copy in `spinner-kind.ts`,
+ * until `fraction-shape-kind.ts` needed the identical arithmetic and copying
+ * it was exactly the drift this file's own module comment names by name
+ * ("three private copies would disagree the first time...").
+ *
+ * `DISC_RIM_POINTS` is how many points a whole turn of the rim is sampled at
+ * - a multiple of four, and from a fixed zero rather than from any jittered
+ * angle, so the sampled polygon has a vertex on each axis and its bounding
+ * box is the true circle's whatever the rest of the drawing does. Seventy-two
+ * is 5 degrees a step, which at the report's ~28px radius bulges 0.03px
+ * inside the true circle - a circle, not a polygon.
+ *
+ * `FITTED_DISC_RADIUS` is what `fit` leaves a disc drawn at radius 1, in the
+ * box's own units - the fitted size every kind that draws one actually gets.
+ *
+ * `DEGREES_PER_RIM_PX` is how much of the turn one real report-row pixel of
+ * rim is worth, and every angular legibility limit here is a number of
+ * stroke widths through it.
+ *
+ * `MIN_SECTOR_DEGREES` is the smallest sector that reads as a *region* rather
+ * than a thick line: half a stroke belongs to each of the two boundary lines
+ * that bound it, and two clear strokes of daylight between them is what makes
+ * the wedge visible at all - three stroke widths in total, which is generous
+ * enough to allow a disc cut into 39 equal parts.
+ */
+export const DISC_RIM_POINTS = 72;
+export const FITTED_DISC_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
+export const DEGREES_PER_RIM_PX =
+  360 / (2 * Math.PI * (FITTED_DISC_RADIUS / FIGURE_BOX) * REPORT_BOX_PX);
+export const MIN_SECTOR_DEGREES = DEGREES_PER_RIM_PX * REPORT_STROKE_PX * 3;
+
+/**
  * About what one character costs, as a share of the type size.
  *
  * **Before tuning this - or `FIGURE_PADDING`, or `FIGURE_PRECISION` - know what

@@ -1,9 +1,15 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField } from './fields';
-import { DRAWN_SPAN, MIN_MARK_GAP_PX, REPORT_BOX_PX, REPORT_STROKE_PX } from './labels';
+import {
+  DISC_RIM_POINTS,
+  DRAWN_SPAN,
+  MIN_SECTOR_DEGREES,
+  REPORT_BOX_PX,
+  REPORT_STROKE_PX,
+} from './labels';
 import type { FigureKindModule } from './registry';
-import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } from './types';
+import { FIGURE_BOX, type FigureSpec, type Mark, type Point } from './types';
 
 /**
  * The `fraction-shape` kind: an area model, `denominator` equal parts of a
@@ -99,9 +105,15 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  *
  * **A rectangle or a strip is never rotated.** `rotation` is still read and
  * type-checked for both (an author's typo is still worth a report), but it has
- * no effect on either shape's drawing - the identical divergence `solid-kind.ts`
- * documents for its own `rotation`, which "does not fix the orientation" for a
- * solid the way it does for a polygon, "deliberate" every time.
+ * no effect on either shape's drawing. This is a stronger divergence than
+ * `solid-kind.ts`'s own `rotation`, which is worth being precise about rather
+ * than borrowing a comparison that does not quite hold: `solid` *always*
+ * applies its `rotation` and only declines to let it fix the final
+ * orientation (a net can still lie any of eight ways round whatever angle is
+ * asked for). Here, for two of the three shapes, `rotation` is not consulted
+ * at all - the field is read for validation and then simply unused. The
+ * justification for that is its own, below, and does not need `solid`'s to
+ * stand on.
  *
  * The reason is `fit`'s bounding box. A circle's bounding square is its own
  * diameter whatever angle it is drawn at, which is exactly what makes a
@@ -127,12 +139,14 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  *
  * **`MAX_CIRCLE_PARTS` is `spinner`'s own derivation, unchanged**: a sector
  * has to span at least three report-row stroke widths to read as a wedge
- * rather than a hairline (`MIN_SECTOR_DEGREES` in `spinner-kind.ts`), which
- * gives 39 equal sectors as the most a report row can keep apart. It is
- * re-derived here rather than imported, because importing a private constant
- * out of a sibling kind's file is exactly the coupling `labels.ts` exists to
- * avoid - the two kinds happen to draw the same shape, and their shared
- * arithmetic belongs in a shared file, not in one kind reaching into another's.
+ * rather than a hairline (`MIN_SECTOR_DEGREES`), which gives 39 equal sectors
+ * as the most a report row can keep apart. `DISC_RIM_POINTS`,
+ * `FITTED_DISC_RADIUS`, `DEGREES_PER_RIM_PX` and `MIN_SECTOR_DEGREES` all live
+ * in `labels.ts` now, imported by both kinds, rather than as a private copy in
+ * this file: they used to be exactly that, until this kind needed the
+ * identical disc arithmetic `spinner-kind.ts` already had, and a second copy
+ * is exactly the drift `labels.ts`'s own module comment names by name
+ * ("three private copies would disagree the first time...").
  *
  * **`MAX_LINEAR_PARTS` is the strip-and-grid analogue**, in real pixels rather
  * than degrees. `REPORT_PX_PER_UNIT` is how many report-row pixels one drawing
@@ -140,21 +154,18 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  * `REPORT_BOX_PX` pixels across the whole `FIGURE_BOX`, so the ratio between
  * them is constant regardless of what is drawn. A strip is laid out at exactly
  * `width = 1`, its larger side, so `REPORT_PX_PER_UNIT` is directly how wide it
- * draws in the report row. Each segment then needs `MIN_SEGMENT_PX` - one
- * stroke for the line dividing it from its neighbour, plus `MIN_MARK_GAP_PX`
- * of clear daylight either side of that line, so two segments read as two
- * regions rather than one region with a hairline drawn through it (the same
- * "two clear strokes of daylight" reasoning `spinner`'s own minimum sector
- * gives, restated in a straight line instead of an arc). A grid's cells are
+ * draws in the report row. Each segment then needs `MIN_SEGMENT_PX` - three
+ * report-row stroke widths, the identical "two clear strokes of daylight
+ * either side of the dividing line" argument `MIN_SECTOR_DEGREES` makes for an
+ * arc, restated for a straight edge - so two segments read as two regions
+ * rather than one region with a hairline drawn through it. A grid's cells are
  * square, so the identical pixel budget applies to whichever side - `rows` or
  * `columns` - is longer; `gridFactorPairs` filters on exactly that.
  *
  * Measured: `MAX_CIRCLE_PARTS` comes out at **39**, `MAX_LINEAR_PARTS` at
  * **12** - a strip or a grid holds far fewer parts than a circle, because a
  * disc's sectors get *more* boundary to work with as they get thinner (a
- * bigger radius reaches further out) where a strip's segments do not. Twelve
- * happens to be a friendly ceiling for content besides - NSW's fractions work
- * rarely reaches past twelfths in primary school.
+ * bigger radius reaches further out) where a strip's segments do not.
  *
  * ---
  *
@@ -182,7 +193,12 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
 
 type FractionShapeSpec = Extract<FigureSpec, { kind: 'fraction-shape' }>;
 
-/** The closed vocabulary of shapes, in the order `shapeSupports` is asked about them. */
+/**
+ * The closed vocabulary of shapes, alphabetical - it is not the order
+ * `resolvedShape` tries them in (circle, then strip, then rectangle; see
+ * there), which is a fallback chain rather than a listing and does not need
+ * to agree with this one.
+ */
 export const FRACTION_SHAPES = ['circle', 'rectangle', 'strip'] as const;
 export type FractionShapeName = (typeof FRACTION_SHAPES)[number];
 
@@ -206,14 +222,6 @@ const FALLBACK_NUMERATOR = 1;
 const HARD_MAX_DENOMINATOR = 60;
 
 /**
- * How many points a whole turn of the circle's rim is sampled at - a multiple
- * of four, and from a fixed zero rather than from any jittered angle, so the
- * bounding box is the disc's own square whatever `rotation` is. See
- * `spinner-kind.ts`'s identical `RIM_POINTS` for the full argument.
- */
-const RIM_POINTS = 72;
-
-/**
  * How tall a strip is drawn, as a share of its own width (1). Presentation
  * only: `MAX_LINEAR_PARTS` is derived purely from the width, which is the
  * span `fit` scales against, so this number does not move the legibility
@@ -231,11 +239,13 @@ const REPORT_PX_PER_UNIT = DRAWN_SPAN * (REPORT_BOX_PX / FIGURE_BOX);
 
 /**
  * A segment needs this much daylight to read as its own region rather than a
- * hairline: the dividing line's own stroke, plus a clear stroke either side of
- * it - `spinner`'s "two clear strokes of daylight" reasoning, restated for a
- * straight edge instead of an arc.
+ * hairline: half a stroke belongs to each of the two lines bounding it, and
+ * two clear strokes of daylight between them is what makes it a region rather
+ * than a hairline - three stroke widths in total. `spinner-kind.ts`'s
+ * `MIN_SECTOR_DEGREES` (now in `labels.ts`) makes the identical argument for
+ * an arc; this is it restated for a straight edge.
  */
-const MIN_SEGMENT_PX = REPORT_STROKE_PX + MIN_MARK_GAP_PX;
+const MIN_SEGMENT_PX = REPORT_STROKE_PX * 3;
 
 /**
  * The most equal parts a strip or a grid's longer side may hold before a
@@ -244,15 +254,11 @@ const MIN_SEGMENT_PX = REPORT_STROKE_PX + MIN_MARK_GAP_PX;
  */
 export const MAX_LINEAR_PARTS = Math.floor(REPORT_PX_PER_UNIT / MIN_SEGMENT_PX);
 
-/** How much of the turn a report-row stroke is worth, at the fitted disc's own radius. */
-const FITTED_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
-const DEGREES_PER_RIM_PX = 360 / (2 * Math.PI * (FITTED_RADIUS / FIGURE_BOX) * REPORT_BOX_PX);
-const MIN_SECTOR_DEGREES = DEGREES_PER_RIM_PX * REPORT_STROKE_PX * 3;
-
 /**
  * The most equal sectors a circle may hold before one drops under three
- * report-row stroke widths - `spinner-kind.ts`'s own derivation, re-run here
- * rather than imported (see the module comment). Measured at **39**.
+ * report-row stroke widths. `MIN_SECTOR_DEGREES` is `spinner-kind.ts`'s own
+ * derivation, imported from `labels.ts` rather than re-run here - see the
+ * module comment's "report-scale limits" section. Measured at **39**.
  */
 export const MAX_CIRCLE_PARTS = Math.floor(360 / MIN_SECTOR_DEGREES);
 
@@ -383,7 +389,7 @@ function circleMarks(denominator: number, shaded: ReadonlySet<number>, rotation:
   for (let sector = 0; sector < denominator; sector++) {
     if (!shaded.has(sector)) continue;
     const from = rotation + sector * step;
-    const samples = Math.max(1, Math.ceil(step / (360 / RIM_POINTS)));
+    const samples = Math.max(1, Math.ceil(step / (360 / DISC_RIM_POINTS)));
     const points: Point[] = [[0, 0]];
     for (let index = 0; index <= samples; index++) points.push(onRim(from + (step * index) / samples));
     marks.push(closedPath(points, true));
@@ -391,7 +397,7 @@ function circleMarks(denominator: number, shaded: ReadonlySet<number>, rotation:
 
   marks.push(
     closedPath(
-      Array.from({ length: RIM_POINTS }, (_, index) => onRim((index * 360) / RIM_POINTS)),
+      Array.from({ length: DISC_RIM_POINTS }, (_, index) => onRim((index * 360) / DISC_RIM_POINTS)),
       false,
     ),
   );
@@ -433,6 +439,19 @@ function stripMarks(denominator: number, shaded: ReadonlySet<number>): Mark[] {
  * columns)` is computed once and reused for every cell's width and height -
  * "one division", again - which is also what pins the frame's larger side to
  * exactly 1, as `figure-kind-author-notes.md` section 4 asks for.
+ *
+ * **Shaded cells are emitted by walking every index in order, not by
+ * iterating `shaded` itself.** A `Set`'s iteration order is its *insertion*
+ * order, and `shadedSlots` inserts starting at `offset` - so two different
+ * offsets that happen to shade the exact same set of cells (every offset,
+ * once `numerator === denominator`) would insert them in two different
+ * orders and serialise two different `Mark[]` arrays for one identical
+ * on-screen picture. That is an anchoring-check-passing, child-invisible
+ * lever - `solid`'s `flip` bug in a new shape - and it is exactly what
+ * `circleMarks` and `stripMarks` avoid by construction, walking their own
+ * parts by index already. Fixed here to match: `0 .. rows * columns`, `continue`
+ * on `!shaded.has(index)`, so the emitted order is a function of `rows` and
+ * `columns` alone.
  */
 function rectangleMarks(
   rows: number,
@@ -444,8 +463,14 @@ function rectangleMarks(
   const height = rows * cell;
   const marks: Mark[] = [];
 
-  for (const index of shaded) {
-    const row = Math.floor(index / columns);
+  for (let index = 0; index < rows * columns; index++) {
+    if (!shaded.has(index)) continue;
+    // Row 0 is the *top* row of the grid, read left to right then down like a
+    // page - matching the classroom convention `shadedSlots` already appeals
+    // to for why the run is contiguous. Maths-frame y grows upward and `fit`
+    // flips it on the way to the screen, so the row that is meant to land at
+    // the top has to carry the *largest* y here.
+    const row = rows - 1 - Math.floor(index / columns);
     const column = index % columns;
     const x0 = column * cell;
     const y0 = row * cell;

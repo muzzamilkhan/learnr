@@ -1,9 +1,14 @@
 import type { Scope } from '../expr';
 import { createRng, type Rng } from '../rng';
 import { jitter, numberValue, readField } from './fields';
-import { REPORT_BOX_PX, REPORT_STROKE_PX } from './labels';
+import {
+  DEGREES_PER_RIM_PX,
+  DISC_RIM_POINTS,
+  MIN_SECTOR_DEGREES,
+  REPORT_STROKE_PX,
+} from './labels';
 import type { FigureKindModule } from './registry';
-import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } from './types';
+import { type FigureSpec, type Mark, type Point } from './types';
 
 /**
  * The `spinner` kind: a disc cut into sectors, the thing a chance question is
@@ -112,8 +117,8 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
  *
  * ## The frame is pinned, so the fit is the same on every seed
  *
- * The rim is sampled at `RIM_POINTS` **fixed** angles - not at angles measured
- * from the rotation - and `RIM_POINTS` is a multiple of four, so the polygon
+ * The rim is sampled at `DISC_RIM_POINTS` **fixed** angles - not at angles measured
+ * from the rotation - and `DISC_RIM_POINTS` is a multiple of four, so the polygon
  * always has a vertex at each of 0°, 90°, 180° and 270° and its bounding box is
  * exactly the disc's, `[-1, 1]` square, on every seed. Every other mark
  * (boundary lines, filled wedges) ends on or inside that circle, so `fit`
@@ -135,42 +140,19 @@ import { FIGURE_BOX, FIGURE_PADDING, type FigureSpec, type Mark, type Point } fr
 type SpinnerSpec = Extract<FigureSpec, { kind: 'spinner' }>;
 
 /**
- * How many points the rim is sampled at. **A multiple of four**, and sampled
- * from a fixed zero rather than from the rotation: that is what puts a vertex
- * on each axis and makes the fitted bounds the same on every seed (see above).
- * Seventy-two is 5° a step, which at the report's ~28px radius is a chord
- * bulging 0.03px inside the true circle - a circle, not a polygon.
+ * How many points the rim is sampled at, what `fit` leaves a disc drawn at
+ * radius 1, and how much of the turn one report-row pixel of rim is worth -
+ * `DISC_RIM_POINTS`, `FITTED_DISC_RADIUS`, `DEGREES_PER_RIM_PX` and
+ * `MIN_SECTOR_DEGREES`, all now imported from `labels.ts`. They used to live here
+ * as private constants; `fraction-shape-kind.ts` draws sectors of the
+ * identical disc and needed the identical arithmetic, so they moved to the
+ * one file both kinds already import from rather than becoming a second copy
+ * - see `labels.ts`'s own doc for the full derivation this module comment's
+ * "frame is pinned" section above summarises.
  */
-const RIM_POINTS = 72;
 
 /** The disc, before `fit` scales the drawing into the box. */
 const RADIUS = 1;
-
-/** What `fit` leaves the drawing, and so the rim's radius, in the box's units. */
-const FITTED_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
-
-/**
- * How much of the turn one real pixel of rim is worth in a report thumbnail.
- * Every angular limit here is a number of stroke widths through this.
- *
- * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
- * pixels (`REPORT_BOX_PX` and `REPORT_STROKE_PX` in `labels.ts`), against the
- * play screen's whole question area. **A figure is built once for both** -
- * `buildFigure`'s signature carries no scale - so a spinner that is only
- * readable on the play screen is a spinner that is unreadable in every report
- * row, and both limits below are measured against the smaller.
- */
-const DEGREES_PER_RIM_PX =
-  360 / (2 * Math.PI * (FITTED_RADIUS / FIGURE_BOX) * REPORT_BOX_PX);
-
-/**
- * The smallest sector that is a *region* rather than a thick line: half a
- * stroke belongs to each of the two boundary lines that bound it, and two
- * clear strokes of daylight between them is what makes the wedge visible at
- * all. Derived rather than chosen, for section 6's reason - it is about ink,
- * not taste - and it is generous, allowing a disc cut into 39 equal parts.
- */
-const MIN_SECTOR_DEGREES = DEGREES_PER_RIM_PX * REPORT_STROKE_PX * 3;
 
 /**
  * How far apart two sectors' arcs have to be before anybody can see that they
@@ -178,7 +160,9 @@ const MIN_SECTOR_DEGREES = DEGREES_PER_RIM_PX * REPORT_STROKE_PX * 3;
  * parts are drawn as the same picture, which is `pictograph`'s third question
  * wearing a spinner's clothes - "is this spinner fair?" answered `false` over
  * a disc that looks perfectly fair. No amount of measuring ink finds it, so it
- * is a check of its own in `issues`.
+ * is a check of its own in `issues`. Spinner-only, unlike the imported
+ * `MIN_SECTOR_DEGREES`: `fraction-shape`'s sectors are always equal, so it
+ * has no "are these two different sizes tellable apart" question to ask.
  */
 const MIN_TELLABLE_DEGREES = DEGREES_PER_RIM_PX * REPORT_STROKE_PX;
 
@@ -293,7 +277,7 @@ function onRim(degrees: number): Point {
 function rimPath(): Mark {
   return {
     kind: 'path',
-    points: Array.from({ length: RIM_POINTS }, (_, index) => onRim((index * 360) / RIM_POINTS)),
+    points: Array.from({ length: DISC_RIM_POINTS }, (_, index) => onRim((index * 360) / DISC_RIM_POINTS)),
     closed: true,
     fill: false,
     dashed: false,
@@ -307,7 +291,7 @@ function boundaryPath(degrees: number): Mark {
 
 /** A shaded sector: the centre, the arc between its two boundaries, and back. */
 function wedgePath(from: number, sweep: number): Mark {
-  const step = 360 / RIM_POINTS;
+  const step = 360 / DISC_RIM_POINTS;
   const samples = Math.max(1, Math.ceil(sweep / step));
   const points: Point[] = [[0, 0]];
   for (let index = 0; index <= samples; index++) {
