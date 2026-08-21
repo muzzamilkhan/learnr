@@ -190,13 +190,17 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   | --- | --- | --- | --- | --- | --- |
   | refused | 0/300 | 2/300 | 7/300 | ~30/300 | ~94/300 |
 
-  So nine answers is about **one id in ten**, not one in six as an earlier draft of this bullet
-  guessed, and six answers is about one in sixty. **Size the answer set against that table, not
-  against caution.** And note what the risk actually is: `FIGURE_DRAWS` seeds are keyed off the
-  template's own id, so the check is **deterministic per template** — a 2% rate is a 2% chance
-  the author has to adjust something once, at authoring time, not a chance a child ever sees a
-  bad question. Once it is green it is green for ever. Year 5's `position.coordinates` offers
-  six points for that reason; four was thin content bought against a risk that is not borne by
+  Read those as a **range rather than as point estimates**: 2 and 7 events out of 300 is
+  **0.7% to 2.3%**, and 300 ids buy no more precision than that on an event this rare. So six
+  or seven answers costs somewhere in **0.7–2.3%**, nine answers about **one id in ten** — not
+  one in six, as an earlier draft of this bullet guessed — and four answers nothing that
+  turned up at all. **Size the answer set against those figures, not against caution.**
+
+  And note what the risk actually is: `FIGURE_DRAWS` seeds are keyed off the template's own id,
+  so the check is **deterministic per template**. A 0.7–2.3% rate is a 0.7–2.3% chance the
+  author has to adjust something once, at authoring time — not a chance a child ever sees a bad
+  question. Once it is green it is green for ever. Year 5's `position.coordinates` offers six
+  points for that reason; four was thin content bought against a risk that is not borne by
   anyone downstream.
 
 - **`A1` to `C3` sort, and a directional prompt can pin that order.** The bullet above is what
@@ -256,7 +260,16 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   saying "a rectangle is only a square when all four sides are the same length" then instructs
   precisely the reading that marks the pyramid wrong. That template shipped with the pyramid in
   its pick and had to have it taken out. **Any solid whose square face is not the face you look
-  straight at is the same trap.**
+  straight at is the same trap — and so is any face whose proportion the kind does not
+  guarantee.** A triangular prism was dropped from that same pick for a weaker reason — keeping
+  the answer at 50/50 — and turns out to have been exposed too, on both views. Its net's length
+  is `PRISM_LENGTH` (`solid-kind.ts:437`), a real measurement laid flat on the page ranging over
+  **0.8–1.9 with no `MIN_CUBOID_RATIO`-style floor under it**, so a rectangular face may draw
+  square; and on the object view the length is `depthOf`, the oblique convention the first
+  bullet says is not a measurement at all. **`MIN_CUBOID_RATIO` is the only guarantee of this
+  kind in the file** — `PYRAMID_HEIGHT`, `PRISM_APEX`, `PRISM_LENGTH`, `CYLINDER_HEIGHT`,
+  `CONE_HEIGHT` and `RIM_SQUASH` are plain jitter ranges. Read the kind for a guarantee before
+  asking a question that turns on a proportion, and expect not to find one.
 - The guarantee is about the drawing, not about the *net*: Years 3 and 4 both left the cuboid
   out of their net questions on the grounds that telling a cuboid's net from a cube's in a
   parent's report row is a question about proportion rather than about shape, and Year 5 did not
@@ -422,20 +435,26 @@ alike:
 The statistic above is **in-sample**: the modal answer is read off the same draws it is scored
 on, so it is biased upward by exactly the amount the buckets are small, and on a template with
 thousands of keys it is unreadable. `maths.5.time.clock-24-hour` scores **69.0%** in-sample
-against a 25% blind baseline and looks like the worst leak on the branch; it has 2243 keys over
-4000 draws, 1.53 answers per key, and no leak at all.
+against a 25% blind baseline and looks like the worst leak on the branch. It has no leak at
+all — and the plainest evidence of that is that **the same in-sample statistic on the same
+template falls to 54.4% simply by drawing 10,000 times instead of 4,000**. A number that moves
+with the sample size is measuring the sample, not the question.
 
 **So split the draws.** Learn each key's modal answer on one half — 10,000 draws — and score on
 a second, independently seeded 10,000. A key the held-out half has never seen scores nothing,
 which is the honest outcome for a strategy that has no answer for it. The bias goes, and the
-number is directly comparable with the **blind baseline** with no null control in between:
+number is directly comparable with the **blind baseline** with no null control in between.
 
-| template | in-sample | held-out | blind | reading |
-| --- | --- | --- | --- | --- |
-| `maths.5.time.clock-24-hour` | 69.0% | **23.4%** | 25.0% | below a guess; the 69% was all bias |
-| `maths.5.position.coordinates` | 25.4% | **25.0%** | 25.0% | at the floor |
-| `maths.5.shapes.square-face` | 50.6% | **50.1%** | 50.0% | at the floor |
-| `maths.5.data.picture-key-difference` | 37.0% | **33.1%** | 21.6% | above the floor, and see below |
+Both columns below are **one run of one template at 10,000 draws a half**, which is worth
+insisting on: pairing an in-sample number from before a fix with a held-out one from after it
+is two statistics wearing one row.
+
+| template | in-sample | held-out | blind | keys | answers per key | reading |
+| --- | --- | --- | --- | --- | --- | --- |
+| `maths.5.time.clock-24-hour` | 54.4% | **23.4%** | 25.0% | 2922 | 2.31 | below a guess; the gap was all bias |
+| `maths.5.position.coordinates` | 26.2% | **25.0%** | 25.0% | 3 | 4.00 | at the floor |
+| `maths.5.shapes.square-face` | 50.3% | **50.1%** | 50.1% | 1 | 2.00 | at the floor |
+| `maths.5.data.picture-key-difference` | 35.5% | **33.1%** | 21.6% | 18 | 3.00 | above the floor, and see below |
 
 **Two of the five leaks found on this branch lived in populations where the in-sample number
 was unreadable**, so this is not a refinement — it is the measure. Keep reporting **answers per
@@ -463,7 +482,7 @@ population it was reached for.
 and it is not a leak to fix. A many-to-one picture graph's prompt **must** say what one picture
 stands for — the graph's key draws an icon and a number and cannot say two *what* — so a child
 who reads the prompt knows the answer is a multiple of *k*, which narrows eight answers to
-three. **1/3 is the true floor**, the measured 32.6% sits on it, and 3.00 answers per key
+three. **1/3 is the true floor**, the measured 33.1% sits on it, and 3.00 answers per key
 confirms nothing beyond that narrowing leaks. Report it as a price rather than hunting it: the
 alternative is a prompt that does not say what the picture means.
 
