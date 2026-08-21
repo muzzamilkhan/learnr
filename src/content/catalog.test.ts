@@ -91,11 +91,37 @@ describe('shipped content', () => {
     }
   });
 
-  // Content is written against the Australian Curriculum v9.0, so every template
-  // says which content description it practises, e.g. AC9M4N02.
-  it('cites a curriculum content description for every template', () => {
+  // Content is written against two syllabuses, so every template says which
+  // content description or outcome it practises - AC9M4N02, MA2-AR-01. Either
+  // source satisfies this on its own, because the two disagree about which year
+  // some content belongs to and a template can honestly sit in only one of
+  // them - each such template is named in an exception test below. What is
+  // refused is a template citing neither: an uncited question is a claim about
+  // the curriculum that nothing can check.
+  it('cites a curriculum code from at least one syllabus for every template', () => {
     for (const template of allTemplates) {
-      expect(template.tags?.some((tag) => /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/.test(tag))).toBe(true);
+      expect(template.tags?.some((tag) => syllabusOf(tag) !== null), template.id).toBe(true);
+    }
+  });
+
+  // NSW places hour time on an analog clock at Early Stage 1 - Kindergarten -
+  // where ACARA places reading a clock face at Year 2 (AC9M2M04). Foundation's
+  // only time description, AC9MFM02, is about sequencing the days of the week
+  // and the times of the day, which is not what reading a dial practises, so
+  // these two cite NSW alone rather than the nearest ACARA code that fits
+  // badly. It is the Year 6 integer exception pointed the other way, and the
+  // curriculum page renders the disagreement either way round. Naming them here
+  // means dropping the asterisk later has to be a decision somebody makes,
+  // rather than a test going quietly green when a well-meaning edit adds an
+  // AC9MF code that does not belong.
+  it('cites no ACARA description for the content ACARA places beyond Kindergarten', () => {
+    const nswOnly = ['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`);
+
+    for (const id of nswOnly) {
+      const template = allTemplates.find((t) => t.id === id);
+      expect(template, id).toBeDefined();
+      expect(template!.tags?.some((tag) => syllabusOf(tag) === 'nsw'), id).toBe(true);
+      expect(template!.tags?.some((tag) => syllabusOf(tag) === 'acara'), id).toBe(false);
     }
   });
 

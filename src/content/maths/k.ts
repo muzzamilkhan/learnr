@@ -500,9 +500,11 @@ export const yearK: QuestionTemplate[] = [
   // at, and a clock face and a number line are the two places a number lives
   // somewhere other than in the words.
   //
-  // Everything here is Early Stage 1 by NSW's placement. Two of them sit a
-  // little ahead of ACARA - reading a clock face is AC9M2M04 there - and the
-  // ACARA code beside them is Foundation's nearest, not an exact match.
+  // Everything here is Early Stage 1 by NSW's placement, and everything but the
+  // two clock faces is Foundation by ACARA's. Those two cite NSW alone: ACARA
+  // places reading a clock at Year 2, and Foundation's one time description is
+  // about the days of the week rather than about a dial, so there is no honest
+  // ACARA code to put beside them. `catalog.test.ts` names them.
   // ------------------------------------------------------------------
   {
     id: 'maths.K.counting-numbers.number-line',
@@ -594,7 +596,7 @@ export const yearK: QuestionTemplate[] = [
     },
     hint: 'The short hand tells you the hour.',
     figure: { kind: 'clock', hour: 'h', minute: '0' },
-    tags: ['AC9MFM02', 'MAE-NSM-02'],
+    tags: ['MAE-NSM-02'],
   },
   {
     id: 'maths.K.time.clock-says',
@@ -612,7 +614,7 @@ export const yearK: QuestionTemplate[] = [
     ],
     answer: 'shown == h',
     figure: { kind: 'clock', hour: 'shown', minute: '0' },
-    tags: ['AC9MFM02', 'MAE-NSM-02'],
+    tags: ['MAE-NSM-02'],
   },
   {
     id: 'maths.K.shapes.solid-name',
