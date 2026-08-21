@@ -102,6 +102,18 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 - **A decimals question must pin `from` and `to`.** Reading a tenth needs a one-unit-wide
   line, and exactly one round one contains any given tenth — so 40 of 90 one-decimal values
   have a single available range and would draw the same picture every time.
+- **A tenth is as fine as this kind goes, and a hundredth is not authorable.** With the range
+  left open, the only values under 1 that get a tick under the arrow are the nine tenths and
+  `0.25`/`0.75` — measured over all 99 hundredths, and everything else is refused with "no line
+  the builder can draw around 0.35 has a tick under it". Pinning a tenth-wide window
+  (`from: 2.3, to: 2.4, step: 0.1`) *does* draw hundredths as minor ticks and labels only the
+  two ends, which looks like the way in — but **floating point refuses 54 of the 100 windows**.
+  `figureIssues` asks `(end - start) / step >= 1` with no epsilon, and `0.6 - 0.5` is
+  `0.09999999999999998`, so a step of `0.1` on a `0.5–0.6` line is reported as "longer than the
+  line" while the same step on `2.3–2.4` is clean. That is a `lib` bug rather than a content
+  rule, and until it is fixed a hundredths line can only be built on a hand-picked list of
+  windows — which is not a thing to build content on. Year 5 dropped the idea and asked for a
+  **percentage off a pinned `0–1` line** instead.
 - **A K–2 counting question should pin `step` — and `step` cannot be pinned alone.** Left open,
   a whole number in 0–9 is sometimes drawn on a line reading `3 | 3.5 | 4`, which is legitimate
   and wrong for the year. But pinning `step` by itself fails validation, because `issues` asks
@@ -146,6 +158,26 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   pictures per answer where a 4..5 band buys four, and the cost is a smaller set of reachable
   answers, which is the cheaper thing to give up.
 
+- **On a coordinate plane the band is `cols 3..5 × rows 3..4`, and the limit is not square.**
+  "Coordinate plane ≤ 4×4" above is the safe reading and it understates what draws: measured
+  with `onLines: 'true'` and the point anywhere in 1..4, **5×3 and 5×4 are clean while 3×5, 4×5,
+  5×5 and 6×3 are refused** — a labelled plane can be wider than it is tall. That is six extents
+  rather than four, and a plane needs every one of them, because `axisLabels` cannot jitter here
+  at all (a lettered axis has no number to give a coordinate) so **the extent is the only lever
+  the kind has left**.
+
+- **Count the extents against the number of answers, because the anchoring check makes fifty
+  draws in total and not fifty per answer.** With nine answers and six extents an answer turns
+  up five or six times on average — and often two or three, which then have a real chance of
+  landing on one extent together. `validateTemplate` reads two identical pictures as an anchored
+  figure, correctly: two identical pictures is all the evidence there is. Year 5's first
+  coordinate template drew the dot anywhere in a 3×3 and was **refused outright** on the answer
+  `(1,3)`. Arithmetic worth doing before authoring: the chance an answer's *n* draws all share
+  one of *e* extents is `e^(1-n)`, so nine answers over six extents fails about one time in six,
+  and four answers over six extents essentially never. Shrink the answer set — Year 5's
+  `position.coordinates` offers the same four points every draw — rather than hoping the seeds
+  are kind.
+
 - **`A1` to `C3` sort, and a directional prompt can pin that order.** The bullet above is what
   produces a two-by-two block of options round the marked square — and if the prompt then names
   a direction, "take the later letter when it says right, the larger number when it says up"
@@ -185,11 +217,28 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 - Cuboid nets cover the 1-4-1 family only.
 - **The object view and the net view draw prisms of different lengths.** Never ask a child to
   compare a prism's length across the two views.
+- **A cuboid's three edges are guaranteed *visibly* unequal** (`MIN_CUBOID_RATIO`, measured at
+  1.39), so a question may turn on its faces being rectangles rather than squares — which is
+  what `maths.5.shapes.square-face` does. That guarantee is about the drawing, not about the
+  *net*: Years 3 and 4 both left the cuboid out of their net questions on the grounds that
+  telling a cuboid's net from a cube's in a parent's report row is a question about proportion
+  rather than about shape, and Year 5 did not overturn that.
+- **Counting off the object is harder than counting off the net**, which is a real difficulty
+  step rather than a restatement: a net lays every face out flat, while an object hides three
+  edges and one corner behind it and draws them dashed. Year 4 counts a net's edges and
+  corners; Year 5 counts the same two off the object.
 - Solid names are word answers, so **`choice` below Year 4**.
 
 ### `spinner`
 - Emits **no** `label` marks, so it carries no text whatsoever. "The shaded part", never a
   colour.
+- **Putting every sector in one fill group is a usable move, not a degenerate one.** The whole
+  disc comes out shaded and the radial lines between the sectors are still drawn, so the parts
+  are still there to be seen — which is what a question about the *sizes* of the parts wants,
+  since the shading then carries no information at all on any draw.
+  `maths.5.chance.spinner-equally-likely` does this: it draws *n* sectors either all equal or
+  with one worth double, so the sector **count** is the same whatever the answer and only the
+  sizes help. Measured 50.9/49.1 true-false over 4000 draws, one distinct prompt.
 
 ### `bar` / `pictograph`
 - Both draw derived labels and both refuse an axis whose rungs read the same. A label that does
@@ -218,6 +267,13 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   The table is therefore an upper bound rather than a promise. **Build the figure and read the
   issues** before settling on a category name, rather than counting characters against it.
 
+- **`bar`'s third style is `line`, and nothing used it before Year 5.** It joins the readings
+  up instead of drawing a column or a dot, which is the display a change-over-time question
+  wants (`AC9M5ST02`, `MA3-DATA-02`). Four three-character day names over values that are
+  multiples of ten at `scale: '10'` draw clean; the same four names at `scale: '1'` over values
+  reaching 9 are refused, for the axis-rung reason above. Pin `style` whenever the hint says
+  "the line" — left open the kind draws a column or a dot instead, exactly as for `dot`.
+
 - **A `bar` figure needs its maximum constrained above the scale.** An axis of a single step
   is refused ("nothing between the bottom and the top to read a value against"), so three
   values each drawn `1..5` at `scale: '1'` are all 1 about once in 125 draws — and
@@ -230,6 +286,15 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   | label characters | 0 | 1–2 | 3 | 4 | 5–6 | 7 |
   | --- | --- | --- | --- | --- | --- | --- |
   | icons in a row | 6 | 5 | 4 | 3 | 2 | 1 |
+
+  **`halves` buys half an icon, and only at an even key.** With it a row may end on a half, so
+  a key of 10 can say 25 as two icons and a half — which is what makes a many-to-one scale
+  usable rather than a scale that can only graph its own multiples. What the kind still refuses
+  is a count the key cannot say *even in halves*: at `key: '5'` a count of 12 is reported ("it
+  is drawn as 2.5 icons, a picture reading 12.5"). So the counts must be multiples of half the
+  key — and at an odd key, or at `key: '5'`, the only integer multiples of 2.5 are the multiples
+  of 5, so halves buy nothing there at all. `maths.5.data.picture-key-halves` uses `key: '10'`
+  with counts drawn as a number of half-icons.
 
   At `key: '1'` that cap **is** the largest count you may graph, so short row labels are what
   buy a longer row. Raising the key buys length too, and **when you may reach for that is a
@@ -250,6 +315,12 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   licence, and Year 3 declined to take it. **Do not add a third case without making the
   equivalent argument out loud**; a Year 4 template that already carries a many-to-one key and
   no such argument belongs in the ACARA-only case.
+
+  **At Stage 3 the argument stops being needed.** `MA3-DATA-01` *is* the many-to-one outcome,
+  so a Year 5 or Year 6 picture graph whose key says ten carries it like any other citation —
+  and Year 5's two do. Everything else about a key still holds: the prompt says what one
+  picture stands for, because the graph's own key draws an icon and a number and cannot say two
+  *what*.
 
 ---
 
@@ -307,6 +378,22 @@ alike:
 - **Distinct answers per key.** As it approaches 1 the key is an answer sheet and the statistic
   means nothing: `maths.4.time.after-minutes` scores 96.3% keyed with 3805 keys over 4000
   draws, and its null control scores 95.2% — an artefact of one draw per key, not a finding.
+
+**The null above is the *global* one, and on some templates it is the wrong yardstick — run a
+second.** Drawing the answer from the template's whole answer distribution assumes every answer
+was available at every key, which is false wherever the key narrows the field honestly: a
+tapped question's key contains its four buttons, and a prompt that has to state something (a
+picture graph's key, say) narrows the answers to its multiples. So also run a **within-key
+null**: the answer drawn uniformly from that draw's own options, or from the answers actually
+seen at that key. Two Year 5 templates read as leaks against the global null and as clean
+against this one:
+
+| template | keyed | global null | within-key null | reading |
+| --- | --- | --- | --- | --- |
+| `maths.5.time.clock-24-hour` | 69.0% | 56.6% | **70.2%** | below its own null; 1.53 answers per key |
+| `maths.5.data.picture-key-difference` | 37.0% | 21.9% | **36.6%** | the prompt states the key, so the answer is a multiple of it |
+
+Report both. A template above the *within-key* null is the one to look at.
 
 ## A false claim must be a claim the question could truthfully have made
 
