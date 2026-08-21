@@ -433,7 +433,8 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 
 ## Multiple choice must not answer itself
 
-Both leaks below are enforced by `validateTemplate`, and both were found in shipped content.
+All three leaks below are enforced by `validateTemplate`, and all three were found in shipped
+content.
 
 - **Rank leak** — sort the options numerically and the answer lands at the same rank every
   draw, so "never the biggest, never the smallest" beats the question. Usually caused by
@@ -447,6 +448,17 @@ Both leaks below are enforced by `validateTemplate`, and both were found in ship
   nearly every draw shows one answer per set for want of ever seeing a set twice, which is
   not a leak. Usually caused by distractors stepped a fixed distance from the answer around a
   closed list — so vary *which* value is left out, not just which are shown.
+
+  **Read that bound the other way round, because it is where the next leak will be.** A
+  template that predicts its answer *perfectly* and has many option sets passes this check
+  cleanly — the guard cannot tell it from the honest case, and by design does not try.
+  `maths.4.decimals.hundredths` was exactly that: distractors `n / 10`, `n` and `(n + k) / 100`
+  put `n / 100`, `n / 10` and `n` on screen together, a run of three each ten times the last
+  centred on the answer, invertible by one prompt-free sentence — *pick the hundredth that is a
+  tenth of another option* — and it measured **100.0% against a 25.0% baseline over 162 distinct
+  option sets**. Nothing in the suite said a word. **Distractors that are all functions of the
+  answer leak whether or not the sets repeat**; the check catches the small-set half of that
+  family, and measurement is the only thing that catches the rest.
 
 Declare `rankIsTheQuestion: true` or `propertyIsTheQuestion: true` **only** where finding the
 extreme, or telling that property apart, genuinely *is* the question. They are separate flags,

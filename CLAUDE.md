@@ -142,13 +142,19 @@ and refusing that would be refusing a template for not repeating itself. A sweep
 written before the check existed found **14 templates with a fixed answer rank
 and one option-set leak**. Thirteen of the fifteen needed reworking; the other
 two were "which is largest?", where the rank *is* the question, and they declare
-`rankIsTheQuestion` to say so. Its sibling `propertyIsTheQuestion` covers the
+`rankIsTheQuestion` to say so. A third joined them later, when the
+prediction check reached word options the rank check cannot see: the three
+declarations are `maths.4.decimals.larger`, `maths.4.angles.larger-angle` -
+whose two options are the two words its own prompt reads out - and
+`maths.5.decimals.largest`. Its sibling `propertyIsTheQuestion` covers the
 other shape - "which of these is even?", where an odd distractor can never be an
 even answer, so drawing the distractors from the answer's own values is
 arithmetically impossible - and no shipped template needs it yet. Two flags
-rather than one blanket "trust me", each suppressing exactly one check, and both
-visible in review, because an undeclared fixed rank is a question a child can
-beat.
+rather than one blanket "trust me": each suppresses the check it names, and
+either also suppresses the prediction check, since both of them assert that the
+option set is what the question is about. Two checks apiece, then, and still
+nothing blanket - and both visible in review, because an undeclared fixed rank
+is a question a child can beat.
 
 **On a figure question the first two checks usually stand down, so measurement
 is still most of the net.** Neither exempts a figure structurally - the rank check

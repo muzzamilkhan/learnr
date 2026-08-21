@@ -58,8 +58,13 @@ export interface ChoiceSpec {
    * distractors from the values the answer can take) is arithmetically
    * impossible, and there is no shortcut to declare away: the magnitudes
    * overlap, so the property is the only thing telling the buttons apart.
-   * Deliberately separate from `rankIsTheQuestion` - each suppresses one check
-   * and neither is a blanket "trust me".
+   * Deliberately separate from `rankIsTheQuestion`: each suppresses its own
+   * check and neither says anything about the other's, so a template with both
+   * shapes has to declare both. What they *do* share is the prediction check -
+   * either flag takes that one off the table as well, because both of them say
+   * the option set is what the question is about, which is that check's whole
+   * subject. So a flag suppresses two checks, not one, and it is still not a
+   * blanket "trust me": the two it silences are the two it names.
    */
   propertyIsTheQuestion?: boolean;
 }
