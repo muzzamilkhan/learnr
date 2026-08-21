@@ -891,14 +891,14 @@ parent anything they could not assume. Two tables side by side in
 "Divide" into "division" that isn't this table written twice.
 
 **Going back is not going home**, so `SpeedRun` takes both. The arrow on the
-chooser and the door inside a run land on the chooser one level up (`/speed`,
-`/progress/speed`), because what someone is usually undoing is "I picked
-Multiply", not "I opened this app"; only the result screen's "Go home" goes
-home. That is what `/speed` exists for: the same cards the child's home screen
-carries beside Practice, on a page of their own, so backing out of a run lands
-one step up rather than two. The two places are not a duplicate to tidy -
-choosing between practice and a speed run and choosing an operation are
-different questions.
+chooser and the door inside a run land on the screen the run was started from -
+`/#speed-run` for a child, `/progress/speed` for a parent - because what someone
+is usually undoing is "I picked Multiply", not "I opened this app". For a child
+those are now the same page and not the same place on it: the door aims at the
+speed section, where the cards and the scores are, and the result screen's own
+door still goes to the top of home. "See records" goes where the back arrow
+does, since the scores are the top of that section - which is why `SpeedRun`
+takes no `recordsHref` of its own any more.
 
 **A parent's speed screens run at the parent's density, but the run itself
 does not.** `SpeedCards` and the chooser take the same `scale` prop
@@ -927,10 +927,18 @@ and the score centres itself in the viewport rather than sitting under a panel
 that is no longer there.
 
 **The cards, the cabinet and the leaderboard are one screen**, and the scores
-are the top of it. **Every screen that offers a run shows them**: `/speed`,
-`/progress/speed`, and the child's home screen under "Speed run" - which is the
-start page a child actually uses, since its cards go straight into a run without
-passing through `/speed` at all. Your records is the left tab.
+are the top of it. **Every screen that offers a run shows them**: the child's
+home screen under "Speed run", and a parent's `/progress/speed`. Your records is
+the left tab.
+
+**There is no `/speed` page.** The child's speed run screen *is* their home
+screen - the scores and the five cards sit under "Speed run" below practice -
+and a second screen showing the same two things existed only to be the way back
+from a run. `CHILD_SPEED_HREF` (`/#speed-run`) does that without a page to keep
+in step: the anchor and the id it lands on live together in `tabs.ts`, because
+two copies of that string going out of step is a link that scrolls nowhere and
+says nothing about it. `/speed/[op]` stays where it is - a segment needs no page
+of its own.
 
 It was three screens - the cards, and the two walls behind links underneath
 them - which meant the only way to compare a card with itself was out and back
@@ -965,9 +973,16 @@ better.
 `#speed-run`). The speed section is below practice there, so a tab switch is a
 navigation that would otherwise land a child at the top of the screen, several
 scrolls from the wall they were reading. It is the one screen that needs it, and
-the reason it is a parameter rather than always-on: on `/speed` and
-`/progress/speed` the tabs are already at the top, and a fragment on those would
-be a jump to where the page already is.
+the reason it is a parameter rather than always-on: on `/progress/speed` the
+tabs are already at the top, and a fragment there would be a jump to where the
+page already is.
+
+**`tabPath` and `runPath` are two questions, not one.** A tab is a URL on the
+screen the scores are *on*, and a run lives under `/speed/...` however that
+screen was reached - the same string for a parent and not for a child, whose
+scores are on `/` and whose runs are not. One `basePath` doing both jobs built
+`//multiply` for every Try button on the home screen, which a browser reads as a
+host called `multiply` rather than a path.
 
 **Every card carries a Try button, and it goes straight into the run.** A card
 names a mode and shows what has been scored at it; until it had a button, doing
@@ -1108,7 +1123,7 @@ player who had records saw blank cards while the leaderboard, still reading
 
 **The family leaderboard ranks the household, per mode, first to third.**
 the leaderboard tab, beside the cabinet on every screen that offers a run - the
-child's home screen, `/speed` and `/progress/speed`. A household is `User.parentId` read
+child's home screen and `/progress/speed`. A household is `User.parentId` read
 from both ends - a parent and the children they manage - which `householdId`
 (`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
 for the reason ownership always is, so there is no second column to drift out of
@@ -1296,14 +1311,15 @@ achievement and never your own: `readUnseenRecords` is scoped to a parent's
 banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
-second top-level path.** The child plays at `/speed` and `/speed/[op]`; a
-parent's own runs live at `/progress/speed` and `/progress/speed/[op]` - the
-first the scores and the same `SpeedCards` the child's home screen offers,
+second top-level path.** The child plays at `/speed/[op]`, reached from the
+speed section of their home screen; a parent's own runs live at
+`/progress/speed` and `/progress/speed/[op]` - the first the scores and the same
+`SpeedCards` the child's home screen offers,
 pointed at the parent's own base path, so the nav's "Speed run" item lands
 somewhere all twenty-six modes are reachable rather than on one arbitrary
 operation. A route group adds no path
 segment, so a bare
-`(parent)/speed` would sit exactly beside the child's `/speed` - two top-level
+`(parent)/speed` would sit exactly beside the child's `/speed/...` - two top-level
 URLs a hyphen apart, told apart only by spelling, and a redirect or a copied
 `href` that gets the two backwards produces no build error and no test
 failure. Nesting under `/progress/speed/...` distinguishes by depth instead,

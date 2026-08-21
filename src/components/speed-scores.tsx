@@ -9,10 +9,17 @@ import { SpeedRecordsCabinet } from './speed-records';
 /**
  * The scores, whole: the two tabs and whichever wall of cards they name.
  *
- * Three screens show this - the child's home screen, `/speed`, and a parent's
+ * Two screens show this - the child's home screen and a parent's
  * `/progress/speed` - and they differ in the frame around it and nothing else,
  * so the reads, the empty states and the tabs live here rather than being
- * written out three times and drifting.
+ * written out twice and drifting.
+ *
+ * **`tabPath` and `runPath` are two questions, not one.** A tab is a URL on the
+ * screen the scores are *on*, and a run lives under `/speed/...` however that
+ * screen is reached - which are the same string for a parent and are not for a
+ * child, whose scores are on `/` and whose runs are not. One `basePath` doing
+ * both quietly built `//multiply` for every Try button on the home screen,
+ * which a browser reads as a host called `multiply`.
  *
  * **Signed out is neither wall's state.** There is no player to have a failed
  * read about (`null`) and no row to be honestly empty (`[]`), because signed
@@ -35,14 +42,17 @@ const SCALES = {
 
 export async function SpeedScores({
   tab,
-  basePath,
+  tabPath,
+  runPath,
   hash,
   userId,
   scale = 'child',
 }: {
   tab: ScoreTab;
-  /** `/` and `/speed` for a child, `/progress/speed` for a parent's own runs. */
-  basePath: string;
+  /** The screen the tabs are on: `/` for a child, `/progress/speed` for a parent. */
+  tabPath: string;
+  /** Where a run lives, for the Try button on every card. */
+  runPath: string;
   /** Where a tab switch should land, on a screen the tabs sit a long way down. */
   hash?: string;
   userId: string | undefined;
@@ -52,12 +62,12 @@ export async function SpeedScores({
 
   return (
     <>
-      <ScoreTabs basePath={basePath} tab={tab} hash={hash} scale={scale} />
+      <ScoreTabs basePath={tabPath} tab={tab} hash={hash} scale={scale} />
       <div className={style.gap}>
         {tab === 'records' ? (
-          <Records userId={userId} basePath={basePath} scale={scale} />
+          <Records userId={userId} basePath={runPath} scale={scale} />
         ) : (
-          <Board userId={userId} basePath={basePath} scale={scale} />
+          <Board userId={userId} basePath={runPath} scale={scale} />
         )}
       </div>
     </>
@@ -66,6 +76,7 @@ export async function SpeedScores({
 
 type Half = {
   userId: string | undefined;
+  /** A run's path - what a card's Try button is built from. */
   basePath: string;
   scale: keyof typeof SCALES;
 };

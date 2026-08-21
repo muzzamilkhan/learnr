@@ -36,7 +36,15 @@ export default async function ParentSpeedPage({
   return (
     <div className="space-y-4">
       <Well title="Scores">
-        <SpeedScores tab={tab} basePath="/progress/speed" userId={userId} scale="parent" />
+        {/* The tabs and the runs share a path here, where a child's do not: a
+            parent's scores and a parent's runs are both under this screen. */}
+        <SpeedScores
+          tab={tab}
+          tabPath="/progress/speed"
+          runPath="/progress/speed"
+          userId={userId}
+          scale="parent"
+        />
       </Well>
 
       <Well title="Start a run">

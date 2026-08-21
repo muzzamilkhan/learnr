@@ -19,7 +19,7 @@ import { readAccount } from '@/lib/accounts';
 import { readViewableChildren } from '@/lib/sharing';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
-import { parseScoreTab } from '@/lib/speedrun/tabs';
+import { parseScoreTab, SPEED_SECTION } from '@/lib/speedrun/tabs';
 import { requestNow } from './now';
 
 // The screen is per-child: it opens on the level that child last chose, so it
@@ -85,13 +85,6 @@ function CurriculumLink() {
     </Link>
   );
 }
-
-/**
- * The anchor a tab switch lands on. The scores sit below the practice section,
- * so switching tabs is a navigation that would otherwise put a child back at
- * the top of the screen, several scrolls from the wall they were reading.
- */
-const SPEED_SECTION = 'speed-run';
 
 export default async function HomePage({
   searchParams,
@@ -277,11 +270,12 @@ export default async function HomePage({
 
       {/* The child's own speed screen, whole: the scores, then the five ways to
           start a run. This is the speed run's start page for a child - the cards
-          here go straight into a run without passing through `/speed` - so what
-          has been scored belongs on it, the same way it does on a parent's
-          `/progress/speed`. It used to be the cards and two links out to walls
-          on other screens, which asked a child to leave the screen they were on
-          to look at cards about the very modes it was offering. */}
+          here go straight into a run, the door inside a run comes back to it and
+          `SPEED_SECTION` is what that door aims at - so what has been scored
+          belongs on it, the same way it does on a parent's `/progress/speed`.
+          It used to be the cards and two links out to walls on other screens,
+          which asked a child to leave the screen they were on to look at cards
+          about the very modes it was offering. */}
       <section id={SPEED_SECTION} className="scroll-mt-6">
         <SectionHeading
           title="Speed run"
@@ -289,7 +283,15 @@ export default async function HomePage({
           icon={<BoltIcon className="h-8 w-8 text-(--color-sun)" />}
         />
 
-        <SpeedScores tab={scoreTab} basePath="/" hash={SPEED_SECTION} userId={userId} />
+        {/* The tabs are URLs on this screen (`/`, `/?tab=leaderboard`), and a run
+            is not - it lives at `/speed/<op>` however the child got here. */}
+        <SpeedScores
+          tab={scoreTab}
+          tabPath="/"
+          runPath="/speed"
+          hash={SPEED_SECTION}
+          userId={userId}
+        />
 
         <h3 className="mt-8 mb-4 text-2xl font-bold tracking-tight">Start a run</h3>
         <SpeedCards />

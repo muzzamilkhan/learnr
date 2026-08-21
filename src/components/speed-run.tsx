@@ -97,10 +97,14 @@ interface Props {
   /** Where "Go home" goes: `/` for a child, `/progress` for a parent. */
   homeHref: string;
   /**
-   * Where backing out goes - the chooser one level up (`/speed`,
-   * `/progress/speed`), not home. Leaving a run and leaving the app are
-   * different intentions, and the arrow that undoes "I picked Multiply" should
-   * undo exactly that. "Go home" on the result screen still goes home.
+   * Where backing out goes: the screen this run was started from, with its
+   * scores and its cards on it - `/#speed-run` for a child, `/progress/speed`
+   * for a parent. Leaving a run and leaving the app are different intentions,
+   * and the arrow that undoes "I picked Multiply" should undo exactly that. For
+   * a child the two now land on the same page and not the same place on it: the
+   * door aims at the speed section, and the door in the *corner* of the result
+   * screen still goes to the top of home. It is also where "See records" goes,
+   * since the scores are the top of that section.
    */
   backHref: string;
   recordingEnabled: boolean;

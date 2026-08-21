@@ -8,6 +8,20 @@
  * two routes did.
  */
 
+/**
+ * The child's speed section, and the anchor that lands on it.
+ *
+ * A child's speed run screen *is* their home screen - the scores and the five
+ * cards sit under "Speed run" below practice - so everything that used to point
+ * at `/speed` now points here, and there is no `/speed` page any more: a second
+ * screen showing the same two things existed only to be the way back from a
+ * run, and a fragment does that without a page to keep in step. The id and the
+ * href live together because the two going out of step is a link that scrolls
+ * nowhere, silently.
+ */
+export const SPEED_SECTION = 'speed-run';
+export const CHILD_SPEED_HREF = `/#${SPEED_SECTION}`;
+
 export const SCORE_TABS = ['records', 'leaderboard'] as const;
 
 export type ScoreTab = (typeof SCORE_TABS)[number];

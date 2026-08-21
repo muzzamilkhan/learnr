@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { auth, isAuthConfigured } from '@/auth';
 import { SpeedRun } from '@/components/speed-run';
 import { parseMode, parseOperation } from '@/lib/speedrun/modes';
+import { CHILD_SPEED_HREF } from '@/lib/speedrun/tabs';
 
 // Per-player state (whether recording is enabled), so it must never be
 // prerendered and shared.
@@ -41,7 +42,7 @@ export default async function SpeedPage({
       op={op}
       startMode={startMode?.op === op ? startMode : undefined}
       homeHref="/"
-      backHref="/speed"
+      backHref={CHILD_SPEED_HREF}
       recordingEnabled={Boolean(userId)}
     />
   );
