@@ -26,9 +26,15 @@ question needs three or more distinguishable regions, it needs a kind that emits
 
 **The same rule binds the `hint`, and it is easier to break there.** A hint is read aloud when
 narration is on, to the child least able to reconcile it with the picture. `bar`'s `style` left
-open draws a dot plot about half the time, so a hint saying "the shortest **column**" names
+open draws its `dot` form about half the time, so a hint saying "the shortest **column**" names
 something that is not on screen in half of all draws. Either pin the style, or word the hint
 for whatever the kind may draw — "the shortest one", "read both numbers off the graph".
+
+**And know what `dot` actually draws before you write against it:** it is **one point marker
+per category, placed at the value's height** — a dot *chart*, not a stacked frequency dot plot
+with one dot per item. Nothing counts the markers, so a question asking a child to count dots
+has no picture to count on half its draws. Read `bar-kind.ts` rather than inferring the shape
+from the word.
 
 ---
 
