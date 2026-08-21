@@ -1072,11 +1072,41 @@ is a section a child scrolls past rather than reads.
 reads "7x" and a bundle reads "11x to 12x", and a grid wide enough for the
 second wastes most of a row on the first - which is what made fourteen multiply
 modes seven rows of mostly white space. The ten singles get a dense run of small
-square targets, four or five to a row, and the four bundles the ordinary wide
-row beneath them, so the tallest card in the picker is four rows. `isSingleTable`
-is what splits them and it lives in `modes.ts`, not in the component: what counts
-as a single table is that module's business. Every other operation has no singles
-at all and draws one grid.
+square targets, **five to a row from `sm` up at either scale** so the two rows
+are the same length as each other, and the four bundles the ordinary wide row
+beneath them: four rows where there were seven. `isSingleTable` is what splits
+them and it lives in `modes.ts`, not in the component - what counts as a single
+table is that module's business. Every other operation has no singles at all and
+draws one grid.
+
+**A chip is coloured by how hard it is, green through to purple**, and that is
+one ramp for all twenty-six (`modeHardness`). Easy, moderate and hard are the
+ends and the middle of it. **The times tables ramp across it too, which is the
+answer to what colour multiplication should be**: they have a difficulty order
+of their own - a child who has 2x has not got 12x - so the thing worth saying
+about a table is the thing the difficulties are already saying, and the
+operation's own accent is on the card around them either way. A single table
+takes its place from its **position** in `SINGLE_TABLES` rather than from its
+value, so the missing ten leaves no gap between nine and eleven; a bundle takes
+the mean of the tables it draws from, which puts `2-5` near the green end,
+`11-12` near the purple one and **`all` in the middle** - a run of everything is
+not the hardest run, it is the mixed one.
+
+The three colours per chip are **mixed rather than picked from a table**, unlike
+`OPERATION_ACCENT`, and for the opposite reason: an accent is one of five names
+and a ramp is a continuum, so ten tables would need ten tokens differing from
+their neighbour by a shade. `color-mix` is already how the practice calendar
+shades a day - **in `oklch` here** where the calendar uses `srgb`, because these
+two ends are far apart in hue and sRGB runs green to purple through a muddy
+grey where oklch runs it through the teals and blues actually between them. The
+text is darkened off the ramp rather than being the ramp colour, since a chip
+label is small and `--color-leaf` on a near-white wash is under three to one.
+`--tone`, `--tone-soft` and `--tone-ink` are registered with `@property` in
+`globals.css` for the reason `--prompt-max` is: an unregistered property holding
+a value the browser cannot parse takes the whole declaration down with it, so an
+engine without `color-mix` draws the ordinary card colours instead of drawing
+them wrong. Nothing but the colour reads `modeHardness` - it is not a difficulty
+the selector acts on, and it never reaches an `Attempt`.
 
 **The way out of a result is the door, top-left, exactly where the play
 screen puts it.** It was a third button in the row under the score, which made

@@ -57,6 +57,29 @@
   initial-value: 0px;
 }
 
+/* The speed run picker's difficulty ramp, green through to purple - see
+   `modeHardness`. Set per chip as a `color-mix`, and registered here for the
+   reason `--prompt-max` is: an unregistered custom property holding a value the
+   browser cannot parse takes the whole declaration down with it, where a
+   registered one falls back to the initial value below. So an engine without
+   `color-mix` draws every chip in the ordinary card colours instead of drawing
+   them wrong. */
+@property --tone {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #dfe6ef;
+}
+@property --tone-soft {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #ffffff;
+}
+@property --tone-ink {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #1b2430;
+}
+
 /* A star landing: overshoot, then settle. Each one is delayed a beat after the
    last so three stars arrive as three events and not as one flash. */
 @keyframes star-land {
@@ -185,7 +208,13 @@ body {
 body {
   background: var(--color-paper);
   color: var(--color-ink);
-  font-family: ui-rounded, 'SF Pro Rounded', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family:
+    ui-rounded,
+    'SF Pro Rounded',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   /* A child resting a palm on the screen should not scroll or zoom the page. */
   overscroll-behavior: none;

@@ -6,6 +6,7 @@ import {
   MODES,
   modeKey,
   isSingleTable,
+  modeHardness,
   modeLabel,
   modesFor,
   parseMode,
@@ -14,6 +15,7 @@ import {
   operationLabel,
   operationNoun,
   OPERATIONS,
+  SINGLE_TABLES,
   type Mode,
 } from './modes';
 import { answerRun, startRun } from './run';
@@ -81,6 +83,44 @@ describe('the mode space', () => {
     expect(modeLabel({ op: 'multiply', tables: '11-12' })).toBe('11x to 12x');
     expect(modeLabel({ op: 'multiply', tables: 'all' })).toBe('All tables');
     expect(modeLabel({ op: 'add', difficulty: 'easy' })).toBe('Easy');
+  });
+
+  it('ramps every mode from easy to hard on one scale', () => {
+    // One number for all twenty-six, because the chips are only ever saying
+    // one thing. Everything stays inside the ends of the ramp.
+    for (const mode of MODES) {
+      expect(modeHardness(mode)).toBeGreaterThanOrEqual(0);
+      expect(modeHardness(mode)).toBeLessThanOrEqual(1);
+    }
+
+    expect(modeHardness({ op: 'add', difficulty: 'easy' })).toBe(0);
+    expect(modeHardness({ op: 'mixed', difficulty: 'moderate' })).toBe(0.5);
+    expect(modeHardness({ op: 'divide', difficulty: 'hard' })).toBe(1);
+  });
+
+  it('ramps the times tables in the order a child learns them', () => {
+    const table = (tables: number) => modeHardness({ op: 'multiply', tables });
+
+    expect(table(2)).toBe(0);
+    expect(table(12)).toBe(1);
+    // By position, not by value, so the missing ten leaves no gap in the ramp
+    // between nine and eleven - every step is the same size.
+    const steps = SINGLE_TABLES.map(table);
+    for (let i = 1; i < steps.length; i++) {
+      expect(steps[i] - steps[i - 1]).toBeCloseTo(1 / (SINGLE_TABLES.length - 1));
+    }
+  });
+
+  it('puts a bundle where the tables it draws from sit, and `all` in the middle', () => {
+    const bundle = (tables: '2-5' | '6-9' | '11-12' | 'all') =>
+      modeHardness({ op: 'multiply', tables });
+
+    expect(bundle('2-5')).toBeLessThan(bundle('6-9'));
+    expect(bundle('6-9')).toBeLessThan(bundle('11-12'));
+    // A run of everything is not the hardest run, it is the mixed one - so it
+    // lands mid-ramp rather than past the bundle with the hardest facts in it.
+    expect(bundle('all')).toBeCloseTo(0.5);
+    expect(bundle('all')).toBeLessThan(bundle('11-12'));
   });
 
   it('tells a single table from everything else', () => {

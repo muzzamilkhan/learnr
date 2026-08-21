@@ -278,6 +278,46 @@ export function modeLabel(mode: Mode): string {
 }
 
 /**
+ * Where a mode sits on the one difficulty ramp, 0 (easiest) to 1 (hardest).
+ *
+ * It exists so the picker can colour a chip by how hard it is, and it is one
+ * number for all twenty-six because there is only one thing being said. Easy,
+ * moderate and hard are the ends and the middle of it; the times tables have a
+ * difficulty order of their own - a child who has 2x has not got 12x - so they
+ * ramp across it too, which is the answer to what colour multiplication should
+ * be. It has no colour of its own to pick: what the chips are saying is the
+ * same thing the difficulties are saying, and the operation's own accent is
+ * already on the card around them.
+ *
+ * A **single table** takes its place from its position in `SINGLE_TABLES`
+ * rather than from its value, so the missing ten leaves no gap in the ramp.
+ * A **bundle** takes the mean of the tables it draws from, which puts `2-5`
+ * near the green end, `11-12` near the purple one and **`all` in the middle** -
+ * where it belongs, since a run of everything is not the hardest run, it is the
+ * mixed one. Ten is skipped in that mean for the reason it is not a mode: it is
+ * not a fact being recalled, so it says nothing about how hard the bundle is.
+ *
+ * Nothing but the colour reads this. It is not a difficulty the selector acts
+ * on and it never reaches an `Attempt` - a speed run has no curriculum level to
+ * be hard *for*.
+ */
+export function modeHardness(mode: Mode): number {
+  if (mode.op !== 'multiply') return { easy: 0, moderate: 0.5, hard: 1 }[mode.difficulty];
+
+  const places = tableList(mode.tables)
+    .map((table) => RAMP.get(table))
+    .filter((place) => place !== undefined);
+
+  return places.length === 0 ? 0.5 : places.reduce((sum, place) => sum + place, 0) / places.length;
+}
+
+/** Each drillable table's place on the ramp: by position, so the missing ten
+ * leaves no gap between nine and eleven. */
+const RAMP = new Map(
+  SINGLE_TABLES.map((table, index) => [table, index / (SINGLE_TABLES.length - 1)]),
+);
+
+/**
  * One times table, rather than a bundle of them or anything else.
  *
  * The picker's only reason for asking: a single table's label is two or three

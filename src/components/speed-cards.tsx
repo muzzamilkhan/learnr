@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import type { CSSProperties } from 'react';
 import {
   isSingleTable,
+  modeHardness,
   type Mode,
   modeKey,
   modeLabel,
@@ -167,11 +169,44 @@ const SCALES = {
     tile: 'size-9 rounded-lg text-base',
     label: 'text-base',
     chevron: 'size-4',
-    tables: 'grid grid-cols-5 gap-2 px-3 sm:grid-cols-6',
+    tables: 'grid grid-cols-5 gap-2 px-3',
     modes: 'grid grid-cols-2 gap-2 px-3 pt-2 pb-3 sm:grid-cols-4',
     mode: 'min-h-11 rounded-xl border px-2 py-1.5 text-sm',
   },
 } as const;
+
+/**
+ * A chip's three colours, from where its mode sits on the ramp `modeHardness`
+ * defines: the border, a wash behind it and the text on top.
+ *
+ * **Mixed rather than picked from a table**, unlike `OPERATION_ACCENT` beside
+ * it, and for the opposite reason: an accent is one of five names and a ramp is
+ * a continuum, so ten times tables would need ten tokens that only ever differ
+ * from their neighbour by a shade. `color-mix` is already how the practice
+ * calendar shades a day. **In `oklch`**, where the calendar mixes in `srgb`,
+ * because these two ends are far apart in hue: sRGB interpolation runs green to
+ * purple through a muddy grey, and oklch runs it through the teals and blues
+ * that are actually between them.
+ *
+ * The three are set as custom properties rather than as `backgroundColor` and
+ * friends so the class list stays the source of truth about *what* is coloured
+ * - and because Tailwind reads class names as literals, which is the same
+ * reason `OPERATION_ACCENT` writes its classes out in full. They are registered
+ * in `globals.css`, so a browser that cannot parse `color-mix` falls back to
+ * the ordinary card colours rather than to nothing at all.
+ *
+ * The text is darkened off the ramp rather than being the ramp colour: a chip
+ * label is small, and `--color-leaf` on a near-white wash is under three to one.
+ */
+function toneStyle(hardness: number): CSSProperties {
+  const tone = `color-mix(in oklch, var(--color-leaf), var(--color-grape) ${Math.round(hardness * 100)}%)`;
+
+  return {
+    '--tone': tone,
+    '--tone-soft': `color-mix(in oklch, ${tone}, white 90%)`,
+    '--tone-ink': `color-mix(in oklch, ${tone}, black 28%)`,
+  } as CSSProperties;
+}
 
 export function SpeedCards({
   basePath = '/speed',
@@ -197,7 +232,8 @@ export function SpeedCards({
           <Link
             key={modeKey(mode)}
             href={`${basePath}/${modeKey(mode)}`}
-            className={`flex items-center justify-center border-(--color-line) bg-(--color-card) text-center leading-tight font-semibold transition active:scale-95 ${style.mode} ${accent.border}`}
+            style={toneStyle(modeHardness(mode))}
+            className={`flex items-center justify-center border-(--tone) bg-(--tone-soft) text-center leading-tight font-semibold text-(--tone-ink) transition hover:brightness-95 active:scale-95 ${style.mode}`}
           >
             {modeLabel(mode)}
           </Link>
