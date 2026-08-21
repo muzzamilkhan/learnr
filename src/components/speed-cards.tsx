@@ -160,14 +160,18 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
  * count nobody has written a line for would get, so adding a mode is a card
  * that looks slightly wrong rather than one with no columns at all.
  *
- * **The three difficulties stack one to a row on a phone**, where the four
- * bundles stay two across. Three into two columns is 2+1, which leaves the
- * ragged half-row a grid of four does not have, and "Moderate" is the widest
- * label in the picker - at a phone's half-width it is already close to
- * wrapping, and a third of one it certainly would. A full-width chip is the
- * biggest target on the screen and reads in one glance, which is worth more on
- * the narrowest device than fitting the row into fewer lines. From `sm` up
- * there is width for all three side by side and they take it.
+ * **A phone gets two columns everywhere it can, and the difficulties get one.**
+ * Three chips into two columns is 2+1, the ragged half-row a grid of four does
+ * not have, and "Moderate" is the widest label in the picker - at a phone's
+ * half-width it is already close to wrapping, and at a third of one it
+ * certainly would. So the difficulties stack, and the multiply card - both its
+ * tables and its bundles - runs two across rather than the four the tables
+ * would fit. That costs the open Multiply card real height on a phone, five
+ * rows of tables where there were three, and it buys a target a thumb hits
+ * without aiming on the device where aiming is hardest. Scrolling a phone is
+ * cheap and a missed tap in a picker is not. From `sm` up the width is there
+ * and every grid takes it: five tables to a row, four bundles, three
+ * difficulties.
  */
 const SCALES = {
   child: {
@@ -177,7 +181,7 @@ const SCALES = {
     tile: 'size-14 rounded-2xl text-2xl',
     label: 'text-2xl',
     chevron: 'size-6',
-    tables: 'grid grid-cols-4 gap-3 px-5 pt-1 sm:grid-cols-5 sm:gap-4',
+    tables: 'grid grid-cols-2 gap-3 px-5 pt-1 sm:grid-cols-5 sm:gap-4',
     modes: 'grid gap-3 px-5 pt-3 pb-5 sm:gap-4',
     modeColumns: {
       3: 'grid-cols-1 sm:grid-cols-3',

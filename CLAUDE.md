@@ -1079,13 +1079,17 @@ them and it lives in `modes.ts`, not in the component - what counts as a single
 table is that module's business. Every other operation has no singles at all and
 draws one grid.
 
-**On a phone the three difficulties stack one to a row**, where the four bundles
-stay two across. Three into two columns is 2+1, the ragged half-row a grid of
-four does not have, and "Moderate" is the widest label in the picker - at half a
+**A child's phone gets two columns everywhere it can, and the difficulties get
+one.** Three chips into two columns is 2+1, the ragged half-row a grid of four
+does not have, and "Moderate" is the widest label in the picker - at half a
 phone's width it is already close to wrapping and at a third it certainly would.
-A full-width chip is the biggest target on the screen and reads in one glance,
-which is worth more on the narrowest device than saving two lines. From `sm` up
-there is room for all three side by side and they take it.
+So the difficulties stack, and the multiply card runs two across for its tables
+as well as its bundles rather than the four the short labels would fit. That
+costs the open Multiply card real height on a phone - five rows of tables where
+there were three - and buys a target a thumb hits without aiming, on the device
+where aiming is hardest. Scrolling a phone is cheap and a missed tap in a picker
+is not. From `sm` up the width is there and every grid takes it: five tables to
+a row, four bundles, three difficulties.
 
 **A chip is coloured by how hard it is, green through to purple**, and that is
 one ramp for all twenty-six (`modeHardness`). Easy, moderate and hard are the
