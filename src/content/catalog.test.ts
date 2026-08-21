@@ -108,10 +108,14 @@ describe('shipped content', () => {
   // it down, so the template cites NSW alone rather than the nearest ACARA
   // code that fits badly.
   //
-  // - **Hour time on an analog clock.** NSW puts it at Early Stage 1;
-  //   ACARA puts reading a clock face at Year 2 (AC9M2M04). Foundation's only
-  //   time description, AC9MFM02, is about sequencing the days of the week and
-  //   the times of the day, which is not what reading a dial practises.
+  // - **Reading an analog clock.** NSW puts o'clock at Early Stage 1 and half
+  //   past at Stage 1; ACARA's read-a-clock-face description is AC9M2M04, at
+  //   Year 2. Neither of the earlier years has one to cite instead:
+  //   Foundation's only time description, AC9MFM02, is about sequencing the
+  //   days of the week and the times of the day, and Year 1's AC9M1M03 is
+  //   about durations in weeks, days and hours - which is why the four Year K
+  //   and Year 1 templates that count *durations* keep their ACARA codes and
+  //   only the ones that read a dial appear here.
   // - **Halves and quarters of a shape.** NSW puts them at Stage 1
   //   (MA1-GM-03); ACARA's first fraction description is AC9M2N03, at Year 2,
   //   and Year 1 has none to cite.
@@ -132,6 +136,7 @@ describe('shipped content', () => {
   it('cites no ACARA description for the content ACARA places a year later than NSW', () => {
     const nswOnly = [
       ...['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`),
+      ...['half-past', 'half-past-claim'].map((v) => `maths.1.time.${v}`),
       ...['half-shaded', 'how-much-shaded'].map((v) => `maths.1.fractions.${v}`),
     ];
 

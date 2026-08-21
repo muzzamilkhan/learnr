@@ -471,6 +471,12 @@ export const year1: QuestionTemplate[] = [
     hint: 'There are 24 hours in one day.',
     tags: ['AC9M1M03', 'MA1-NSM-02'],
   },
+  // Reading a dial, which arrives this year because NSW puts o'clock at Early
+  // Stage 1 and half past at Stage 1, where ACARA's read-an-analogue-clock
+  // description is AC9M2M04, a year later. So these two cite the NSW outcome
+  // alone - the Year K clock pair's exception, one stage on. The duration
+  // questions above keep AC9M1M03, which is about weeks, days and hours and
+  // genuinely fits them; it says nothing about a clock face.
   {
     id: 'maths.1.time.half-past',
     subject: 'maths',
@@ -518,7 +524,7 @@ export const year1: QuestionTemplate[] = [
     // would draw a dial with no numbers on it at all. Nothing is lost by
     // pinning it: the minute track and the two hand lengths still jitter.
     figure: { kind: 'clock', hour: 'h', minute: 'half == 1 ? 30 : 0', numerals: 'true' },
-    tags: ['AC9M1M03', 'MA1-NSM-02'],
+    tags: ['MA1-NSM-02'],
   },
   {
     id: 'maths.1.time.half-past-claim',
@@ -547,7 +553,7 @@ export const year1: QuestionTemplate[] = [
     // Pinned for the reason above, and it matters more here: an unnumbered
     // dial turns a true/false into a coin toss.
     figure: { kind: 'clock', hour: 'shownHour', minute: 'shownMinute', numerals: 'true' },
-    tags: ['AC9M1M03', 'MA1-NSM-02'],
+    tags: ['MA1-NSM-02'],
   },
   {
     id: 'maths.1.shapes.corners',
