@@ -58,8 +58,13 @@ question needs three or more distinguishable regions, it needs a kind that emits
 - **A decimals question must pin `from` and `to`.** Reading a tenth needs a one-unit-wide
   line, and exactly one round one contains any given tenth — so 40 of 90 one-decimal values
   have a single available range and would draw the same picture every time.
-- **A K–2 counting question should pin `step`.** Left open, a whole number in 0–9 is sometimes
-  drawn on a line reading `3 | 3.5 | 4`, which is legitimate and wrong for the year.
+- **A K–2 counting question should pin `step` — and `step` cannot be pinned alone.** Left open,
+  a whole number in 0–9 is sometimes drawn on a line reading `3 | 3.5 | 4`, which is legitimate
+  and wrong for the year. But pinning `step` by itself fails validation, because `issues` asks
+  the pinned step about *every* candidate range and reports each one it cannot divide. **Pin
+  `from`, `to` and `step` together**, and remember the anchoring rule still applies: a fully
+  pinned line draws one picture, so vary something the answer does not depend on, or let the
+  answer itself carry the variation across seeds.
 
 ### `grid`
 - **Grid map ≤ 5×5. Coordinate plane ≤ 4×4. Unlabelled ≤ 18.** Labels bind before lines, and
@@ -97,9 +102,17 @@ question needs three or more distinguishable regions, it needs a kind that emits
   colour.
 
 ### `bar` / `pictograph`
-- Both draw derived labels and both refuse an axis whose rungs read the same. Keep category
-  names short; a label that does not fit is reported, not truncated.
-- One icon may stand for more than one thing in a `pictograph` — say so in the prompt.
+- Both draw derived labels and both refuse an axis whose rungs read the same. A label that does
+  not fit is reported, not truncated.
+- **`bar` allows roughly four characters per category name at three categories**, and fewer as
+  categories multiply. "Banana" is refused. Pick short nouns — "Cat", "Dog", "Bus", "Red" — or
+  cut a category.
+- **`pictograph` at `key: '1'` allows at most four icons in a row.** Raising the key is what
+  buys a longer row, and raising the key is exactly what an early-years question cannot do —
+  one icon standing for two is a Stage 2 idea. So a K–1 pictograph counts to four, or it needs
+  a `bar` instead.
+- One icon may stand for more than one thing in a `pictograph` — say so in the prompt when it
+  does.
 
 ---
 
