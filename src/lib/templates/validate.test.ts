@@ -363,6 +363,61 @@ describe('validateTemplate figures', () => {
       expect.stringMatching(/figure\.mirror.*scalene.*no line of symmetry/i),
     );
   });
+
+  // `array`'s `orientation` jitters which of `rows` and `columns` is drawn as
+  // which - see `array-kind.ts`'s module comment for why the 50-seed
+  // anchoring check above cannot see a template whose answer reads one of
+  // them directly. This is the one static, syntactic check that can.
+  describe('array orientation', () => {
+    const arrayTemplate = (overrides: Partial<QuestionTemplate> = {}): QuestionTemplate => ({
+      ...valid,
+      id: 'array-rows',
+      prompt: 'How many rows are there?',
+      vars: [
+        { name: 'r', kind: 'int', min: '2', max: '5' },
+        { name: 'c', kind: 'int', min: '2', max: '5' },
+      ],
+      constraints: ['r != c'],
+      answer: 'r',
+      figure: { kind: 'array', rows: 'r', columns: 'c' },
+      ...overrides,
+    });
+
+    it('rejects an answer that reads figure.rows directly with orientation left open', () => {
+      expect(errorsFor(arrayTemplate())).toContainEqual(
+        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
+      );
+    });
+
+    it('rejects an answer that reads figure.columns directly with orientation left open', () => {
+      const template = arrayTemplate({
+        prompt: 'How many columns are there?',
+        answer: 'c',
+      });
+      expect(errorsFor(template)).toContainEqual(
+        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
+      );
+    });
+
+    it('passes the same template once orientation is pinned', () => {
+      const template = arrayTemplate({
+        figure: { kind: 'array', rows: 'r', columns: 'c', orientation: "'rows'" },
+      });
+      expect(errorsFor(template)).not.toContainEqual(
+        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
+      );
+    });
+
+    it('says nothing about an answer that is not a dimension, orientation left open', () => {
+      const template = arrayTemplate({
+        prompt: 'How many dots are there altogether?',
+        answer: 'r * c',
+      });
+      expect(errorsFor(template)).not.toContainEqual(
+        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
+      );
+    });
+  });
 });
 
 describe('choice leakage', () => {

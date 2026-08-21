@@ -75,6 +75,7 @@ export const FIGURE_KINDS = [
   'solid',
   'number-line',
   'clock',
+  'array',
 ] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
@@ -281,6 +282,30 @@ export type FigureSpec =
        * above can never depend on it.
        */
       minuteTicks?: Expr;
+    }
+  | {
+      kind: 'array';
+      /**
+       * How many rows of dots - or, with `orientation` omitted, how many of
+       * one of the two dimensions the builder draws; see `array-kind.ts`.
+       * Whole numbers, at least 2 (a single row is a line, not an array).
+       */
+      rows: Expr;
+      /** The other dimension, on the same terms as `rows`. */
+      columns: Expr;
+      /**
+       * `'rows'` draws `rows` rows of `columns` dots; `'columns'` draws the
+       * transpose - `columns` rows of `rows` dots. Omitted, it jitters
+       * between the two, which is the commutativity a "how many groups of
+       * four make twelve?" question is often about.
+       *
+       * **A template whose answer reads `rows` or `columns` directly must
+       * pin this.** With it left to jitter, the picture agrees with that
+       * answer on only half of all draws - see `array-kind.ts` for why nothing
+       * else in this folder catches that, and `validate.ts` for the one
+       * static check that does.
+       */
+      orientation?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

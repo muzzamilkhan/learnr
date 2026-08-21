@@ -3,6 +3,7 @@ import type { Rng } from '../rng';
 import type { FieldReader } from './fields';
 import type { FigureKind, FigureSpec, Mark } from './types';
 import { angleModule } from './angle-kind';
+import { arrayModule } from './array-kind';
 import { barModule } from './bar-kind';
 import { clockModule } from './clock-kind';
 import { numberLineModule } from './number-line-kind';
@@ -142,6 +143,7 @@ for (const kindModule of [
   solidModule,
   numberLineModule,
   clockModule,
+  arrayModule,
 ]) {
   registerFigureKind(kindModule);
 }
