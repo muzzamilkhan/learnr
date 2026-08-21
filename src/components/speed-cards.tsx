@@ -149,6 +149,16 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
  * square targets and the bundles the ordinary wide row beneath them, so the
  * tallest card in the picker is four rows rather than seven. Every other
  * operation has no singles at all and draws one grid, exactly as before.
+ *
+ * **The second grid takes its column count from how many chips are in it**
+ * (`modeColumns`), because that number is not the same for every operation:
+ * multiply's bundles are four and everyone else's difficulties are three, so
+ * one declared count leaves a hole on the right of whichever card disagrees
+ * with it. A row of chips ending in a gap reads as a row still loading, and it
+ * is a gap the card is wide enough to have filled. Written out per count
+ * because Tailwind reads class names as literals; `fallbackColumns` is what a
+ * count nobody has written a line for would get, so adding a mode is a card
+ * that looks slightly wrong rather than one with no columns at all.
  */
 const SCALES = {
   child: {
@@ -159,7 +169,12 @@ const SCALES = {
     label: 'text-2xl',
     chevron: 'size-6',
     tables: 'grid grid-cols-4 gap-3 px-5 pt-1 sm:grid-cols-5 sm:gap-4',
-    modes: 'grid grid-cols-2 gap-3 px-5 pt-3 pb-5 sm:grid-cols-3 sm:gap-4',
+    modes: 'grid gap-3 px-5 pt-3 pb-5 sm:gap-4',
+    modeColumns: {
+      3: 'grid-cols-2 sm:grid-cols-3',
+      4: 'grid-cols-2 sm:grid-cols-4',
+    },
+    fallbackColumns: 'grid-cols-2 sm:grid-cols-3',
     mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 text-lg sm:min-h-18 sm:text-xl',
   },
   parent: {
@@ -170,7 +185,9 @@ const SCALES = {
     label: 'text-base',
     chevron: 'size-4',
     tables: 'grid grid-cols-5 gap-2 px-3',
-    modes: 'grid grid-cols-2 gap-2 px-3 pt-2 pb-3 sm:grid-cols-4',
+    modes: 'grid gap-2 px-3 pt-2 pb-3',
+    modeColumns: { 3: 'grid-cols-3', 4: 'grid-cols-4' },
+    fallbackColumns: 'grid-cols-3',
     mode: 'min-h-11 rounded-xl border px-2 py-1.5 text-sm',
   },
 } as const;
@@ -274,7 +291,15 @@ export function SpeedCards({
               {tables.length > 0 && (
                 <div className={style.tables}>{tables.map(chip)}</div>
               )}
-              <div className={style.modes}>{rest.map(chip)}</div>
+              <div
+                className={`${style.modes} ${
+                  style.modeColumns[
+                    rest.length as keyof typeof style.modeColumns
+                  ] ?? style.fallbackColumns
+                }`}
+              >
+                {rest.map(chip)}
+              </div>
             </details>
           </li>
         );
