@@ -184,10 +184,10 @@ describe('shipped content', () => {
   // than missing. It is the `nswOnly` exception above pointed the other way.
   it('names every template that cites ACARA alone', () => {
     const acaraOnly = [
-      // NSW names repeating patterns at Early Stage 1 (MAE-FG-01) and the
-      // Stage 1 list has no focus area that covers them: MA1-FG-01 is equal
-      // groups and multiplicative structure, which continuing an ABC pattern
-      // is not.
+      // NSW places repeating patterns at Early Stage 1, where Task 15 cited
+      // MAE-FG-01 for them, and no Stage 1 focus area picks them up again - so
+      // a Year 1 template has no honest MA1- code to carry. Task 16's report
+      // and commit 9686fc6 record the decision.
       'maths.1.number-patterns.repeating-unit',
       // NSW files grid maps and grid references at Stage 2, which is Years 3
       // and 4 - so a Year 2 template may only carry a Stage 1 code, and NSW
@@ -201,9 +201,10 @@ describe('shipped content', () => {
       'maths.4.data.many-to-one',
       'maths.4.data.picture-key',
       // Both ask about the rotational symmetry of pentagons through octagons.
-      // Stage 2's transformations outcome has no Stage 3 successor, and the
-      // nearest candidate, MA3-2DS-01, is about classifying triangles and
-      // quadrilaterals.
+      // Year 4's equivalents cite Stage 2's transformations outcome, which has
+      // no Stage 3 successor in the assembled code list, and the nearest
+      // Stage 3 candidate, MA3-2DS-01, does not reach these shapes. Caught in
+      // the Task 20 review, and both keep ['AC9M4SP03', 'AC9M5SP03'].
       'maths.5.symmetry.half-turn',
       'maths.5.symmetry.turn-matches',
       // NSW places integers at Stage 4 - Year 7 - which is the exception the

@@ -694,12 +694,18 @@ export const year6: QuestionTemplate[] = [
       // later of the two exactly when the minutes went past the twelve - and
       // the answer's own minute says when that was, since `mod(mi + g, 12)`
       // falls below `g` if and only if it rolled. So the trip length in the
-      // prompt and the four buttons between them ruled out two options with
-      // the clock unread: measured 34.1% against a 25% blind baseline over
-      // 10,000 held-out draws. Drawn either side instead, the answer is the
-      // later hour half the time whatever the minutes did, and the same
-      // measure reads 17.2%. The distractor is still an hour out - which is
-      // the rollover mistake half the time - and no longer says which way.
+      // prompt and the four buttons between them ruled two options out with
+      // the clock unread.
+      //
+      // **Read the seen-keys column, not the held-out one.** This template
+      // makes 5931 keys over 10,000 draws, so only 68% of scored draws land on
+      // a key the learn half saw and the held-out figure is deflated by the
+      // third that do not. Both versions, one run of 10,000 draws a half:
+      // derived from the roll, 34.1% held-out and **50.4% over seen keys**,
+      // which is exactly the ceiling that rule gives; drawn either side,
+      // 17.2% held-out and **25.3% over seen keys**, against a 25% blind
+      // baseline. The distractor is still an hour out - which is the rollover
+      // mistake half the time - and no longer says which way.
       { name: 'hs', kind: 'pick', from: [1, -1] },
       { name: 'oh', kind: 'expr', expr: 'mod(ah - 1 + hs + 12, 12) + 1' },
       // Any other five-minute mark, stepped round rather than drawn and
@@ -860,9 +866,10 @@ export const year6: QuestionTemplate[] = [
   // answered by counting something on the screen. AC9M6SP01 is about the
   // parallel cross-sections of an object and how they relate to a right prism,
   // which is a question about what kind of thing the solid *is* - and it
-  // cannot be counted. NSW is one outcome across Years 5 and 6 here:
-  // MA3-3DS-01 covers prisms, pyramids, nets and two-dimensional
-  // representations, which is all three below.
+  // cannot be counted. All three below cite MA3-3DS-01, which is the code
+  // Year 5's three solids already carry: NSW writes one outcome per focus area
+  // across the pair of years, so what separates Year 6 from Year 5 here is the
+  // ACARA description and the difficulty, not the outcome.
   //
   // **Nothing here turns on a length**, which is the trap `solid-kind.ts`
   // names outright: an oblique projection foreshortens depth by a convention

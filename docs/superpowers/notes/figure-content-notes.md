@@ -515,6 +515,36 @@ typed one** — always give the commonest answer, key unread. It is **not** `1/d
 answers are rarely uniform, so that understates the floor and makes a clean template look like
 a leak. `picture-key-difference` reads 12.5% by the wrong rule and 21.6% by the right one.
 
+### The held-out number is deflated by key sparsity, and is not a safety margin
+
+Scoring an unseen key as nothing is what removes the bias, and it has a price: **on a template
+whose key count approaches the draw count, most scored draws land on a key the learn half never
+saw, and every one of those scores zero however leaky the question is.** So a held-out figure
+*below* the blind baseline is the ordinary reading for such a template and says nothing about
+safety — reading the gap as a margin is reading the collision rate.
+
+Year 6's `maths.6.time.clock-arrival` is the sharpest case on the branch. It has **5,931 keys
+over 10,000 draws**, so only **68.0%** of scored draws have a key the learn half saw. Both
+columns from one run of 10,000 draws a half:
+
+| version | held-out | seen-key coverage | seen-keys-only | blind |
+| --- | --- | --- | --- | --- |
+| the wrong hour derived from the rollover | 34.1% | 67.7% | **50.4%** | 25.0% |
+| the wrong hour drawn either side | 17.2% | 68.0% | **25.3%** | 25.0% |
+
+The 17.2% is `0.680 × 25.3`, which is what a **leak-free** template with that sparsity must
+read; it is not 8 points of headroom. And the 34.1% is `0.677 × 50.4` — the seen-keys-only
+column is the one that says outright that the rollover rule was keeping the answer half the
+time, which is the ceiling that rule gives. The statistic had lost a third of its power, and
+the deflation was hiding the size of a real leak rather than inventing one.
+
+So on any template with more than a few hundred keys, **report the seen-key coverage or the
+seen-keys-only figure beside the held-out one**, and read the comparison against the blind
+baseline off the seen-keys column. This is the same effect the `clock-24-hour` row above
+records as "the gap was all bias" (23.4% against 25.0%) — that row is a leak-free template
+being deflated in exactly this way, and naming the mechanism is what makes the two rows
+readable as the same thing.
+
 A **null control** is still worth running where the split is not available or where you want a
 second opinion, and there are two of them. The **global** null draws the answer from the
 template's whole answer distribution independently of the key, which is what the bullet above
