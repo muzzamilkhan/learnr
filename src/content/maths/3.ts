@@ -975,16 +975,22 @@ export const year3: QuestionTemplate[] = [
     // child to be caught out by it, and it is true of every draw: three whole
     // sectors summing to eight can never all be equal.
     //
-    // **It is kept short because this prompt sits above a figure**, and there
-    // the figure claims the vertical room first and the prompt fits into what
-    // is left. What sets the floor is the second sentence: both option labels
-    // have to appear verbatim with an "or" between them, or `alreadyOffered`
-    // does not fire and narration reads "Is it a shaded part or a part with no
-    // shading?" straight after the prompt that just said it. That sentence is
-    // Year 1's `spinner-more-likely` bar one dropped "on", so the two spinners
-    // a child meets are asked in the same words.
-    prompt:
-      'The parts are different sizes. Is the arrow more likely to stop on a shaded part or a part with no shading?',
+    // **The prompt does not offer its two options, and that is deliberate on a
+    // figure question.** CLAUDE.md is explicit that the figure outranks the
+    // prompt on the play screen - the figure claims the vertical room first and
+    // the prompt fits into what is left - so a prompt that can be shorter above
+    // a picture should be. Naming the alternatives cost 37 characters here, and
+    // it bought nothing: the two buttons carry them either way, and narration
+    // *reads them out* precisely because `alreadyOffered` no longer fires, so a
+    // child who cannot read hears "Is it a shaded part or a part with no
+    // shading?" spoken from the options instead of read from the prompt. Same
+    // words, same audio, 70 characters instead of 107 - measured, and the
+    // option words were confirmed spoken on 2000 of 2000 draws rather than
+    // assumed.
+    //
+    // Years 1 and 2 offer their spinner options in the prompt and are left
+    // alone: neither is an outlier in its own year, and this one was.
+    prompt: 'The parts are different sizes. Where is the arrow more likely to stop?',
     // **Which side is bigger is a free pick, so the answer is 50/50 exactly**,
     // and **how many sectors are shaded is a second free pick**, so the number
     // of shaded parts carries no information about which side is bigger. A

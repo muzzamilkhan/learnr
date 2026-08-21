@@ -30,7 +30,7 @@ import { FIGURE_BOX, FIGURE_PADDING } from './types';
  * The same goes for every mark with extent, not only for text. A `dot` renders
  * as a round cap `strokeWidth * 3` real pixels across, centred on a point `fit`
  * bounded as a point - `bar`'s only mark that lands *exactly* on the fitted
- * bound is the dot of a zero value in an unlabelled dot plot, and it survives
+ * bound is the dot of a zero value in an unlabelled dot chart, and it survives
  * because `FIGURE_PADDING` happens to pay for it, not because the kind budgeted
  * anything. A kind that puts a heavier mark on its own bound has no such luck,
  * and would clip in silence.
