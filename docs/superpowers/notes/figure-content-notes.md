@@ -125,6 +125,12 @@ question needs three or more distinguishable regions, it needs a kind that emits
   nouns — "Cat", "Dog", "Bus", "Red" — or cut a category. Only a graph whose values stay under
   10 gets the roomier column.
 
+  **And the budget falls as the axis gains *steps*, not only digits.** `Car,Bus,Bike` over
+  values of 1–6 is refused — "Bike needs 4 characters where 3 categories leave room for 3" —
+  even though every rung on that axis is a single digit; capping the values at 5 admits it.
+  So the table above is an upper bound rather than a promise. **Build the figure and read the
+  issues** before settling on a category name, rather than counting characters against it.
+
 - **A `bar` figure needs its maximum constrained above the scale.** An axis of a single step
   is refused ("nothing between the bottom and the top to read a value against"), so three
   values each drawn `1..5` at `scale: '1'` are all 1 about once in 125 draws — and
@@ -174,6 +180,18 @@ Both leaks below are enforced by `validateTemplate`, and both were found in ship
 Declare `rankIsTheQuestion: true` or `propertyIsTheQuestion: true` **only** where finding the
 extreme, or telling that property apart, genuinely *is* the question. They are separate flags
 and each suppresses only its own check.
+
+## A true/false question is not balanced because you asked for balance
+
+**Spelling "right half the time" as a constraint does not give you half.** Rejection sampling
+draws the whole scope and throws the binding away when a constraint fails, so a constraint that
+is easier to satisfy one way than the other skews what survives. Two Year 1 templates written
+that way measured **78/22** and **74/26** before being rewritten. A child who learns that "true"
+is the safer guess has learned something, and it is not maths.
+
+Derive the flag instead of constraining it — pick an offset, or a signed amount, and let the
+answer fall out of it. The same two templates then measured **51/49**. **Measure the split
+rather than assuming it**, exactly as you measure a multiple-choice question's rank spread.
 
 **Reach every rank you can.** The check refuses only a *constant* rank, which is weaker than
 "the rank carries no information". Twelve templates reworked earlier land on two of four ranks
