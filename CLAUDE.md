@@ -144,14 +144,18 @@ rather than one blanket "trust me", each suppressing exactly one check, and both
 visible in review, because an undeclared fixed rank is a question a child can
 beat.
 
-**On a figure question, both checks tend to stand down, so measurement is the
+**On a figure question both checks usually stand down, so measurement is the
 only net there is.** Neither exempts a figure structurally - the rank check
-runs on any `choices` template whose options are all numeric. It is the
-*options* that decide: a shape name or a grid reference is not a number, so one
-wordy draw takes the rank check off the table, and all 44 shipped templates
-carrying both a figure and `choices` name their options in words. The
-closed-set check then stops reading disjointness as structure above
-`CLOSED_SET_MAX` (8) distinct answers, and a three-by-three grid reaches nine.
+runs on any `choices` template whose options are all numeric, figure or not.
+It is the *options* that decide, and a shape name or a grid reference is not a
+number, so one wordy draw takes the rank check off the table: 43 of the 44
+shipped templates carrying both a figure and `choices` word their options. The
+forty-fourth is the demonstration rather than the exception -
+`maths.5.angles.estimate-degrees` offers 30, 60, 90 and 120, so it is
+rank-checked like anything else and passes on the merits, its answer sitting on
+each of the four ranks about a quarter of the time. The closed-set check then
+stops reading disjointness as structure above `CLOSED_SET_MAX` (8) distinct
+answers, and a three-by-three grid reaches nine.
 Every leak found while writing this branch's figure content was found by
 *measuring* - keying each draw by its prompt and sorted option set, learning
 the modal answer on one sample and scoring it on a held-out one against the
