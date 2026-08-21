@@ -1160,11 +1160,12 @@ export const year6: QuestionTemplate[] = [
     // a number of half-pictures, so every row is a whole or a half of one and
     // the key can say all of them exactly.
     //
-    // MA3-DATA-01 is the many-to-one outcome, so this needs no argument at
-    // Stage 3 - Years K to 4 were held to a key of one or to an ACARA-only
-    // citation because NSW glosses many-to-one scales here. **The prompt still
-    // says what one picture stands for**, at every year: the graph's own key
-    // draws an icon and a number and cannot say two *what*.
+    // It carries MA3-DATA-01, the code Year 5's two picture graphs already
+    // carry, and needs no argument for it here - Years K to 4 were held to a
+    // key of one or to an ACARA-only citation, and Stage 3 is where that
+    // stopped being necessary. **The prompt still says what one picture stands
+    // for**, at every year: the graph's own key draws an icon and a number and
+    // cannot say two *what*.
     prompt: 'Each picture stands for 20 books. How many books did the three read altogether?',
     // One to eight halves is four pictures at most, which is what a
     // three-character row label leaves room for.

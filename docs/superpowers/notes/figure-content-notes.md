@@ -398,9 +398,9 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   equivalent argument out loud**; a Year 4 template that already carries a many-to-one key and
   no such argument belongs in the ACARA-only case.
 
-  **At Stage 3 the argument stops being needed.** `MA3-DATA-01` *is* the many-to-one outcome,
-  so a Year 5 or Year 6 picture graph whose key says ten carries it like any other citation —
-  and Year 5's two do. Everything else about a key still holds: the prompt says what one
+  **At Stage 3 the argument stops being needed.** A Year 5 or Year 6 picture graph whose key
+  says ten carries `MA3-DATA-01` like any other citation — Year 5's two picture graphs do, and
+  Year 6's total question does. Everything else about a key still holds: the prompt says what one
   picture stands for, because the graph's own key draws an icon and a number and cannot say two
   *what*.
 

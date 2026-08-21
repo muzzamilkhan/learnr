@@ -768,14 +768,13 @@ export const year5: QuestionTemplate[] = [
   //
   // **They are also the only two templates in this year with no NSW code, and
   // that is deliberate.** Stage 2 files symmetry and turning under
-  // MA2-2DS-02, transformations - and Stage 3 has no successor to it. Its three
-  // two-dimensional outcomes are classifying triangles and quadrilaterals
-  // (MA3-2DS-01) and two about area. Both questions below draw pentagons,
-  // hexagons, heptagons and octagons and ask about rotational symmetry, which
-  // is neither a classification nor a question about a triangle or a
-  // quadrilateral, so MA3-2DS-01 would be a citation the curriculum page
-  // presents as checkable and which does not check out. A missing citation
-  // costs nothing here: the ACARA pair above says exactly what is practised.
+  // MA2-2DS-02, transformations - and Stage 3 has no successor to it in the
+  // assembled code list. The nearest Stage 3 candidate is MA3-2DS-01, and it
+  // does not reach the shapes these two draw: pentagons, hexagons, heptagons
+  // and octagons, asked about rotational symmetry. So MA3-2DS-01 would be a
+  // citation the curriculum page presents as checkable and which does not check
+  // out. A missing citation costs nothing here: the ACARA pair above says
+  // exactly what is practised.
   {
     id: 'maths.5.symmetry.half-turn',
     subject: 'maths',

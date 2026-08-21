@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateTemplates } from '@/lib/templates/validate';
 import { generateQuestion } from '@/lib/templates/generate';
 import { createRng } from '@/lib/rng';
-import { isYearLevel } from '@/lib/curriculum';
+import { isYearLevel, stageForLevel, type Stage } from '@/lib/curriculum';
 import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
 import {
   allTemplates,
@@ -18,6 +18,123 @@ import {
   syllabusOf,
   nswStageOfCode,
 } from './catalog';
+
+/**
+ * Every NSW outcome code a template may cite, by stage - the four stage tables
+ * of `docs/superpowers/notes/nsw-outcome-codes.md`, and nothing else. The test
+ * flattens it, so the grouping buys nothing at assertion time and everything at
+ * transcription time: it is four tables to check against four tables, in their
+ * order, rather than one list of seventy-three to check against a document.
+ *
+ * The list is what turns "looks like a code" into "is a code": `syllabusOf`'s
+ * pattern is a shape test, so a transposed `MA3-RFQ-01` for `MA3-RQF-01`
+ * satisfies it, cites a syllabus, and reads from the right stage. Every other
+ * test in this file passes on that typo, and the curriculum page would then
+ * invite a parent to look up an outcome that does not exist.
+ *
+ * **Transcribed rather than parsed out of the notes file, and the alternative
+ * was close.** The notes file is the single source of truth and a copy of it
+ * here is a second one that can drift - but it lives under `docs/`, is prose
+ * written for a person to read, and is free to be reworded or reformatted. A
+ * regex over its markdown tables that stops matching produces an *empty* list,
+ * and an empty membership list waves through every code in the catalogue: the
+ * failure mode is a green test, which is the one failure mode this net must not
+ * have. A transcription fails the other way - a code missing from it fails
+ * loudly against the template that legitimately cites it.
+ *
+ * **`MAO-WM-01` is deliberately absent.** Working mathematically hangs off
+ * every outcome at every stage and has no stage of its own, which is why
+ * `nswStageOfCode` returns null for it and why the stage test below would wave
+ * it through. The notes file says not to cite it on a template - a generated
+ * single-answer question cannot evidence it - and leaving it out of this list
+ * is what makes that rule enforced rather than written down. The `/curriculum`
+ * page naming it is prose about what this app does not claim to cover, not a
+ * citation, so nothing there needs it here. This list answers one question
+ * only: may a template carry this code?
+ */
+const NSW_OUTCOMES: Record<Stage, readonly string[]> = {
+  ES1: [
+    'MAE-RWN-01',
+    'MAE-RWN-02',
+    'MAE-CSQ-01',
+    'MAE-CSQ-02',
+    'MAE-FG-01',
+    'MAE-FG-02',
+    'MAE-GM-01',
+    'MAE-GM-02',
+    'MAE-GM-03',
+    'MAE-2DS-01',
+    'MAE-2DS-02',
+    'MAE-3DS-01',
+    'MAE-3DS-02',
+    'MAE-NSM-01',
+    'MAE-NSM-02',
+    'MAE-DATA-01',
+  ],
+  S1: [
+    'MA1-RWN-01',
+    'MA1-RWN-02',
+    'MA1-CSQ-01',
+    'MA1-FG-01',
+    'MA1-GM-01',
+    'MA1-GM-02',
+    'MA1-GM-03',
+    'MA1-2DS-01',
+    'MA1-2DS-02',
+    'MA1-3DS-01',
+    'MA1-3DS-02',
+    'MA1-NSM-01',
+    'MA1-NSM-02',
+    'MA1-DATA-01',
+    'MA1-DATA-02',
+    'MA1-CHAN-01',
+  ],
+  S2: [
+    'MA2-RN-01',
+    'MA2-RN-02',
+    'MA2-AR-01',
+    'MA2-AR-02',
+    'MA2-MR-01',
+    'MA2-MR-02',
+    'MA2-PF-01',
+    'MA2-GM-01',
+    'MA2-GM-02',
+    'MA2-GM-03',
+    'MA2-2DS-01',
+    'MA2-2DS-02',
+    'MA2-2DS-03',
+    'MA2-3DS-01',
+    'MA2-3DS-02',
+    'MA2-NSM-01',
+    'MA2-NSM-02',
+    'MA2-DATA-01',
+    'MA2-DATA-02',
+    'MA2-CHAN-01',
+  ],
+  S3: [
+    'MA3-RN-01',
+    'MA3-RN-02',
+    'MA3-RN-03',
+    'MA3-AR-01',
+    'MA3-MR-01',
+    'MA3-MR-02',
+    'MA3-RQF-01',
+    'MA3-RQF-02',
+    'MA3-GM-01',
+    'MA3-GM-02',
+    'MA3-GM-03',
+    'MA3-2DS-01',
+    'MA3-2DS-02',
+    'MA3-2DS-03',
+    'MA3-3DS-01',
+    'MA3-3DS-02',
+    'MA3-NSM-01',
+    'MA3-NSM-02',
+    'MA3-DATA-01',
+    'MA3-DATA-02',
+    'MA3-CHAN-01',
+  ],
+};
 
 describe('shipped content', () => {
   it('every template is valid', () => {
@@ -219,6 +336,64 @@ describe('shipped content', () => {
       .map((t) => t.id);
 
     expect(missingNsw.sort()).toEqual([...acaraOnly].sort());
+  });
+
+  // The characteristic bug of a second citation family, and invisible by
+  // inspection across 350 templates: an NSW code from the wrong stage. A Stage 2
+  // code on a Year 5 template reads as perfectly plausible and is simply wrong,
+  // and every other test here passes on it - it cites a syllabus, it is a real
+  // code, and it has no space in it. NSW pairs its years (Early Stage 1 is
+  // Kindergarten, Stage 1 is Years 1 and 2, Stage 2 is Years 3 and 4, Stage 3 is
+  // Years 5 and 6), so the check is against the template's stage and never its
+  // year: a Year 6 template citing the MA3- code Year 5 also carries is the
+  // syllabus working as written, not a mistake.
+  it('only cites an NSW outcome from the stage the template’s year falls in', () => {
+    for (const template of allTemplates) {
+      for (const tag of template.tags ?? []) {
+        const stage = nswStageOfCode(tag);
+        if (!stage) continue;
+        expect(stage, `${template.id} cites ${tag}`).toBe(stageForLevel(template.level));
+      }
+    }
+  });
+
+  // And the code has to be one the syllabus actually has. This is the only test
+  // in the file that checks a citation for *truth* rather than for shape, which
+  // is what makes it the strongest of them: `syllabusOf` accepts anything shaped
+  // like a code, so a transposition survives every other check and reaches the
+  // curriculum page, where a parent is invited to look it up. See NSW_OUTCOMES
+  // above for why the list is transcribed and why MAO-WM-01 is not in it.
+  it('cites no NSW outcome code the syllabus does not have', () => {
+    const known = new Set(Object.values(NSW_OUTCOMES).flat());
+
+    for (const template of allTemplates) {
+      for (const tag of template.tags ?? []) {
+        if (syllabusOf(tag) !== 'nsw') continue;
+        expect(known.has(tag), `${template.id} cites ${tag}, which is not an NSW outcome`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  // A tag is an identifier. Anything with a space in it is prose, and NESA's is
+  // Crown copyright - nothing in this repo stores an outcome statement. This is
+  // a cheap guard on the one rule whose breach would be a licensing problem
+  // rather than a bug.
+  //
+  // **It is asserted over every tag rather than over the NSW ones**, and that is
+  // the difference between a test and a decoration: `syllabusOf` recognises NSW
+  // by a pattern with no whitespace in it, so a tag holding an outcome statement
+  // is not an NSW tag by that test's own reckoning and the guard would never see
+  // it. Checking every tag is what lets the assertion fail on the mistake it
+  // exists to catch - a line of syllabus prose pasted into `tags` beside the
+  // code it came from.
+  it('reproduces no syllabus prose, only codes', () => {
+    for (const template of allTemplates) {
+      for (const tag of template.tags ?? []) {
+        expect(tag, template.id).not.toMatch(/\s/);
+      }
+    }
   });
 
   it('tags every template with a school year', () => {
