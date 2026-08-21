@@ -192,11 +192,12 @@ const MIN_LINE_SPAN = 0.1;
  * at report scale, and a child counting along the line in the report is
  * counting a band.
  *
- * **The minor ticks are measured against that smaller surface, and that is
- * `spinner`'s argument rather than a taste**: a figure is built **once**,
- * `buildFigure`'s signature carries no scale, so the smaller of the two call
- * sites governs anything that has to stay countable. `spinner-kind.ts` states
- * it outright, and its `MIN_SECTOR_DEGREES` is derived exactly this way.
+ * **The minor ticks are measured against the report row rather than against
+ * the play screen, and that is `spinner`'s argument rather than a taste**: a
+ * figure is built **once**, `buildFigure`'s signature carries no scale, so the
+ * smaller of the two call sites governs anything that has to stay countable.
+ * `spinner-kind.ts` states it outright, and its `MIN_SECTOR_DEGREES` is derived
+ * exactly this way.
  *
  * **`bar` makes the opposite choice for its category labels, and it does not
  * transfer here.** Read `categoryBudget`: it judges *collision* at play scale

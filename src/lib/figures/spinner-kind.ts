@@ -146,21 +146,19 @@ const RIM_POINTS = 72;
 /** The disc, before `fit` scales the drawing into the box. */
 const RADIUS = 1;
 
-/**
- * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
- * pixels (`REPORT_BOX_PX` and `REPORT_STROKE_PX` in `labels.ts`), against the
- * play screen's whole question area. A figure is built **once** for both -
- * `buildFigure`'s signature carries no scale - so a spinner that is only
- * readable on the play screen is a spinner that is unreadable in every report
- * row, and both limits below are measured against the smaller.
- */
-
 /** What `fit` leaves the drawing, and so the rim's radius, in the box's units. */
 const FITTED_RADIUS = (FIGURE_BOX - 2 * FIGURE_PADDING) / 2;
 
 /**
  * How much of the turn one real pixel of rim is worth in a report thumbnail.
  * Every angular limit here is a number of stroke widths through this.
+ *
+ * A parent's report draws this figure in a 64px square at a stroke of 1.5 real
+ * pixels (`REPORT_BOX_PX` and `REPORT_STROKE_PX` in `labels.ts`), against the
+ * play screen's whole question area. **A figure is built once for both** -
+ * `buildFigure`'s signature carries no scale - so a spinner that is only
+ * readable on the play screen is a spinner that is unreadable in every report
+ * row, and both limits below are measured against the smaller.
  */
 const DEGREES_PER_RIM_PX =
   360 / (2 * Math.PI * (FITTED_RADIUS / FIGURE_BOX) * REPORT_BOX_PX);

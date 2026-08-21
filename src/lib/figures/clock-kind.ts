@@ -213,6 +213,23 @@ const MINUTE_TICK = 0.07;
 const TICK_INNER_RADIUS = RADIUS * (1 - HOUR_TICK);
 
 /**
+ * What the minute hand may be read against, in words, for the sentence an
+ * author is refused with.
+ *
+ * **Written as the same branches `MINUTE_STEP` is**, rather than as the middle
+ * one spelled out: a message naming the hour marks would have gone on naming
+ * them after the measurement had stopped choosing them, which is the drift the
+ * step above is written as a measurement to avoid. It is only ever read when
+ * the step is coarser than a minute, since that is the only time a minute is
+ * refused at all.
+ */
+const READABLE_POSITIONS =
+  MINUTE_STEP <= MINUTES_PER_HOUR_MARK
+    ? `only the ${HOURS} hour marks can be read off the face`
+    : `not even the ${HOURS} hour marks stand clear of one another, so only the quarters -` +
+      ' straight up, right, down and left - can be read';
+
+/**
  * The numerals a face carries when it carries any: the quarters, and **not all
  * twelve**. See the module comment - twelve two-character numerals overlap at
  * report scale on a ring that also has to keep its own ink inside the dial, and
@@ -260,10 +277,15 @@ const NUMERAL_RADIUS = TICK_INNER_RADIUS - NUMERAL_INK_REACH;
  *
  * They are disjoint by more than `MIN_HAND_DIFFERENCE`, which is what keeps the
  * hour hand readable as the shorter one - length is the only thing telling the
- * two apart, since `Mark` carries no stroke width. The minute hand stops short
- * of the rim and reaches about as far as the numeral ring, which is what an
- * analogue clock does - and the numerals are drawn last, so one it is pointing
- * at sits over it rather than being crossed out by it.
+ * two apart, since `Mark` carries no stroke width.
+ *
+ * Both bands sit against `NUMERAL_RADIUS`, which is 0.649 of the dial: **the
+ * minute hand reaches past the numeral ring** - by 17% of it at its shortest
+ * and 42% at its longest - and still stops short of the rim, which is where an
+ * analogue clock's minute hand goes; the hour hand stays inside the ring bar a
+ * fraction of a pixel at its very longest. Either way a hand may lie under a
+ * numeral, and the numerals being emitted **last** is what makes that safe: the
+ * glyph is painted over the hand rather than crossed out by it.
  */
 const HOUR_HAND_BAND = [0.4, 0.52] as const;
 const MINUTE_HAND_BAND = [0.76, 0.92] as const;
@@ -486,9 +508,8 @@ export const clockModule: FigureKindModule<'clock'> = {
           `figure.minute: ${minute} leaves the minute hand between two marks nobody can tell` +
             ` apart - ${MINUTES_PER_HOUR} minute ticks stand` +
             ` ${reportMarkPitchPx(MINUTES_PER_HOUR).toFixed(2)}px apart in a report row against` +
-            ` a ${REPORT_STROKE_PX}px stroke, under the ${MIN_MARK_GAP_PX} that makes two of` +
-            ` them two marks, so only the ${HOURS} hour marks can be read off the face. Ask` +
-            ` for a multiple of ${MINUTE_STEP}.`,
+            ` a ${REPORT_STROKE_PX}px stroke, under the ${MIN_MARK_GAP_PX}px that makes two of` +
+            ` them two marks, so ${READABLE_POSITIONS}. Ask for a multiple of ${MINUTE_STEP}.`,
         );
       }
     }
