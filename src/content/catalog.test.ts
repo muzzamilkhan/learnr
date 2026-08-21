@@ -114,6 +114,14 @@ describe('shipped content', () => {
   // means dropping the asterisk later has to be a decision somebody makes,
   // rather than a test going quietly green when a well-meaning edit adds an
   // AC9MF code that does not belong.
+  //
+  // **The list is closed from both ends, and the second end is the one that
+  // matters.** Asserting only that these two lack an ACARA code catches an
+  // addition to them and misses a subtraction from anything else: with the
+  // citation rule above now satisfied by either syllabus, dropping ACARA from
+  // any of the other templates would otherwise pass green. So the exception is
+  // also asserted as exhaustive - a template with no ACARA code has to be one
+  // of the ids named here.
   it('cites no ACARA description for the content ACARA places beyond Kindergarten', () => {
     const nswOnly = ['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`);
 
@@ -123,6 +131,12 @@ describe('shipped content', () => {
       expect(template!.tags?.some((tag) => syllabusOf(tag) === 'nsw'), id).toBe(true);
       expect(template!.tags?.some((tag) => syllabusOf(tag) === 'acara'), id).toBe(false);
     }
+
+    const missingAcara = allTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'acara'))
+      .map((t) => t.id);
+
+    expect(missingAcara.sort()).toEqual([...nswOnly].sort());
   });
 
   it('tags every template with a school year', () => {

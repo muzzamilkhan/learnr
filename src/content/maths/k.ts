@@ -16,11 +16,16 @@ export const yearK: QuestionTemplate[] = [
   // Kindergarten (Foundation)
   //
   // Numbers to 20, subitising, part-part-whole to 10, practical addition,
-  // subtraction and sharing, repeating patterns, direct comparison of length
-  // and capacity, days of the week, and naming shapes.
+  // subtraction and sharing, repeating patterns, direct comparison of length,
+  // capacity and mass, the days of the week and the hour, naming shapes and
+  // solids, and reading a graph.
   //
-  // The shape questions are where the first pictures in the course are: three
-  // of them are a drawing with a caption rather than a sentence.
+  // Plenty of these are a picture rather than a sentence, and each one is filed
+  // with the topic it practises rather than in a group of its own: a graph is
+  // read off the drawing, a solid has to be looked at, and a clock face and a
+  // number line are the two places a number lives somewhere other than in the
+  // words. Someone asking what Kindergarten asks about shapes should find all
+  // of it in one run, which is also how the selector reasons about it.
   // ------------------------------------------------------------------
   {
     id: 'maths.K.counting-numbers.next',
@@ -75,6 +80,32 @@ export const yearK: QuestionTemplate[] = [
     answer: 'x + 6',
     hint: 'Add two more each time.',
     tags: ['AC9MFA01', 'MAE-FG-02'],
+  },
+  {
+    id: 'maths.K.counting-numbers.number-line',
+    subject: 'maths',
+    topic: 'counting numbers',
+    level: 'K',
+    prompt: 'What number is the arrow pointing to?',
+    // The line is ten long and starts at 0, 5 or 10, so the same answer is
+    // shown on a different stretch of the number line on different seeds -
+    // which is where this question's variation comes from, since the arrow's
+    // position *is* the answer and cannot move.
+    vars: [
+      { name: 'base', kind: 'pick', from: [0, 5, 10] },
+      { name: 'n', kind: 'int', min: 'base + 1', max: 'base + 9' },
+    ],
+    // Never on one of the three labelled ticks, so the number is always
+    // counted off the small ones rather than read off a label.
+    constraints: ['n != base + 5'],
+    answer: 'n',
+    hint: 'Start at the last number you can see, then count the small ticks.',
+    // Both ends and the step are pinned together. A step left open is drawn at
+    // whatever divides the line, so a whole number in 0-9 is sometimes shown on
+    // a line reading 2.5 | 5 | 7.5 - legitimate, and the wrong line for a
+    // five-year-old.
+    figure: { kind: 'number-line', at: 'n', from: 'base', to: 'base + 10', step: '5' },
+    tags: ['AC9MFN01', 'MAE-RWN-02'],
   },
   {
     id: 'maths.K.comparing-numbers.larger',
@@ -311,6 +342,45 @@ export const yearK: QuestionTemplate[] = [
     tags: ['AC9MFM01', 'MAE-3DS-02'],
   },
   {
+    id: 'maths.K.measurement.heavier',
+    subject: 'maths',
+    topic: 'measurement',
+    level: 'K',
+    // A book and a shoe rather than a book and a feather: either really could
+    // be the heavier one, so the balance is the only place the answer is.
+    prompt:
+      'A book balances {a} blocks. A shoe balances {b} blocks. Which is heavier, the book or the shoe?',
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'int', min: '2', max: '12' },
+    ],
+    constraints: ['a != b'],
+    answer: "a > b ? 'book' : 'shoe'",
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'book'", "'shoe'"] },
+    tags: ['AC9MFM01', 'MAE-NSM-01'],
+  },
+  {
+    id: 'maths.K.measurement.lightest',
+    subject: 'maths',
+    topic: 'measurement',
+    level: 'K',
+    // Three bags told apart by colour alone, so nothing a child already knows
+    // about how heavy things are can answer it for them.
+    prompt:
+      'The red bag balances {a} blocks, the blue bag {b} blocks and the green bag {c} blocks. Which bag is the lightest?',
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'int', min: '2', max: '12' },
+      { name: 'c', kind: 'int', min: '2', max: '12' },
+    ],
+    constraints: ['a != b', 'b != c', 'a != c'],
+    answer: "a < b && a < c ? 'red' : b < c ? 'blue' : 'green'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'red'", "'blue'", "'green'"] },
+    tags: ['AC9MFM01', 'MAE-NSM-01'],
+  },
+  {
     id: 'maths.K.time.day-after',
     subject: 'maths',
     topic: 'time',
@@ -345,6 +415,80 @@ export const yearK: QuestionTemplate[] = [
     answerType: 'choice',
     choices: { count: 4, distractors: ['day', 'after', 'twoBefore'] },
     tags: ['AC9MFM02', 'MAE-NSM-02'],
+  },
+
+  // The two clock faces, and the one place in this file where the syllabuses
+  // disagree. NSW puts hour time at Early Stage 1; ACARA puts reading a clock
+  // at Year 2, and Foundation's one time description is about the days of the
+  // week rather than about a dial - so these two cite NSW alone, and
+  // `catalog.test.ts` names them rather than letting the gap go unremarked.
+  {
+    id: 'maths.K.time.oclock',
+    subject: 'maths',
+    topic: 'time',
+    level: 'K',
+    prompt: 'What time is this?',
+    vars: [
+      { name: 'h', kind: 'int', min: '1', max: '12' },
+      // **The offsets carry a sign, and that is the whole point of them.** Two
+      // near hours and one further off is the right *kind* of distractor - a
+      // misread hour hand lands next door, not across the dial - but drawn as
+      // -1, +1 and +4 the answer was the middle of three consecutive hours in
+      // every single draw, with one outlier that could never join the run. That
+      // is a question answered by looking at the four buttons. Neither leak
+      // check would have said so: the rank check stands down because an option
+      // reads "3 o’clock" rather than 3, and the closed-set check stands down
+      // because twelve answers is past `CLOSED_SET_MAX`. So the spread is the
+      // content's job here, and drawing each offset's direction is what does it.
+      { name: 'near', kind: 'pick', from: [-2, -1, 1, 2] },
+      { name: 'alsoNear', kind: 'pick', from: [-2, -1, 1, 2] },
+      { name: 'far', kind: 'pick', from: [-5, -4, -3, 3, 4, 5] },
+    ],
+    // Only the two near offsets can collide; `far` is never within two hours of
+    // the answer, so all four options are always distinct.
+    constraints: ['near != alsoNear'],
+    // O'clock only. Early Stage 1 reads the hour and Stage 1 adds half past,
+    // and a time is not a thing the number pad can type - so the hours are
+    // written out and tapped.
+    answer: "h + ' o’clock'",
+    answerType: 'choice',
+    choices: {
+      count: 4,
+      distractors: [
+        "(mod(h + near - 1, 12) + 1) + ' o’clock'",
+        "(mod(h + alsoNear - 1, 12) + 1) + ' o’clock'",
+        "(mod(h + far - 1, 12) + 1) + ' o’clock'",
+      ],
+    },
+    hint: 'The short hand tells you the hour.',
+    // **`numerals` is pinned, and omitting it was a real bug rather than a
+    // missing flourish.** An omitted field is a coin toss, so half of these drew
+    // a dial with twelve bare ticks and no numbers on it at all - which is not
+    // an Early Stage 1 question however carefully the hands are read. Nothing is
+    // lost by pinning it: `minuteTicks` and the two continuously jittered hand
+    // lengths already give hundreds of distinct figures per answer.
+    figure: { kind: 'clock', hour: 'h', minute: '0', numerals: 'true' },
+    tags: ['MAE-NSM-02'],
+  },
+  {
+    id: 'maths.K.time.clock-says',
+    subject: 'maths',
+    topic: 'time',
+    level: 'K',
+    prompt: 'True or false: this clock shows {h} o’clock.',
+    vars: [
+      { name: 'h', kind: 'int', min: '1', max: '12' },
+      { name: 'right', kind: 'int', min: '0', max: '1' },
+      // How far the wrong clock is out by. From 1 to 11, so a wrong one is
+      // never accidentally the hour the question named.
+      { name: 'off', kind: 'int', min: '1', max: '11' },
+      { name: 'shown', kind: 'expr', expr: 'right == 1 ? h : mod(h + off - 1, 12) + 1' },
+    ],
+    answer: 'shown == h',
+    // Pinned for the reason the question above gives, and it matters more here:
+    // an unnumbered dial turns a true/false into a coin toss.
+    figure: { kind: 'clock', hour: 'shown', minute: '0', numerals: 'true' },
+    tags: ['MAE-NSM-02'],
   },
   {
     id: 'maths.K.shapes.sides',
@@ -474,148 +618,11 @@ export const yearK: QuestionTemplate[] = [
     figure: { kind: 'polygon', shape: 'shape' },
     tags: ['AC9MFSP01', 'MAE-2DS-01'],
   },
-  {
-    id: 'maths.K.data.most-counted',
-    subject: 'maths',
-    topic: 'data',
-    level: 'K',
-    prompt: 'Sam counted cars: {a} red, {b} blue and {c} green. Which colour did he see most of?',
-    vars: [
-      { name: 'a', kind: 'int', min: '1', max: '12' },
-      { name: 'b', kind: 'int', min: '1', max: '12' },
-      { name: 'c', kind: 'int', min: '1', max: '12' },
-    ],
-    constraints: ['a != b', 'b != c', 'a != c'],
-    answer: "a > b && a > c ? 'red' : b > c ? 'blue' : 'green'",
-    answerType: 'choice',
-    choices: { count: 3, distractors: ["'red'", "'blue'", "'green'"] },
-    tags: ['AC9MFST01', 'MAE-DATA-01'],
-  },
 
-  // ------------------------------------------------------------------
-  // The rest of the pictures.
-  //
-  // Kindergarten's Space, Measurement and Statistics content, which a sentence
-  // could not ask: a graph is read off the drawing, a solid has to be looked
-  // at, and a clock face and a number line are the two places a number lives
-  // somewhere other than in the words.
-  //
-  // Everything here is Early Stage 1 by NSW's placement, and everything but the
-  // two clock faces is Foundation by ACARA's. Those two cite NSW alone: ACARA
-  // places reading a clock at Year 2, and Foundation's one time description is
-  // about the days of the week rather than about a dial, so there is no honest
-  // ACARA code to put beside them. `catalog.test.ts` names them.
-  // ------------------------------------------------------------------
-  {
-    id: 'maths.K.counting-numbers.number-line',
-    subject: 'maths',
-    topic: 'counting numbers',
-    level: 'K',
-    prompt: 'What number is the arrow pointing to?',
-    // The line is ten long and starts at 0, 5 or 10, so the same answer is
-    // shown on a different stretch of the number line on different seeds -
-    // which is where this question's variation comes from, since the arrow's
-    // position *is* the answer and cannot move.
-    vars: [
-      { name: 'base', kind: 'pick', from: [0, 5, 10] },
-      { name: 'n', kind: 'int', min: 'base + 1', max: 'base + 9' },
-    ],
-    // Never on one of the three labelled ticks, so the number is always
-    // counted off the small ones rather than read off a label.
-    constraints: ['n != base + 5'],
-    answer: 'n',
-    hint: 'Count on from the number before it.',
-    // Both ends and the step are pinned together. A step left open is drawn at
-    // whatever divides the line, so a whole number in 0-9 is sometimes shown on
-    // a line reading 2.5 | 5 | 7.5 - legitimate, and the wrong line for a
-    // five-year-old.
-    figure: { kind: 'number-line', at: 'n', from: 'base', to: 'base + 10', step: '5' },
-    tags: ['AC9MFN01', 'MAE-RWN-02'],
-  },
-  {
-    id: 'maths.K.measurement.heavier',
-    subject: 'maths',
-    topic: 'measurement',
-    level: 'K',
-    // A book and a shoe rather than a book and a feather: either really could
-    // be the heavier one, so the balance is the only place the answer is.
-    prompt:
-      'A book balances {a} blocks. A shoe balances {b} blocks. Which is heavier, the book or the shoe?',
-    vars: [
-      { name: 'a', kind: 'int', min: '2', max: '12' },
-      { name: 'b', kind: 'int', min: '2', max: '12' },
-    ],
-    constraints: ['a != b'],
-    answer: "a > b ? 'book' : 'shoe'",
-    answerType: 'choice',
-    choices: { count: 2, distractors: ["'book'", "'shoe'"] },
-    tags: ['AC9MFM01', 'MAE-NSM-01'],
-  },
-  {
-    id: 'maths.K.measurement.lightest',
-    subject: 'maths',
-    topic: 'measurement',
-    level: 'K',
-    // Three bags told apart by colour alone, so nothing a child already knows
-    // about how heavy things are can answer it for them.
-    prompt:
-      'The red bag balances {a} blocks, the blue bag {b} blocks and the green bag {c} blocks. Which bag is the lightest?',
-    vars: [
-      { name: 'a', kind: 'int', min: '2', max: '12' },
-      { name: 'b', kind: 'int', min: '2', max: '12' },
-      { name: 'c', kind: 'int', min: '2', max: '12' },
-    ],
-    constraints: ['a != b', 'b != c', 'a != c'],
-    answer: "a < b && a < c ? 'red' : b < c ? 'blue' : 'green'",
-    answerType: 'choice',
-    choices: { count: 3, distractors: ["'red'", "'blue'", "'green'"] },
-    tags: ['AC9MFM01', 'MAE-NSM-01'],
-  },
-  {
-    id: 'maths.K.time.oclock',
-    subject: 'maths',
-    topic: 'time',
-    level: 'K',
-    prompt: 'What time is this?',
-    vars: [{ name: 'h', kind: 'int', min: '1', max: '12' }],
-    // O'clock only. Early Stage 1 reads the hour and Stage 1 adds half past,
-    // and a time is not a thing the number pad can type - so the hours are
-    // written out and tapped.
-    answer: "h + ' o’clock'",
-    answerType: 'choice',
-    // The hour before, the hour after, and one from across the dial. They wrap
-    // through 12, so the answer is sometimes the smallest hour on offer and
-    // sometimes the largest.
-    choices: {
-      count: 4,
-      distractors: [
-        "(mod(h + 10, 12) + 1) + ' o’clock'",
-        "(mod(h, 12) + 1) + ' o’clock'",
-        "(mod(h + 4, 12) + 1) + ' o’clock'",
-      ],
-    },
-    hint: 'The short hand tells you the hour.',
-    figure: { kind: 'clock', hour: 'h', minute: '0' },
-    tags: ['MAE-NSM-02'],
-  },
-  {
-    id: 'maths.K.time.clock-says',
-    subject: 'maths',
-    topic: 'time',
-    level: 'K',
-    prompt: 'True or false: this clock shows {h} o’clock.',
-    vars: [
-      { name: 'h', kind: 'int', min: '1', max: '12' },
-      { name: 'right', kind: 'int', min: '0', max: '1' },
-      // How far the wrong clock is out by. From 1 to 11, so a wrong one is
-      // never accidentally the hour the question named.
-      { name: 'off', kind: 'int', min: '1', max: '11' },
-      { name: 'shown', kind: 'expr', expr: 'right == 1 ? h : mod(h + off - 1, 12) + 1' },
-    ],
-    answer: 'shown == h',
-    figure: { kind: 'clock', hour: 'shown', minute: '0' },
-    tags: ['MAE-NSM-02'],
-  },
+  // Three dimensions. A solid is the other half of what Early Stage 1 means by
+  // a shape, and every one of these is a picture for the reason the flat ones
+  // above are: there is no sentence that asks what a cylinder looks like
+  // without answering itself. The names are tapped, never spelled.
   {
     id: 'maths.K.shapes.solid-name',
     subject: 'maths',
@@ -663,14 +670,42 @@ export const yearK: QuestionTemplate[] = [
     topic: 'shapes',
     level: 'K',
     prompt: 'Which of these is shaped like this?',
-    vars: [{ name: 'shape', kind: 'pick', from: ['cube', 'sphere', 'cone', 'cylinder'] }],
+    // A cuboid as well as a cube, and both of them a box. The naming question
+    // above draws from four solids and this one from five, so the two do not
+    // read as the same question twice when a session puts them near each other.
+    vars: [
+      { name: 'shape', kind: 'pick', from: ['cube', 'cuboid', 'sphere', 'cone', 'cylinder'] },
+    ],
     answer:
-      "shape == 'sphere' ? 'a ball' : shape == 'cube' ? 'a box' : shape == 'cylinder' ? 'a can' : 'a party hat'",
+      "shape == 'sphere' ? 'a ball' : shape == 'cube' || shape == 'cuboid' ? 'a box' : " +
+      "shape == 'cylinder' ? 'a can' : 'a party hat'",
     answerType: 'choice',
     choices: { count: 4, distractors: ["'a ball'", "'a box'", "'a can'", "'a party hat'"] },
     figure: { kind: 'solid', solid: 'shape', view: "'object'" },
     tags: ['AC9MFSP01', 'MAE-3DS-01'],
   },
+  {
+    id: 'maths.K.data.most-counted',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'Sam counted cars: {a} red, {b} blue and {c} green. Which colour did he see most of?',
+    vars: [
+      { name: 'a', kind: 'int', min: '1', max: '12' },
+      { name: 'b', kind: 'int', min: '1', max: '12' },
+      { name: 'c', kind: 'int', min: '1', max: '12' },
+    ],
+    constraints: ['a != b', 'b != c', 'a != c'],
+    answer: "a > b && a > c ? 'red' : b > c ? 'blue' : 'green'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'red'", "'blue'", "'green'"] },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
+
+  // Two kinds of graph - a column graph and a picture graph - which is where a
+  // Kindergartener meets data as something read off a drawing rather than
+  // counted out of a sentence. Each kind gets a pair: one question reading a
+  // single row or column, and one comparing them.
   {
     id: 'maths.K.data.graph-count',
     subject: 'maths',
@@ -687,6 +722,16 @@ export const yearK: QuestionTemplate[] = [
       { name: 'i', kind: 'int', min: '0', max: '2' },
       { name: 'pet', kind: 'expr', expr: "i == 0 ? 'dog' : i == 1 ? 'cat' : 'fish'" },
     ],
+    // **Something has to be more than one.** Three values each drawn 1 to 5 are
+    // all 1 once in every 125 draws, and at a scale of 1 that leaves the axis a
+    // single step, which `bar` refuses outright - so this template would have
+    // shipped and then failed in front of a child. It validated only because
+    // `figureIssues` is sampled over fifty seeds and one in 125 is a coin toss
+    // at that count. The constraint makes the draw impossible rather than rare;
+    // it is on the maximum rather than on one named animal so that no pet is
+    // quietly barred from ever being the answer 1. Rejection sampling throws
+    // away under 1% of draws.
+    constraints: ['max(dog, cat, fish) > 1'],
     answer: 'i == 0 ? dog : i == 1 ? cat : fish',
     hint: 'Find the name along the bottom, then count up.',
     figure: {
