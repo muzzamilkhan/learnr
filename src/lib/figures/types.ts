@@ -76,6 +76,7 @@ export const FIGURE_KINDS = [
   'number-line',
   'clock',
   'array',
+  'fraction-shape',
 ] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
@@ -315,6 +316,26 @@ export type FigureSpec =
        * by what the answer means, not by whether a check happened to fire.
        */
       orientation?: Expr;
+    }
+  | {
+      kind: 'fraction-shape';
+      /** How many of the equal parts are shaded. */
+      numerator: Expr;
+      /** How many equal parts the shape is cut into. Never simplified - see `fraction-shape-kind.ts`. */
+      denominator: Expr;
+      /**
+       * 'circle' | 'rectangle' | 'strip'. Omitted, jitters over those that
+       * divide `denominator` evenly and legibly - see `fraction-shape-kind.ts`
+       * for what each of those two words costs a shape. A prompt that names
+       * the shape ("this circle") must pin it, for `solid`'s `view` reason:
+       * nothing here can check a prompt's wording against a jittered choice.
+       */
+      shape?: Expr;
+      /**
+       * Degrees anticlockwise. Only a circle spins on this - see the module
+       * comment for why a rectangle or a strip does not.
+       */
+      rotation?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

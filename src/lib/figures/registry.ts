@@ -6,6 +6,7 @@ import { angleModule } from './angle-kind';
 import { arrayModule } from './array-kind';
 import { barModule } from './bar-kind';
 import { clockModule } from './clock-kind';
+import { fractionShapeModule } from './fraction-shape-kind';
 import { numberLineModule } from './number-line-kind';
 import { pictographModule } from './pictograph-kind';
 import { polygonModule } from './polygon-kind';
@@ -164,6 +165,7 @@ for (const kindModule of [
   numberLineModule,
   clockModule,
   arrayModule,
+  fractionShapeModule,
 ]) {
   registerFigureKind(kindModule);
 }
