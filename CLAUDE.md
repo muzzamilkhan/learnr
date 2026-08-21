@@ -1079,6 +1079,14 @@ them and it lives in `modes.ts`, not in the component - what counts as a single
 table is that module's business. Every other operation has no singles at all and
 draws one grid.
 
+**On a phone the three difficulties stack one to a row**, where the four bundles
+stay two across. Three into two columns is 2+1, the ragged half-row a grid of
+four does not have, and "Moderate" is the widest label in the picker - at half a
+phone's width it is already close to wrapping and at a third it certainly would.
+A full-width chip is the biggest target on the screen and reads in one glance,
+which is worth more on the narrowest device than saving two lines. From `sm` up
+there is room for all three side by side and they take it.
+
 **A chip is coloured by how hard it is, green through to purple**, and that is
 one ramp for all twenty-six (`modeHardness`). Easy, moderate and hard are the
 ends and the middle of it. **The times tables ramp across it too, which is the

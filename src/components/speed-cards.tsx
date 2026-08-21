@@ -159,6 +159,15 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
  * because Tailwind reads class names as literals; `fallbackColumns` is what a
  * count nobody has written a line for would get, so adding a mode is a card
  * that looks slightly wrong rather than one with no columns at all.
+ *
+ * **The three difficulties stack one to a row on a phone**, where the four
+ * bundles stay two across. Three into two columns is 2+1, which leaves the
+ * ragged half-row a grid of four does not have, and "Moderate" is the widest
+ * label in the picker - at a phone's half-width it is already close to
+ * wrapping, and a third of one it certainly would. A full-width chip is the
+ * biggest target on the screen and reads in one glance, which is worth more on
+ * the narrowest device than fitting the row into fewer lines. From `sm` up
+ * there is width for all three side by side and they take it.
  */
 const SCALES = {
   child: {
@@ -171,10 +180,10 @@ const SCALES = {
     tables: 'grid grid-cols-4 gap-3 px-5 pt-1 sm:grid-cols-5 sm:gap-4',
     modes: 'grid gap-3 px-5 pt-3 pb-5 sm:gap-4',
     modeColumns: {
-      3: 'grid-cols-2 sm:grid-cols-3',
+      3: 'grid-cols-1 sm:grid-cols-3',
       4: 'grid-cols-2 sm:grid-cols-4',
     },
-    fallbackColumns: 'grid-cols-2 sm:grid-cols-3',
+    fallbackColumns: 'grid-cols-1 sm:grid-cols-3',
     mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 text-lg sm:min-h-18 sm:text-xl',
   },
   parent: {
@@ -186,8 +195,8 @@ const SCALES = {
     chevron: 'size-4',
     tables: 'grid grid-cols-5 gap-2 px-3',
     modes: 'grid gap-2 px-3 pt-2 pb-3',
-    modeColumns: { 3: 'grid-cols-3', 4: 'grid-cols-4' },
-    fallbackColumns: 'grid-cols-3',
+    modeColumns: { 3: 'grid-cols-1 sm:grid-cols-3', 4: 'grid-cols-4' },
+    fallbackColumns: 'grid-cols-1 sm:grid-cols-3',
     mode: 'min-h-11 rounded-xl border px-2 py-1.5 text-sm',
   },
 } as const;
