@@ -299,11 +299,20 @@ export type FigureSpec =
        * between the two, which is the commutativity a "how many groups of
        * four make twelve?" question is often about.
        *
-       * **A template whose answer reads `rows` or `columns` directly must
-       * pin this.** With it left to jitter, the picture agrees with that
-       * answer on only half of all draws - see `array-kind.ts` for why nothing
-       * else in this folder catches that, and `validate.ts` for the one
-       * static check that does.
+       * **Pin this whenever the answer means "how many rows" or "how many
+       * columns" specifically** - the obligation is about what the answer
+       * *asks*, not about how it happens to be spelled. `answer: 'rows'`
+       * means it, and so does an answer reached through an intermediate
+       * variable or arithmetic that still names one dimension
+       * (`answer: 'r + 0'`); every one of those is wrong on about half of
+       * all draws if this is left to jitter, for the identical reason.
+       *
+       * `array-kind.ts`'s `answerIssues` catches the first, directly-spelled
+       * case as a **heuristic** on every validate - it is a useful signal,
+       * not a guarantee, and it cannot see an answer spelled any other way.
+       * A clean `validateTemplate` result means "the common mistake was not
+       * detected", not "this template is safe to leave unpinned" - judge it
+       * by what the answer means, not by whether a check happened to fire.
        */
       orientation?: Expr;
     };

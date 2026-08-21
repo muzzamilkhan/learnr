@@ -1,7 +1,7 @@
 import type { Scope } from '../expr';
 import type { Rng } from '../rng';
 import type { FieldReader } from './fields';
-import type { FigureKind, FigureSpec, Mark } from './types';
+import type { Expr, FigureKind, FigureSpec, Mark } from './types';
 import { angleModule } from './angle-kind';
 import { arrayModule } from './array-kind';
 import { barModule } from './bar-kind';
@@ -82,6 +82,25 @@ export interface FigureKindModule<K extends FigureKind> {
    * `figureIssues` puts the two together.
    */
   issues(spec: Extract<FigureSpec, { kind: K }>, scope: Scope, read: FieldReader): string[];
+  /**
+   * Authoring mistakes only visible by reading the *answer* alongside this
+   * kind's own fields - optional, and absent on every kind but `array` today.
+   *
+   * `issues` above is deliberately blind to `answer`: it is handed a bound
+   * `scope`, not the template around it, so a kind whose jitter can silently
+   * pick a *different* answer from the one the template committed to (see
+   * `array-kind.ts`'s `orientation`) has nowhere else in the module contract
+   * to say so. This is that seam - `validateTemplate` calls it once, statically,
+   * with the raw `answer` expression string, no drawing and no `Rng` involved.
+   *
+   * It stays optional rather than a required no-op on the other seven kinds
+   * for the reason `figure-kind-author-notes.md` section 2b gives: every
+   * jitter written so far leaves every possible question about it true, so
+   * there is nothing for those kinds to say here - and a required method
+   * returning `[]` seven times over is a fact about `array` dressed up as one
+   * about the interface.
+   */
+  answerIssues?(spec: Extract<FigureSpec, { kind: K }>, answer: Expr): string[];
 }
 
 /**
@@ -108,6 +127,7 @@ export interface AnyFigureKindModule {
   fields: Record<string, FieldRequirement>;
   build(spec: FigureSpec, scope: Scope, rng: Rng): Mark[];
   issues(spec: FigureSpec, scope: Scope, read: FieldReader): string[];
+  answerIssues?(spec: FigureSpec, answer: Expr): string[];
 }
 
 /**

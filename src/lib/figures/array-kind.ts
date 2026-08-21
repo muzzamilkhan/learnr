@@ -1,9 +1,9 @@
-import type { Scope } from '../expr';
+import { evaluate, type Scope } from '../expr';
 import type { Rng } from '../rng';
 import { clamp, jitter, numberValue, readField } from './fields';
 import { DRAWN_SPAN, MIN_MARK_GAP_PX, REPORT_BOX_PX, REPORT_STROKE_PX } from './labels';
 import type { FigureKindModule } from './registry';
-import { FIGURE_BOX, type FigureSpec, type Mark } from './types';
+import { FIGURE_BOX, type Expr, type FigureSpec, type Mark } from './types';
 
 /**
  * The `array` kind: a grid of dots, `rows` by `columns` - the picture equal
@@ -23,24 +23,27 @@ import { FIGURE_BOX, type FigureSpec, type Mark } from './types';
  * one draw, 4 on the next - even though "how many dots altogether?" is
  * unmoved either way.
  *
- * So `orientation` omitted is only safe for a question the transpose leaves
- * true, and the module contract gives a kind no way to *know* which question
- * its own template is asking - `issues(spec, scope, read)` never sees
- * `answer`. What is checkable is narrower and lives one level up, in
- * `validate.ts`: whether the answer expression is written as exactly
- * `figure.rows` or exactly `figure.columns` while `orientation` is absent and
- * the two differ. That is a syntactic check, not a semantic one - an answer
- * routed through an intermediate variable (`answer: 'total / columns'` when
- * `rows` and `total / columns` happen to be the same number) will not be
- * caught by it, the same limitation `checkExpr`'s unbound-variable check
- * already lives with elsewhere in this folder. It is still worth having: the
- * natural way to write "how many rows?" is `answer: 'rows'` beside
- * `figure: { rows: 'rows', ... }`, and that is exactly the case it catches,
- * for free, on every validate, with no drawing and no seeds spent.
+ * **Pin `orientation` whenever the answer means "how many rows" or "how many
+ * columns" specifically** - the obligation is about what the answer is
+ * *asking*, never about how it happens to be spelled. `answer: 'rows'` means
+ * it, and so does an answer read through an `expr` variable, or arithmetic
+ * that still names one dimension (`answer: 'r + 0'`); all three are wrong on
+ * about half of all draws if `orientation` is left to jitter, for the
+ * identical reason.
  *
- * **The 50-seed anchoring check above it in `validate.ts` cannot see this
- * bug at all**, and it is worth writing down why, because the failure mode is
- * not "the check misses it sometimes" - it is structural. That check groups
+ * `answerIssues` below catches only the first of those - an answer written
+ * as *exactly* `figure.rows` or *exactly* `figure.columns` - because the
+ * module contract gives a kind no way to prove two arbitrary expressions
+ * mean the same number (see its own doc for why symbolic equivalence was not
+ * attempted). **It is a heuristic, not a proof, and passing it is not a
+ * guarantee**: a template can still be wrong in a way nothing here catches,
+ * and the only reliable judgment is reading what the question actually asks
+ * and pinning accordingly. Treat a clean `validateTemplate` result as "the
+ * common mistake was not detected", not as "this is safe".
+ *
+ * **The 50-seed anchoring check in `validate.ts` cannot see this bug at
+ * all**, and it is worth writing down why, because the failure mode is not
+ * "the check misses it sometimes" - it is structural. That check groups
  * draws by `JSON.stringify(question.answer)` and flags an answer whose every
  * figure serialised identically. But `rows` and `columns` are ordinary bound
  * variables: across fifty seeds the *value* 3 recurs only when a fresh draw
@@ -53,6 +56,38 @@ import { FIGURE_BOX, type FigureSpec, type Mark } from './types';
  * anchored figure teaches the wrong picture, but this teaches the right
  * picture and the wrong answer, right about half the time, with nothing on
  * screen or in a green test suite to say so.
+ *
+ * `answerIssues` is what closes part of that gap - the optional member on
+ * `FigureKindModule` (`registry.ts`) that exists for exactly this kind of
+ * question, one a bound `scope` alone cannot answer. `validate.ts` dispatches
+ * it with no kind name in it (`figureKindModule(kind)?.answerIssues?.(...)`),
+ * the same way it already dispatches `fields` and `issues` - so this stays
+ * the one file that knows an `array`'s answer can name a dimension, and nothing
+ * in `validate.ts` has to know that `array` exists at all.
+ *
+ * ## Two ways `answerIssues` can be wrong about intent, and why it still ships
+ *
+ * The check is textual: it does not know whether a match is the bug it is
+ * looking for or a coincidence. Two classes of coincidence are worth naming
+ * because they are not exotic:
+ *
+ * - A literal answer that happens to equal a literal `rows` or `columns` by
+ *   chance - `answer: '3'` on a template that is actually "what is 1 + 2?",
+ *   beside an unrelated `figure: { rows: '3', columns: '5' }` illustrating
+ *   something else entirely.
+ * - `rows` and `columns` that are always equal to each other by construction
+ *   (a shared variable, or a constraint like `r == c`) rather than by literal
+ *   spelling - here the transpose is a genuine visual no-op on every draw
+ *   (see "Refusing the no-lever case" below), so pinning `orientation` was
+ *   never actually necessary, even though the answer does read one of the
+ *   two names.
+ *
+ * Both are reported, and the message says only what was detected - a textual
+ * match - rather than asserting the author's intent, since the check cannot
+ * see it. Both unblock the same way regardless of which case it was: pinning
+ * `orientation` is always a safe fix (it never changes a template that did
+ * not need it, and it always fixes one that did), so the remedy is sound even
+ * on the draws where the diagnosis undersells what is actually going on.
  *
  * ## The lever that is left when `orientation` is pinned
  *
@@ -85,26 +120,37 @@ import { FIGURE_BOX, type FigureSpec, type Mark } from './types';
  * so `issues` reports anything under `MIN_ARRAY_DIMENSION` rather than the
  * kind quietly accepting a shape its own anchoring defence cannot cover.
  *
- * ## Report-row spacing
+ * ## Refusing the no-lever case
  *
- * A figure is built once and has to read in a parent's 64px report row at a
- * `REPORT_STROKE_PX` stroke, the same constraint `spinner`'s thinnest sector
- * and `clock`'s minute track are measured against (see `labels.ts`). A `dot`
- * mark renders `strokeWidth * 3` real pixels across
- * (`src/components/diagram.tsx`), so two dots need `DOT_DIAMETER_PX` between
- * their centres just to touch, plus `MIN_MARK_GAP_PX` of daylight to read as
- * two dots rather than one smear - `REQUIRED_PITCH_PX` below.
+ * The cell-aspect jitter exists so a fully-pinned array still passes the
+ * 50-seed anchoring check - but a wobble of 10-11% in one cell's height is
+ * not something a six-year-old can see, so a template that has fixed every
+ * *visible* lever and is only surviving on that wobble has content that reads,
+ * on screen, exactly like the anchored figure the whole feature exists to
+ * refuse. That is `solid`'s `flip` again: variation the JSON can see and a
+ * child cannot.
  *
- * `reportDotPitchPx` gives the spacing along the axis the cell-aspect jitter
- * leaves alone; multiplying by `ASPECT_MIN` gives the spacing on the worst
- * seed, on the axis the jitter can squash. `MAX_ARRAY_DIMENSION` is the
- * largest side either dimension may reach and still clear
- * `REQUIRED_PITCH_PX` there - measured (not guessed) at 7, with the tightest
- * arrangement, a 2-by-7 grid on the most-squashed seed, landing at 8.45px
- * against a required 7.5px. Past it this is a *data* limit, not a drawing
- * choice (`labels.ts` section 3), so it is **reported**, never silently
- * shrunk: a 12-by-12 array quietly drawn at legible density would be a
- * different multiplication fact than the one the template asked for.
+ * This is the identical situation `CLAUDE.md` already names for a regular
+ * polygon: *"Pinning `rotation: '0'` on a regular polygon therefore fails
+ * validation, deliberately and with no escape hatch. Such a shape has no free
+ * proportion left."* A polygon gets that refusal for free, because a pinned,
+ * regular shape draws **byte-identically** on every seed and the generic
+ * 50-seed check already catches byte-identical. An array does not get it for
+ * free, because the cell-aspect jitter (unlike a regular polygon's *zero*
+ * jitter) keeps every draw byte-*different* even when nothing about the
+ * picture a child could name has moved - so `issues` refuses it explicitly,
+ * below, rather than leaving it to a generic check that structurally cannot
+ * see it.
+ *
+ * The refusal fires only when `rows` and `columns` are **closed** expressions
+ * - literal, or arithmetic on literals, evaluable with no scope at all
+ * (`isClosed`) - because only then is it certain the picture cannot move for
+ * any reason but the invisible wobble. A `rows` bound to a variable still
+ * varies in real, visible size across the fifty draws even when a constraint
+ * happens to keep it equal to `columns` on every one of them (the second
+ * coincidence named above), and that is genuine content, not a no-lever
+ * template - refusing it would be exactly the false positive this section
+ * exists to avoid creating a *second* one of.
  */
 
 type ArraySpec = Extract<FigureSpec, { kind: 'array' }>;
@@ -122,6 +168,17 @@ export const MIN_ARRAY_DIMENSION = 2;
  * re-runs the same worst-case squash rather than keeping its own copy of the
  * number - two copies is how the `MAX_ARRAY_DIMENSION` boundary test could
  * quietly stop testing the boundary the day this one was retuned.
+ *
+ * **`ASPECT_MAX` is its reciprocal, and that is load-bearing, not cosmetic.**
+ * The worst case `MAX_ARRAY_DIMENSION` is measured against sits at the
+ * *stretch* end of the range for one axis and the *squash* end for the other
+ * (a short, wide grid whose short axis is the one the aspect stretches) -
+ * see `reportDotPitchPx`'s doc. A reciprocal range is what makes stretching
+ * one axis by exactly as much as the other is squashed, which is what keeps
+ * `reportDotPitchPx(dimension) * ASPECT_MIN` the true minimum over the whole
+ * range rather than an approximation of it; an independently chosen
+ * `ASPECT_MAX` would not carry that guarantee, and the boundary tests would
+ * stay green while silently no longer measuring the worst case.
  */
 export const ASPECT_MIN = 0.9;
 const ASPECT_MAX = 1 / ASPECT_MIN;
@@ -176,6 +233,25 @@ const HARD_MAX_DIMENSION = 14;
 function drawableDimension(value: number | undefined): number {
   if (value === undefined || value < 1) return FALLBACK_DIMENSION;
   return clamp(Math.round(value), 1, HARD_MAX_DIMENSION);
+}
+
+/**
+ * Whether an expression's value is fixed by the author, provably, rather
+ * than by anything a bound variable could move - true when it evaluates with
+ * no scope at all. A `rows` of `'4'` or `'2 + 2'` is closed; a `rows` of
+ * `'r'` is not, even if `r` is a variable whose range happens to be a single
+ * value or is pinned equal to another variable by a constraint - this check
+ * is deliberately syntactic, not a range analysis, so it never refuses
+ * content that genuinely varies (see "Refusing the no-lever case" above).
+ */
+function isClosed(expr: Expr | undefined): boolean {
+  if (typeof expr !== 'string' || expr.trim() === '') return false;
+  try {
+    evaluate(expr, {});
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const arrayModule: FigureKindModule<'array'> = {
@@ -261,8 +337,62 @@ export const arrayModule: FigureKindModule<'array'> = {
             ` ${DOT_DIAMETER_PX.toFixed(1)}px dot, more would draw a grey block instead`,
         );
       }
+
+      // "Refusing the no-lever case" in the module comment. Both dimensions
+      // fixed by the author (closed, not just equal on this one draw) and
+      // either square or an orientation equally fixed leaves nothing to vary
+      // but the cell-aspect wobble - too small to see, so this is refused
+      // rather than left to a generic check that cannot detect it (the
+      // aspect jitter keeps every draw byte-different, so nothing here is
+      // ever byte-identical the way a pinned regular polygon is).
+      if (isClosed(spec.rows) && isClosed(spec.columns)) {
+        const orientationFixed =
+          spec.orientation !== undefined &&
+          isClosed(spec.orientation) &&
+          (orientation === 'rows' || orientation === 'columns');
+
+        if (rows === columns || orientationFixed) {
+          issues.push(
+            `figure: rows and columns are both fixed by the template (${rows} by ${columns})` +
+              (rows === columns
+                ? ', and square, so figure.orientation cannot change the picture either way'
+                : ` and figure.orientation is fixed to ${JSON.stringify(orientation)}`) +
+              ' - nothing is left to vary but a wobble in the cell spacing too small for a child' +
+              " to see, the same failure CLAUDE.md refuses for a regular polygon's pinned" +
+              ' rotation ("such a shape has no free proportion left"). Let rows or columns come' +
+              ' from a bound variable, or drop the pin, so the array has a lever a child can' +
+              ' actually see.',
+          );
+        }
+      }
     }
 
     return issues;
+  },
+
+  /**
+   * See the module comment's "orientation does not vary the answer" and "Two
+   * ways this can be wrong" sections - this is a heuristic, textual check,
+   * not a proof, and it says only what it detected.
+   */
+  answerIssues(spec, answer) {
+    if (spec.orientation !== undefined) return [];
+    if (typeof spec.rows !== 'string' || typeof spec.columns !== 'string') return [];
+    const rows = spec.rows.trim();
+    const columns = spec.columns.trim();
+    if (rows === columns || typeof answer !== 'string') return [];
+
+    const trimmedAnswer = answer.trim();
+    const matched = trimmedAnswer === rows ? 'rows' : trimmedAnswer === columns ? 'columns' : null;
+    if (!matched) return [];
+
+    return [
+      `answer is written as exactly figure.${matched}, which is how a template usually reads ` +
+        'that dimension directly, and figure.orientation is left to jitter between rows and ' +
+        'columns. If the answer does mean that dimension, the picture disagrees with it on ' +
+        "about half of all draws; pinning figure.orientation to 'rows' or 'columns' removes the" +
+        ' risk whether or not this match is coincidental (see array-kind.ts for two ways it' +
+        ' can be).',
+    ];
   },
 };

@@ -2,7 +2,7 @@ import { parse, type Node } from '../expr';
 import { isYearLevel, YEAR_LEVELS } from '../curriculum';
 import { figureIssues } from '../figures/build';
 import { figureKindModule } from '../figures/registry';
-import { FIGURE_KINDS } from '../figures/types';
+import { FIGURE_KINDS, type FigureSpec } from '../figures/types';
 import { createRng } from '../rng';
 import { generate, tryBindForced } from './generate';
 import { MAX_CHOICES, type QuestionSpec, type QuestionTemplate, type VarSpec } from './types';
@@ -300,6 +300,24 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
           if (expr === undefined && requirement === 'optional') continue;
           checkExpr(expr, `figure.${name}`, bound);
         }
+
+        // Check 1b: does this kind think the answer disagrees with its own
+        // fields, in a way judgeable without ever drawing anything? This
+        // needs no bound scope and no generated question, so it sits here
+        // beside the rest of what is static rather than waiting behind
+        // `generates` below. Only `array` implements `answerIssues` today
+        // (see `array-kind.ts`) - a kind whose jitter cannot silently pick a
+        // *different* answer from the one the template committed to has
+        // nothing to add here, and the optional method is simply absent on
+        // its module. No kind name appears in this call, which is the
+        // property `fields` and `issues` above already have and this is
+        // written to match - see `registry.ts`'s `answerIssues` doc for why
+        // it exists at all.
+        if (typeof spec.answer === 'string') {
+          for (const issue of kindModule?.answerIssues?.(figure as FigureSpec, spec.answer) ?? []) {
+            errors.push(`figure: ${issue}`);
+          }
+        }
       }
     }
   }
@@ -355,41 +373,6 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     const figureSpec = spec.figure;
     const seenIssues = new Set<string>();
     const byAnswer = new Map<string, { count: number; figures: Set<string> }>();
-
-    // An `array` template's `orientation` jitters which of `rows` and
-    // `columns` is drawn as which - that is the transpose a "how many groups
-    // of four make twelve?" question wants, and `array-kind.ts` argues at
-    // length why nothing that *draws* the template can catch a template that
-    // pins neither: the answer stays 3 only when the same value of `rows`
-    // gets redrawn, and by then `columns` has almost always changed too, so
-    // the figure looks like healthy variation to the anchoring check below
-    // whether or not the orientation on any given seed happened to agree with
-    // the answer. This is a static, syntactic check instead, run once rather
-    // than over fifty seeds: an answer written as exactly `figure.rows` or
-    // exactly `figure.columns`, with the two fields not written identically
-    // to each other, is the direct sign that the answer names a dimension
-    // `orientation` is free to swap. It will not catch an answer routed
-    // through an intermediate variable that merely evaluates to the same
-    // number - that is a real, stated limitation, not an oversight - but the
-    // natural way to write "how many rows?" is `answer: 'rows'` beside
-    // `figure: { rows: 'rows', ... }`, and that is exactly what this catches.
-    if (
-      figureSpec.kind === 'array' &&
-      figureSpec.orientation === undefined &&
-      typeof figureSpec.rows === 'string' &&
-      typeof figureSpec.columns === 'string' &&
-      figureSpec.rows.trim() !== figureSpec.columns.trim() &&
-      typeof spec.answer === 'string' &&
-      (spec.answer.trim() === figureSpec.rows.trim() ||
-        spec.answer.trim() === figureSpec.columns.trim())
-    ) {
-      errors.push(
-        'figure: answer reads figure.rows or figure.columns directly while ' +
-          "figure.orientation is left to jitter, so the picture disagrees with the answer on " +
-          "half of all draws - pin figure.orientation to 'rows' or 'columns' so the array is " +
-          'always drawn the way the answer names it',
-      );
-    }
 
     for (let i = 0; i < FIGURE_DRAWS; i++) {
       let question;

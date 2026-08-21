@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { POLYGON_SHAPES } from '../figures/types';
+import { POLYGON_SHAPES, type FigureSpec } from '../figures/types';
 import { validateSpec, validateTemplate } from './validate';
 import type { QuestionTemplate } from './types';
 
@@ -367,8 +367,14 @@ describe('validateTemplate figures', () => {
   // `array`'s `orientation` jitters which of `rows` and `columns` is drawn as
   // which - see `array-kind.ts`'s module comment for why the 50-seed
   // anchoring check above cannot see a template whose answer reads one of
-  // them directly. This is the one static, syntactic check that can.
+  // them directly. `answerIssues` on `arrayModule` (dispatched here with no
+  // kind name in the call, per `registry.ts`) is the one static, heuristic
+  // check that can - and it is exactly that, a heuristic: the next two
+  // `describe`s cover the case it is built to catch and the two ways it can
+  // fire on a template that was never actually broken.
   describe('array orientation', () => {
+    const ORIENTATION_MESSAGE = /answer is written as exactly figure\.(rows|columns)/i;
+
     const arrayTemplate = (overrides: Partial<QuestionTemplate> = {}): QuestionTemplate => ({
       ...valid,
       id: 'array-rows',
@@ -384,9 +390,7 @@ describe('validateTemplate figures', () => {
     });
 
     it('rejects an answer that reads figure.rows directly with orientation left open', () => {
-      expect(errorsFor(arrayTemplate())).toContainEqual(
-        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
-      );
+      expect(errorsFor(arrayTemplate())).toContainEqual(expect.stringMatching(ORIENTATION_MESSAGE));
     });
 
     it('rejects an answer that reads figure.columns directly with orientation left open', () => {
@@ -394,18 +398,17 @@ describe('validateTemplate figures', () => {
         prompt: 'How many columns are there?',
         answer: 'c',
       });
-      expect(errorsFor(template)).toContainEqual(
-        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
-      );
+      expect(errorsFor(template)).toContainEqual(expect.stringMatching(ORIENTATION_MESSAGE));
     });
 
     it('passes the same template once orientation is pinned', () => {
+      // `toEqual([])` rather than `not.toContainEqual` - the point is not
+      // merely that this one message is gone, it is that pinning orientation
+      // makes the template fully shippable.
       const template = arrayTemplate({
         figure: { kind: 'array', rows: 'r', columns: 'c', orientation: "'rows'" },
       });
-      expect(errorsFor(template)).not.toContainEqual(
-        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
-      );
+      expect(errorsFor(template)).toEqual([]);
     });
 
     it('says nothing about an answer that is not a dimension, orientation left open', () => {
@@ -413,9 +416,113 @@ describe('validateTemplate figures', () => {
         prompt: 'How many dots are there altogether?',
         answer: 'r * c',
       });
-      expect(errorsFor(template)).not.toContainEqual(
-        expect.stringMatching(/answer reads figure\.rows or figure\.columns directly/i),
+      expect(errorsFor(template)).not.toContainEqual(expect.stringMatching(ORIENTATION_MESSAGE));
+    });
+
+    // The check is textual, not semantic, so it can fire on a template that
+    // was never actually broken - see `array-kind.ts`'s "Two ways
+    // `answerIssues` can be wrong about intent". Both are real, both unblock
+    // by pinning `orientation` regardless of why they fired, and the message
+    // says only what was detected rather than asserting either is a bug.
+    describe('coincidental matches', () => {
+      it('fires on a literal answer that happens to equal a literal rows by chance', () => {
+        // A decorative array beside an unrelated arithmetic question - the
+        // figure illustrates nothing about "1 + 2", it just happens to have
+        // three rows.
+        const template: QuestionTemplate = {
+          ...valid,
+          id: 'array-decoration',
+          prompt: 'What is 1 + 2?',
+          vars: [],
+          constraints: [],
+          answer: '3',
+          figure: { kind: 'array', rows: '3', columns: '5' },
+        };
+        expect(errorsFor(template)).toContainEqual(expect.stringMatching(ORIENTATION_MESSAGE));
+      });
+
+      it('fires on rows and columns kept equal by a constraint, where the transpose is a no-op', () => {
+        const template = arrayTemplate({ constraints: ['r == c'] });
+        expect(errorsFor(template)).toContainEqual(expect.stringMatching(ORIENTATION_MESSAGE));
+      });
+
+      it('is fully unblocked by pinning orientation, even though the transpose was always a no-op', () => {
+        // The remedy the message above gives is sound regardless of *why* it
+        // fired: pinning `orientation` never breaks a template that did not
+        // need it. This also confirms `array-kind.ts`'s "no free proportion"
+        // refusal does not then re-block it - `rows`/`columns` here are `r`
+        // and `c`, not closed expressions, so that check has nothing to say
+        // about a grid whose actual size still varies draw to draw.
+        const template = arrayTemplate({
+          constraints: ['r == c'],
+          figure: { kind: 'array', rows: 'r', columns: 'c', orientation: "'rows'" },
+        });
+        expect(errorsFor(template)).toEqual([]);
+      });
+    });
+  });
+
+  // Finding 3: a fully pinned array's only lever is a cell-aspect wobble too
+  // small for a child to see (`array-kind.ts`'s "Refusing the no-lever
+  // case") - the identical situation `CLAUDE.md` already refuses for a
+  // regular polygon's pinned rotation, applied explicitly here because the
+  // wobble keeps every draw byte-different, which is what stops the generic
+  // 50-seed check from ever seeing this one on its own.
+  describe('array with no free proportion left', () => {
+    const literalArray = (
+      overrides: Partial<Extract<FigureSpec, { kind: 'array' }>> = {},
+    ): QuestionTemplate => ({
+      ...valid,
+      id: 'array-literal',
+      prompt: 'How many dots altogether?',
+      vars: [],
+      constraints: [],
+      answer: '16',
+      figure: { kind: 'array', rows: '4', columns: '4', ...overrides },
+    });
+
+    it('refuses a literal square array, orientation omitted', () => {
+      expect(errorsFor(literalArray())).toContainEqual(
+        expect.stringMatching(/no free proportion left/i),
       );
+    });
+
+    it('refuses a literal square array, orientation pinned', () => {
+      expect(errorsFor(literalArray({ orientation: "'rows'" }))).toContainEqual(
+        expect.stringMatching(/no free proportion left/i),
+      );
+    });
+
+    it('refuses a literal, non-square array with orientation pinned', () => {
+      expect(
+        errorsFor(literalArray({ rows: '3', columns: '5', orientation: "'columns'" })),
+      ).toContainEqual(expect.stringMatching(/no free proportion left/i));
+    });
+
+    it('does not refuse a literal, non-square array with orientation left open', () => {
+      // The real lever here is the transpose, which actually varies - this
+      // is legitimate content, not the no-lever trap.
+      expect(errorsFor(literalArray({ rows: '3', columns: '5' }))).toEqual([]);
+    });
+
+    it('does not refuse rows and columns kept equal by a var and a constraint', () => {
+      // Not a literal square - `r` and `c` vary in real, visible size across
+      // draws even though a constraint keeps them equal to each other on
+      // every one. Refusing this would be exactly the false positive the
+      // "closed expression" guard in `array-kind.ts` exists to avoid.
+      const template: QuestionTemplate = {
+        ...valid,
+        id: 'array-var-square',
+        prompt: 'How many dots altogether?',
+        vars: [
+          { name: 'r', kind: 'int', min: '2', max: '5' },
+          { name: 'c', kind: 'int', min: '2', max: '5' },
+        ],
+        constraints: ['r == c'],
+        answer: 'r * c',
+        figure: { kind: 'array', rows: 'r', columns: 'c', orientation: "'rows'" },
+      };
+      expect(errorsFor(template)).toEqual([]);
     });
   });
 });
