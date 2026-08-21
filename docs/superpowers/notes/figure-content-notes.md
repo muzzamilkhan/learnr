@@ -24,6 +24,15 @@ figure has exactly **two** appearances — one brand tint, or nothing. A kind th
 "the red part"; fill names in a spec are grouping keys that never reach the screen. Where a
 question needs three or more distinguishable regions, it needs a kind that emits `label`s.
 
+**Keep a figure question's prompt short, and do not spend it offering the options.** `CLAUDE.md`
+is explicit that the figure outranks the prompt on the play screen: the figure claims the
+vertical room first and the prompt fits into what is left. Offering both options in the prompt
+("…the big part or the small part?") suppresses narration's spoken option list — but the
+buttons carry those words anyway, and narration reads *them* instead, so the child hears the
+same two words either way and the question above the picture is half the length. One Year 3
+spinner prompt went 131 characters to 69 on exactly this, losing nothing. Offer options in the
+prompt when a *sentence* question needs them; on a figure question, let the buttons do it.
+
 **The same rule binds the `hint`, and it is easier to break there.** A hint is read aloud when
 narration is on, to the child least able to reconcile it with the picture. `bar`'s `style` left
 open draws its `dot` form about half the time, so a hint saying "the shortest **column**" names
