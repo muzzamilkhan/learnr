@@ -154,6 +154,72 @@ describe('shipped content', () => {
     expect(missingAcara.sort()).toEqual([...nswOnly].sort());
   });
 
+  // NSW places integers at Stage 4 - Year 7 - where ACARA places them at Year 6.
+  // These three keep the ACARA citation and take no NSW one, and the curriculum
+  // page renders the disagreement. Naming them here means dropping the asterisk
+  // later has to be a decision somebody makes, rather than a test going quietly
+  // green when a well-meaning edit adds an MA3- code that does not belong.
+  it('cites no NSW outcome for the content NSW places beyond Year 6', () => {
+    const acaraOnly = ['temperature', 'subtract', 'compare'].map((v) => `maths.6.integers.${v}`);
+
+    for (const id of acaraOnly) {
+      const template = allTemplates.find((t) => t.id === id);
+      expect(template, id).toBeDefined();
+      expect(template!.tags?.some((tag) => syllabusOf(tag) === 'acara')).toBe(true);
+      expect(template!.tags?.some((tag) => syllabusOf(tag) === 'nsw')).toBe(false);
+    }
+  });
+
+  // And the same list closed from the other end, which is the half that catches
+  // a mistake nobody meant to make. The test above says three named templates
+  // are ACARA-only on purpose; it says nothing about a fourth that ends up that
+  // way by accident, and with the citation rule above satisfied by either
+  // syllabus an NSW code quietly dropped off any other template would pass
+  // green. So the complete set of templates carrying no NSW citation is
+  // asserted, and every member of it names the decision that put it there.
+  //
+  // Each of these is a place NSW teaches something *later* than ACARA does, so
+  // the honest Stage code for the year is one that does not cover the content -
+  // and a citation the curriculum page presents as checkable is worse wrong
+  // than missing. It is the `nswOnly` exception above pointed the other way.
+  it('names every template that cites ACARA alone', () => {
+    const acaraOnly = [
+      // NSW names repeating patterns at Early Stage 1 (MAE-FG-01) and the
+      // Stage 1 list has no focus area that covers them: MA1-FG-01 is equal
+      // groups and multiplicative structure, which continuing an ABC pattern
+      // is not.
+      'maths.1.number-patterns.repeating-unit',
+      // NSW files grid maps and grid references at Stage 2, which is Years 3
+      // and 4 - so a Year 2 template may only carry a Stage 1 code, and NSW
+      // does not put this reading in Stage 1.
+      'maths.2.position.grid-square',
+      'maths.2.position.grid-square-claim',
+      // A many-to-one picture graph below Stage 3 is ACARA-only unless it earns
+      // the carve-out `maths.2.data.picture-key-two` makes out loud about
+      // counting in twos; neither of these makes that argument, and at Year 4
+      // the convention itself is the content rather than a way of counting.
+      'maths.4.data.many-to-one',
+      'maths.4.data.picture-key',
+      // Both ask about the rotational symmetry of pentagons through octagons.
+      // Stage 2's transformations outcome has no Stage 3 successor, and the
+      // nearest candidate, MA3-2DS-01, is about classifying triangles and
+      // quadrilaterals.
+      'maths.5.symmetry.half-turn',
+      'maths.5.symmetry.turn-matches',
+      // NSW places integers at Stage 4 - Year 7 - which is the exception the
+      // test above names one by one.
+      'maths.6.integers.temperature',
+      'maths.6.integers.subtract',
+      'maths.6.integers.compare',
+    ];
+
+    const missingNsw = allTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
+      .map((t) => t.id);
+
+    expect(missingNsw.sort()).toEqual([...acaraOnly].sort());
+  });
+
   it('tags every template with a school year', () => {
     for (const template of allTemplates) {
       expect(isYearLevel(template.level)).toBe(true);

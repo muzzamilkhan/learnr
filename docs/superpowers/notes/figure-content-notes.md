@@ -116,6 +116,13 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   `1 - LATTICE_TOLERANCE`, the same slack `dividesEvenly` three functions above has always
   given a step, and all 100 windows draw. `number-line-kind.test.ts` sweeps them.
 
+  **Year 6 shipped one, and the two pins hold as written.** `maths.6.measurement.number-line-centimetres`
+  reads a hundredth off a pinned tenth-wide metre window and answers in centimetres, with the
+  offset held to `k ∈ {1, 3, 7, 9}`. Measured over all 160 reachable answers at forty seeds
+  each: every window came out divided into exactly ten, and no other division appeared
+  anywhere. The window moving with the content — a different metre and a different tenth every
+  draw — is what supplies the variation the pin takes away.
+
   Two things still hold when you author one. The **division follows the answer**, as the bullet
   above says, so constrain the answer's offset (`k ∈ {1, 3, 7, 9}` hundredths) or the ticks are
   worth a twentieth on some draws and a fiftieth on others. And a pinned window is **one
@@ -278,6 +285,14 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   step rather than a restatement: a net lays every face out flat, while an object hides three
   edges and one corner behind it and draws them dashed. Year 4 counts a net's edges and
   corners; Year 5 counts the same two off the object.
+- **A question about what kind of thing the solid is escapes the length trap entirely**, which
+  is the room Year 6 found in it: whether a solid is a prism, and what shape a slice parallel
+  to its ends comes out, are both answered off the faces rather than off any proportion. The
+  cuboid may go back into a net question asked that way — Years 3 and 4 kept it out because
+  telling a cuboid's net from a cube's is a question about proportion, and here both answer the
+  same. Leave the **cylinder** out of a prism question in either direction: it has two matching
+  ends and a curved side, so it is an argument about whether a prism must be a polyhedron
+  rather than a question about the drawing.
 - Solid names are word answers, so **`choice` below Year 4**.
 
 ### `spinner`
@@ -306,6 +321,22 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   "Banana" is refused at three categories; so is "Ball" once the axis reaches 10. Pick short
   nouns — "Cat", "Dog", "Bus", "Red" — or cut a category. Only a graph whose values stay under
   10 gets the roomier column.
+
+  **The table is pessimistic at four categories, and the number in the refusal message is not
+  the budget a shorter name would have been judged against.** `categoryBudget` is fed the
+  widest *category* label as well as the widest rung, because a wider name narrows the plot it
+  is then measured inside — so a label over budget shrinks the budget it failed. Measured:
+  `Mon,Tue,Wed,Thu` over values reaching 50 at `scale: '10'` — four categories against a
+  two-character axis — draws **clean**, where the table above reads as fewer than three
+  characters; the same four names lengthened to `Mona,Tues,Weds,Thur` are refused with "4
+  categories leave room for 2". Read that 2 as what a four-character name earns, not as the
+  budget. Three-character names at four categories are fine at a ten-scale axis.
+
+- **An axis carries at most `MAX_STEPS` (5) labelled rungs**, and a pinned `scale` that needs
+  more is refused outright: `60,20,70,40` at `scale: '10'` reports "10 leaves 7 steps on the
+  axis, more than the 5 whose labels stay clear of one another". So a ten-scale graph tops out
+  at 50, which is what bounds the *values* rather than the names. It is the ceiling to the
+  floor the bullet below describes, and both bind at once.
 
   **"The axis" means every axis the kind might choose, not the one you pinned.** The budget is
   fed the widest rung label across *all* candidate scales, and a pinned `scale` the data
@@ -412,6 +443,24 @@ with the picture unread. The rank check cannot help — it requires `everyOption
 the option-set check stands down above eight distinct answers, so a question with nine falls
 between the two. `maths.4.position.grid-diagonal` shipped that way and measured 100%; see the
 `grid` bullet above for the shape of it and for the fix.
+
+**And the ordering the prompt names need not be the option labels' own.** Year 6's clock
+questions give a duration in the prompt and offer four times — two hours crossed with two
+minute readings, the arrangement Years 3 and 5 both use because one hand read alone narrows
+four to two and never to one. That was still a leak, because the *wrong hour was the rollover
+mistake*: offering `h` and `h + 1` and letting the roll decide which is right makes the answer
+the later hour exactly when the minutes went past the twelve — and the answer's own minute
+says when that was, since `(mi + g) mod 12` falls below `g` if and only if it rolled. Two of
+the four options are therefore inconsistent with any minute on the buttons, and the question
+is a coin toss with the clock unread. Measured **34.1% held-out against a 25% blind baseline**
+over 10,000 draws a half. The fix is one line: draw the other hour **either side at random**
+rather than deriving it from the roll, which leaves it an hour out — the rollover mistake half
+the time — and stops it saying which way. Measured after: **17.2%**.
+
+The general shape is worth naming, because it is the third leak wearing a fourth disguise:
+**a distractor derived from the very quantity the prompt states is a distractor the prompt can
+identify.** Ask what a solver could rule out knowing only the prompt's numbers and the option
+labels, and check that the answer is not what survives.
 
 **So measure with the option labels in the key, not the prompt alone.** The measure is
 **(prompt × sorted option set) → that key's commonest answer, over at least 4000 draws**. A
@@ -521,6 +570,23 @@ Derive the flag instead of constraining it — pick an offset, or a signed amoun
 answer fall out of it. The same two templates then measured **51/49**. **Measure the split
 rather than assuming it**, exactly as you measure a multiple-choice question's rank spread.
 
+**And a graph's readings are not independent of the gaps between them.** Year 5's rule — draw
+the difference first and build the two rows from it, or the small gaps come up far the
+commonest — has a second form that only shows up when the *answer is a position*. Year 6 asks
+which of three segments of a line graph rises the most. With the four readings drawn
+independently the three answers came out **31.4 / 36.6 / 32.0** over 10,000 draws: a big
+middle step needs a low second day and a high third, and both of those hold the steps either
+side of it down, so the middle segment wins more often than the two on the ends.
+
+Drawing the three **steps** instead makes them interchangeable, and a constraint symmetric in
+them prefers no position. **What usually breaks that is the range**, and it is worth knowing
+why: a walk that runs off the top of a five-rung axis is thrown away, and which walks run off
+depends on the order the steps come in, so the rejection puts the skew straight back. Year 6's
+answer is to hold the steps to `-1..2`, where every triple the constraints accept makes a walk
+four rungs tall or less — enumerated over all 64 triples, not sampled — so no triple is ever
+rejected for its order, and the line is then slid up by an offset drawn from whatever room is
+left. Measured after: **33.5 / 33.8 / 32.7**.
+
 **Reach every rank you can.** The check refuses only a *constant* rank, which is weaker than
 "the rank carries no information". Twelve templates reworked earlier land on two of four ranks
 and are accepted for a reason that does not apply to new work: **new templates must not
@@ -557,6 +623,14 @@ Prefer a genuinely harder sibling beside the restatement, so the year is more th
   presents it as checkable.
 - The Year 6 integer templates are the one deliberate exception: they keep `AC9M6N01` and take
   no NSW code, because NSW places integers at Stage 4.
+- **Both exception lists are now closed from both ends in `catalog.test.ts`**, and the
+  ACARA-only one is the newer half. There are **ten** templates carrying no NSW citation, each
+  named with the decision that put it there: Year 1's repeating pattern (NSW names repeating
+  patterns at Early Stage 1 and no Stage 1 focus area covers them), Year 2's two grid
+  references (NSW files grid maps at Stage 2, which is Years 3 and 4), Year 4's two many-to-one
+  graphs, Year 5's two rotational-symmetry questions, and Year 6's three integer questions.
+  **Leaving a new template ACARA-only is now a test failure**, not a quiet omission — so it has
+  to be argued into that list rather than fall into it.
 
 ## Mechanics worth not rediscovering
 
@@ -564,6 +638,10 @@ Prefer a genuinely harder sibling beside the restatement, so the year is more th
 - `vars` is ordered; a variable may only reference ones declared before it.
 - Every numeric field is an **expression string**, so `max: 'x - 1'` works.
 - Constraints are satisfied by rejection sampling — 200 attempts, then a descriptive throw.
+- **Every variable is bound before any constraint is checked**, so an `int` whose `min` can
+  exceed its `max` on a binding the constraints would have thrown away still **throws**
+  ("Variable off has an empty range [0, -1]") rather than being resampled. Clamp the bound —
+  `max(0, ...)` — and say in a comment why the clamp can never bind on a surviving draw.
 - **Run every new template through `validateTemplate` before importing it.**
   `catalog.test.ts` additionally requires at least 20 templates per year, a curriculum content
   description in `tags`, and no typed answer the number pad cannot enter.
