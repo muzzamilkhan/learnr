@@ -13,7 +13,7 @@ import type { FigureKindModule } from './registry';
 import { FIGURE_BOX, FIGURE_PRECISION, type FigureSpec, type Mark, type Point } from './types';
 
 /**
- * The `bar` kind: a column graph, a dot plot or a line graph - the picture a
+ * The `bar` kind: a column graph, a dot chart or a line graph - the picture a
  * statistics question is read *off*. It is the first kind whose question is
  * not about the shape of the drawing at all: nothing here is asked "what is
  * this?", it is asked "how many on Tuesday?", and the drawing is the only
@@ -27,12 +27,22 @@ import { FIGURE_BOX, FIGURE_PRECISION, type FigureSpec, type Mark, type Point } 
  * mid-session it degrades into a graph that can still be drawn.
  *
  * **`column` and `dot` are one choice and `line` is another.** A column and a
- * dot plot are the same categorical reading drawn two ways, so omitting
+ * dot chart are the same categorical reading drawn two ways, so omitting
  * `style` picks between them and that is the kind's main answer to the
  * anchoring rule: a question whose answer is 7 must not always produce one
- * picture. `line` is never picked, because a line graph asserts that the
- * categories are a continuous run - which is a claim about the data, not a
- * drawing choice - so it has to be asked for.
+ * picture.
+ *
+ * **"Dot chart", not "dot plot", and the word matters to whoever writes the
+ * question.** `dot` draws **one** marker per category, at the height the
+ * column would have reached - a column graph with the columns rubbed out,
+ * read against the same value axis. It is *not* the stacked-frequency dot
+ * plot a syllabus means by that name, where each dot is one observation and
+ * the child counts them. A prompt or hint written for the wrong one - "count
+ * the dots above that number" - names something no draw ever puts on screen.
+ *
+ * `line` is never picked, because a line graph asserts that the categories are
+ * a continuous run - which is a claim about the data, not a drawing choice - so
+ * it has to be asked for.
  *
  * **The labels are laid out for the report, not for the play screen** -
  * `labels.ts` is where that is measured and why. What it costs *this* kind is
@@ -400,7 +410,7 @@ export const barModule: FigureKindModule<'bar'> = {
   kind: 'bar',
 
   // Only the data is required - it is the question. Omitting `style` is what
-  // asks for a column graph or a dot plot; omitting `scale` is what asks for
+  // asks for a column graph or a dot chart; omitting `scale` is what asks for
   // whichever step the values allow; omitting `labels` leaves the categories
   // unnamed, which is right for a graph whose caption names them.
   fields: {

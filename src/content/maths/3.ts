@@ -347,8 +347,19 @@ export const year3: QuestionTemplate[] = [
     },
     hint: 'Count how many equal parts there are, then how many are shaded.',
     // `shape` is left open: the prompt says "this shape" and names nothing, so
-    // a circle, a strip and a rectangle are all honest drawings of it, and
-    // three and five parts are well inside what any of the three can carry.
+    // whichever the builder reaches for is an honest drawing of it.
+    //
+    // **What it reaches for is a circle or a strip, and never a rectangle** -
+    // measured at roughly 63% circles and 37% strips over 600 draws of each
+    // denominator. A rectangle is a grid, so it needs a factor pair with both
+    // sides at least 2, and three and five are prime: `gridFactorPairs` comes
+    // back empty for both, `shapeSupports` refuses the rectangle, and
+    // `resolvedShape` substitutes a circle without saying so - a pinned
+    // `shape: 'rectangle'` here would draw a circle too. The template is
+    // unaffected, since it names no shape and both of the two it does get can
+    // carry three or five parts easily; it is worth writing down because
+    // thirds and fifths are the year's denominators and the substitution is
+    // silent.
     figure: { kind: 'fraction-shape', numerator: 'n', denominator: 'd' },
     tags: ['AC9M3N02', 'MA2-PF-01'],
   },
@@ -801,6 +812,23 @@ export const year3: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'position',
     level: '3',
+    // **This is `maths.2.position.grid-square` again, deliberately and almost
+    // to the character** - same prompt, same vars, same distractors, same hint,
+    // same figure. Only the id, the level and the tags differ, and the tags are
+    // the whole point: Year 2's carries ACARA alone because NSW files grid
+    // references at Stage 2, and this is the first year that can cite both.
+    // ACARA steps up here as well, from locating a position at Year 2 to a grid
+    // reference *system* at Year 3, so the two syllabuses agree that this is
+    // the year, and the year that teaches it should be able to ask it.
+    //
+    // **It is a recurrence that is not harder, which is the exception rather
+    // than the rule** - CLAUDE.md's model is a topic returning harder each
+    // time. The reason it cannot be harder is the picture: a labelled grid is
+    // refused past 5x5, every option has to name a square that exists on the
+    // smallest grid in the band, and what is left is very nearly the only
+    // grid-reference question the kind permits. The step up Year 3 does get is
+    // `grid-direction` below, which is new work on the same outcome rather than
+    // a bigger version of this one.
     prompt: 'What square is the dot in?',
     vars: [
       { name: 'c', kind: 'int', min: '1', max: '3' },
@@ -946,8 +974,17 @@ export const year3: QuestionTemplate[] = [
     // The first sentence of the prompt says so out loud rather than leaving a
     // child to be caught out by it, and it is true of every draw: three whole
     // sectors summing to eight can never all be equal.
+    //
+    // **It is kept short because this prompt sits above a figure**, and there
+    // the figure claims the vertical room first and the prompt fits into what
+    // is left. What sets the floor is the second sentence: both option labels
+    // have to appear verbatim with an "or" between them, or `alreadyOffered`
+    // does not fire and narration reads "Is it a shaded part or a part with no
+    // shading?" straight after the prompt that just said it. That sentence is
+    // Year 1's `spinner-more-likely` bar one dropped "on", so the two spinners
+    // a child meets are asked in the same words.
     prompt:
-      'The parts of this spinner are not all the same size. Is the arrow more likely to stop on a shaded part or on a part with no shading?',
+      'The parts are different sizes. Is the arrow more likely to stop on a shaded part or a part with no shading?',
     // **Which side is bigger is a free pick, so the answer is 50/50 exactly**,
     // and **how many sectors are shaded is a second free pick**, so the number
     // of shaded parts carries no information about which side is bigger. A
