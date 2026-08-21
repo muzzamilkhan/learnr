@@ -6,7 +6,6 @@ const at = (day: number) => new Date(Date.UTC(2026, 0, day));
 const run = (mode: string, correct: number, day: number): SummaryRun => ({
   mode,
   correct,
-  answered: correct + 2,
   playedAt: at(day),
 });
 
@@ -15,7 +14,7 @@ describe('speedSummaries', () => {
     const summaries = speedSummaries([run('add.easy', 14, 2), run('add.easy', 9, 5)]);
 
     expect(summaries).toHaveLength(1);
-    expect(summaries[0].latest).toMatchObject({ correct: 9, answered: 11, playedAt: at(5) });
+    expect(summaries[0].latest).toMatchObject({ correct: 9, playedAt: at(5) });
     expect(summaries[0].best).toBe(14);
   });
 

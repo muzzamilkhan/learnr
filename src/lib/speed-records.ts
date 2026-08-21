@@ -50,9 +50,9 @@ export async function readSpeedAttempts(userId: string): Promise<SpeedAttempt[] 
   if (!prisma) return [];
   try {
     return await prisma.$queryRaw<SpeedAttempt[]>`
-      SELECT "mode", "correct", "answered", "playedAt"
+      SELECT "mode", "correct", "playedAt"
       FROM (
-        SELECT "mode", "correct", "answered", "playedAt",
+        SELECT "mode", "correct", "playedAt",
                ROW_NUMBER() OVER (
                  PARTITION BY "mode"
                  -- The earlier run set a tied score, so it is the one kept and
@@ -94,9 +94,9 @@ export async function readSpeedSummaries(userId: string): Promise<SummaryRun[] |
   if (!prisma) return [];
   try {
     return await prisma.$queryRaw<SummaryRun[]>`
-      SELECT "mode", "correct", "answered", "playedAt"
+      SELECT "mode", "correct", "playedAt"
       FROM (
-        SELECT "mode", "correct", "answered", "playedAt",
+        SELECT "mode", "correct", "playedAt",
                ROW_NUMBER() OVER (
                  PARTITION BY "mode"
                  -- The earlier run set a tied best, exactly as the cabinet reads it.
@@ -141,7 +141,7 @@ const isUniqueViolation = (error: unknown): boolean =>
 export async function submitSpeedRun(
   userId: string,
   mode: Mode,
-  run: { correct: number; answered: number },
+  correct: number,
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
 
@@ -151,8 +151,8 @@ export async function submitSpeedRun(
   // the cabinet's table; a failed record costs the outcome this returns, which
   // is why only one of the two can decide what the result screen says.
   const [, outcome] = await Promise.all([
-    recordAttempt(userId, modeKey(mode), run),
-    bankRecord(userId, modeKey(mode), run),
+    recordAttempt(userId, modeKey(mode), correct),
+    bankRecord(userId, modeKey(mode), correct),
   ]);
   return outcome;
 }
@@ -167,16 +167,10 @@ export async function submitSpeedRun(
  * neither a maximum nor a counter, so a retry writes a second row rather than
  * paying twice, which is the honest reading of two runs anyway.
  */
-async function recordAttempt(
-  userId: string,
-  mode: string,
-  run: { correct: number; answered: number },
-): Promise<void> {
+async function recordAttempt(userId: string, mode: string, correct: number): Promise<void> {
   if (!prisma) return;
   try {
-    await prisma.speedAttempt.create({
-      data: { userId, mode, correct: run.correct, answered: run.answered },
-    });
+    await prisma.speedAttempt.create({ data: { userId, mode, correct } });
   } catch (error) {
     console.error('Failed to record speed attempt', error);
   }
@@ -185,7 +179,7 @@ async function recordAttempt(
 async function bankRecord(
   userId: string,
   key: string,
-  run: { correct: number; answered: number },
+  correct: number,
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
   const db = prisma;
@@ -202,20 +196,15 @@ async function bankRecord(
     // `isRecord: true` (the child's celebration fires). A landed write with no
     // previous best to beat - two first-ever runs racing each other - is a
     // first run twice over, not a comeback, so it announces nothing either way.
-    const beatsPreviousBest = isRecord(previousBest, run.correct);
+    const beatsPreviousBest = isRecord(previousBest, correct);
 
     // The WHERE clause is `isRecord`'s rule written in SQL: a row only updates
     // if this score is strictly above what is stored, so a match here is proof
     // the write landed, not an inference from a read taken before it.
     const guardedUpdate = () =>
       db.speedRecord.updateMany({
-        where: { userId, mode: key, best: { lt: run.correct } },
-        data: {
-          best: run.correct,
-          answered: run.answered,
-          achievedAt: new Date(),
-          seen: !beatsPreviousBest,
-        },
+        where: { userId, mode: key, best: { lt: correct } },
+        data: { best: correct, achievedAt: new Date(), seen: !beatsPreviousBest },
       });
 
     let updated = await guardedUpdate();
@@ -223,10 +212,10 @@ async function bankRecord(
     if (updated.count === 0 && initial === null) {
       try {
         await db.speedRecord.create({
-          data: { userId, mode: key, best: run.correct, answered: run.answered, seen: true },
+          data: { userId, mode: key, best: correct, seen: true },
         });
         // A first-ever run is never a record - see `isRecord`.
-        return { previousBest: null, best: run.correct, isRecord: false };
+        return { previousBest: null, best: correct, isRecord: false };
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         // Someone else's first run landed between our read and our insert -
@@ -240,14 +229,14 @@ async function bankRecord(
     }
 
     if (updated.count > 0) {
-      return { previousBest, best: run.correct, isRecord: beatsPreviousBest };
+      return { previousBest, best: correct, isRecord: beatsPreviousBest };
     }
 
     // Nothing landed: either this score was never beatable, or a concurrent run
     // beat us to the same row first. Read back what is actually stored rather
     // than trusting the snapshot taken before any of this happened.
     const current = await db.speedRecord.findUnique({ where: { userId_mode: { userId, mode: key } } });
-    return { previousBest, best: current?.best ?? run.correct, isRecord: false };
+    return { previousBest, best: current?.best ?? correct, isRecord: false };
   } catch (error) {
     console.error('Failed to submit speed run', error);
     return null;

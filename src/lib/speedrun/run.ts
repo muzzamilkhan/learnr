@@ -29,13 +29,6 @@ export const COUNTDOWN_MS = 3_000;
 /** How many redraws to spend avoiding a repeat before taking what comes. */
 const REDRAWS = 8;
 
-export interface SpeedAnswer {
-  prompt: string;
-  expected: string;
-  response: string;
-  correct: boolean;
-}
-
 export interface RunState {
   mode: Mode;
   seed: string;
@@ -44,16 +37,22 @@ export interface RunState {
   current: GeneratedQuestion;
   /** The one shown dimmed above. State, not a render trick - the screen shows it. */
   next: GeneratedQuestion;
-  answers: readonly SpeedAnswer[];
   correct: number;
 }
 
 export interface RunResult {
   mode: Mode;
   correct: number;
-  answered: number;
-  missed: readonly SpeedAnswer[];
 }
+
+/**
+ * What the digits typed so far amount to.
+ *
+ * `typing` is an entry that could still become the answer, `correct` is the
+ * answer, and `dead` is one that cannot become it however many more keys are
+ * pressed - a mistyped first digit, or a right answer with something after it.
+ */
+export type EntryVerdict = 'typing' | 'correct' | 'dead';
 
 export type Pulse = 'calm' | 'slow' | 'fast' | 'urgent';
 
@@ -100,7 +99,6 @@ export function startRun(config: StartRunConfig): RunState {
     draw: 1,
     current,
     next,
-    answers: [],
     correct: 0,
   };
 }
@@ -115,19 +113,40 @@ export function isOver(state: RunState, now: number): boolean {
   return now > state.startedAt + SPEED_RUN_MS;
 }
 
+/**
+ * Grade the entry as it is being typed, character by character, rather than
+ * once it is submitted - there is nothing to submit with.
+ *
+ * The comparison is an exact string one on purpose, where the old Check key
+ * graded numerically. Nothing here waits to be checked, so there is no later
+ * moment at which `07` could be read as 7: the leading zero is a keystroke the
+ * answer does not begin with, and it is dead the instant it lands. That is the
+ * honest reading of a pad with no Check on it, and it is why the screen clears
+ * a dead entry immediately - a child is never left holding one that could have
+ * been accepted if only they had pressed something.
+ */
+export function judgeEntry(state: RunState, entry: string): EntryVerdict {
+  const expected = String(state.current.answer);
+  if (entry === expected) return 'correct';
+  return expected.startsWith(entry) ? 'typing' : 'dead';
+}
+
+/**
+ * A run moves on a right answer and on nothing else.
+ *
+ * There is no wrong answer to record here, so there is nothing to fold in for
+ * one: an entry that is not the answer leaves the state exactly as it was, and
+ * the question stays up until it is got right or the clock runs out. That makes
+ * the score and the number of questions answered the same number, which is why
+ * `RunResult` carries only the one.
+ *
+ * The guard is here rather than only on the screen so this stays the single
+ * place the rule is written down - the screen judges an entry so it knows
+ * whether to flash, never to decide whether the run advances.
+ */
 export function answerRun(state: RunState, response: string, now: number): RunState {
   if (isOver(state, now)) return state;
-
-  const trimmed = response.trim();
-  const expected = String(state.current.answer);
-  const correct = trimmed !== '' && Number(trimmed) === state.current.answer;
-
-  const answer: SpeedAnswer = {
-    prompt: state.current.prompt,
-    expected,
-    response: trimmed,
-    correct,
-  };
+  if (judgeEntry(state, response) !== 'correct') return state;
 
   const draw = state.draw + 1;
 
@@ -136,18 +155,12 @@ export function answerRun(state: RunState, response: string, now: number): RunSt
     draw,
     current: state.next,
     next: drawQuestion(state.mode, state.seed, draw, state.next.prompt),
-    answers: [...state.answers, answer],
-    correct: state.correct + (correct ? 1 : 0),
+    correct: state.correct + 1,
   };
 }
 
 export function runResult(state: RunState): RunResult {
-  return {
-    mode: state.mode,
-    correct: state.correct,
-    answered: state.answers.length,
-    missed: state.answers.filter((answer) => !answer.correct),
-  };
+  return { mode: state.mode, correct: state.correct };
 }
 
 /**

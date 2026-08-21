@@ -18,13 +18,11 @@ export interface SpeedAttempt {
   /** The stored mode key, parsed here rather than trusted. */
   mode: string;
   correct: number;
-  answered: number;
   playedAt: Date;
 }
 
 export interface Run {
   correct: number;
-  answered: number;
   playedAt: Date;
   /**
    * The personal best - the top row, and only ever one of them. A tie at the
@@ -92,7 +90,6 @@ function runsFor(rows: readonly SpeedAttempt[]): Run[] {
     .slice(0, HISTORY_RUNS)
     .map((row, index) => ({
       correct: row.correct,
-      answered: row.answered,
       playedAt: row.playedAt,
       best: index === 0,
     }));

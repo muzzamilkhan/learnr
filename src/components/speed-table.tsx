@@ -85,12 +85,12 @@ export function SpeedTable({ runs }: { runs: SummaryRun[] | null }) {
                 {name}
               </td>
               <td className="py-1.5 pr-2 text-right font-semibold tabular-nums sm:pr-3">{best}</td>
-              {/* Out of how many were answered: 8 right says nothing about
-                  whether that was 8 out of 8 or 8 out of 20 - the reading the
-                  result screen's tally exists for. */}
-              <td className="py-1.5 pr-2 text-right tabular-nums sm:pr-3">
-                <span className="font-semibold">{latest.correct}</span>
-                <span className="text-(--color-ink-soft)"> of {latest.answered}</span>
+              {/* Just the score. A run only moves on a right answer, so there
+                  is no count of questions attempted to put beside it - "8 of
+                  20" was the reading that made a bare 8 ambiguous, and there is
+                  no longer an 8 out of anything but 8. */}
+              <td className="py-1.5 pr-2 text-right font-semibold tabular-nums sm:pr-3">
+                {latest.correct}
               </td>
               <td className="py-1.5 text-right tabular-nums sm:pr-3">
                 <ChangeCell change={change} />

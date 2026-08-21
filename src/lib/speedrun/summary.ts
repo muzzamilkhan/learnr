@@ -19,7 +19,6 @@ export interface SummaryRun {
   /** The stored mode key, parsed here rather than trusted. */
   mode: string;
   correct: number;
-  answered: number;
   playedAt: Date;
 }
 
@@ -39,7 +38,7 @@ export interface ModeSummary {
   /** The personal best over every run given, which is what `SpeedRecord` keeps. */
   best: number;
   /** The run just played - the one the change below is measured at. */
-  latest: { correct: number; answered: number; playedAt: Date };
+  latest: { correct: number; playedAt: Date };
   /** How the latest run compares with the one before it, or null on a first run. */
   change: Change | null;
 }
@@ -89,7 +88,7 @@ function summarise(mode: Mode, rows: readonly SummaryRun[]): ModeSummary {
   return {
     mode,
     best: Math.max(...rows.map((row) => row.correct)),
-    latest: { correct: latest.correct, answered: latest.answered, playedAt: latest.playedAt },
+    latest: { correct: latest.correct, playedAt: latest.playedAt },
     change: previous ? changeFrom(previous.correct, latest.correct) : null,
   };
 }

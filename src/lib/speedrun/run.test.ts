@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   answerRun,
   isOver,
+  judgeEntry,
   pulseFor,
   remainingMs,
   runResult,
@@ -16,7 +17,6 @@ const start = (mode: Mode = MODE, startedAt = 1000) => startRun({ mode, seed: 't
 
 /** Answer the current question correctly, at `now`. */
 const right = (state: RunState, now: number) => answerRun(state, String(state.current.answer), now);
-const wrong = (state: RunState, now: number) => answerRun(state, 'nonsense', now);
 
 describe('starting a run', () => {
   it('has a question and the one after it from the very first frame', () => {
@@ -24,7 +24,6 @@ describe('starting a run', () => {
     expect(state.current.prompt).toBeTruthy();
     expect(state.next.prompt).toBeTruthy();
     expect(state.correct).toBe(0);
-    expect(state.answers).toEqual([]);
   });
 
   it('never puts the same question in both slots', () => {
@@ -42,6 +41,38 @@ describe('starting a run', () => {
   });
 });
 
+describe('judging what has been typed', () => {
+  it('is still typing while it could yet become the answer', () => {
+    const state = start();
+    const expected = String(state.current.answer);
+    expect(judgeEntry(state, '')).toBe('typing');
+    expect(judgeEntry(state, expected.slice(0, 1))).toBe('typing');
+  });
+
+  it('is correct on an exact match', () => {
+    const state = start();
+    expect(judgeEntry(state, String(state.current.answer))).toBe('correct');
+  });
+
+  it('is dead the moment it cannot be the answer', () => {
+    const state = start();
+    const expected = String(state.current.answer);
+    // A leading digit the answer does not start with can never become it.
+    const wrongFirst = expected[0] === '9' ? '8' : '9';
+    expect(judgeEntry(state, wrongFirst)).toBe('dead');
+  });
+
+  it('will not take a longer entry that happens to start with the answer', () => {
+    const state = start();
+    expect(judgeEntry(state, `${state.current.answer}0`)).toBe('dead');
+  });
+
+  it('will not take a leading zero, since nothing here waits to be checked', () => {
+    const state = start();
+    expect(judgeEntry(state, `0${state.current.answer}`)).toBe('dead');
+  });
+});
+
 describe('answering', () => {
   it('promotes the lookahead and draws a new one', () => {
     const state = start();
@@ -51,39 +82,22 @@ describe('answering', () => {
     expect(after.next.prompt).toBeTruthy();
   });
 
-  it('counts a right answer and keeps it', () => {
+  it('counts a right answer', () => {
     const after = right(start(), 2000);
     expect(after.correct).toBe(1);
-    expect(after.answers).toHaveLength(1);
-    expect(after.answers[0].correct).toBe(true);
   });
 
-  it('keeps a wrong answer with what it should have been', () => {
+  it('only ever moves on a right answer', () => {
     const state = start();
-    const expected = String(state.current.answer);
-    const after = wrong(state, 2000);
-    expect(after.correct).toBe(0);
-    expect(after.answers[0]).toMatchObject({ correct: false, response: 'nonsense', expected });
-    expect(after.answers[0].prompt).toBe(state.current.prompt);
+    expect(answerRun(state, 'nonsense', 2000)).toBe(state);
+    expect(answerRun(state, '', 2000)).toBe(state);
+    expect(answerRun(state, ` ${state.current.answer}`, 2000)).toBe(state);
   });
 
   it('leaves the state it was given alone', () => {
     const state = start();
     right(state, 2000);
-    expect(state.answers).toHaveLength(0);
     expect(state.correct).toBe(0);
-  });
-
-  it('grades a numerically equal answer as right', () => {
-    const state = start();
-    const after = answerRun(state, ` 0${state.current.answer} `, 2000);
-    expect(after.correct).toBe(1);
-  });
-
-  it('counts an empty answer as wrong rather than right', () => {
-    const after = answerRun(start(), '', 2000);
-    expect(after.correct).toBe(0);
-    expect(after.answers).toHaveLength(1);
   });
 
   it('refuses an answer that lands after the clock runs out', () => {
@@ -120,16 +134,13 @@ describe('the clock', () => {
 });
 
 describe('the result', () => {
-  it('reports what was right, what was answered, and what was missed', () => {
+  it('is the mode and how many were got right', () => {
     let state = start();
     state = right(state, 2000);
-    state = wrong(state, 3000);
+    state = right(state, 3000);
     state = right(state, 4000);
 
-    const result = runResult(state);
-    expect(result).toMatchObject({ correct: 2, answered: 3 });
-    expect(result.missed).toHaveLength(1);
-    expect(result.missed[0].correct).toBe(false);
+    expect(runResult(state)).toEqual({ mode: MODE, correct: 3 });
   });
 });
 

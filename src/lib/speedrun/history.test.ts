@@ -6,7 +6,6 @@ const at = (day: number) => new Date(Date.UTC(2026, 0, day));
 const attempt = (mode: string, correct: number, day: number): SpeedAttempt => ({
   mode,
   correct,
-  answered: correct + 2,
   playedAt: at(day),
 });
 

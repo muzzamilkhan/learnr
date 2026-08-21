@@ -479,14 +479,15 @@ simple enough for a child to pick up with no explanation.
   and every tablet clears both halves and is untouched. The speed run's pad
   carries the identical query, because the two screens must not disagree about
   what "tablet" means.
-- **Two short-viewport lines, and a third should not be invented.**
-  `max-height:600px` hides the speed run result's right / missed / answered
-  tally, and `max-height:500px` means "landscape phone" - it turns a figure and
-  its prompt into a row, and it is the same boundary the pad's bounds above take
-  from the other side, as `min-height:501px`. Both are written out as literal
-  class names rather than kept in a variable, since Tailwind reads class names
-  as literals and a composed one compiles to nothing. Reach for whichever of the
-  two means what you mean before adding a number beside them.
+- **One short-viewport line, and a second should not be invented.**
+  `max-height:500px` means "landscape phone" - it turns a figure and its prompt
+  into a row, and it is the same boundary the pad's bounds above take from the
+  other side, as `min-height:501px`. There used to be a `max-height:600px`
+  beside it hiding the speed run result's right / missed / answered tally, and
+  it went with the tally rather than being found a second job. Written out as a
+  literal class name rather than kept in a variable, since Tailwind reads class
+  names as literals and a composed one compiles to nothing. Reach for it before
+  adding a number beside it.
 - **The question is measured and fitted, not declared** (`Prompt`). The room it
   has depends on the device, the orientation, whether a target bar is showing and
   how long the prompt is, so the box is measured and the largest whole pixel size
@@ -511,7 +512,9 @@ simple enough for a child to pick up with no explanation.
 - Tapped answers (choice, true/false) commit on the first touch, with no Check
   button - there is nothing for a child to review. Typed answers keep a Check
   key, drawn as a tick (`CheckIcon`) rather than the word, so a child who cannot
-  read yet still knows it.
+  read yet still knows it. The speed run is the exception and has none: there a
+  typed answer commits the instant it matches, so a tick could only ever be
+  pressed on an entry the pad has already refused.
 - After a wrong tap, the right option turns green and the child's turns red, so
   they always see which one was right.
 - **A right answer moves on by itself after a moment; a wrong one waits.** The
@@ -818,12 +821,29 @@ perfect day boundary.
 
 ## Speed run
 
-Ninety seconds, one mode, how many were answered right. It is a game rather than
+Ninety seconds, one mode, how many you can get right. It is a game rather than
 a lesson - the first thing in the app with a clock, a score and a number to
 beat, all three of which the rest of LearnR deliberately withholds: the play
 screen's header counts nothing and a session keeps no running score, on
 purpose. A speed run breaks both rules, and that is safe to do only because it
 is walled off from everything those rules protect.
+
+**There is no wrong answer in a speed run.** A run moves on a correct answer and
+on nothing else: the entry is judged as it is typed (`judgeEntry`), and digits
+that can no longer become the answer flash the box red and clear it, leaving the
+same question up to be typed again. Nothing is recorded about the attempt and
+the run does not advance, so the score and the number of questions answered are
+one number rather than two.
+
+That one rule took several things with it, and each of them existed only to
+describe a wrong answer: the Check key, Enter, the misses read back on the
+result screen, the right / missed / answered tally under the score, the `of 20`
+beside a score in the cabinet and the report's table, and the `answered` column
+on both `SpeedRecord` and `SpeedAttempt`. What is left is the thing the screen
+was always for. It is also the only place in the app where getting something
+wrong costs nothing at all but the seconds - which is the honest shape of a
+game against a clock, and is why the *lesson* still marks answers and this does
+not.
 
 **Sealed off because an `Attempt` carries a curriculum topic and an Australian
 school year, and a speed run has neither.** `add.hard` is a drill, not a
@@ -883,13 +903,13 @@ than like the one blue number every mode used to share. Its `wash`, `text` and
 class names as literals - `bg-(--color-${op}-soft)` compiles to nothing. A
 beaten best overrides the lot with the star tokens: the rarest state has to be
 the one a player already recognises from the round rewards and the streak, not
-just another operation's colour. Under the score sit right / missed / answered,
-in `--color-right` and `--color-wrong`, because "8 right" says nothing about
-whether that was 8 out of 8 or 8 out of 20. The four blocks arrive on a
-staggered `reward-in` so the screen assembles rather than appearing whole. The
-tally is the one part hidden by a height query on a short viewport: this screen
-never scrolls, and the row is the only thing on it that says nothing the score
-above and the misses below do not.
+just another operation's colour. Under the score there is
+nothing: the tally that used to sit there was right / missed / answered, three
+tiles that are now the same number three times, and the misses below it are a
+list that can no longer have anything in it. The two blocks that remain arrive
+on a staggered `reward-in` so the screen assembles rather than appearing whole,
+and the score centres itself in the viewport rather than sitting under a panel
+that is no longer there.
 
 **The cabinet lists what has been run, and nothing else.** A mode never played
 has no record to show, and twenty-seven rows of dashes made a to-do list of a
@@ -937,9 +957,11 @@ frame, a foil sheen, a starred best - and they are built for the player, who
 reads a wall of them by colour the way they read a wall of cards. A parent
 skimming a weekly report is reading down a column instead, so the same data is
 one row a mode: the best, the **latest** run, and the change between that run
-and the one before it. The child's own trophy screen and the parent's own runs
-at `/progress/speed/records` both keep the cabinet - the cards are the right
-shape for the question those screens answer.
+and the one before it. Each is one number - a run's score is now also its count
+of questions, so there is no "8 of 20" left to disambiguate a bare 8 with. The
+child's own trophy screen and the parent's own runs at
+`/progress/speed/records` both keep the cabinet - the cards are the right shape
+for the question those screens answer.
 
 **The latest run is the number in the middle, and the best is only the standing
 figure.** A best cannot fall, so a table of bests is a high-water mark that
@@ -1096,12 +1118,14 @@ reported as a record, on the write and the read alike, so the same event can
 never tell the child "new best" and leave the parent's banner silent, or the
 reverse.
 
-**A run nobody answered is never submitted.** Banking a zero-answer run would
-store a best of nought, which the child's first real attempt then "beats" -
-laundering a first run into a celebrated record through a run that never
-actually happened. The guard is on the number of answers, never the score:
-nought correct out of eight answered is a real baseline and is banked like any
-other.
+**A run that got nothing right is never submitted.** Banking a nought would
+store a best the child's first real attempt then "beats" - laundering a first
+run into a celebrated record through a run that never actually happened. The
+guard used to be on the number of answers rather than the score, so that nought
+out of eight - a real run with a real baseline - was still banked. There is no
+such run any more: a run only moves on a right answer, so a score of nought and
+a run nobody touched are the same thing, and nought is the one score with
+nothing to say.
 
 **The timer is one CSS transition, and only the pulse comes from React.** The
 bar's width is set once, at the start of the run, as a transition running down
@@ -1116,13 +1140,24 @@ not a render trick.** Reading ahead is most of what makes a fast run fast, so
 `RunState` carries a lookahead of one: the question drawn as "next" is the very
 question that becomes "current" the moment this one is answered, not a preview
 redrawn to match. An answer commits the instant what is typed matches the
-expected answer as an exact string - `07` for 7 does not auto-advance - but the
-Check key stays, because it grades numerically, and a child who typed `07` and
-pressed it is still right. A wrong answer flashes the entry box red and moves
-straight on with nothing shown about what it should have been: ninety seconds
-is not teaching time, and a correction nobody has time to read is only a delay,
-paid most by the child getting the most wrong. The misses are kept and read
-back on the result screen, where there is time.
+expected answer as an exact string, and there is no Check key to grade it any
+other way - so `07` for 7 is not a right answer waiting to be checked, it is a
+leading zero the answer does not begin with, and it is dead on the keystroke.
+A dead entry clears itself immediately rather than waiting for a backspace:
+at this speed a stuck entry costs more than the mistake did, and it is paid
+most by the child mistyping most. Nothing is shown about what the answer should
+have been, on the screen or afterwards - ninety seconds is not teaching time,
+and the question is still up to be got right.
+
+**The speed run's pad is three columns wide, with no tick and no decimal
+point** (`NumberPad` takes both as options; the play screen passes both). There
+is nothing to check, and every answer here is a whole number by construction,
+so a `.` would not be a key that does nothing - with the entry judged as it is
+typed it is a key that can only ever kill what it lands in, sitting next to the
+`0` it would be mistaken for. `0` takes the two columns instead, and the ten
+keys take the width the tick had. Backspace stays: a dead entry clears itself,
+but a child who typed the first digit of a longer answer and thought better of
+it still needs a way back.
 
 **A parent plays too, privately.** `/progress/speed/[op]` renders the same
 component the child gets, and a parent's own runs bank to their own

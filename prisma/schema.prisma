@@ -273,9 +273,7 @@ model SpeedRecord {
   mode   String
 
   /// Most correct answers in a single run of this mode.
-  best     Int
-  /// How many were attempted in the run that set it - context, never a second score.
-  answered Int
+  best Int
 
   achievedAt DateTime @default(now())
 
@@ -313,9 +311,9 @@ model SpeedAttempt {
   /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
   mode   String
 
-  /// How many were answered right, and how many were answered at all.
-  correct  Int
-  answered Int
+  /// How many were got right, which is how many were answered: a speed run only
+  /// moves on a correct answer, so the two were always going to be one number.
+  correct Int
 
   playedAt DateTime @default(now())
 

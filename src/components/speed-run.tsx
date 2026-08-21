@@ -18,6 +18,7 @@ import {
   answerRun,
   COUNTDOWN_MS,
   isOver,
+  judgeEntry,
   pulseFor,
   remainingMs,
   runResult,
@@ -59,12 +60,21 @@ import { SpeedTimer } from './speed-timer';
  * narration, no target bar, no logo. The questions are symbolic - `7 × 4` - so a
  * child who cannot read words can still read them, and everything else would
  * only be something to look at instead of the question.
+ *
+ * **There is no wrong answer here, and so no Check key either.** A run moves on
+ * a right answer and on nothing else: the entry is judged as it is typed, and
+ * digits that can no longer become the answer flash red and clear, leaving the
+ * same question up. That is one rule where there were two, and it takes several
+ * things with it - the tick, Enter, the misses read back at the end, and the
+ * count of questions answered, which is now just the score. What is left is the
+ * thing a speed run was always for: how many you can get right in ninety
+ * seconds. A run has a score and a clock, and nothing else to say.
  */
 
 type Phase = 'choosing' | 'countdown' | 'running' | 'result';
 
-/** How long the entry box stays red after a wrong answer. Long enough to see, short
- * enough to be gone before the next answer is typed - nothing here ever waits. */
+/** How long the entry box stays red after a dead entry. Long enough to see, short
+ * enough to be gone before the next digits are typed - nothing here ever waits. */
 const FLASH_MS = 320;
 
 /** The run-up, counted in whole seconds. Never below one, whatever `COUNTDOWN_MS` says. */
@@ -117,7 +127,7 @@ export function SpeedRun({
   const runRef = useRef<RunState | null>(null);
   const [entry, setEntry] = useState('');
   const entryRef = useRef('');
-  /** Red on the entry box after a wrong answer - the only thing said about it. */
+  /** Red on the entry box after digits that cannot be the answer - the only thing said. */
   const [wrong, setWrong] = useState(false);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pulse, setPulse] = useState<Pulse>('calm');
@@ -176,71 +186,70 @@ export function SpeedRun({
     // claiming one that was never stored.
     if (!recordingEnabled) return;
 
-    // A run nobody answered leaves no row behind. This looks like a saving and
-    // is not: a first-ever run banks whatever it scored, so an abandoned one
-    // would bank a nought and become the baseline every later run is measured
-    // against - and the first *real* run would then beat it, fire the record
-    // celebration and put a personal-best banner in front of a parent. That is
-    // exactly what "a first run is not a record" exists to prevent, laundered
-    // through a run that never happened. The guard is on the answer count and
-    // never on the score: nought out of eight is a real run and a real
-    // baseline, and it is banked like any other.
-    if (ended.answered === 0) return;
-    submitRunAction(modeKey(state.mode), ended.correct, ended.answered)
+    // A run that got nothing right leaves no row behind. This looks like a
+    // saving and is not: a first-ever run banks whatever it scored, so an
+    // abandoned one would bank a nought and become the baseline every later run
+    // is measured against - and the first *real* run would then beat it, fire
+    // the record celebration and put a personal-best banner in front of a
+    // parent. That is exactly what "a first run is not a record" exists to
+    // prevent, laundered through a run that never happened.
+    //
+    // The guard used to be on the answer count, so that nought out of eight -
+    // a real run with a real baseline - was still banked. There is no such run
+    // any more: a run only moves on a right answer, so a score of nought and a
+    // run nobody touched are the same thing, and nought is the one score with
+    // nothing to say.
+    if (ended.correct === 0) return;
+    submitRunAction(modeKey(state.mode), ended.correct)
       .then(setOutcome)
       .catch(() => {});
   }, [recordingEnabled]);
 
-  const submit = useCallback(
-    (value: string) => {
-      const state = runRef.current;
-      const now = Date.now();
-      // An empty entry is not an abandoned answer, it is no answer - the tick is
-      // disabled for it and Enter does nothing.
-      if (state === null || value.trim() === '' || isOver(state, now)) return;
-
-      const next = answerRun(state, value, now);
-      // Whether it was right is read off what the fold did rather than graded
-      // again here: `answerRun` owns that rule, and two copies of it would be one
-      // copy too many.
-      const right = next.correct > state.correct;
-
-      playSound(right ? 'correct' : 'incorrect');
-
-      // Nothing is shown about what it should have been. Ninety seconds is not
-      // teaching time, and a correction nobody has time to read is only a delay -
-      // paid most often by the child getting the most wrong. The misses are kept
-      // in the run state and read back on the result screen, where there is time.
-      if (!right) {
-        setWrong(true);
-        if (flashTimer.current) clearTimeout(flashTimer.current);
-        flashTimer.current = setTimeout(() => setWrong(false), FLASH_MS);
-      }
-
-      // No pause either way. The play screen holds a right answer on screen so a
-      // child can enjoy it; here the clock is the thing being enjoyed.
-      advance(next);
-      updateEntry('');
-    },
-    [advance, updateEntry],
-  );
-
+  /**
+   * One keypress, and the whole of what a speed run does with an answer.
+   *
+   * There is nothing to submit with, so the entry is judged on every key rather
+   * than at the end: it either still could be the answer, is the answer, or can
+   * no longer become it. A right answer moves on with no pause - the play
+   * screen holds one on screen so a child can enjoy it, and here the clock is
+   * the thing being enjoyed. A dead entry clears itself and leaves the same
+   * question up, which is the whole of "there is no wrong answer here": the run
+   * does not move, nothing is recorded, and the child simply types it again.
+   *
+   * Clearing immediately rather than waiting for a backspace is the point. At
+   * this speed a stuck entry costs more than the mistake did, and it is paid
+   * most by the child mistyping most.
+   */
   const press = useCallback(
     (key: string) => {
       const state = runRef.current;
-      if (state === null) return;
+      const now = Date.now();
+      if (state === null || isOver(state, now)) return;
 
-      const next = appendNumeric(entryRef.current, key);
-      if (next === entryRef.current) return;
-      updateEntry(next);
+      const typed = appendNumeric(entryRef.current, key);
+      if (typed === entryRef.current) return;
 
-      // Commits the instant what is typed matches, so a fast player never reaches
-      // for the tick at all. It is an exact *string* match while the tick grades
-      // numerically, which is the whole reason the tick stays: `07` for 7 is not
-      // auto-advanced, and is still right when it is checked.
-      if (next === String(state.current.answer)) submit(next);
+      const verdict = judgeEntry(state, typed);
+
+      if (verdict === 'correct') {
+        playSound('correct');
+        advance(answerRun(state, typed, now));
+        updateEntry('');
+        return;
+      }
+
+      if (verdict === 'dead') {
+        playSound('incorrect');
+        updateEntry('');
+        setWrong(true);
+        if (flashTimer.current) clearTimeout(flashTimer.current);
+        flashTimer.current = setTimeout(() => setWrong(false), FLASH_MS);
+        return;
+      }
+
+      updateEntry(typed);
     },
-    [submit, updateEntry],
+    [advance, updateEntry],
   );
 
   // The count-in. One timeout per second is one more than needed, so it is an
@@ -292,22 +301,18 @@ export function SpeedRun({
         // editable field, which nothing here is.
         event.preventDefault();
         updateEntry((value) => value.slice(0, -1));
-      } else if (event.key === 'Enter') {
-        event.preventDefault();
-        // The ref, not the closure: this listener is replaced on each render, and
-        // that replacement happens after React commits - typing a last digit and
-        // hitting Enter in the same breath lands inside that window.
-        submit(entryRef.current);
-      } else if (/^[0-9.]$/.test(event.key)) {
-        // Exactly the keys the pad has. No minus: nothing in a speed run has a
-        // negative answer, by construction in `modes.ts`.
+      } else if (/^[0-9]$/.test(event.key)) {
+        // Exactly the keys the pad has, which is now the digits and nothing
+        // else. No Enter, because there is nothing to submit; no minus and no
+        // decimal point, because every answer here is a whole number by
+        // construction in `modes.ts`.
         press(event.key);
       }
     };
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, press, submit, updateEntry]);
+  }, [phase, press, updateEntry]);
 
   if (phase === 'result' && result !== null) {
     return (
@@ -408,12 +413,17 @@ export function SpeedRun({
           as a literal class name, since Tailwind reads class names as literals
           and a composed one compiles to nothing. */}
       <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center [@media(min-width:640px)_and_(min-height:501px)]:h-[clamp(16rem,40vh,22rem)]">
+        {/* No tick and no decimal point, so the ten keys take the whole width.
+            Nothing here is checked - an answer commits the instant it matches -
+            and every answer is a whole number, so both would be keys that could
+            only ever refuse what they were pressed on. Backspace stays: a dead
+            entry clears itself, but a child who has typed the first digit of a
+            longer answer and thought better of it still needs a way back. */}
         <NumberPad
           disabled={phase !== 'running'}
-          canCheck={entry !== ''}
+          decimal={false}
           onDigit={press}
           onBackspace={() => updateEntry((value) => value.slice(0, -1))}
-          onCheck={() => submit(entryRef.current)}
         />
       </div>
 

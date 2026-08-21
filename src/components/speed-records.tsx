@@ -74,7 +74,6 @@ const SCALES = {
     star: 'size-4 shrink-0 self-center text-(--color-star)',
     gap: 'size-4 shrink-0',
     score: 'font-bold tabular-nums',
-    of: 'text-xs text-(--color-ink-soft) tabular-nums',
     date: 'ml-auto text-xs text-(--color-ink-soft) tabular-nums',
     empty: 'text-xl text-(--color-ink-soft)',
   },
@@ -89,7 +88,6 @@ const SCALES = {
     star: 'size-3.5 shrink-0 self-center text-(--color-star)',
     gap: 'size-3.5 shrink-0',
     score: 'font-bold tabular-nums',
-    of: 'text-[0.65rem] text-(--color-ink-soft) tabular-nums',
     date: 'ml-auto text-[0.65rem] text-(--color-ink-soft) tabular-nums',
     empty: 'text-sm text-(--color-ink-soft)',
   },
@@ -148,7 +146,6 @@ export function SpeedRecordsCabinet({
                     <span className={run.best ? `${style.score} ${accent.text}` : style.score}>
                       {run.correct}
                     </span>
-                    <span className={style.of}>of {run.answered}</span>
                     <span className={style.date}>{DATE.format(run.playedAt)}</span>
                   </li>
                 ))}

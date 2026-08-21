@@ -24,7 +24,6 @@ import { parseMode } from '@/lib/speedrun/modes';
 export async function submitRunAction(
   modeKey: string,
   correct: number,
-  answered: number,
 ): Promise<SpeedOutcome | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
@@ -32,12 +31,12 @@ export async function submitRunAction(
   const mode = parseMode(modeKey);
   if (mode === null) return null;
 
-  // Bounded before they are stored: a score cannot exceed the answers given, and
-  // neither can be negative or fractional.
-  const total = Math.max(0, Math.min(Math.floor(answered) || 0, 10_000));
-  const right = Math.max(0, Math.min(Math.floor(correct) || 0, total));
+  // One number now rather than two, since a run only moves on a right answer:
+  // the score and the questions answered are the same count. Still bounded
+  // before it is stored - never negative, never fractional, never absurd.
+  const right = Math.max(0, Math.min(Math.floor(correct) || 0, 10_000));
 
-  return submitSpeedRun(session.user.id, mode, { correct: right, answered: total });
+  return submitSpeedRun(session.user.id, mode, right);
 }
 
 export async function dismissRecordsAction(childId: string): Promise<void> {
