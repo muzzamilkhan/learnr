@@ -732,7 +732,15 @@ export const year4: QuestionTemplate[] = [
     constraints: ['ra != rb'],
     answer: 'ra > rb ? a : b',
     answerType: 'choice',
-    choices: { count: 2, distractors: ['ra > rb ? b : a'] },
+    // The two options are the two names the prompt just read out, and the
+    // answer is the larger of them by definition - the same declaration
+    // `decimals.compare` above makes, for the same reason. It is stated here
+    // only because the prediction check reaches word options where the rank
+    // check cannot: sorted by size the answer is always the second of two, so
+    // the option set does predict it, and what predicts it is the question
+    // itself. A child still has to know that a straight angle beats an obtuse
+    // one.
+    choices: { count: 2, distractors: ['ra > rb ? b : a'], rankIsTheQuestion: true },
     hint: 'Smallest to largest: acute, right, obtuse, straight.',
     tags: ['AC9M4M04', 'MA2-GM-03'],
   },

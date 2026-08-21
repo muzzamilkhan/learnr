@@ -431,18 +431,28 @@ Both leaks below are enforced by `validateTemplate`, and both were found in ship
   distractors built as scalings of the answer.
 - **Option-set leak** — the answer is always drawn from a distinguishable subset, so the
   option set announces it. Worse under narration, which reads word options aloud.
+- **Prediction leak** — every distinct option set always came with the same answer, so
+  knowing the four buttons is knowing which one is right. The general case the other two are
+  special cases of, and the one that reaches *word* options, where the rank check cannot go.
+  It speaks only where the sets repeat (`OPTION_SET_REPEATS`): a template whose options move
+  nearly every draw shows one answer per set for want of ever seeing a set twice, which is
+  not a leak. Usually caused by distractors stepped a fixed distance from the answer around a
+  closed list — so vary *which* value is left out, not just which are shown.
 
 Declare `rankIsTheQuestion: true` or `propertyIsTheQuestion: true` **only** where finding the
-extreme, or telling that property apart, genuinely *is* the question. They are separate flags
-and each suppresses only its own check.
+extreme, or telling that property apart, genuinely *is* the question. They are separate flags,
+each suppresses its own check, and either suppresses the prediction check as well — both of
+them say the option set is what the question is about.
 
-**There is a third leak and nothing enforces it: an ordered option label that is not a
+**There is a fourth leak and nothing fully enforces it: an ordered option label that is not a
 number.** `B3`, `4:05`, "unlikely / even chance / likely / certain" all sort, and a prompt that
 names a direction, a quantity or a place along that order picks the answer out of the buttons
 with the picture unread. The rank check cannot help — it requires `everyOptionNumeric` — and
 the option-set check stands down above eight distinct answers, so a question with nine falls
 between the two. `maths.4.position.grid-diagonal` shipped that way and measured 100%; see the
-`grid` bullet above for the shape of it and for the fix.
+`grid` bullet above for the shape of it and for the fix. The prediction check now covers the
+half of this where the option set repeats often enough to be judged — but a leak that varies
+its buttons freely, or that narrows four to two rather than to one, still passes everything.
 
 **And the ordering the prompt names need not be the option labels' own.** Year 6's clock
 questions give a duration in the prompt and offer four times — two hours crossed with two

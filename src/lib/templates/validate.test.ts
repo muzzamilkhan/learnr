@@ -680,6 +680,84 @@ describe('choice leakage', () => {
     expect(result.errors).toEqual([]);
   });
 
+  // The shipped shape that neither check above can see: five solid names, the
+  // distractors stepped a fixed 1, 2 and 3 along the list. The rank check
+  // stands down because the options are words, and the closed-set check
+  // because every name is an answer sometimes and a distractor other times -
+  // and yet the four names on screen are always the answer's four successors,
+  // so which name is *missing* names the answer. Five option sets, five
+  // answers, one to one.
+  const solid = (i: string) =>
+    `${i} == 0 ? 'cube' : ${i} == 1 ? 'sphere' : ${i} == 2 ? 'cone' : ` +
+    `${i} == 3 ? 'cylinder' : 'pyramid'`;
+  const solidSpec = {
+    id: 'maths.1.shapes.leaky-solid',
+    subject: 'maths', topic: 'shapes', level: '1',
+    prompt: 'What is this called?',
+    answer: solid('i'),
+    answerType: 'choice',
+    tags: ['AC9M1SP01'],
+  } as const;
+
+  it('rejects a choice question whose option set predicts the answer', () => {
+    const result = validateTemplate({
+      ...solidSpec,
+      vars: [{ name: 'i', kind: 'int', min: '0', max: '4' }],
+      choices: {
+        count: 4,
+        distractors: [solid('mod(i + 1, 5)'), solid('mod(i + 2, 5)'), solid('mod(i + 3, 5)')],
+      },
+    });
+
+    // Specifically this check and not one of its two special cases: the rank
+    // and closed-set checks are both silent on this template, which is the
+    // whole reason it needed a third.
+    expect(result.errors.join(' ')).toMatch(/distinct option sets/i);
+    expect(result.errors.join(' ')).not.toMatch(/rank/i);
+  });
+
+  it('accepts the same options once which of them is left out varies', () => {
+    const result = validateTemplate({
+      ...solidSpec,
+      vars: [
+        { name: 'i', kind: 'int', min: '0', max: '4' },
+        { name: 'gap', kind: 'pick', from: [1, 2, 3, 4] },
+        { name: 'a', kind: 'expr', expr: 'gap == 1 ? 2 : 1' },
+        { name: 'b', kind: 'expr', expr: 'gap <= 2 ? 3 : 2' },
+        { name: 'c', kind: 'expr', expr: 'gap == 4 ? 3 : 4' },
+      ],
+      choices: {
+        count: 4,
+        distractors: [solid('mod(i + a, 5)'), solid('mod(i + b, 5)'), solid('mod(i + c, 5)')],
+      },
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
+  it('says nothing when the option set almost never turns up twice', () => {
+    // One answer per option set here too - but only because a set is never
+    // seen a second time. Two hundred sums against jittered distractors give
+    // very nearly a fresh set every draw, and refusing that would be refusing
+    // a template for not repeating itself. `OPTION_SET_REPEATS` is what tells
+    // the two apart.
+    const result = validateTemplate({
+      id: 'maths.3.addition.wide',
+      subject: 'maths', topic: 'addition', level: '3',
+      prompt: 'What is {x} + {y}?',
+      vars: [
+        { name: 'x', kind: 'int', min: '100', max: '899' },
+        { name: 'y', kind: 'int', min: '100', max: '899' },
+      ],
+      answer: 'x + y',
+      answerType: 'choice',
+      choices: { count: 4, jitter: { min: '1', max: '99' } },
+      tags: ['AC9M3N01'],
+    });
+
+    expect(result.errors).toEqual([]);
+  });
+
   it('accepts a choice question whose options genuinely mix', () => {
     const result = validateTemplate({
       id: 'maths.2.addition.sound',

@@ -70,6 +70,30 @@ const MIN_CHOICE_DRAWS = 10;
 export const CLOSED_SET_MAX = 8;
 
 /**
+ * How many times over the draws must have covered the distinct option sets
+ * before "every set always came with the same answer" is read as a leak. At 2,
+ * a template is only judged once its sets have turned up twice each on
+ * average - `CHOICE_DRAWS` draws over at most half that many sets.
+ *
+ * The guard is what separates a leak from an artefact, and the artefact is
+ * real: a template whose options move nearly every draw will show one answer
+ * per set simply because no set is ever seen twice, and one measured during
+ * this work managed 3817 distinct sets over 4000 draws. Without a bar it would
+ * be refused on the strength of never repeating itself, which is the opposite
+ * of the defect.
+ *
+ * Two rather than four, which would be the safer-sounding number, because the
+ * bar has to clear the worst of the five templates this check was written
+ * against: one of them had seventeen option sets, and seventeen over forty
+ * draws is a set seen twice, not four times. Set at four it would have caught
+ * four leaks out of five and reported the fifth as clean, which is the one
+ * failure a check like this cannot have - a leak that passes is invisible,
+ * where a legitimate template wrongly refused argues with its author at build
+ * time and gets fixed in a minute.
+ */
+export const OPTION_SET_REPEATS = 2;
+
+/**
  * How many times a single forced combination is retried - with everything
  * not forced redrawn - before it is treated as unsatisfiable and simply not
  * checked. Far fewer than `MAX_ATTEMPTS` in `generate.ts`: that runs once per
@@ -496,7 +520,12 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
   // Both are the same failure - the child gets it right, the profile calls the
   // topic secure, and the thing they learned was not the maths - so both are
   // caught the same way: draw the template many times and look at what stayed
-  // the same. Two shapes are worth reporting.
+  // the same. Three shapes are worth reporting, and the third of them - the
+  // option set predicting the answer - is the general case the first two are
+  // special cases of: a fixed rank predicts it by position, a closed set
+  // predicts it by being the odd one out, and both are ways of saying the
+  // buttons carry the answer. It is checked last because the first two say
+  // *how* a set leaks, which is what an author needs to fix it.
   if (generates && spec.choices !== undefined) {
     const choiceSpec = spec.choices;
     const ranks = new Set<number>();
@@ -519,6 +548,10 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
     // thing a rank can mean, and there is no meaningful sort over "red" beside
     // 7, so one mixed or wordy draw takes the rank check off the table.
     let everyOptionNumeric = true;
+    // Every answer each distinct option set was seen with. The set is keyed
+    // sorted, because the options are shuffled before a child sees them and
+    // the order they came back in says nothing.
+    const answersBySet = new Map<string, Set<string>>();
 
     for (let i = 0; i < CHOICE_DRAWS; i++) {
       let question;
@@ -556,6 +589,11 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
         const key = String(option);
         if (key !== answerKey) wrongValues.add(key);
       }
+
+      const setKey = options.map(String).sort().join(' ');
+      const seen = answersBySet.get(setKey) ?? new Set<string>();
+      seen.add(answerKey);
+      answersBySet.set(setKey, seen);
 
       if (options.every((option) => typeof option === 'number')) {
         const sorted = [...(options as number[])].sort((a, b) => a - b);
@@ -614,6 +652,30 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
             'answer. Draw the distractors from the same values the answer itself can take, ' +
             'or set choices.propertyIsTheQuestion if telling that property apart *is* the ' +
             'question ("which of these is even?"), where no distractor could ever be an answer',
+        );
+      }
+
+      // Prediction. The general case of the two above: whatever shape it
+      // takes, if knowing the four options is enough to know which one is
+      // right, the question can be answered without being read. Both the
+      // opt-outs mean exactly that this is deliberate - "which is largest?"
+      // and "which of these is even?" are questions *about* the option set -
+      // so either of them takes this check off the table too.
+      const oneAnswerEach = [...answersBySet.values()].every((answers) => answers.size === 1);
+      const repeated = answersBySet.size * OPTION_SET_REPEATS <= usable;
+      if (
+        oneAnswerEach &&
+        repeated &&
+        !choiceSpec.rankIsTheQuestion &&
+        !choiceSpec.propertyIsTheQuestion
+      ) {
+        errors.push(
+          `choices: ${usable} draws produced only ${answersBySet.size} distinct option sets, ` +
+            'and each of them came with the same answer every time it appeared - the set of ' +
+            'buttons on screen is enough to know which one is right, so the question can be ' +
+            'beaten without being read. Make something about the wrong options independent ' +
+            'of the answer - which value is left out, which way the near-misses fall - so ' +
+            'that one set of buttons arises from several different answers',
         );
       }
     }

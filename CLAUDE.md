@@ -129,10 +129,16 @@ the same failure - the child gets it right, the profile calls the topic secure,
 and the thing that was learned was not the maths - so both are caught the same
 way, by drawing the template many times and looking at what stayed the same.
 `validateTemplate` draws a `choices` template `CHOICE_DRAWS` (40) times and
-refuses two shapes: an answer that always holds the same **rank** among the
-numerically sorted options, and an answer always drawn from a different list
+refuses three shapes: an answer that always holds the same **rank** among the
+numerically sorted options, an answer always drawn from a different list
 than its distractors (a closed set - three colours, two units - where the odd
-one out is pickable without doing the arithmetic). A sweep of the content
+one out is pickable without doing the arithmetic), and the general case both of
+those are special cases of - **the option set predicting the answer**, where
+every distinct set of buttons always came with the same answer. The third check
+is the one that reaches word options, which is where the first two stand down,
+and it is guarded by `OPTION_SET_REPEATS` (2): a template whose options move
+nearly every draw shows one answer per set because no set is ever seen twice,
+and refusing that would be refusing a template for not repeating itself. A sweep of the content
 written before the check existed found **14 templates with a fixed answer rank
 and one option-set leak**. Thirteen of the fifteen needed reworking; the other
 two were "which is largest?", where the rank *is* the question, and they declare
@@ -144,8 +150,8 @@ rather than one blanket "trust me", each suppressing exactly one check, and both
 visible in review, because an undeclared fixed rank is a question a child can
 beat.
 
-**On a figure question both checks usually stand down, so measurement is the
-only net there is.** Neither exempts a figure structurally - the rank check
+**On a figure question the first two checks usually stand down, so measurement
+is still most of the net.** Neither exempts a figure structurally - the rank check
 runs on any `choices` template whose options are all numeric, figure or not.
 It is the *options* that decide, and a shape name or a grid reference is not a
 number, so one wordy draw takes the rank check off the table: 43 of the 44
@@ -160,8 +166,12 @@ Every leak found while writing this branch's figure content was found by
 *measuring* - keying each draw by its prompt and sorted option set, learning
 the modal answer on one sample and scoring it on a held-out one against the
 blind baseline. **Eight were found that way over this phase**, at rates up to
-100%, and not one of them could have been found by validation. A green suite
-says nothing about a new `choice` template that carries a figure. Measure it.
+100%, and not one of them could have been found by the two checks that existed
+then - the prediction check was written afterwards, from the five one-to-one
+leaks measured at the end of the branch, and it refuses all five. A green suite still says
+little about a new `choice` template that carries a figure: the prediction
+check only speaks where the option set repeats, and a leak that keeps the
+answer to two buttons out of four passes it cleanly. Measure it.
 
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
