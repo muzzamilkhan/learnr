@@ -24,6 +24,12 @@ figure has exactly **two** appearances — one brand tint, or nothing. A kind th
 "the red part"; fill names in a spec are grouping keys that never reach the screen. Where a
 question needs three or more distinguishable regions, it needs a kind that emits `label`s.
 
+**The same rule binds the `hint`, and it is easier to break there.** A hint is read aloud when
+narration is on, to the child least able to reconcile it with the picture. `bar`'s `style` left
+open draws a dot plot about half the time, so a hint saying "the shortest **column**" names
+something that is not on screen in half of all draws. Either pin the style, or word the hint
+for whatever the kind may draw — "the shortest one", "read both numbers off the graph".
+
 ---
 
 ## Per-kind limits
@@ -125,10 +131,15 @@ question needs three or more distinguishable regions, it needs a kind that emits
   nouns — "Cat", "Dog", "Bus", "Red" — or cut a category. Only a graph whose values stay under
   10 gets the roomier column.
 
-  **And the budget falls as the axis gains *steps*, not only digits.** `Car,Bus,Bike` over
-  values of 1–6 is refused — "Bike needs 4 characters where 3 categories leave room for 3" —
-  even though every rung on that axis is a single digit; capping the values at 5 admits it.
-  So the table above is an upper bound rather than a promise. **Build the figure and read the
+  **"The axis" means every axis the kind might choose, not the one you pinned.** The budget is
+  fed the widest rung label across *all* candidate scales, and a pinned `scale` the data
+  overflows is discarded rather than honoured. So `Car,Bus,Bike` over `1,2,6` is refused —
+  "Bike needs 4 characters where 3 categories leave room for 3" — even though every rung of the
+  axis you had in mind is one digit: reaching 6 makes the kind fall back to a scale of 5, whose
+  axis prints `10`. Over `1,2,5` the same graph is clean, and `2,4,6` is clean too, so it is
+  not the size of the maximum on its own.
+
+  The table is therefore an upper bound rather than a promise. **Build the figure and read the
   issues** before settling on a category name, rather than counting characters against it.
 
 - **A `bar` figure needs its maximum constrained above the scale.** An axis of a single step
