@@ -34,6 +34,13 @@ export const sideCount = (s: Expr): Expr =>
  * three distractors, stepped round the list so no two ever coincide. The
  * figure's own vocabulary calls the last one `square-pyramid`; a six-year-old
  * calls it a pyramid, and the button is what they read.
+ *
+ * **The list is closed and the index means a place in it**, so this is not
+ * reusable by a template drawing a different set of solids - `i == 4` is a
+ * pyramid here and nothing else. It takes an index rather than a solid's own
+ * name because the distractors are the answer stepped round the list, which
+ * wants arithmetic; a later year wanting its own set wants its own helper
+ * beside this one, not a parameter on this one.
  */
 export const solidWord = (i: Expr): Expr =>
   `${i} == 0 ? 'cube' : ${i} == 1 ? 'sphere' : ${i} == 2 ? 'cone' : ` +
@@ -55,6 +62,14 @@ const fills = (count: number, shaded: number): Expr =>
  * the template draws `n` from, and the chain of ternaries this returns covers
  * exactly those - which is why the same list has to be passed here and to
  * `shadedFills` below.
+ *
+ * **`counts` must be exactly the template's own `pick` list, and nothing here
+ * can check that it is.** The chain ends in an unguarded `else`, so a count it
+ * was not told about does not fail - it falls through and draws the *last*
+ * count's spinner, silently and on every seed. Name the list once as a
+ * constant and hand that same constant to the `pick`, `equalSectors` and
+ * `shadedFills`, which is what `SPINNER_PARTS` in `1.ts` is for; three
+ * literals written out three times is the shape this gets wrong.
  */
 export const equalSectors = (n: Expr, counts: readonly number[]): Expr =>
   counts

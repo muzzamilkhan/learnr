@@ -1,6 +1,25 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
 import { equalSectors, shadedFills, shapeName, sideCount, solidWord } from './helpers';
 
+/**
+ * How many equal parts the chance spinners are cut into.
+ *
+ * **These are named rather than written out because `equalSectors` and
+ * `shadedFills` take the same list and cannot check that they got it.** Both
+ * write a chain of ternaries covering exactly the counts they are handed, and
+ * a count outside that chain falls through to the last branch - so a template
+ * whose `pick` offered a five-part spinner while the helper was told
+ * `[3, 4, 6]` would draw six sectors for a five-part question, silently and on
+ * every seed. One constant per list, used by the `pick` and by both helpers,
+ * is what makes the mismatch unwritable.
+ *
+ * `SPINNER_PARTS` is the general set; `EVEN_SPINNER_PARTS` drops the odd one,
+ * because "just as likely either way" needs a split the parts can actually
+ * make.
+ */
+const SPINNER_PARTS = [3, 4, 6];
+const EVEN_SPINNER_PARTS = [4, 6];
+
 /** Year 1 - NSW Stage 1. */
 export const year1: QuestionTemplate[] = [
   // ------------------------------------------------------------------
@@ -500,20 +519,35 @@ export const year1: QuestionTemplate[] = [
       { name: 'far', kind: 'pick', from: [-5, -4, -3, 3, 4, 5] },
       { name: 'hn', kind: 'expr', expr: 'mod(h + near - 1, 12) + 1' },
       { name: 'hf', kind: 'expr', expr: 'mod(h + far - 1, 12) + 1' },
+      // **Which hour gets written twice, and it must not always be the
+      // answer's.** Four options over three hours means one hour is always
+      // shown twice - once as "half past", once as "o'clock" - and with the
+      // form-flip distractor nailed to `h` that doubled hour *was* the answer's
+      // in every single draw. A child who spots it never reads the hour hand,
+      // which is the hard half of the question, and is left choosing between
+      // two hands that point straight up or straight down. Both leak checks
+      // are blind to it, for the reasons the comment above gives.
+      //
+      // Flipping the form onto `hn` half the time makes that shortcut pay
+      // exactly what a random tap pays: it wins only when the doubled hour is
+      // `h`, which is half the draws, and then only on the right form, which
+      // is half again - one in four, of four buttons.
+      { name: 'flip', kind: 'pick', from: [1, 0] },
+      { name: 'hd', kind: 'expr', expr: 'flip == 1 ? h : hn' },
     ],
     // O'clock and half past, which is the whole of what Stage 1 reads off a
     // dial - and a time is not something the number pad can type, so the
     // options are written out and tapped.
     answer: "half == 1 ? 'half past ' + h : h + ' o’clock'",
     answerType: 'choice',
-    // Two options in each form, always. One wrong option is the same hour read
-    // the other way round, which is the mistake this question is actually
-    // about; the other two move the hour, one of them in the other form as
-    // well, so "the odd one out is the answer" never works.
+    // Two options in each form, always, so "the odd one out is the answer"
+    // never works. The first distractor is an hour read with the wrong hand -
+    // the mistake this question is really about - and `hd` is what decides
+    // whether it lands on the answer's hour or on the near one.
     choices: {
       count: 4,
       distractors: [
-        "half == 1 ? h + ' o’clock' : 'half past ' + h",
+        "half == 1 ? hd + ' o’clock' : 'half past ' + hd",
         "half == 1 ? 'half past ' + hn : hn + ' o’clock'",
         "half == 1 ? hf + ' o’clock' : 'half past ' + hf",
       ],
@@ -717,11 +751,18 @@ export const year1: QuestionTemplate[] = [
     topic: 'shapes',
     level: '1',
     prompt: 'True or false: this shape has a curved surface.',
+    // Three of the seven curve and four do not, so an even pick answers false
+    // 57% of the time and "false" becomes the better guess. The weights are 4
+    // on each curved solid and 3 on each flat one - twelve against twelve -
+    // which is the same balance the two derived-offset questions get by
+    // construction, bought here without narrowing the list of solids a child
+    // sees.
     vars: [
       {
         name: 'shape',
         kind: 'pick',
         from: ['cube', 'cuboid', 'sphere', 'cone', 'cylinder', 'square-pyramid', 'triangular-prism'],
+        weights: [3, 3, 4, 4, 4, 3, 3],
       },
     ],
     answer: "shape == 'sphere' || shape == 'cone' || shape == 'cylinder'",
@@ -763,7 +804,11 @@ export const year1: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'position',
     level: '1',
-    prompt: 'How many squares are there to the left of the dot?',
+    // "In the same row" is in the prompt rather than only in the hint: without
+    // it the question reads as whole columns just as easily as squares beside
+    // the dot, and a hint is opt-in - a child who does not tap the bulb would
+    // be answering a different question from the one being marked.
+    prompt: 'How many squares are there to the left of the dot in the same row?',
     // Well inside what a report row can hold. A dot at the far corner of the
     // biggest legible grid leaves the builder exactly one grid to draw it on,
     // and the figure then stops varying at all - which the anchoring check
@@ -774,7 +819,7 @@ export const year1: QuestionTemplate[] = [
       { name: 'r', kind: 'int', min: '1', max: '4' },
     ],
     answer: 'c - 1',
-    hint: 'Count the squares in the same row, from the left edge up to the dot.',
+    hint: 'Count along the row from the left edge up to the dot.',
     // The extent is left open, which is this kind's headline variation: the
     // same square sits in a visibly different part of a four-wide grid and a
     // ten-wide one, and no answer here depends on how big the grid is.
@@ -840,11 +885,25 @@ export const year1: QuestionTemplate[] = [
     answerType: 'choice',
     choices: { count: 3, distractors: ["'Pear'", "'Plum'", "'Kiwi'"] },
     hint: 'The shortest column is the fewest.',
+    // **`style` is pinned because the hint names a column.** Left open it
+    // jitters between a column graph and a dot plot, and a dot plot has no
+    // columns at all - measured at 1009 of 2000 draws, so half of the children
+    // reading that hint aloud would be looking for something that is not
+    // there. A prompt may only name what the figure draws, and a hint is a
+    // prompt for this purpose. It is also the year's reading: NSW names the
+    // column graph at Stage 1 and the dot plot at Stage 2.
+    //
+    // The lever this spends is affordable, and measured rather than guessed:
+    // `style` is the kind's main answer to the anchoring rule, but the sixty
+    // combinations of three distinct values carry the variation on their own,
+    // and over 600 seeds the worst answer draws 197 distinct figures in 197
+    // draws - every one of them different.
     figure: {
       kind: 'bar',
       values: "pear + ',' + plum + ',' + kiwi",
       labels: "'Pear,Plum,Kiwi'",
       scale: '1',
+      style: "'column'",
     },
     tags: ['AC9M1ST02', 'MA1-DATA-02'],
   },
@@ -858,9 +917,16 @@ export const year1: QuestionTemplate[] = [
     // Which two columns are compared moves as well as the numbers in them, so
     // the question is never the same pair twice running.
     vars: [
-      // Five at most: a sixth child in a column takes the axis to six rungs,
-      // one past the five whose labels stay clear of one another in a report
-      // row, and the graph loses the width that "Bike" is written across.
+      // **Five at most, and the reason is the axis a *rejected* pin leaves
+      // behind.** `scaleCandidates` keeps a pinned scale only while it leaves
+      // at most five rungs, so a sixth child in a column throws the `scale: 1`
+      // below away and the kind falls back to the ladder - where a step of 5
+      // prints a rung reading `10`. The category budget is fed the widest rung
+      // over *every* scale the kind might pick, so those two characters are
+      // what refuse "Bike", and the axis a child finally sees is beside the
+      // point. Probed both ways: `2,5,10` pinned to a step of 5 is an axis of
+      // two rungs and still refuses "Bike", while `2,4,6` is clean because
+      // every value divides by 2 and no candidate scale ever reaches 10.
       { name: 'car', kind: 'int', min: '1', max: '5' },
       { name: 'bus', kind: 'int', min: '1', max: '5' },
       { name: 'bike', kind: 'int', min: '1', max: '5' },
@@ -877,11 +943,14 @@ export const year1: QuestionTemplate[] = [
     constraints: ['big > small'],
     answer: 'big - small',
     hint: 'Count both columns, then take the smaller away from the bigger.',
+    // Pinned for the reason `graph-fewest` above gives: the hint says column,
+    // so the figure has to draw one.
     figure: {
       kind: 'bar',
       values: "car + ',' + bus + ',' + bike",
       labels: "'Car,Bus,Bike'",
       scale: '1',
+      style: "'column'",
     },
     tags: ['AC9M1ST02', 'MA1-DATA-02'],
   },
@@ -962,7 +1031,7 @@ export const year1: QuestionTemplate[] = [
     // shaded group - which is why the question turns over rather than the
     // picture.
     vars: [
-      { name: 'n', kind: 'pick', from: [3, 4, 6] },
+      { name: 'n', kind: 'pick', from: SPINNER_PARTS },
       { name: 'whole', kind: 'pick', from: [1, 0] },
       { name: 's', kind: 'int', min: 'whole == 1 ? n : 1', max: 'whole == 1 ? n : n - 1' },
       { name: 'asked', kind: 'pick', from: [1, 0] },
@@ -978,8 +1047,8 @@ export const year1: QuestionTemplate[] = [
     choices: { count: 3, distractors: ["'It will'", "'It might'", "'It will not'"] },
     figure: {
       kind: 'spinner',
-      sectors: equalSectors('n', [3, 4, 6]),
-      fills: shadedFills('n', 's', [3, 4, 6]),
+      sectors: equalSectors('n', SPINNER_PARTS),
+      fills: shadedFills('n', 's', SPINNER_PARTS),
     },
     tags: ['AC9M1P01', 'MA1-CHAN-01'],
   },
@@ -990,7 +1059,7 @@ export const year1: QuestionTemplate[] = [
     level: '1',
     prompt: 'Is the arrow more likely to stop on a shaded part or on a part with no shading?',
     vars: [
-      { name: 'n', kind: 'pick', from: [3, 4, 6] },
+      { name: 'n', kind: 'pick', from: SPINNER_PARTS },
       { name: 's', kind: 'int', min: '1', max: 'n - 1' },
     ],
     // Never an even split, which this question has no answer to. Every count
@@ -1002,8 +1071,8 @@ export const year1: QuestionTemplate[] = [
     hint: 'More parts means more chance.',
     figure: {
       kind: 'spinner',
-      sectors: equalSectors('n', [3, 4, 6]),
-      fills: shadedFills('n', 's', [3, 4, 6]),
+      sectors: equalSectors('n', SPINNER_PARTS),
+      fills: shadedFills('n', 's', SPINNER_PARTS),
     },
     tags: ['AC9M1P01', 'MA1-CHAN-01'],
   },
@@ -1021,7 +1090,7 @@ export const year1: QuestionTemplate[] = [
     // rejecting the ones it does not want - see `fractions.half-shaded` for
     // what rejection sampling does to a balance like this.
     vars: [
-      { name: 'n', kind: 'pick', from: [4, 6] },
+      { name: 'n', kind: 'pick', from: EVEN_SPINNER_PARTS },
       { name: 'same', kind: 'pick', from: [1, 0] },
       { name: 'off', kind: 'int', min: '1', max: 'n - 2' },
       {
@@ -1034,8 +1103,8 @@ export const year1: QuestionTemplate[] = [
     hint: 'Count the shaded parts, then the parts with no shading.',
     figure: {
       kind: 'spinner',
-      sectors: equalSectors('n', [4, 6]),
-      fills: shadedFills('n', 's', [4, 6]),
+      sectors: equalSectors('n', EVEN_SPINNER_PARTS),
+      fills: shadedFills('n', 's', EVEN_SPINNER_PARTS),
     },
     tags: ['AC9M1P01', 'MA1-CHAN-01'],
   },
