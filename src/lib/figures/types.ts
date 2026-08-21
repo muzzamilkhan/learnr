@@ -77,6 +77,7 @@ export const FIGURE_KINDS = [
   'clock',
   'array',
   'fraction-shape',
+  'grid',
 ] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
@@ -336,6 +337,74 @@ export type FigureSpec =
        * comment for why a rectangle or a strip does not.
        */
       rotation?: Expr;
+    }
+  | {
+      kind: 'grid';
+      /**
+       * The marked point, "x,y" - whole numbers, and the **first quadrant
+       * only**: NSW places negative coordinates at Stage 4 and the number pad
+       * has no minus key to answer one with. A cell grid counts its columns
+       * and rows from 1; with `onLines` the origin is 0 and is a real place to
+       * stand.
+       */
+      at: Expr;
+      /**
+       * How many cells across and up. Omitted, the builder picks a grid big
+       * enough to hold `at` - and a *different* one on a different seed, which
+       * is this kind's headline answer to the anchoring rule. It is a safe
+       * lever precisely because it is only free when the template did not name
+       * it: a field no template named is one no answer can depend on, and B3
+       * is B3 on a four-wide grid and on a six-wide one.
+       *
+       * **Leave these open wherever you can.** A template that pins the extent
+       * *and* `axisLabels` has used up both of this kind's levers and draws one
+       * byte-identical picture per answer, which `validateTemplate`'s 50-seed
+       * check then refuses - the same refusal a regular polygon gets for a
+       * pinned rotation, and for its reason. How many of them a parent's 64px
+       * report row can hold is worked out per figure and reported with its
+       * number; a labelled grid runs out of room at a handful, and an
+       * unlabelled one holds far more.
+       */
+      columns?: Expr;
+      rows?: Expr;
+      /**
+       * 'numbers' | 'letters' | 'none'. Omitted, jitters between numbers and
+       * letters - and on a coordinate plane (`onLines`) it does not jitter at
+       * all, since a lettered axis has no number to give a coordinate.
+       *
+       * **This is not a choice about decoration: it is the spelling of the
+       * answer.** Column 2 is drawn `2` on a numbered grid and `B` on a
+       * lettered one, so a template answered `B3` with this left open is
+       * illustrated by a grid saying `2,3` on about half of all draws. That is
+       * `array`'s `orientation` again - and, like it, **the 50-seed anchoring
+       * check structurally cannot catch it**, because the jitter makes the
+       * figures differ, which is what that check reads as healthy.
+       *
+       * So **pin it on any question whose answer names a cell**, in the
+       * notation the answer is written in. `grid-kind.ts`'s `answerIssues`
+       * catches the common case as a **heuristic** - an answer the template
+       * alone fixes to a string that reads as `B3`, `2,3` or `(2,3)` - and it
+       * cannot see an answer reached through a bound variable or a `pick`. A
+       * clean `validateTemplate` means the common mistake was not detected,
+       * not that the template is safe.
+       */
+      axisLabels?: Expr;
+      /**
+       * Mark the point on the lines rather than in a cell - the Stage 3
+       * coordinate plane rather than the Stage 2 grid map. Omitted, false.
+       *
+       * **Defaulted rather than jittered, deliberately**, because it decides
+       * the same sort of thing `axisLabels` does: a jittered one would make
+       * the answer mean a cell on one seed and a point on the next. A default
+       * is a pin, so nothing here flips between draws.
+       *
+       * What it cannot do is notice a template that *meant* the coordinate
+       * reading and forgot to say so - that draws the map reading on every
+       * seed, `solid`'s `view` exposure exactly, and nothing in `lib` reads a
+       * prompt. `answerIssues` cannot help either: a numbered cell reference
+       * and a coordinate pair are both written `2,3`.
+       */
+      onLines?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

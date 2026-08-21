@@ -305,8 +305,8 @@ export function validateSpec(input: unknown, label = 'spec'): ValidationResult {
         // fields, in a way judgeable without ever drawing anything? This
         // needs no bound scope and no generated question, so it sits here
         // beside the rest of what is static rather than waiting behind
-        // `generates` below. Only `array` implements `answerIssues` today
-        // (see `array-kind.ts`) - a kind whose jitter cannot silently pick a
+        // `generates` below. `array` and `grid` implement `answerIssues` (see
+        // their own files) - a kind whose jitter cannot silently pick a
         // *different* answer from the one the template committed to has
         // nothing to add here, and the optional method is simply absent on
         // its module. No kind name appears in this call, which is the
