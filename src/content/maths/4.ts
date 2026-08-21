@@ -943,54 +943,73 @@ export const year4: QuestionTemplate[] = [
   //
   // What is pinned differs between the two, and it follows from the answer.
   // `grid-diagonal` names a square, so `axisLabels` decides the spelling of its
-  // answer and has to be pinned - and the extent is then the only lever left,
-  // so it is bound to a 3..5 band rather than to a literal, with every square
-  // an option can name inside the smallest grid of that band.
-  // `grid-to-the-edge` answers a count, which no notation changes, so it can
-  // leave `axisLabels` and `rows` open and keep both of the kind's levers.
+  // answer and has to be pinned, and its extent is bound to a band rather than
+  // to a literal so the picture still varies. `grid-to-the-edge` answers a
+  // count, which no notation changes, so it can leave `axisLabels` and `rows`
+  // open and keep both of the kind's levers.
+  //
+  // **A grid's option labels carry an order, and a directional prompt can pin
+  // it.** `A1` to `C3` sort, and neither enforced leak check can see it: the
+  // rank check wants every option to be a number, and the option-set check
+  // stands down above eight distinct answers, which a three-by-three grid
+  // clears by one. `grid-diagonal` below shipped broken on exactly that, and
+  // the comment at it says what the fix was.
   {
     id: 'maths.4.position.grid-diagonal',
     subject: 'maths',
     topic: 'position',
     level: '4',
     prompt: 'Which square is one square {ew} and one square {ns} from the dot?',
-    // **The four options are the two-by-two block the dot sits in**, which is
-    // what keeps the option set from answering the question: the dot's own
-    // square, the one beside it, the one above or below it, and the one across
-    // the corner. The answer is the corner one, and which square that *is*
-    // depends entirely on where the dot is - so the option set alone says
-    // nothing at all.
+    // **The four buttons offer the same four squares on every draw, and the
+    // dot is what moves.** This is the second version of this template; the
+    // first was answerable without looking at the picture at all, so the reason
+    // is written down here rather than left as a shape to copy.
     //
-    // Year 3's `grid-direction` offers the same block and answers one of the
-    // two edge-adjacent squares. The diagonal is a different move: both
-    // directions have to be applied, and applying only one of them lands on a
-    // distractor rather than on nothing.
+    // That version offered the two-by-two block the dot sat in a corner of and
+    // answered the opposite corner. Every option label carries an order - A
+    // before B before C along the bottom, 1 below 2 below 3 up the side - and
+    // the prompt names both directions, so "take the later letter when it says
+    // to the right and the larger number when it says up" named the answer
+    // **every single time**: 4000 of 4000 draws with the picture ignored,
+    // against a 25% blind baseline. Nothing catches that. The rank check needs
+    // every option to be a number and `B3` is not one; the option-set check
+    // needs eight distinct answers or fewer, and the nine squares of a
+    // three-by-three grid are one too many.
+    //
+    // So the block is fixed at the middle four squares - B2, B3, C2 and C3 -
+    // and the **dot** is what varies, one diagonal step back from the answer,
+    // which puts it in any of sixteen places. Given the four buttons and both
+    // direction words, all four squares are still possible, because which of
+    // them is one step from the dot is a fact about the picture and about
+    // nothing else. The same strategy now scores what a guess scores.
     vars: [
-      { name: 'c0', kind: 'int', min: '1', max: '2' },
-      { name: 'r0', kind: 'int', min: '1', max: '2' },
+      // The answer, drawn first, and always one of the four squares the buttons
+      // offer. Columns and rows 2 and 3 rather than 1 and 2: a block touching
+      // column 1 could only ever be stepped into from the right, and that
+      // correlation between a direction word and the answer's place in the
+      // block is the whole of what went wrong the first time.
+      { name: 'ac', kind: 'int', min: '2', max: '3' },
+      { name: 'ar', kind: 'int', min: '2', max: '3' },
       { name: 'across', kind: 'pick', from: [1, -1] },
       { name: 'up', kind: 'pick', from: [1, -1] },
-      { name: 'c', kind: 'expr', expr: 'across == 1 ? c0 : c0 + 1' },
-      { name: 'cn', kind: 'expr', expr: 'c + across' },
-      { name: 'r', kind: 'expr', expr: 'up == 1 ? r0 : r0 + 1' },
-      { name: 'rn', kind: 'expr', expr: 'r + up' },
+      { name: 'c', kind: 'expr', expr: 'ac - across' },
+      { name: 'r', kind: 'expr', expr: 'ar - up' },
       { name: 'ew', kind: 'expr', expr: "across == 1 ? 'to the right' : 'to the left'" },
       { name: 'ns', kind: 'expr', expr: "up == 1 ? 'up' : 'down'" },
-      { name: 'cols', kind: 'int', min: '3', max: '5' },
-      { name: 'rws', kind: 'int', min: '3', max: '5' },
+      // Wide and tall enough for the dot, which lands outside the block on two
+      // of its four sides. Every option sits inside three by three, so no
+      // distractor can be ruled out for being off the grid however small the
+      // drawn one is - the rule the band exists for.
+      { name: 'cols', kind: 'int', min: 'max(3, c)', max: '5' },
+      { name: 'rws', kind: 'int', min: 'max(3, r)', max: '5' },
     ],
     // A square is written B3, which the number pad cannot type - so it is
-    // tapped.
-    answer: `(${columnLetter('cn')}) + rn`,
+    // tapped. The answer is spelled through `columnLetter` so it reads in the
+    // notation the grid draws; the options are written out because they are the
+    // same four every time.
+    answer: `(${columnLetter('ac')}) + ar`,
     answerType: 'choice',
-    choices: {
-      count: 4,
-      distractors: [
-        `(${columnLetter('c')}) + r`,
-        `(${columnLetter('cn')}) + r`,
-        `(${columnLetter('c')}) + rn`,
-      ],
-    },
+    choices: { count: 4, distractors: ["'B2'", "'B3'", "'C2'", "'C3'"] },
     hint: 'Find the square the dot is in, then move one square across and one up or down.',
     figure: {
       kind: 'grid',

@@ -87,8 +87,18 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   assumed.** The kind filters its candidate divisions for legibility, then for whether the
   arrow lands on one, and takes the **coarsest** that survives. So on a 100-wide line an answer
   at 20 gets ticks worth 20, while an answer at 10 gets ticks worth 10 — the same span, two
-  different tick values, decided by the answer. If a prompt or hint says what a small tick is
-  worth, pin the span so it is true on every draw.
+  different tick values, decided by the answer.
+
+  **So pinning the span is not enough to make a hint about tick size true, and this bullet
+  used to say it was.** The division is chosen from where the *answer* lands, not from the
+  span, so a fully pinned `0–1` line still draws halves for an answer of `0.5` and fifths for
+  `0.2`, and "each small tick is one tenth" is false on both. What makes it true is
+  **constraining the answer's offset as well**: `k ∈ {1, 3, 7, 9}` lands on nothing coarser
+  than a tenth, which is why `maths.4.decimals.number-line-tenths` draws `w + k/10` for those
+  four `k` only, and `maths.3.counting-numbers.number-line` does the identical thing one place
+  to the left. Two pins, not one — and measure it: over all forty reachable answers and sixty
+  seeds each, every tick gap on the Year 4 line came out at exactly a tenth of the span, and
+  no other value appeared anywhere.
 - **A decimals question must pin `from` and `to`.** Reading a tenth needs a one-unit-wide
   line, and exactly one round one contains any given tenth — so 40 of 90 one-decimal values
   have a single available range and would draw the same picture every time.
@@ -135,6 +145,25 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   refused. Do not start at 4: holding the marked square inside a 3-wide floor buys nine distinct
   pictures per answer where a 4..5 band buys four, and the cost is a smaller set of reachable
   answers, which is the cheaper thing to give up.
+
+- **`A1` to `C3` sort, and a directional prompt can pin that order.** The bullet above is what
+  produces a two-by-two block of options round the marked square — and if the prompt then names
+  a direction, "take the later letter when it says right, the larger number when it says up"
+  reads the answer straight off the buttons. `maths.4.position.grid-diagonal` shipped exactly
+  that and measured **4000 of 4000 correct with the picture ignored**, against a 25% blind
+  baseline.
+
+  **Neither enforced check can see it**, and the reason is worth knowing before you rely on a
+  green validate: the rank check requires `everyOptionNumeric` and `B3` is a string, while the
+  option-set check stands down above `CLOSED_SET_MAX` (8) distinct answers, which the nine
+  squares of a 3×3 clear by one.
+
+  The fix is not a third letter or a third number on the buttons — the answer is still the
+  extreme on both axes. **Stop the option block being the block the marked square corners.**
+  What Year 4 does is fix the four options at the middle four squares (B2, B3, C2, C3) and let
+  the *dot* move instead, one step back from the answer, so which of the four is one step away
+  is a fact about the picture alone. Measured after: **27.0%**, against a 27.0% null control
+  (see below) and a 25% blind baseline.
 
 ### `fraction-shape`
 - **A circle takes up to 39 parts; a strip or rectangle up to 12.**
@@ -253,6 +282,31 @@ Both leaks below are enforced by `validateTemplate`, and both were found in ship
 Declare `rankIsTheQuestion: true` or `propertyIsTheQuestion: true` **only** where finding the
 extreme, or telling that property apart, genuinely *is* the question. They are separate flags
 and each suppresses only its own check.
+
+**There is a third leak and nothing enforces it: an ordered option label that is not a
+number.** `B3`, `4:05`, "unlikely / even chance / likely / certain" all sort, and a prompt that
+names a direction, a quantity or a place along that order picks the answer out of the buttons
+with the picture unread. The rank check cannot help — it requires `everyOptionNumeric` — and
+the option-set check stands down above eight distinct answers, so a question with nine falls
+between the two. `maths.4.position.grid-diagonal` shipped that way and measured 100%; see the
+`grid` bullet above for the shape of it and for the fix.
+
+**So measure with the option labels in the key, not the prompt alone.** The measure is
+**(prompt × sorted option set) → that key's commonest answer, over at least 4000 draws**. A
+prompt-only version cannot see this class of leak at all, and it degenerates on a template
+with one constant prompt, where it reduces to the modal-answer rate and is guaranteed to look
+clean.
+
+Two numbers make the result readable, and without them a good template and a bad one look
+alike:
+
+- **A null control.** Taking a max over buckets is biased upward, badly so when the buckets are
+  small. Re-run the same key structure with the answer drawn from the template's own answer
+  distribution *independently of the key*; that is what "no leak" reads for this shape. Year 4's
+  sixteen figure templates all land within 0.5 points of their own null.
+- **Distinct answers per key.** As it approaches 1 the key is an answer sheet and the statistic
+  means nothing: `maths.4.time.after-minutes` scores 96.3% keyed with 3805 keys over 4000
+  draws, and its null control scores 95.2% — an artefact of one draw per key, not a finding.
 
 ## A false claim must be a claim the question could truthfully have made
 
