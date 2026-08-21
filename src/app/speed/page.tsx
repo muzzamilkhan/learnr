@@ -1,28 +1,56 @@
 import Link from 'next/link';
+import { auth, isAuthConfigured } from '@/auth';
 import { ExitIcon } from '@/components/exit-icon';
+import { FamilyLeaderboard } from '@/components/family-leaderboard';
+import { ScoreTabs } from '@/components/score-tabs';
 import { SpeedCards } from '@/components/speed-cards';
+import { SpeedRecordsCabinet } from '@/components/speed-records';
+import { readAccount } from '@/lib/accounts';
+import { householdId } from '@/lib/children';
+import { readFamilyRecords, readSpeedAttempts } from '@/lib/speed-records';
+import { parseScoreTab } from '@/lib/speedrun/tabs';
 
-// Nothing per-player on it, but it sits above screens that are, and the cards
-// link straight into them.
+// Per-player scores, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
 /**
- * The speed run's own front page: the five operations and the way to the
- * records, at the child's scale.
+ * The speed run's own screen: the scores, then the five ways to start a run.
  *
- * The same cards are on the home screen, and that is not a duplicate to be
- * tidied away - the home screen offers speed runs *beside* practice, which is
- * the choice a child arrives to make, while this page is where the back arrow
- * on a run lands. Without it, backing out of `/speed/multiply` went to `/`,
- * which is a screen further out than the one they came from: choosing an
- * operation and choosing between practice and a speed run are different
- * questions, and going back should answer the nearer one. The parent's
- * `/progress/speed` has been this page all along, and this is its counterpart.
+ * **The cards, the cabinet and the family board are one page.** They were three
+ * - the cards here, the two walls behind links underneath them - and the links
+ * were a way out of the screen a player was already on to look at cards about
+ * the very modes it was offering. So the walls came up here, the links went,
+ * and which wall is showing is `?tab=` on this one URL rather than a route each
+ * (`parseScoreTab`).
+ *
+ * **The scores sit above the cards.** What a player opens this screen for after
+ * their first run is how they are doing; the cards are how they answer it, and
+ * they are five, so they cost a short scroll rather than a screen. The child's
+ * home screen still goes straight into a run from its own copy of the cards, so
+ * the shortest way to play never passes through here at all.
+ *
+ * Signed out is neither of the two walls' states - there is no player to have a
+ * failed read about (`null`), and no row to be honestly empty either (`[]`),
+ * because signed out is not a player with nothing recorded, it is nowhere to
+ * record anything at all: nothing is banked without a `userId` to bank it
+ * against (`submitSpeedRun`). A wall of greyed cards would say "play and it'll
+ * show up", which is false until this visitor signs in, so the screen says that
+ * instead rather than asking a wall to guess a third meaning for `[]`. A child
+ * on their own Google account has no household either, and a board of one is
+ * not a leaderboard.
  */
-export default function SpeedHomePage() {
+export default async function SpeedHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const tab = parseScoreTab((await searchParams).tab);
+  const session = isAuthConfigured ? await auth() : null;
+  const userId = session?.user?.id;
+
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-5 sm:px-6 sm:py-8">
-      <header className="mb-6 flex items-center gap-3 sm:mb-8 sm:gap-4">
+    <main className="mx-auto min-h-screen max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      <header className="mb-5 flex items-center gap-3 sm:mb-7 sm:gap-4">
         <Link
           href="/"
           aria-label="Go back"
@@ -33,7 +61,43 @@ export default function SpeedHomePage() {
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Speed run</h1>
       </header>
 
-      <SpeedCards />
+      <ScoreTabs basePath="/speed" tab={tab} />
+
+      <div className="mt-5 sm:mt-7">
+        {tab === 'records' ? <Records userId={userId} /> : <Board userId={userId} />}
+      </div>
+
+      <h2 className="mt-8 mb-4 text-2xl font-bold tracking-tight sm:mt-10 sm:text-3xl">
+        Start a run
+      </h2>
+      {/* No links to the scores under them: the scores are the top of this very
+          screen. `SpeedCards` still draws them on the home screen, which is the
+          one place that offers a run without showing what it has been worth. */}
+      <SpeedCards links={false} />
     </main>
   );
+}
+
+async function Records({ userId }: { userId: string | undefined }) {
+  if (!userId) {
+    return <p className="text-xl text-(--color-ink-soft)">Sign in to keep records of your runs.</p>;
+  }
+  return <SpeedRecordsCabinet attempts={await readSpeedAttempts(userId)} scale="child" />;
+}
+
+async function Board({ userId }: { userId: string | undefined }) {
+  const account = userId ? await readAccount(userId) : null;
+  const household = account ? householdId(account) : null;
+
+  if (household === null) {
+    return (
+      <p className="text-xl text-(--color-ink-soft)">
+        {userId
+          ? 'Nobody else in your family is playing yet, so there is nothing to rank.'
+          : 'Sign in to see how your family is going.'}
+      </p>
+    );
+  }
+
+  return <FamilyLeaderboard records={await readFamilyRecords(household)} scale="child" />;
 }

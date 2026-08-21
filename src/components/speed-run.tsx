@@ -103,7 +103,6 @@ interface Props {
    * undo exactly that. "Go home" on the result screen still goes home.
    */
   backHref: string;
-  recordsHref: string;
   recordingEnabled: boolean;
   /**
    * The scale of the screen that *chooses* a run, and only that one. The run
@@ -121,7 +120,6 @@ export function SpeedRun({
   startMode,
   homeHref,
   backHref,
-  recordsHref,
   recordingEnabled,
   scale = 'child',
 }: Props) {
@@ -352,7 +350,11 @@ export function SpeedRun({
         result={result}
         outcome={outcome}
         homeHref={homeHref}
-        recordsHref={recordsHref}
+        // The same place the door goes, now that the scores are the top of the
+        // screen this run was started from. It is passed as its own prop
+        // because it is its own button - "See records" says what is up there -
+        // but there is nothing left for a second URL to be.
+        recordsHref={backHref}
         onAgain={start}
       />
     );

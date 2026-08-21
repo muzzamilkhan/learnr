@@ -926,23 +926,35 @@ on a staggered `reward-in` so the screen assembles rather than appearing whole,
 and the score centres itself in the viewport rather than sitting under a panel
 that is no longer there.
 
-**The cabinet and the leaderboard are one screen with two tabs**, your records
-on the left. They are the same wall of the same cards asking neighbouring
-questions - how *I* am going, and how the house is going - and while they were
-two screens the only way to compare a card with itself was out to the chooser
-and back in again, which is the one comparison either screen is opened to make.
-`ScoreTabs` is the bar - full width, the two tabs sharing it evenly, `ParentNav`'s
-treatment for its reason - and the tabs are **links rather than state**: both
-halves stay server-rendered, `/speed/records` and `/speed/leaderboard` are the
-URLs they always were, and everything already pointing at them - `SpeedCards`,
-the result screen's `recordsHref`, a bookmark - is untouched. A route group
-(`(scores)`) adds no path segment, so the frame is a layout for the reason
-`ParentShell` is one: hopping between the tabs replaces the cards and leaves the
-arrow, the title and the tabs mounted. Which tab is current is read from the
-path in the browser, `ParentNav`'s trick and for its reason - a layout is never
-told which page it is wrapping. The parent's two nest the same way under
-`/progress/speed`, where `ParentShell` supplies the heading and the tab bar is
-all the inner layout adds.
+**The cards, the cabinet and the leaderboard are one screen**, and the scores
+are the top of it. `/speed` and `/progress/speed` each carry the two walls
+above the five cards that start a run, with **your records on the left tab**.
+It was three screens - the cards, and the two walls behind links underneath
+them - which meant the only way to compare a card with itself was out and back
+in, and the links were an invitation to leave a screen to look at cards about
+the modes it was already offering. The links go with them (`SpeedCards` takes
+`links={false}`), and what is left for them is the child's home screen, which
+offers a run without showing what it has been worth.
+
+**The two walls are `?tab=` on that one page, not a route each**
+(`parseScoreTab`, `scoreTabHref` in `src/lib/speedrun/tabs.ts`). It is still
+one URL per tab - a bookmark, a back button and a link from the home screen all
+work - and both halves are still server-rendered, but the page now *knows*
+which tab it is showing, so `ScoreTabs` is a plain server component instead of
+the `usePathname` client one two routes forced. `parseScoreTab` **falls back
+rather than refusing**, unlike `parseMode` and `parseYearLevel` beside it: those
+normalise stored keys and real content, where this only picks which of two
+panels is drawn, so a mistyped tab opens the records rather than 404ing a screen
+that works perfectly.
+
+**The scores sit above the cards** because what a player opens this screen for,
+after their first run, is how they are doing - and the cards are five, so
+reaching them costs a short scroll rather than a screen. The child's home screen
+still goes straight into a run from its own copy of the cards, so the shortest
+way to play never comes through here at all. The parent's copy is two `Well`s,
+"Scores" and "Start a run", because that is how every other parent screen
+separates two questions - and the board there lost the line explaining that a
+parent's own runs are on it, since their face on the podium says it better.
 
 **Every card carries a Try button, and it goes straight into the run.** A card
 names a mode and shows what has been scored at it; until it had a button, doing
@@ -968,7 +980,11 @@ same weight as the button the screen exists for. **Going again is a glyph too**
 used - so the button they press most needs no reading, the argument the door,
 the tick and the lightbulb are all built on. Both keep their words in
 `aria-label` and `title`: off the screen, not off the page. What is left in the
-row is "See records" and the accent square beside it.
+row is "See records" and the accent square beside it. "See records" now lands
+where the door does - the screen the run was started from, whose top half is the
+scores - so `SpeedRun` no longer takes a `recordsHref` of its own: there is
+nothing left for a second URL to be, and one that could drift is worse than
+none.
 
 **And the result says when a run moved the player on the family board.** It is
 the one leaderboard fact that is *news* rather than something to go and look
@@ -1044,7 +1060,7 @@ one row a mode: the best, the **latest** run, and the change between that run
 and the one before it. Each is one number - a run's score is now also its count
 of questions, so there is no "8 of 20" left to disambiguate a bare 8 with. The
 child's own trophy screen and the parent's own runs at
-`/progress/speed/records` both keep the cabinet - the cards are the right shape
+`/progress/speed` both keep the cabinet - the cards are the right shape
 for the question those screens answer.
 
 **The latest run is the number in the middle, and the best is only the standing
@@ -1074,8 +1090,8 @@ player who had records saw blank cards while the leaderboard, still reading
 `SpeedRecord`, showed those same scores back to them.
 
 **The family leaderboard ranks the household, per mode, first to third.**
-`/speed/leaderboard` and `/progress/speed/leaderboard`, beside the cabinet and
-linked from `SpeedCards` at both scales. A household is `User.parentId` read
+the leaderboard tab of `/speed` and of `/progress/speed`, beside the cabinet
+and linked from the child's home screen. A household is `User.parentId` read
 from both ends - a parent and the children they manage - which `householdId`
 (`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
 for the reason ownership always is, so there is no second column to drift out of
@@ -1263,13 +1279,12 @@ achievement and never your own: `readUnseenRecords` is scoped to a parent's
 banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
-second top-level path.** The child plays at `/speed`, `/speed/[op]` and
-`/speed/records` + `/speed/leaderboard`, the two tabs of one scores screen;
-a parent's own runs live at `/progress/speed`, `/progress/speed/[op]` and
-`/progress/speed/records` + `/progress/speed/leaderboard` - the first a chooser rendering the same
-`SpeedCards` the child's home screen offers, pointed at the parent's own base
-path, so the nav's "Speed run" item lands somewhere all twenty-six modes are
-reachable rather than on one arbitrary operation. A route group adds no path
+second top-level path.** The child plays at `/speed` and `/speed/[op]`; a
+parent's own runs live at `/progress/speed` and `/progress/speed/[op]` - the
+first the scores and the same `SpeedCards` the child's home screen offers,
+pointed at the parent's own base path, so the nav's "Speed run" item lands
+somewhere all twenty-six modes are reachable rather than on one arbitrary
+operation. A route group adds no path
 segment, so a bare
 `(parent)/speed` would sit exactly beside the child's `/speed` - two top-level
 URLs a hyphen apart, told apart only by spelling, and a redirect or a copied

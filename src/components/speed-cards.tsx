@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { OPERATIONS, operationGlyph, operationLabel, type Operation } from '@/lib/speedrun/modes';
+import { scoreTabHref } from '@/lib/speedrun/tabs';
 import { StarIcon } from './star-icon';
 import { TrophyIcon } from './trophy-icon';
 
@@ -15,12 +16,19 @@ import { TrophyIcon } from './trophy-icon';
  * same colour here as it is on the cabinet below - `OPERATION_ACCENT` is shared
  * by both rather than each guessing an index into the same four colours.
  *
- * `basePath`, `recordsHref` and `leaderboardHref` are what let one component
- * serve both trees rather than forking a parent copy: the child runs at
- * `/speed/...`, a
- * parent's own runs nest under `/progress/speed/...` (see CLAUDE.md's
- * "Speed run" section on why the parent's routes nest rather than sitting
- * beside the child's as a second top-level path).
+ * `basePath` is what lets one component serve both trees rather than forking a
+ * parent copy: the child runs at `/speed/...`, a parent's own runs nest under
+ * `/progress/speed/...` (see CLAUDE.md's "Speed run" section on why the
+ * parent's routes nest rather than sitting beside the child's as a second
+ * top-level path).
+ *
+ * **The two links under the cards are optional, and the speed screens turn them
+ * off.** They lead to the scores, which on `/speed` and `/progress/speed` are
+ * the top of the very page the cards sit on - a link out of a screen to
+ * something already on it. What is left for them is the child's home screen,
+ * which offers a run without showing what it has been worth, and there they are
+ * still the only way in. They point at the tabs rather than at routes of their
+ * own (`scoreTabHref`).
  */
 /**
  * One accent per operation, and every class written out in full.
@@ -118,14 +126,13 @@ const SCALES = {
 
 export function SpeedCards({
   basePath = '/speed',
-  recordsHref = `${basePath}/records`,
-  leaderboardHref = `${basePath}/leaderboard`,
+  links = true,
   scale = 'child',
 }: {
   /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
   basePath?: string;
-  recordsHref?: string;
-  leaderboardHref?: string;
+  /** Whether the two ways to the scores are drawn under the cards. */
+  links?: boolean;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -156,27 +163,31 @@ export function SpeedCards({
         })}
       </ul>
 
-      <Link
-        href={recordsHref}
-        className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
-      >
-        <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
-        Your records
-        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-          &rarr;
-        </span>
-      </Link>
+      {links ? (
+        <>
+          <Link
+            href={scoreTabHref(basePath, 'records')}
+            className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
+          >
+            <StarIcon filled className={`shrink-0 text-(--color-star) ${style.star}`} />
+            Your records
+            <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
+              &rarr;
+            </span>
+          </Link>
 
-      <Link
-        href={leaderboardHref}
-        className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
-      >
-        <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
-        Family leaderboard
-        <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
-          &rarr;
-        </span>
-      </Link>
+          <Link
+            href={scoreTabHref(basePath, 'leaderboard')}
+            className={`no-select flex items-center border-(--color-line) bg-(--color-card) font-semibold text-(--color-ink-soft) transition hover:border-(--color-brand) active:scale-[0.98] ${style.records}`}
+          >
+            <TrophyIcon className={`shrink-0 text-(--color-star) ${style.star}`} />
+            Family leaderboard
+            <span aria-hidden className={`ml-auto ${style.recordsArrow}`}>
+              &rarr;
+            </span>
+          </Link>
+        </>
+      ) : null}
     </>
   );
 }

@@ -165,7 +165,7 @@ export interface StandingChange {
  * say.
  *
  * **Null when nobody else has run this mode.** A board of one is not a
- * leaderboard - the same judgement `/speed/leaderboard` makes before it draws
+ * leaderboard - the same judgement the leaderboard tab makes before it draws
  * anything - and "you're 1st in the family" to a child who is the only person
  * who has ever played it is a prize for turning up.
  *

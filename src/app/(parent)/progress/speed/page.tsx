@@ -1,33 +1,66 @@
+import { FamilyLeaderboard } from '@/components/family-leaderboard';
+import { ScoreTabs } from '@/components/score-tabs';
 import { SpeedCards } from '@/components/speed-cards';
+import { SpeedRecordsCabinet } from '@/components/speed-records';
 import { Well } from '@/components/well';
+import { readFamilyRecords, readSpeedAttempts } from '@/lib/speed-records';
+import { parseScoreTab } from '@/lib/speedrun/tabs';
 import { readParent } from '../../parent';
 
-// Per-parent, so it must never be prerendered and shared.
+// Per-parent scores, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
 /**
- * The chooser for a parent's own runs - the twenty-six modes, the same
- * cards the child's home screen offers, pointed at `/progress/speed/...`
- * instead of `/speed/...`. Without this page the nav's "Speed run" item had
- * nowhere honest to land: it went straight to one arbitrary mode, and nothing
- * in the `(parent)` tree linked to the other twenty-six - a parent wanting
- * their own 7 times table had to hand-edit the URL.
+ * A parent's own speed screen, the child's one at the parent's density: their
+ * scores, then the twenty-six modes to start a run at.
+ *
+ * Two wells rather than one page of headings, like every other parent screen -
+ * the scores are one question and starting a run is another. The board needs no
+ * sentence explaining that a parent's own runs are on it: their face is on the
+ * podium, which says it better than a line of copy under a heading did.
+ *
+ * Without this screen the nav's "Speed run" item had nowhere honest to land: it
+ * went straight to one arbitrary mode, and nothing in the `(parent)` tree
+ * linked to the other twenty-five.
  *
  * `readParent` is called here rather than trusted from the layout, for the
- * same reason `/progress`, `/children` and the speed pages beneath this one
- * call it too: the layout is a frame and not a gate, so it does not re-run on
- * a client-side hop between screens.
+ * same reason `/progress`, `/children` and the run beneath this one call it
+ * too: the layout is a frame and not a gate, so it does not re-run on a
+ * client-side hop between screens.
  */
-export default async function ParentSpeedChooserPage() {
-  await readParent();
+export default async function ParentSpeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const tab = parseScoreTab((await searchParams).tab);
+  const { userId } = await readParent();
 
   return (
-    <Well title="Speed run">
-      <SpeedCards
-        basePath="/progress/speed"
-        recordsHref="/progress/speed/records"
-        scale="parent"
-      />
-    </Well>
+    <div className="space-y-4">
+      <Well title="Scores">
+        <ScoreTabs basePath="/progress/speed" tab={tab} scale="parent" />
+        <div className="mt-3">
+          {tab === 'records' ? (
+            <SpeedRecordsCabinet
+              attempts={await readSpeedAttempts(userId)}
+              basePath="/progress/speed"
+              scale="parent"
+            />
+          ) : (
+            <FamilyLeaderboard
+              records={await readFamilyRecords(userId)}
+              basePath="/progress/speed"
+              scale="parent"
+            />
+          )}
+        </div>
+      </Well>
+
+      <Well title="Start a run">
+        {/* No links to the scores: they are the well above this one. */}
+        <SpeedCards basePath="/progress/speed" links={false} scale="parent" />
+      </Well>
+    </div>
   );
 }

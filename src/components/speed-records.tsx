@@ -40,7 +40,7 @@ import { StarIcon } from './star-icon';
  * `scale` follows `Select`'s precedent: `'child'` is large type and targets,
  * the default, since this is chiefly reached from the child's own home screen;
  * `'parent'` is smaller type and single-width borders, for a grown-up reading
- * their own runs at `/progress/speed/records` inside `ParentShell`. A parent
+ * their own runs on `/progress/speed` inside `ParentShell`. A parent
  * reading their *child's* report gets `SpeedTable` instead - a weekly skim is
  * read down a column, and the cards are built for the player.
  */

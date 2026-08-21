@@ -1,32 +1,31 @@
-'use client';
-
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { SCORE_TABS, scoreTabHref, type ScoreTab } from '@/lib/speedrun/tabs';
 
 /**
- * The two halves of one scores screen: your own runs, and the family's.
+ * The two halves of the scores: your own runs, and the family's.
  *
- * Full width, with the two tabs sharing it evenly - `ParentNav`'s treatment and
- * its reason: a bar that spans what it is a header for reads as a place to go,
- * where a short control floating at the left reads as a chip somebody dropped
- * above the cards.
+ * They answer neighbouring questions about the same wall of cards - how *I* am
+ * going, and how the house is going - so they are one control with two states
+ * rather than two places to go and come back from.
  *
- * They were two screens with a back arrow each, reached by two separate links,
- * and they answer neighbouring questions about the same wall of cards - how
- * *I* am going, and how the house is going. Splitting them meant going out to
- * the chooser and back in to compare a card with itself, which is the one
- * comparison anybody opens either screen to make.
+ * **The tabs are links, and the screen knows which is current**, so nothing
+ * here is a client component and both halves stay server-rendered: the page
+ * reads `?tab=` at the boundary through `parseScoreTab` and says which one is
+ * on. It was `usePathname` while the two were routes of their own, which is a
+ * client hook and a hydration boundary bought for a bar of two links.
  *
- * **The tabs are links, not state**, so both halves stay server-rendered and
- * each is its own URL - a bookmark, a back button and the links from
- * `SpeedCards` and the result screen all keep working exactly as they did.
- * Which one is current is read from the path in the browser, `ParentNav`'s
- * trick and for `ParentNav`'s reason: this sits in a layout, and a layout is
- * never told which page it is wrapping.
+ * **Full width, the two sharing it evenly** - `ParentNav`'s treatment for its
+ * reason: a bar that spans what it heads reads as a place to go, where a short
+ * control floating at the left reads as a chip somebody dropped above the cards.
  *
- * **Your records is the left tab**, since it is the one a player opens most and
+ * **Your records is the left tab**, since it is the one a player opens for and
  * the one the leaderboard is context for.
  */
+
+const LABELS: Record<ScoreTab, string> = {
+  records: 'Your records',
+  leaderboard: 'Leaderboard',
+};
 
 const SCALES = {
   child: {
@@ -41,59 +40,33 @@ const SCALES = {
 
 export function ScoreTabs({
   basePath,
+  tab,
   scale = 'child',
 }: {
   /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
   basePath: string;
+  /** Which half is on screen - the page's own answer, already normalised. */
+  tab: ScoreTab;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
-  const pathname = usePathname() ?? '';
-  // The leaderboard is the only other thing under here, so anything that is not
-  // it is the records tab - which keeps a trailing slash or a query from
-  // leaving neither tab lit.
-  const onLeaderboard = pathname.startsWith(`${basePath}/leaderboard`);
 
   return (
     <nav className={`no-select ${style.bar}`}>
-      <Tab
-        href={`${basePath}/records`}
-        label="Your records"
-        active={!onLeaderboard}
-        style={style}
-      />
-      <Tab
-        href={`${basePath}/leaderboard`}
-        label="Leaderboard"
-        active={onLeaderboard}
-        style={style}
-      />
+      {SCORE_TABS.map((each) => (
+        <Link
+          key={each}
+          href={scoreTabHref(basePath, each)}
+          aria-current={each === tab ? 'page' : undefined}
+          className={`${style.tab} ${
+            each === tab
+              ? 'bg-(--color-brand) text-white'
+              : 'text-(--color-ink-soft) hover:text-(--color-brand)'
+          }`}
+        >
+          {LABELS[each]}
+        </Link>
+      ))}
     </nav>
-  );
-}
-
-function Tab({
-  href,
-  label,
-  active,
-  style,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-  style: (typeof SCALES)[keyof typeof SCALES];
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={`${style.tab} ${
-        active
-          ? 'bg-(--color-brand) text-white'
-          : 'text-(--color-ink-soft) hover:text-(--color-brand)'
-      }`}
-    >
-      {label}
-    </Link>
   );
 }

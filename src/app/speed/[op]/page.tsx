@@ -42,7 +42,6 @@ export default async function SpeedPage({
       startMode={startMode?.op === op ? startMode : undefined}
       homeHref="/"
       backHref="/speed"
-      recordsHref="/speed/records"
       recordingEnabled={Boolean(userId)}
     />
   );

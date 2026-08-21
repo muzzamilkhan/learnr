@@ -51,7 +51,6 @@ export default async function ParentSpeedPage({
       startMode={startMode?.op === op ? startMode : undefined}
       homeHref="/progress"
       backHref="/progress/speed"
-      recordsHref="/progress/speed/records"
       recordingEnabled
       // The chooser at the parent's density; the run itself is the same size
       // for everyone. See `SpeedRun`'s `scale`.
