@@ -715,13 +715,30 @@ export const year1: QuestionTemplate[] = [
       // about. The false case is a near miss rather than an obviously wrong
       // number, or the picture stops being read at all.
       { name: 'right', kind: 'pick', from: [1, 0] },
-      { name: 'nudge', kind: 'pick', from: [1, -1] },
       {
         name: 'claim',
         kind: 'expr',
-        // A triangle can only be missed upwards: "2 sides" is not a claim
-        // anybody weighs up, and it would land back on the true case anyway.
-        expr: 'right == 1 ? sides : sides + (sides == 3 ? 1 : nudge)',
+        // **The false claim is another shape's side count, never an offset from
+        // this shape's.** Built as `sides + 1` or `sides - 1` it reached 7,
+        // which no shape here has - so a claim of 7 could only ever be false,
+        // and the whole question was answerable from the number alone on 62.5%
+        // of draws. An offset used to build a false claim has to land inside the
+        // set of answers the template can actually produce.
+        //
+        // Landing inside that set is necessary and was not sufficient, because
+        // the eight shapes are not spread evenly over it: four of them are
+        // quadrilaterals, so a claim of 4 is true more often than not whatever
+        // the offset does. Every mapping keyed on the *side count* leaves that
+        // skew somewhere - the best of them still scores 56%. Keying on the
+        // **shape** is what fixes it: the four quadrilaterals are sent to four
+        // different false claims, in the proportions the shape list itself
+        // produces, so all of 3, 4, 5 and 6 come out exactly half true and the
+        // claim carries no information at all without the picture. Every false
+        // claim is still a count one of these shapes really has, which is what
+        // keeps it a near miss rather than an obviously wrong number.
+        expr:
+          "right == 1 ? sides : sides != 4 ? 4 : " +
+          "shape == 'square' || shape == 'rectangle' ? 3 : shape == 'trapezium' ? 5 : 6",
       },
     ],
     answer: 'sides == claim',

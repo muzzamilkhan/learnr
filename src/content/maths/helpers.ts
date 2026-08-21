@@ -46,6 +46,23 @@ export const solidWord = (i: Expr): Expr =>
   `${i} == 0 ? 'cube' : ${i} == 1 ? 'sphere' : ${i} == 2 ? 'cone' : ` +
   `${i} == 3 ? 'cylinder' : 'pyramid'`;
 
+/**
+ * The letter a grid map writes along the bottom for column `i`, where `i` is an
+ * expression giving 1 to 5 - `A` for the first column, as `grid-kind` draws it.
+ * The expression language has no way to step a character, so the letters are
+ * written out.
+ *
+ * **Five is the whole vocabulary, and it is a limit of the picture rather than
+ * of this function.** A labelled grid map is refused past 5 by 5 - six columns
+ * leave 8.2px between the lines in a parent's 64px report row against the 8.9px
+ * it takes to read two names apart - so a sixth letter would name a column no
+ * figure can draw. Like `solidWord`, the chain ends in an unguarded `else`: an
+ * `i` of 6 comes out `'E'` silently, which is safe only because nothing can ask
+ * for one.
+ */
+export const columnLetter = (i: Expr): Expr =>
+  `${i} == 1 ? 'A' : ${i} == 2 ? 'B' : ${i} == 3 ? 'C' : ${i} == 4 ? 'D' : 'E'`;
+
 /** One `'1'` per part, comma-joined, as an expression-language string literal. */
 const ones = (count: number): Expr => `'${Array.from({ length: count }, () => '1').join(',')}'`;
 

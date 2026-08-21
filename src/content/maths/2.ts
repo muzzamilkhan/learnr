@@ -1,5 +1,5 @@
-import type { Expr, QuestionTemplate } from '@/lib/templates/types';
-import { equalSectors, shadedFills, sideCount } from './helpers';
+import type { QuestionTemplate } from '@/lib/templates/types';
+import { columnLetter, equalSectors, shadedFills, sideCount } from './helpers';
 
 /**
  * How many equal parts the chance spinners are cut into. Named for the reason
@@ -10,16 +10,6 @@ import { equalSectors, shadedFills, sideCount } from './helpers';
  * and on every seed.
  */
 const SPINNER_PARTS = [3, 4, 6];
-
-/**
- * The letter a grid map writes along the bottom for column `i`, for `i` an
- * expression giving 1 to 4 - `A` for the first column, as `grid-kind` draws
- * it. The expression language has no way to step a character, so the four
- * letters this year's grids can reach are written out; a grid wider than that
- * is past what a parent's report row can label anyway.
- */
-const columnLetter = (i: Expr): Expr =>
-  `${i} == 1 ? 'A' : ${i} == 2 ? 'B' : ${i} == 3 ? 'C' : 'D'`;
 
 /** Year 2 - NSW Stage 1. */
 export const year2: QuestionTemplate[] = [
@@ -283,8 +273,14 @@ export const year2: QuestionTemplate[] = [
     topic: 'multiplication',
     level: '2',
     prompt: 'How many dots are there altogether?',
-    // One side is a two or a five, which are the facts this year drills, and
-    // the other runs to seven - the most rows an array may have.
+    // One side is a two or a five so the total can be reached by skip counting,
+    // which is what looking at an array is for; the other runs to seven, the
+    // most rows an array may have.
+    //
+    // **That is a rule about the picture, not about what Year 2 may multiply.**
+    // `measurement.mass-balance` above goes as far as six fives, because there
+    // is no picture there to count along - a sentence can name a product a
+    // child works out, where an array is something they read off dot by dot.
     vars: [
       { name: 'each', kind: 'pick', from: [2, 5] },
       { name: 'groups', kind: 'int', min: '3', max: '7' },
@@ -749,9 +745,20 @@ export const year2: QuestionTemplate[] = [
     topic: 'shapes',
     level: '2',
     prompt: 'True or false: this shape has {claim} flat faces.',
-    // Right half the time by construction, and the false case is a near miss
-    // rather than an obviously wrong number, or the picture stops being looked
-    // at. Claims run from 4 to 7, all of them numbers a child would weigh up.
+    // Right half the time by construction - and **the false claim is the other
+    // reachable count, never an offset from the true one.** These four solids
+    // have 5 faces or 6, so a claim built as `faces + 1` or `faces - 1` put 4
+    // and 7 on the screen, and a 4 or a 7 could only ever be false. Measured
+    // before the fix: claim 4 was false on 513 of 513 draws and claim 7 on 459
+    // of 459, so "false for 4 and 7, true for 5 and 6" scored 74% with the
+    // picture ignored.
+    //
+    // Swapping between 5 and 6 makes every claim exactly half true, because the
+    // two counts are drawn equally often: a 5 is the answer's own count as
+    // often as it is the other solid's. The general rule this is an instance of
+    // - an offset built into a false claim or a distractor has to land inside
+    // the set of answers the template can actually produce, and a two-valued
+    // answer set has no room for a plus or minus one.
     vars: [
       {
         name: 'shape',
@@ -760,8 +767,7 @@ export const year2: QuestionTemplate[] = [
       },
       { name: 'faces', kind: 'expr', expr: "shape == 'cube' || shape == 'cuboid' ? 6 : 5" },
       { name: 'right', kind: 'pick', from: [1, 0] },
-      { name: 'nudge', kind: 'pick', from: [1, -1] },
-      { name: 'claim', kind: 'expr', expr: 'right == 1 ? faces : faces + nudge' },
+      { name: 'claim', kind: 'expr', expr: 'right == 1 ? faces : (faces == 6 ? 5 : 6)' },
     ],
     answer: 'faces == claim',
     hint: 'Do not forget the faces at the back.',
@@ -808,20 +814,20 @@ export const year2: QuestionTemplate[] = [
     tags: ['AC9M2SP01', 'MA1-3DS-01'],
   },
 
-  // Where something is on a map. Year 1 counted squares on an unlabelled grid,
-  // because Stage 1 describes a position in relation to what is around it;
+  // Where something is on a map. Year 1 counted squares on an unlabelled grid;
   // this year the grid carries names along its edges and a square is read off
   // them, which is what AC9M2SP02 asks for: locating a position in a
   // two-dimensional representation of a space.
   //
-  // **These two cite ACARA alone, deliberately.** NSW files grid maps and grid
-  // references under Stage 2 (MA2-GM-01), and the Stage 1 position outcome
-  // this year would otherwise have to cite, MA1-GM-01, is about the position
-  // of objects in relation to one another rather than about reading a
-  // reference off an axis. A citation the curriculum page presents as
-  // checkable is worse wrong than missing, so the NSW code is left off rather
-  // than stretched - the Year K and Year 1 clock templates' exception, pointed
-  // the other way.
+  // **These two cite ACARA alone, deliberately.** NSW places grid maps and grid
+  // references at Stage 2 - MA2-GM-01 - and Stage 2 is Years 3 and 4, so the
+  // code a Year 2 template may carry is a Stage 1 one and NSW does not put this
+  // reading in Stage 1. MA1-GM-01 is the stage's Position outcome; citing it
+  // here would be claiming a placement NSW does not make. A citation the
+  // curriculum page presents as checkable is worse wrong than missing, so the
+  // NSW code is left off rather than stretched - the Year K and Year 1 clock
+  // templates' exception, pointed the other way, and the same direction as the
+  // Year 6 integers.
   //
   // Two things are pinned here and both have to be. `axisLabels` decides the
   // *spelling of the answer* - column 2 is `B` on a lettered grid and `2` on a
@@ -829,19 +835,21 @@ export const year2: QuestionTemplate[] = [
   // (2,3), which is the Stage 3 reading. What is left free is the extent, and
   // it is free within a band rather than left open: the distractors name
   // squares, and a square outside the drawn grid is a wrong answer a child can
-  // rule out without looking at the dot. A grid four or five wide holds every
-  // square the options can name.
+  // rule out without looking at the dot, so every square the options can name
+  // has to be on every grid drawn.
   //
-  // **That leaves four pictures per answer, measured, and four is the ceiling
-  // rather than a choice.** Six is refused - "a grid 6 by 4 labelled in
-  // letters leaves 8.2px between its lines in a parent's 64px report row,
-  // under the 8.9px it takes to read two names along the bottom apart" - so
-  // four and five are the whole of the band, and the dot has to stay inside
-  // the smaller of them. Four is enough for the thing the rule is protecting
-  // against: A4 is the top-left corner of a four-row grid and one square down
-  // from it on a five-row one, so the position cannot be memorised as a
-  // picture. It is not enough to be comfortable, and an author widening the
-  // dot's range should re-read this rather than assume the check will speak up.
+  // **The band is three to five, and the floor matters as much as the
+  // ceiling.** Six in either dimension is refused - "a grid 6 by 4 labelled in
+  // letters leaves 8.2px between its lines in a parent's 64px report row, under
+  // the 8.9px it takes to read two names along the bottom apart" - while every
+  // extent from 3 by 3 to 5 by 5 draws clean. Holding the dot inside the
+  // smallest of them buys **nine pictures per answer**, measured; a band of
+  // four and five, which was the first draft, bought four. The trade is nine
+  // answers instead of sixteen, and it is worth taking: the anchoring rule is
+  // the one this whole feature exists for, and a smaller answer set costs a
+  // child nothing when four of them are on screen either way. A3 is the
+  // top-left corner of a three-row grid and sits two squares below the top of a
+  // five-row one, so no position can be learned as a picture.
   {
     id: 'maths.2.position.grid-square',
     subject: 'maths',
@@ -849,17 +857,17 @@ export const year2: QuestionTemplate[] = [
     level: '2',
     prompt: 'What square is the dot in?',
     vars: [
-      { name: 'c', kind: 'int', min: '1', max: '4' },
-      { name: 'r', kind: 'int', min: '1', max: '4' },
-      { name: 'cols', kind: 'int', min: '4', max: '5' },
-      { name: 'rws', kind: 'int', min: '4', max: '5' },
+      { name: 'c', kind: 'int', min: '1', max: '3' },
+      { name: 'r', kind: 'int', min: '1', max: '3' },
+      { name: 'cols', kind: 'int', min: '3', max: '5' },
+      { name: 'rws', kind: 'int', min: '3', max: '5' },
       // Any other column, and any other row - stepped round rather than drawn
       // and rejected, so no draw is ever thrown away and the answer can land
       // anywhere among the four options.
-      { name: 'dc', kind: 'int', min: '1', max: '3' },
-      { name: 'dr', kind: 'int', min: '1', max: '3' },
-      { name: 'cn', kind: 'expr', expr: 'mod(c - 1 + dc, 4) + 1' },
-      { name: 'rn', kind: 'expr', expr: 'mod(r - 1 + dr, 4) + 1' },
+      { name: 'dc', kind: 'int', min: '1', max: '2' },
+      { name: 'dr', kind: 'int', min: '1', max: '2' },
+      { name: 'cn', kind: 'expr', expr: 'mod(c - 1 + dc, 3) + 1' },
+      { name: 'rn', kind: 'expr', expr: 'mod(r - 1 + dr, 3) + 1' },
     ],
     // A square is written B3, which the number pad cannot type - so it is
     // tapped.
@@ -897,23 +905,23 @@ export const year2: QuestionTemplate[] = [
     // or the right column of the wrong row. A claim wrong in both would be
     // refused at a glance and would never make the child read the other axis.
     vars: [
-      { name: 'c', kind: 'int', min: '1', max: '4' },
-      { name: 'r', kind: 'int', min: '1', max: '4' },
-      { name: 'cols', kind: 'int', min: '4', max: '5' },
-      { name: 'rws', kind: 'int', min: '4', max: '5' },
+      { name: 'c', kind: 'int', min: '1', max: '3' },
+      { name: 'r', kind: 'int', min: '1', max: '3' },
+      { name: 'cols', kind: 'int', min: '3', max: '5' },
+      { name: 'rws', kind: 'int', min: '3', max: '5' },
       { name: 'right', kind: 'pick', from: [1, 0] },
       { name: 'slip', kind: 'pick', from: [0, 1] },
-      { name: 'dc', kind: 'int', min: '1', max: '3' },
-      { name: 'dr', kind: 'int', min: '1', max: '3' },
+      { name: 'dc', kind: 'int', min: '1', max: '2' },
+      { name: 'dr', kind: 'int', min: '1', max: '2' },
       {
         name: 'claimC',
         kind: 'expr',
-        expr: 'right == 1 || slip == 1 ? c : mod(c - 1 + dc, 4) + 1',
+        expr: 'right == 1 || slip == 1 ? c : mod(c - 1 + dc, 3) + 1',
       },
       {
         name: 'claimR',
         kind: 'expr',
-        expr: 'right == 1 || slip == 0 ? r : mod(r - 1 + dr, 4) + 1',
+        expr: 'right == 1 || slip == 0 ? r : mod(r - 1 + dr, 3) + 1',
       },
       { name: 'claim', kind: 'expr', expr: `(${columnLetter('claimC')}) + claimR` },
     ],
@@ -1131,29 +1139,27 @@ export const year2: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'chance',
     level: '2',
-    prompt: 'True or false: it is impossible for the arrow to stop on {part}.',
-    // True in exactly one arrangement - a disc shaded all over, asked about a
-    // part with no shading - so `right` picks that arrangement half the time
-    // and `alt` picks between the three that are false the rest of the time.
-    // Written this way round rather than as a constraint on the answer: a
-    // constraint would throw away whole bindings and the branch harder to
-    // satisfy would survive less often, which is how a "balanced" true/false
-    // ends up 78/22.
+    // **The part asked about is fixed, and fixing it is the whole design.**
+    // `shadedFills` cannot draw an unshaded whole disc - the first-named group
+    // is the shaded one - so "impossible to stop on a shaded part" can never be
+    // true. Asking that half the time looked like variation and was a tell: the
+    // wording alone answered the question on 84% of draws, because "shaded"
+    // meant false every single time and "no shading" meant true three times in
+    // four. A boolean has nothing left to narrow once the wording has spoken,
+    // which is why Year 1's three-option `spinner-will-might` survives the same
+    // asymmetry and this could not.
+    //
+    // So the sentence never moves and `whole` is the only thing drawn: half the
+    // discs are shaded all over and half are not, and the picture is the only
+    // place the answer exists.
+    prompt: 'True or false: it is impossible for the arrow to stop on a part with no shading.',
     vars: [
       { name: 'n', kind: 'pick', from: SPINNER_PARTS },
-      { name: 'right', kind: 'pick', from: [1, 0] },
-      { name: 'alt', kind: 'int', min: '0', max: '2' },
-      { name: 'whole', kind: 'expr', expr: 'right == 1 || alt == 2 ? 1 : 0' },
-      { name: 'asked', kind: 'expr', expr: 'right == 1 ? 0 : (alt == 2 ? 1 : alt)' },
+      { name: 'whole', kind: 'pick', from: [1, 0] },
       { name: 's', kind: 'int', min: 'whole == 1 ? n : 1', max: 'whole == 1 ? n : n - 1' },
-      {
-        name: 'part',
-        kind: 'expr',
-        expr: "asked == 1 ? 'a shaded part' : 'a part with no shading'",
-      },
     ],
-    answer: 'whole == 1 && asked == 0',
-    hint: 'Impossible means there is no part like that to stop on at all.',
+    answer: 'whole == 1',
+    hint: 'If you can see a part with no shading, it is not impossible.',
     figure: {
       kind: 'spinner',
       sectors: equalSectors('n', SPINNER_PARTS),
