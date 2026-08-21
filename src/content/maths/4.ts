@@ -37,7 +37,9 @@ export const year4: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'decimals',
     level: '4',
-    prompt: 'Write {n} tenths as a decimal.',
+    // One tenth is one tenth, not "1 tenths" - the same hole `angles.is-acute`
+    // uses further down, and the one draw in nine that needed it.
+    prompt: "Write {n} tenth{n == 1 ? '' : 's'} as a decimal.",
     vars: [
       { name: 'n', kind: 'int', min: '1', max: '9' },
       // Which side the near-miss falls on. The place-value errors sit below the
@@ -83,11 +85,31 @@ export const year4: QuestionTemplate[] = [
       // The near-miss straddles: above the answer half the time and below it the
       // other half, so the two place-value errors cannot fix the answer's rank.
       { name: 'k', kind: 'pick', from: [-1, 1] },
+      { name: 'm', kind: 'expr', expr: 'n + k' },
+      // Which of the two hundredths on screen the place-value errors are built
+      // from - the answer's own digits, or the near-miss's. `tenths` above
+      // carries the identical var for the identical reason; read it there.
+      { name: 'p', kind: 'pick', from: [0, 1] },
+      { name: 'v', kind: 'expr', expr: 'p == 0 ? n : m' },
     ],
-    constraints: ['mod(n, 10) != 0'],
+    // Neither hundredth ends in a nought, so both read as two decimal places
+    // rather than one of them collapsing to a tenth.
+    constraints: ['mod(n, 10) != 0', 'mod(n + k, 10) != 0'],
     answer: 'n / 100',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 10', 'n', '(n + k) / 100'] },
+    // **`v` is what keeps the buttons quiet, exactly as in `tenths` above.**
+    // Anchoring both place-value errors on `n` put `n / 100`, `n / 10` and `n`
+    // on screen together every draw, so the answer was always the middle of a
+    // run of three each ten times the last - and "pick the hundredth that is a
+    // tenth of another option" beats the question with the prompt unread. 162
+    // option sets, one answer apiece, 100% off the option set alone against a
+    // 25% blind guess, measured over 8000 draws.
+    //
+    // **The prediction check could not have caught this one**, and that is its
+    // stated bound rather than a hole: 162 sets over 40 draws never repeat, so
+    // `OPTION_SET_REPEATS` silences it. A leak with many option sets is still a
+    // leak, and measuring is the only thing that finds it.
+    choices: { count: 4, distractors: ['v / 10', 'v', 'm / 100'] },
     tags: ['AC9M4N01', 'MA2-RN-02'],
   },
   {
@@ -734,7 +756,7 @@ export const year4: QuestionTemplate[] = [
     answerType: 'choice',
     // The two options are the two names the prompt just read out, and the
     // answer is the larger of them by definition - the same declaration
-    // `decimals.compare` above makes, for the same reason. It is stated here
+    // `decimals.larger` above makes, for the same reason. It is stated here
     // only because the prediction check reaches word options where the rank
     // check cannot: sorted by size the answer is always the second of two, so
     // the option set does predict it, and what predicts it is the question
