@@ -59,8 +59,18 @@ for whatever the kind may draw — "the shortest one", "read both numbers off th
   free proportion left, the same reason a regular polygon may not pin its rotation.
 
 ### `number-line`
-- **A line carries 3–5 labelled numbers.** `0–10` labelled at every integer is not drawable;
-  it renders as 0, 5, 10 with minor ticks between.
+- **A line carries 3–5 labelled numbers, and how many depends on how wide they are.** `0–10`
+  labelled at every integer is not drawable; it renders as 0, 5, 10 with minor ticks between.
+  Large numbers cost more room: `from: 800, to: 900, step: 50` is refused — "3 numbers as wide
+  as 800 cannot be spread along the line" — while the same range at `step: 100` is clean, and
+  so is `0–100` at `step: 50`. As with `bar`, **build the figure and read the issues** rather
+  than counting to five.
+- **A small tick is worth whatever the coarsest legible division makes it, not what you
+  assumed.** The kind filters its candidate divisions for legibility, then for whether the
+  arrow lands on one, and takes the **coarsest** that survives. So on a 100-wide line an answer
+  at 20 gets ticks worth 20, while an answer at 10 gets ticks worth 10 — the same span, two
+  different tick values, decided by the answer. If a prompt or hint says what a small tick is
+  worth, pin the span so it is true on every draw.
 - **A decimals question must pin `from` and `to`.** Reading a tenth needs a one-unit-wide
   line, and exactly one round one contains any given tenth — so 40 of 90 one-decimal values
   have a single available range and would draw the same picture every time.
@@ -95,6 +105,18 @@ for whatever the kind may draw — "the shortest one", "read both numbers off th
 - `onLines: 'false'` is the grid map — the point is *in* B3, the Stage 2 reading.
   `onLines: 'true'` is the coordinate plane — the point is *at* (2,3), Stage 3. First quadrant
   only; the pad has no minus key.
+- **A multiple-choice grid must pin the extent to a bound variable — not to a literal, and not
+  left open.** Left open, the builder chooses the extent and the template cannot write
+  distractors against a number it never sees; pinned to a literal, the figure is byte-identical
+  on every seed (there is no cell-aspect wobble) and the anchoring check refuses it. Pin it to a
+  variable drawn from a **band**, and then: **every square an option can name must exist in the
+  smallest member of that band**, or a child rules a distractor out for being off the grid
+  without ever looking at the dot.
+
+  The lettered band is **3..5** — every extent from 3×3 to 5×5 draws clean and only a 6 is
+  refused. Do not start at 4: holding the marked square inside a 3-wide floor buys nine distinct
+  pictures per answer where a 4..5 band buys four, and the cost is a smaller set of reachable
+  answers, which is the cheaper thing to give up.
 
 ### `fraction-shape`
 - **A circle takes up to 39 parts; a strip or rectangle up to 12.**
@@ -156,9 +178,13 @@ for whatever the kind may draw — "the shortest one", "read both numbers off th
   | icons in a row | 6 | 5 | 4 | 3 | 2 | 1 |
 
   At `key: '1'` that cap **is** the largest count you may graph, so short row labels are what
-  buy a longer row. Raising the key buys length too — but one icon standing for two is a Stage 2
-  idea, so an early-years question cannot reach for it, and a K–1 pictograph is bounded by the
-  table above. Say so in the prompt whenever one icon does stand for more than one thing.
+  buy a longer row. Raising the key buys length too, and **when you may reach for that is a
+  curriculum question, not a drawing one.** Both syllabuses introduce many-to-one scales later
+  than you might expect — NSW glosses them at Stage 3 — so a graph where one icon stands for
+  two is ahead of where either places the convention before Year 3. A Year 2 use is defensible
+  when the key is stated in the prompt *and* the point of the question is counting in twos,
+  which is core content that year; below that, keep `key: '1'` and let the table bound you.
+  **Say so in the prompt whenever one icon stands for more than one thing**, whatever the year.
 
 ---
 
@@ -191,6 +217,29 @@ Both leaks below are enforced by `validateTemplate`, and both were found in ship
 Declare `rankIsTheQuestion: true` or `propertyIsTheQuestion: true` **only** where finding the
 extreme, or telling that property apart, genuinely *is* the question. They are separate flags
 and each suppresses only its own check.
+
+## A false claim must be a claim the question could truthfully have made
+
+A true/false question that shows a picture and asserts a number — "this shape has 7 flat
+faces" — leaks if the **claim** narrows the answer without the picture. Two rules, and the
+second is the one that gets missed:
+
+**The false claim must land inside the set of answers the template can actually produce.** Four
+solids with 5 or 6 faces, and a claim built as `faces ± 1`, put 4 and 7 on the screen — numbers
+that could *only ever* be false. "False for 4 and 7, true for 5 and 6" scored **74%** with the
+picture ignored. A two-valued answer set has no room for a plus-or-minus one at all: the false
+claim has to be *the other value*.
+
+**And it must be keyed on whatever determines the answer, not on the answer's own value** —
+because those values are rarely spread evenly, and a mapping keyed on a lopsided value inherits
+the lopsidedness. Eight shapes, four of them quadrilaterals: a claim of 4 stays true more often
+than not *whatever* offset produces it, and every mapping keyed on the side **count** leaves
+that skew somewhere — the best still scored 56%. Keying on the **shape** sends the four
+quadrilaterals to four different false claims in the proportions the shape list itself
+produces, and all of 3, 4, 5 and 6 come out exactly half true.
+
+Measure `P(true | claim)` for every value the claim can take. Landing inside the answer set is
+necessary; an even split is what tells you it is sufficient.
 
 ## A true/false question is not balanced because you asked for balance
 
