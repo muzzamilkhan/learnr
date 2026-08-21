@@ -39,8 +39,20 @@ import {
  * regex over its markdown tables that stops matching produces an *empty* list,
  * and an empty membership list waves through every code in the catalogue: the
  * failure mode is a green test, which is the one failure mode this net must not
- * have. A transcription fails the other way - a code missing from it fails
+ * have. A transcription fails the other way - a code *missing* from it fails
  * loudly against the template that legitimately cites it.
+ *
+ * **That is true of omissions and of nothing else, so the transcription is the
+ * thing to get right.** A code sitting here *wrongly* - mistyped on the way in,
+ * or corrected in the notes file afterwards - stays green forever: the test
+ * would cheerfully accept the very typo it exists to refuse, and no assertion in
+ * this repo can tell that from a correct entry, because this list is where
+ * correctness is defined. The only guard is the manual check against the notes
+ * file, which is why the task report records how it was done rather than merely
+ * saying it was: the code column of all four stage tables diffed against these
+ * four blocks in both directions, empty each way, and the per-stage counts
+ * (ES1 16, S1 16, S2 20, S3 21 - 73) reconciled against the totals the notes
+ * file states for itself. Repeat that if you touch either side.
  *
  * **`MAO-WM-01` is deliberately absent.** Working mathematically hangs off
  * every outcome at every stage and has no stage of its own, which is why
@@ -376,22 +388,36 @@ describe('shipped content', () => {
     }
   });
 
-  // A tag is an identifier. Anything with a space in it is prose, and NESA's is
-  // Crown copyright - nothing in this repo stores an outcome statement. This is
-  // a cheap guard on the one rule whose breach would be a licensing problem
-  // rather than a bug.
+  // **Prose was the quarry.** A tag is an identifier; anything with a space in
+  // it is a sentence, and NESA's sentences are Crown copyright - nothing in this
+  // repo stores an outcome statement, which is the one rule here whose breach
+  // would be a licensing problem rather than a bug.
   //
-  // **It is asserted over every tag rather than over the NSW ones**, and that is
-  // the difference between a test and a decoration: `syllabusOf` recognises NSW
-  // by a pattern with no whitespace in it, so a tag holding an outcome statement
-  // is not an NSW tag by that test's own reckoning and the guard would never see
-  // it. Checking every tag is what lets the assertion fail on the mistake it
-  // exists to catch - a line of syllabus prose pasted into `tags` beside the
-  // code it came from.
-  it('reproduces no syllabus prose, only codes', () => {
+  // The whitespace test that catches it has to run over *every* tag, not over
+  // the ones `syllabusOf` calls NSW: the NSW pattern has no whitespace in it, so
+  // a tag holding an outcome statement is not an NSW tag by that test's own
+  // reckoning and a narrowed guard would never look at it.
+  //
+  // **Which makes recognition the assertion to make, since it is strictly
+  // stronger and the content already satisfies it** - 350 templates, 687 tags,
+  // every one of them recognised today. It refuses prose, it refuses the
+  // hyphen-joined evasion a whitespace check waves through
+  // (`interprets-data-displays`), and it is the only thing in the file that sees
+  // a *shape-broken* code like `MA3-DATA-1`: the membership test below skips it
+  // because `syllabusOf` returns null, and the "cites a syllabus" test above is
+  // satisfied by the ACARA code sitting beside it. That is the silent failure
+  // this branch is built against - `curriculumCodes` drops a tag it does not
+  // recognise, so a broken code reaches the curriculum page as a *missing*
+  // citation rather than a visible error, and nobody would ever notice.
+  //
+  // It commits the repo to **every tag being a curriculum code**. That is a real
+  // commitment and it is meant: a note-to-ourselves tag like `needs-review` is
+  // no longer free to add, and putting one back has to be a decision somebody
+  // makes here rather than a line that slips into a `tags` array.
+  it('reproduces no syllabus prose, and tags nothing that is not a curriculum code', () => {
     for (const template of allTemplates) {
       for (const tag of template.tags ?? []) {
-        expect(tag, template.id).not.toMatch(/\s/);
+        expect(syllabusOf(tag), `${template.id} tags ${JSON.stringify(tag)}`).not.toBeNull();
       }
     }
   });

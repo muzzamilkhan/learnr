@@ -1072,14 +1072,15 @@ export const year4: QuestionTemplate[] = [
   // without a picture since before any of this existed.
   //
   // **`data.many-to-one` above and `data.picture-key` below both cite ACARA
-  // alone, deliberately.** NSW glosses many-to-one scales at Stage 3, under
-  // MA3-DATA-01, so an MA2-DATA code on a graph whose key says five would be a
-  // citation the curriculum page presents as checkable and which would not
-  // check out. The one shipped exception, `maths.2.data.picture-key-two`, earns
-  // its Stage 1 code with an argument about counting in twos being core content
-  // that year; Year 3 declined to take it and there is no equivalent argument
-  // here, because at Year 4 the convention itself is the content rather than a
-  // way of counting. So both key questions stay ACARA-only, which is the route
+  // alone, deliberately.** NSW places many-to-one scales at Stage 3, which is
+  // where Year 5's two picture graphs pick the convention up, so an MA2-DATA
+  // code on a graph whose key says five would be a citation the curriculum page
+  // presents as checkable and which would not check out. The one shipped
+  // exception, `maths.2.data.picture-key-two`, earns its Stage 1 code with an
+  // argument about counting in twos being core content that year; Year 3
+  // declined to take it and there is no equivalent argument here, because at
+  // Year 4 the convention itself is the content rather than a way of counting.
+  // So both key questions stay ACARA-only, which is the route
   // the notes describe. They are the only two templates in the year without an
   // NSW code.
   //

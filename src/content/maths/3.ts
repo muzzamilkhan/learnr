@@ -1097,7 +1097,7 @@ export const year3: QuestionTemplate[] = [
   //
   // **Every graph here keeps `key: '1'` or a one-to-one column, and the
   // many-to-one picture graph is deliberately not repeated.** Year 2 has one,
-  // argued from counting in twos being core content that year; NSW glosses
+  // argued from counting in twos being core content that year; NSW places
   // many-to-one scales at Stage 3 and ACARA does not write them down at Year 3
   // either, so a Year 3 picture graph whose key said five would want a
   // MA2-DATA code for a convention NSW puts a stage later - a citation the

@@ -25,7 +25,7 @@ export const year5: QuestionTemplate[] = [
   //
   // Two things this year is the first to be allowed. **A many-to-one picture
   // graph carries its NSW citation here**: Years K to 4 were held to a key of
-  // one or to an ACARA-only tag because NSW glosses many-to-one scales at
+  // one or to an ACARA-only tag because NSW places many-to-one scales at
   // Stage 3, and this is Stage 3. And **a grid marks a point rather than a
   // cell**: `MA3-GM-01` is the first-quadrant coordinate plane, which Years 2
   // to 4 could not ask.
@@ -1075,12 +1075,12 @@ export const year5: QuestionTemplate[] = [
 
   // Graphs, and **Stage 3 is where the many-to-one scale stops needing an
   // argument.** Years K to 4 were held to a key of one or to an ACARA-only
-  // citation, because NSW glosses many-to-one scales at Stage 3 and the
-  // curriculum page presents a citation as checkable. This is Stage 3, so
-  // MA3-DATA-01 is precisely the outcome a graph whose key says ten belongs to,
-  // and the two picture graphs below carry it. The prompt still says what one
-  // picture stands for, which is a rule at every year: the graph's own key
-  // draws an icon and a number and cannot say two *what*.
+  // citation, because NSW places many-to-one scales at Stage 3 and the
+  // curriculum page presents a citation as checkable. This is Stage 3, so the
+  // two picture graphs below carry MA3-DATA-01 like any other citation, with no
+  // carve-out to argue for it. The prompt still says what one picture stands
+  // for, which is a rule at every year: the graph's own key draws an icon and a
+  // number and cannot say two *what*.
   //
   // The other two are **line graphs**, which nothing in the catalog has drawn.
   // Every graph before this one is a column or a dot, and both answer "how many

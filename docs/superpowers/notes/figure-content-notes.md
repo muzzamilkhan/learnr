@@ -381,7 +381,7 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   At `key: '1'` that cap **is** the largest count you may graph, so short row labels are what
   buy a longer row. Raising the key buys length too, and **when you may reach for that is a
   curriculum question, not a drawing one.** Both syllabuses introduce many-to-one scales later
-  than you might expect — NSW glosses them at Stage 3 — so a graph where one icon stands for
+  than you might expect — NSW places them at Stage 3 — so a graph where one icon stands for
   two is ahead of where either places the convention before Year 3. A Year 2 use is defensible
   when the key is stated in the prompt *and* the point of the question is counting in twos,
   which is core content that year; below that, keep `key: '1'` and let the table bound you.
