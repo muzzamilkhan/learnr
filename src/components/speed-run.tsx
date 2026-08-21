@@ -46,8 +46,14 @@ import { SpeedTimer } from './speed-timer';
  *
  * It takes the **operation**, not a mode: the chooser is the first thing it
  * shows, so which of that operation's modes is being run is this component's own
- * state and never a URL. `/speed/multiply` is a place; `/speed/multiply.7` would
- * be twenty-seven of them, each one a page load away from its neighbours.
+ * state and never a route. `/speed/multiply` is a place; `/speed/multiply.7`
+ * would be fourteen of them, each one a page load away from its neighbours.
+ *
+ * `startMode` is the one exception and it changes none of that: a card in the
+ * cabinet or on the leaderboard already names a mode, so its Try button says
+ * which one to start rather than asking the chooser to ask again. The route is
+ * still the operation's, the mode rides in the query, and the moment the run
+ * begins it is this component's state exactly as a chosen one would be.
  *
  * The run and the result render `fixed inset-0`, escaping whatever frame they
  * were started from - the same reason `RoundReward` covers the play screen
@@ -82,6 +88,12 @@ const COUNT_FROM = Math.max(1, Math.round(COUNTDOWN_MS / 1000));
 
 interface Props {
   op: Operation;
+  /**
+   * A mode to start on, skipping the chooser - what the Try button on a card
+   * sends. Absent is the ordinary way in: the chooser first, and the mode
+   * chosen there.
+   */
+  startMode?: Mode;
   /** Where "Go home" goes: `/` for a child, `/progress` for a parent. */
   homeHref: string;
   /**
@@ -106,6 +118,7 @@ interface Props {
 
 export function SpeedRun({
   op,
+  startMode,
   homeHref,
   backHref,
   recordsHref,
@@ -114,8 +127,8 @@ export function SpeedRun({
 }: Props) {
   const modes = useMemo(() => modesFor(op), [op]);
 
-  const [phase, setPhase] = useState<Phase>('choosing');
-  const [mode, setMode] = useState<Mode>(modes[0]);
+  const [phase, setPhase] = useState<Phase>(startMode ? 'countdown' : 'choosing');
+  const [mode, setMode] = useState<Mode>(startMode ?? modes[0]);
   const [run, setRun] = useState<RunState | null>(null);
   /**
    * `run` mirrored outside React state, for the same reason `entryRef` exists on
@@ -172,6 +185,23 @@ export function SpeedRun({
     setOutcome(null);
     setPhase('countdown');
   }, [advance, mode, updateEntry]);
+
+  /**
+   * A run arrived at from a card's Try button: the count-in is already on
+   * screen (see the render below), and this is what puts a run under it.
+   *
+   * It has to be an effect rather than a lazy initialiser because starting a
+   * run reads the clock and makes a seed, and a render may do neither - the
+   * same purity rule that sends `requestNow()` to the request boundary. The ref
+   * is what keeps it to once: `start` changes identity with `mode`, and a
+   * deep-linked run must never be restarted underneath a player.
+   */
+  const started = useRef(false);
+  useEffect(() => {
+    if (!startMode || started.current) return;
+    started.current = true;
+    start();
+  }, [startMode, start]);
 
   const finish = useCallback(() => {
     const state = runRef.current;
@@ -326,7 +356,7 @@ export function SpeedRun({
     );
   }
 
-  if (phase === 'choosing' || run === null) {
+  if (phase === 'choosing') {
     return (
       <Chooser
         op={op}
@@ -337,6 +367,19 @@ export function SpeedRun({
         onStart={start}
         scale={scale}
       />
+    );
+  }
+
+  // The one frame of a deep-linked run: the phase is already the count-in and
+  // the effect above has not built the run yet. Drawing the count-in over bare
+  // paper is what it will be a moment later anyway, so the screen a Try button
+  // lands on is the count-in from the very first paint - server-rendered
+  // included - rather than a flash of the chooser it was pressed to skip.
+  if (run === null) {
+    return (
+      <div className="no-select fixed inset-0 z-40 bg-(--color-paper)">
+        <Countdown count={COUNT_FROM} />
+      </div>
     );
   }
 

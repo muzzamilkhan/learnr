@@ -11,7 +11,7 @@ import { OPERATION_ACCENT } from './speed-cards';
  * player, who reads a wall of them by colour the way they read a wall of cards.
  * A parent skimming a weekly report is reading down a column instead: which
  * modes have been played lately, how they are going, and whether last week was
- * better than this one. Twenty-seven portrait frames are the wrong shape for
+ * better than this one. Twenty-six portrait frames are the wrong shape for
  * that question, and the child's own trophy screen keeps them precisely because
  * it is the right shape for theirs.
  *
@@ -24,7 +24,7 @@ import { OPERATION_ACCENT } from './speed-cards';
  *
  * **Ordered by when a mode was last played**, freshest at the top, so the modes
  * a child is actually working on are the ones read first - the leaderboard's
- * rule and the cabinet's, for their reason. Twenty-seven rows is more than
+ * rule and the cabinet's, for their reason. Twenty-six rows is more than
  * anybody reads top to bottom.
  *
  * `null` means the read failed, `[]` means nothing has been run - the

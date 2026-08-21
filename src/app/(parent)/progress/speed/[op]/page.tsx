@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { SpeedRun } from '@/components/speed-run';
-import { parseOperation } from '@/lib/speedrun/modes';
+import { parseMode, parseOperation } from '@/lib/speedrun/modes';
 import { readParent } from '../../../parent';
 
 // Per-parent state, so it must never be prerendered and shared.
@@ -29,15 +29,26 @@ export const dynamic = 'force-dynamic';
  * besides: a parent's own speed run is a facet of their report, where
  * `/children` is a genuinely separate destination.
  */
-export default async function ParentSpeedPage({ params }: { params: Promise<{ op: string }> }) {
+export default async function ParentSpeedPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ op: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const op = parseOperation((await params).op);
   if (!op) notFound();
+
+  const asked = (await searchParams).mode;
+  const startMode = asked ? parseMode(asked) : null;
 
   await readParent();
 
   return (
     <SpeedRun
       op={op}
+      // A card's Try button, the child's route's `?mode=` exactly - see there.
+      startMode={startMode?.op === op ? startMode : undefined}
       homeHref="/progress"
       backHref="/progress/speed"
       recordsHref="/progress/speed/records"

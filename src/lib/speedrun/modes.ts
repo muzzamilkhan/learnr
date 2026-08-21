@@ -1,7 +1,7 @@
 import type { QuestionSpec } from '../templates/types';
 
 /**
- * What can be speed-run. Twenty-seven modes, enumerated here and never built at
+ * What can be speed-run. Twenty-six modes, enumerated here and never built at
  * runtime.
  *
  * The list is closed because a record is only worth beating if the mode is worth
@@ -30,8 +30,24 @@ export type Operation = Mode['op'];
 
 export const OPERATIONS: readonly Operation[] = ['add', 'subtract', 'multiply', 'divide', 'mixed'];
 
-/** The single tables offered. 1 is not a drill and 13 is not a table. */
+/** Every table there is, for the bundles and for a mixed run to draw from.
+ * 1 is not a drill and 13 is not a table. */
 export const TABLES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/**
+ * The tables offered as a mode of their own - every one of them except ten.
+ *
+ * Multiplying by ten is a place-value rule rather than a fact to recall: a
+ * child who can write the digit and a nought has the whole table, so ninety
+ * seconds of it measures how fast they can type. A mode is a thing to come
+ * back to and beat, and there is nothing here to get better at.
+ *
+ * It stays *inside* the bundles - "Tables 10-12" would not be that bundle
+ * without it, and a mixed run wants the easy question among the hard ones.
+ * What is gone is the drill, not the number.
+ */
+export const SINGLE_TABLES: readonly number[] = TABLES.filter((table) => table !== 10);
+
 export const TABLE_BUNDLES: readonly TableChoice[] = ['2-5', '6-9', '10-12', 'all'];
 
 /** Every answer is a non-negative integer: subtraction never goes negative and
@@ -184,12 +200,12 @@ export function specsFor(mode: Mode): readonly QuestionSpec[] {
 
 /**
  * Ordered for display: the operations in `OPERATIONS` order, and within
- * multiply the singles 2-12 then the bundles then `all`.
+ * multiply the singles then the bundles then `all`.
  */
 export const MODES: readonly Mode[] = [
   ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'add', difficulty })),
   ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'subtract', difficulty })),
-  ...TABLES.map((tables): Mode => ({ op: 'multiply', tables })),
+  ...SINGLE_TABLES.map((tables): Mode => ({ op: 'multiply', tables })),
   ...TABLE_BUNDLES.map((tables): Mode => ({ op: 'multiply', tables })),
   ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'divide', difficulty })),
   ...DIFFICULTIES.map((difficulty): Mode => ({ op: 'mixed', difficulty })),
@@ -209,7 +225,7 @@ const MODE_BY_KEY = new Map(MODES.map((mode) => [modeKey(mode), mode]));
 
 /**
  * The boundary normaliser, exactly like `parseYearLevel`: one place that decides
- * a key from a URL is real, so no caller has to know what the twenty-seven are.
+ * a key from a URL is real, so no caller has to know what the twenty-six are.
  */
 export function parseMode(key: string): Mode | null {
   return MODE_BY_KEY.get(key) ?? null;

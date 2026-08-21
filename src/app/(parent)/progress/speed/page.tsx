@@ -6,7 +6,7 @@ import { readParent } from '../../parent';
 export const dynamic = 'force-dynamic';
 
 /**
- * The chooser for a parent's own runs - the twenty-seven modes, the same
+ * The chooser for a parent's own runs - the twenty-six modes, the same
  * cards the child's home screen offers, pointed at `/progress/speed/...`
  * instead of `/speed/...`. Without this page the nav's "Speed run" item had
  * nowhere honest to land: it went straight to one arbitrary mode, and nothing

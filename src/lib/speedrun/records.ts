@@ -2,7 +2,7 @@
  * A first run is not a record.
  *
  * It makes a personal best mean somebody improved, and it stops a child
- * exploring the chooser from firing twenty-seven notifications at their parent
+ * exploring the chooser from firing twenty-six notifications at their parent
  * in an afternoon. The cost is that the very first run has nothing to celebrate,
  * which is why the result screen has a third thing to say rather than two -
  * "that's your score to beat" is honest where a fanfare would be invented.

@@ -3,6 +3,7 @@ import { modeKey, modeLabel, operationGlyph, operationLabel } from '@/lib/speedr
 import { OPERATION_ACCENT, type Accent } from './speed-cards';
 import { CrownIcon } from './crown-icon';
 import { ProfileFace } from './profile-face';
+import { SpeedTryLink } from './speed-try';
 
 /**
  * Who is fastest in the house - one collectible card per mode, ranked as a
@@ -16,7 +17,7 @@ import { ProfileFace } from './profile-face';
  * lower again to the right - so who won is read before anything is decoded.
  *
  * **It is drawn as a collectible card because that is what it is**: one per
- * mode, twenty-seven of them, each a fixed frame with a face on the front that
+ * mode, twenty-six of them, each a fixed frame with a face on the front that
  * changes when somebody beats it. The parts are a trading card's parts - a
  * coloured title bar carrying the whole name ("Add - Easy", "Multiply - 7 times
  * table") and the podium as the picture beneath it - and a child reads a wall of them the
@@ -44,7 +45,7 @@ import { ProfileFace } from './profile-face';
  *
  * **The card wears its operation's colour** - `OPERATION_ACCENT`, the same
  * table the cards, the cabinet and the result screen use - so Multiply is the
- * same pink here as the card that starts the run, and twenty-seven cards are
+ * same pink here as the card that starts the run, and twenty-six cards are
  * told apart at a glance rather than by reading their titles.
  *
  * **Every card is the same fixed height.** A grid row already stretches its
@@ -72,7 +73,7 @@ const SHEEN =
 const SCALES = {
   child: {
     grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-    card: 'flex h-64 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
+    card: 'flex h-80 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-sm leading-none',
     op: 'truncate',
@@ -89,7 +90,7 @@ const SCALES = {
   },
   parent: {
     grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-    card: 'flex h-56 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
+    card: 'flex h-64 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-xs leading-none',
     op: 'truncate',
@@ -209,10 +210,13 @@ function Podium({ places, style, accent }: { places: Place[]; style: Style; acce
 
 export function FamilyLeaderboard({
   records,
+  basePath = '/speed',
   scale = 'child',
 }: {
   /** Every household member's bests. Null means the read failed. */
   records: FamilyRecord[] | null;
+  /** Where the Try button goes: `/speed` for a child, `/progress/speed` for a parent. */
+  basePath?: string;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -253,6 +257,7 @@ export function FamilyLeaderboard({
               <div className="relative flex flex-1 flex-col justify-center">
                 <Podium places={standing.places} style={style} accent={accent} />
               </div>
+              <SpeedTryLink mode={standing.mode} basePath={basePath} scale={scale} />
             </div>
           </section>
         );

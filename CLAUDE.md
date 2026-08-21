@@ -855,15 +855,26 @@ every topic genuinely being learned faster than a session could produce them. A
 speed run writes no `Attempt`, no `TopicSkill`, no star and no streak, and earns
 no daily-target credit - the only row it ever writes is `SpeedRecord`.
 
-**Twenty-seven modes, and the list is closed.** A free "from" and "to" range
+**Twenty-six modes, and the list is closed.** A free "from" and "to" range
 across the times tables would give something closer to sixty, most differing
 from a neighbour by one table: two near-identical numbers, each set once and
 never approached again. A record is only worth beating if the mode is worth
-naming, so `modes.ts` enumerates the twenty-seven by hand rather than building
+naming, so `modes.ts` enumerates the twenty-six by hand rather than building
 them from a range: three difficulties each for addition, subtraction, division
-and mixed, the eleven single tables plus four named bundles for multiplication.
+and mixed, the ten single tables plus four named bundles for multiplication.
 Fewer modes than a free range would give, and every one of them accumulates a
 record with some history behind it rather than being set once and forgotten.
+
+**There is no ten times table**, though ten is still in the bundles and in what
+a mixed run draws from. Multiplying by ten is a place-value rule rather than a
+fact to recall - write the digit, write a nought - so a whole run of it measures
+how fast a child can type, and a mode is a thing to come back to and beat. That
+is `SINGLE_TABLES` beside `TABLES` in `modes.ts`: the tables offered as a mode
+of their own, and every table there is. "Tables 10-12" would not be that bundle
+without the ten, so what went is the drill and not the number. Any
+`multiply.10` already banked simply stops appearing - every reader of a stored
+key runs it through `parseMode` and skips what comes back null, which is the
+whole of what retiring a mode costs.
 
 **An operation is labelled with the verb, not the noun**: "Add", "Subtract",
 "Multiply", "Divide". A card, a heading and a button all name something to *do*,
@@ -911,8 +922,41 @@ on a staggered `reward-in` so the screen assembles rather than appearing whole,
 and the score centres itself in the viewport rather than sitting under a panel
 that is no longer there.
 
+**The cabinet and the leaderboard are one screen with two tabs**, your records
+on the left. They are the same wall of the same cards asking neighbouring
+questions - how *I* am going, and how the house is going - and while they were
+two screens the only way to compare a card with itself was out to the chooser
+and back in again, which is the one comparison either screen is opened to make.
+`ScoreTabs` is the bar, and the tabs are **links rather than state**: both
+halves stay server-rendered, `/speed/records` and `/speed/leaderboard` are the
+URLs they always were, and everything already pointing at them - `SpeedCards`,
+the result screen's `recordsHref`, a bookmark - is untouched. A route group
+(`(scores)`) adds no path segment, so the frame is a layout for the reason
+`ParentShell` is one: hopping between the tabs replaces the cards and leaves the
+arrow, the title and the tabs mounted. Which tab is current is read from the
+path in the browser, `ParentNav`'s trick and for its reason - a layout is never
+told which page it is wrapping. The parent's two nest the same way under
+`/progress/speed`, where `ParentShell` supplies the heading and the tab bar is
+all the inner layout adds.
+
+**Every card carries a Try button, and it goes straight into the run.** A card
+names a mode and shows what has been scored at it; until it had a button, doing
+something about that meant backing out to the chooser, finding the same mode and
+pressing Start - four taps to answer the question the card had just asked. The
+chooser is skipped because the mode is already chosen: that is what a card *is*.
+**The mode rides in the query, not the path** - `/speed/multiply?mode=multiply.7`
+- so `SpeedRun` still takes an operation and still owns the choice, which is the
+whole of why `/speed/multiply.7` is not a route. It goes through `parseMode`
+like every other stored or typed key and must name a mode of that operation, so
+a hand-typed mismatch simply lands on the chooser. `SpeedRun` starts it in a
+mount effect rather than a lazy initialiser, because starting a run reads the
+clock and makes a seed and a render may do neither; the first paint - the
+server's included - is the count-in rather than a flash of the chooser the
+button was pressed to skip. One `SpeedTryLink` serves both walls of cards, since
+the cabinet's card and the leaderboard's card are deliberately the same object.
+
 **The cabinet lists what has been run, and nothing else.** A mode never played
-has no record to show, and twenty-seven rows of dashes made a to-do list of a
+has no record to show, and twenty-six rows of dashes made a to-do list of a
 trophy case - the four scores actually set were the smallest thing on a screen
 mostly composed of what had not happened. A player with no runs at all gets one
 sentence. What is missing is not the prompt to go and play: the five cards above
@@ -1025,12 +1069,12 @@ first, which is the only thing that honestly separates them. The cut is at three
 Only modes somebody has run appear - the cabinet's rule above, for the
 cabinet's reason - and they are ordered **freshest first**: the newest
 `achievedAt` among a card's *places*, so a fourth-place run, which changes
-nothing anybody can see, does not reorder the board. Twenty-seven cards is more
+nothing anybody can see, does not reorder the board. Twenty-six cards is more
 than anyone reads top to bottom, and the ones worth reading are the ones that
 just moved. Equally fresh modes keep `MODES` order between them.
 
 **A mode is a collectible card, and its result is a podium.** One card per
-mode, twenty-seven of them: a coloured title bar carrying the whole name -
+mode, twenty-six of them: a coloured title bar carrying the whole name -
 "Add - Easy", "Multiply - 7 times table" - and the podium as the picture
 beneath it. A child reads a wall of them the way they read a wall of cards, by
 colour and by who is on the front. The mode used to be a subtitle under the bar,
@@ -1066,7 +1110,7 @@ The podium is laid out by *place* rather than by list position, so a shared
 first puts both faces on the top step rather than demoting one of them to the
 left. **A card wears its operation's colour** - `OPERATION_ACCENT`'s solid in
 the title bar, its wash behind the podium and its border around the lot -
-because twenty-seven identical white boxes are told apart only by reading their
+because twenty-six identical white boxes are told apart only by reading their
 titles, and Multiply here is the same pink as the card that starts the run.
 That accent gained a `line` alongside `border`, since `border` was only ever a
 hover. Six across on a desktop, five on a tablet held sideways, four on one
@@ -1108,7 +1152,7 @@ violation and retry the guarded update once. One time round is enough.
 
 **A first run is not a record.** Recording one as a record would make a
 personal best mean somebody *improved*, which a first run has not done, and it
-would let a child exploring the chooser fire twenty-seven notifications at
+would let a child exploring the chooser fire twenty-six notifications at
 their parent in an afternoon. The result screen has a third thing to say rather
 than two - "that's your score to beat", where a fanfare would be invented - and
 a fourth for when the run was never banked at all: signed out, no database, or
@@ -1168,11 +1212,11 @@ banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
 second top-level path.** The child plays at `/speed`, `/speed/[op]` and
-`/speed/records`;
+`/speed/records` + `/speed/leaderboard`, the two tabs of one scores screen;
 a parent's own runs live at `/progress/speed`, `/progress/speed/[op]` and
-`/progress/speed/records` - the first a chooser rendering the same
+`/progress/speed/records` + `/progress/speed/leaderboard` - the first a chooser rendering the same
 `SpeedCards` the child's home screen offers, pointed at the parent's own base
-path, so the nav's "Speed run" item lands somewhere all twenty-seven modes are
+path, so the nav's "Speed run" item lands somewhere all twenty-six modes are
 reachable rather than on one arbitrary operation. A route group adds no path
 segment, so a bare
 `(parent)/speed` would sit exactly beside the child's `/speed` - two top-level

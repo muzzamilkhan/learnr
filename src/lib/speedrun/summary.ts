@@ -47,7 +47,7 @@ export interface ModeSummary {
  * Every mode this player has run, **freshest first** by its latest run.
  *
  * **Only modes that have been run appear** - `runHistory` and `familyStandings`
- * both draw that line, and for the reason the cabinet gives: twenty-seven empty
+ * both draw that line, and for the reason the cabinet gives: twenty-six empty
  * rows make a to-do list out of a record of what happened.
  *
  * The best is the maximum over the runs handed in, not a number read from

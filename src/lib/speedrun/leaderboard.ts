@@ -7,7 +7,7 @@ import { MODES, modeKey, parseMode, type Mode } from './modes';
  * database.
  *
  * A family is a parent and the children they manage, both playing the same
- * twenty-seven modes and each banking their own `SpeedRecord`. There is no new
+ * twenty-six modes and each banking their own `SpeedRecord`. There is no new
  * column behind this and no migration: a leaderboard is those rows sorted, and
  * the score it sorts on is the same maximum the cabinet already shows.
  */
@@ -56,7 +56,7 @@ export const PLACES = 3;
  * The standings, one per mode somebody has run, **freshest first**.
  *
  * **Only modes that have been run appear**, and `SpeedRecordsCabinet` draws the
- * empty ones the same way for the same reason: twenty-seven rows of dashes make
+ * empty ones the same way for the same reason: twenty-six rows of dashes make
  * a to-do list out of a trophy case, and the few scores actually set end up the
  * smallest thing on a screen mostly composed of what has not happened.
  *
@@ -71,7 +71,7 @@ export const PLACES = 3;
  * a tie that was not broken.
  *
  * **The order is when a mode's podium last changed**, newest first, rather than
- * the fixed `MODES` order it used to be. Twenty-seven cards is more than anyone
+ * the fixed `MODES` order it used to be. Twenty-six cards is more than anyone
  * reads top to bottom, and the ones worth reading are the ones that just moved:
  * a board sorted by what happened lately puts the run somebody finished this
  * afternoon on the first card rather than wherever addition happens to sit in a

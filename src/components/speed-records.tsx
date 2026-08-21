@@ -1,6 +1,7 @@
 import { runHistory, type SpeedAttempt } from '@/lib/speedrun/history';
 import { modeKey, modeLabel, operationGlyph, operationLabel } from '@/lib/speedrun/modes';
 import { OPERATION_ACCENT } from './speed-cards';
+import { SpeedTryLink } from './speed-try';
 import { StarIcon } from './star-icon';
 
 /**
@@ -32,7 +33,7 @@ import { StarIcon } from './star-icon';
  * `history === null` means the read failed, not that nothing has been played -
  * the distinction `readObservations` draws, and getting it backwards here would
  * tell a child with records that they have none. `[]` is the honest "nothing
- * yet", and **only modes that have been run appear**: twenty-seven empty tables
+ * yet", and **only modes that have been run appear**: twenty-six empty tables
  * make a to-do list out of a trophy case. What is missing is not a prompt to go
  * and play - the cards above are, and they are always all five.
  *
@@ -65,11 +66,11 @@ const SHEEN =
 const SCALES = {
   child: {
     grid: 'grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-    card: 'flex h-64 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
+    card: 'flex h-80 flex-col overflow-hidden rounded-2xl border-2 bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-sm leading-none',
     body: 'relative flex flex-1 flex-col px-3 py-2.5',
-    list: 'relative flex flex-col',
+    list: 'relative flex flex-1 flex-col justify-center',
     row: 'flex items-baseline gap-1.5 py-1 text-base',
     star: 'size-4 shrink-0 self-center text-(--color-star)',
     gap: 'size-4 shrink-0',
@@ -79,11 +80,11 @@ const SCALES = {
   },
   parent: {
     grid: 'grid grid-cols-2 gap-2.5 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
-    card: 'flex h-56 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
+    card: 'flex h-64 flex-col overflow-hidden rounded-xl border bg-(--color-card) shadow-sm',
     bar: 'flex items-center gap-1.5 px-2.5 py-1.5 text-[0.65rem] font-bold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.4)]',
     glyph: 'text-xs leading-none',
     body: 'relative flex flex-1 flex-col px-2.5 py-2',
-    list: 'relative flex flex-col',
+    list: 'relative flex flex-1 flex-col justify-center',
     row: 'flex items-baseline gap-1.5 py-0.5 text-sm',
     star: 'size-3.5 shrink-0 self-center text-(--color-star)',
     gap: 'size-3.5 shrink-0',
@@ -95,10 +96,13 @@ const SCALES = {
 
 export function SpeedRecordsCabinet({
   attempts,
+  basePath = '/speed',
   scale = 'child',
 }: {
   /** This player's runs, already cut to the best few per mode. Null means the read failed. */
   attempts: SpeedAttempt[] | null;
+  /** Where the Try button goes: `/speed` for a child, `/progress/speed` for a parent. */
+  basePath?: string;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -150,6 +154,7 @@ export function SpeedRecordsCabinet({
                   </li>
                 ))}
               </ol>
+              <SpeedTryLink mode={mode} basePath={basePath} scale={scale} />
             </div>
           </section>
         );

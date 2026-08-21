@@ -46,7 +46,7 @@ export const HISTORY_RUNS = 5;
  * highest first.
  *
  * **Only modes that have been run appear** - `familyStandings` and the cabinet
- * before it draw the empty ones the same way for the same reason: twenty-seven
+ * before it draw the empty ones the same way for the same reason: twenty-six
  * empty tables make a to-do list out of a trophy case.
  *
  * **A tie is broken by who got there first**, exactly as the leaderboard breaks

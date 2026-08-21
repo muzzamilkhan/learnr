@@ -27,12 +27,25 @@ function draws(mode: Mode, count = 200) {
 }
 
 describe('the mode space', () => {
-  it('is exactly 27 modes', () => {
-    expect(MODES).toHaveLength(27);
+  it('is exactly 26 modes', () => {
+    expect(MODES).toHaveLength(26);
   });
 
   it('has a unique key for every mode', () => {
-    expect(new Set(MODES.map(modeKey)).size).toBe(27);
+    expect(new Set(MODES.map(modeKey)).size).toBe(26);
+  });
+
+  // Multiplying by ten is a place-value rule rather than a fact to recall, so
+  // a whole run of it measures typing speed. The number stays in the bundles a
+  // run can draw from - what went is the drill, not the ten.
+  it('offers no ten times table of its own, but keeps ten in the bundles', () => {
+    expect(parseMode('multiply.10')).toBeNull();
+    expect(MODES).not.toContainEqual({ op: 'multiply', tables: 10 });
+
+    const prompts = (mode: Mode) =>
+      draws(mode, 400).map((question) => question.prompt);
+    expect(prompts({ op: 'multiply', tables: '10-12' }).some((p) => p.startsWith('10 ×'))).toBe(true);
+    expect(prompts({ op: 'multiply', tables: 'all' }).some((p) => p.startsWith('10 ×'))).toBe(true);
   });
 
   it('round-trips every key through parseMode', () => {
@@ -42,13 +55,13 @@ describe('the mode space', () => {
   });
 
   it('refuses keys that are not modes', () => {
-    for (const junk of ['', 'add', 'add.trivial', 'multiply.13', 'multiply.1', 'multiply.easy', 'records', '__proto__']) {
+    for (const junk of ['', 'add', 'add.trivial', 'multiply.13', 'multiply.1', 'multiply.10', 'multiply.easy', 'records', '__proto__']) {
       expect(parseMode(junk)).toBeNull();
     }
   });
 
-  it('offers 15 multiplication modes and 3 of each other', () => {
-    expect(modesFor('multiply')).toHaveLength(15);
+  it('offers 14 multiplication modes and 3 of each other', () => {
+    expect(modesFor('multiply')).toHaveLength(14);
     for (const op of ['add', 'subtract', 'divide', 'mixed'] as const) {
       expect(modesFor(op)).toHaveLength(3);
     }
