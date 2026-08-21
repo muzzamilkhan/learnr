@@ -522,16 +522,36 @@ export const year1: QuestionTemplate[] = [
       // **Which hour gets written twice, and it must not always be the
       // answer's.** Four options over three hours means one hour is always
       // shown twice - once as "half past", once as "o'clock" - and with the
-      // form-flip distractor nailed to `h` that doubled hour *was* the answer's
-      // in every single draw. A child who spots it never reads the hour hand,
-      // which is the hard half of the question, and is left choosing between
-      // two hands that point straight up or straight down. Both leak checks
-      // are blind to it, for the reasons the comment above gives.
+      // form-flip distractor nailed to `h`, that doubled hour *was* the
+      // answer's in every single draw. Both leak checks are blind to it, for
+      // the reasons the comment above gives.
       //
-      // Flipping the form onto `hn` half the time makes that shortcut pay
-      // exactly what a random tap pays: it wins only when the doubled hour is
-      // `h`, which is half the draws, and then only on the right form, which
-      // is half again - one in four, of four buttons.
+      // That was worth 100%, not a hint. The two options carrying the answer's
+      // form are always `h` and `hn` - enumerate the four cases of `half` and
+      // `flip` and see - so a child who read the minute hand, straight up or
+      // straight down, which is what this template's own hint teaches, and
+      // then took the hour written twice had the answer every time, without
+      // ever looking at the hour hand. `flip` moves the doubled hour onto `hn`
+      // half the time, and because it is drawn independently of everything
+      // else, the doubled hour then carries **no information at all** once the
+      // form is known: `h` when `flip` is 1, `hn` when it is 0, fifty-fifty.
+      // Measured at 49% of 4000 draws, and exactly a half by construction.
+      //
+      // **What is left is 50%, and it is structural rather than a leak for the
+      // next author to close.** Reading the minute hand always narrows four
+      // options to the two in that form, and those two differ only in the
+      // hour - which is the hour-hand question, asked cleanly. The narrowing
+      // cannot be designed away: both forms have to be on the buttons or the
+      // question stops asking which hand is which, and they have to split two
+      // and two or the count is itself the tell. Putting all four options in
+      // one form would reach 25%, by dropping the o'clock versus half past
+      // discrimination that is exactly what Stage 1 adds this year.
+      //
+      // And it should not be designed away, because it is not a shortcut. The
+      // leak checks exist to catch a child beating a question *without doing
+      // the maths*; reading the minute hand is doing half the maths and being
+      // paid for half of it. What the flip fixed was the other thing - a tell
+      // that paid without reading either hand.
       { name: 'flip', kind: 'pick', from: [1, 0] },
       { name: 'hd', kind: 'expr', expr: 'flip == 1 ? h : hn' },
     ],
