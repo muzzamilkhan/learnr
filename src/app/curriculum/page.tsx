@@ -2,7 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LogoMark } from '@/components/logo';
 import { curriculumCodes, syllabusDivergences, SYLLABUSES, type SyllabusId } from '@/content/catalog';
-import { stageForLevel, stageLabel, yearLabel } from '@/lib/curriculum';
+import {
+  levelsForStage,
+  stageForLevel,
+  stageLabel,
+  STAGES,
+  yearLabel,
+  type YearLevel,
+} from '@/lib/curriculum';
 
 export const metadata: Metadata = {
   title: 'Curriculum sources · LearnR',
@@ -70,15 +77,26 @@ const questionTypes = (count: number) =>
 const ACARA_SOURCE_URL =
   'https://www.australiancurriculum.edu.au/content/dam/en/curriculum/ac-version-9/downloads/mathematics/mathematics-scope-and-sequence-f-10-v9.docx';
 
-const NSW_SOURCE_URL =
-  'https://curriculum.nsw.edu.au/learning-areas/mathematics/mathematics-k-10-2022';
+// The syllabus's own link, from the one table that holds it - a second copy
+// here would be a second thing to update.
+const NSW_SOURCE_URL = SYLLABUSES.find((s) => s.id === 'nsw')!.url;
 
-const STAGE_ROWS = [
-  { stage: 'Early Stage 1', years: 'Kindergarten' },
-  { stage: 'Stage 1', years: 'Years 1 and 2' },
-  { stage: 'Stage 2', years: 'Years 3 and 4' },
-  { stage: 'Stage 3', years: 'Years 5 and 6' },
-];
+/**
+ * The years a stage spans, said the way a parent would say them: "Kindergarten",
+ * or "Years 1 and 2". Which years those are is `levelsForStage`'s answer and not
+ * this page's - the mapping is the thing this section exists to teach, so the
+ * page that teaches it must not be a second copy of it. Only the wording is
+ * here.
+ */
+const yearsInStage = (levels: YearLevel[]) => {
+  const numbered = levels.filter((level) => level !== 'K');
+  return [
+    ...(levels.includes('K') ? [yearLabel('K')] : []),
+    ...(numbered.length > 0
+      ? [`Year${numbered.length > 1 ? 's' : ''} ${numbered.join(' and ')}`]
+      : []),
+  ].join(' and ');
+};
 
 export default function CurriculumPage() {
   const byLevel = curriculumCodes('maths');
@@ -149,10 +167,10 @@ export default function CurriculumPage() {
           NSW organises its content by <strong>stage</strong> rather than by year:
         </p>
         <ul className="ml-1 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1">
-          {STAGE_ROWS.map(({ stage, years }) => (
+          {STAGES.map((stage) => (
             <li key={stage} className="col-span-2 grid grid-cols-subgrid">
-              <span className="font-semibold">{stage}</span>
-              <span className="text-(--color-ink-soft)">{years}</span>
+              <span className="font-semibold">{stageLabel(stage)}</span>
+              <span className="text-(--color-ink-soft)">{yearsInStage(levelsForStage(stage))}</span>
             </li>
           ))}
         </ul>

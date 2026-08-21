@@ -103,6 +103,23 @@ export function stageForLevel(level: YearLevel): Stage {
   return STAGE_BY_LEVEL[level];
 }
 
+/**
+ * The years a stage spans, in school order - the same mapping read the other
+ * way. Inverted from `STAGE_BY_LEVEL` rather than written out beside it: a
+ * second table is a second thing to get wrong, and *this* mapping is the one
+ * this app has already got wrong more than once. Stage 2 is Years 3 and 4, not
+ * Year 2, and the way to stop that being a thing to remember is to have exactly
+ * one place where it is said.
+ *
+ * `/curriculum` is the caller, where the mapping is the point rather than a
+ * detail - it is teaching a parent to read a NSW code - so the page that
+ * explains it must not be a copy of it. The years come back as levels; how to
+ * *say* them ("Years 1 and 2") is the page's business, not this module's.
+ */
+export function levelsForStage(stage: Stage): YearLevel[] {
+  return YEAR_LEVELS.filter((level) => STAGE_BY_LEVEL[level] === stage);
+}
+
 const STAGE_LABELS: Record<Stage, string> = {
   ES1: 'Early Stage 1',
   S1: 'Stage 1',

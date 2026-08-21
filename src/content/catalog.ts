@@ -207,12 +207,19 @@ export interface DivergenceNote {
  * changes, and `catalog.test.ts`'s two set-equality tests already guarantee the
  * derived set is the complete one.
  *
- * **They live here rather than in the page** because the reason a citation is
- * missing is a fact about the content, recorded beside it - and because a page
- * component cannot be tested in this repo (vitest is node-only) while
- * `catalog.test.ts` can, and it asserts both halves: every divergence a parent
- * can see is one the page accounts for, and no sentence has outlived the
- * divergence it explains.
+ * **They live here rather than in the page because the note is keyed into the
+ * derivation.** `syllabusDivergences` returns `reason` as part of the record, so
+ * the key that finds a note - year, topic, and which syllabus is cited - and the
+ * code that produces that key are one thing. Split them and the page has to
+ * re-implement the join, and the test that no note has outlived its divergence
+ * has to import the derivation anyway: the coupling without the locality. It is
+ * why `nextSkill` is the only place the skill arithmetic is written down.
+ *
+ * And the branch-level reason, which is the one that settles it: this whole
+ * cross-reference replaced *trusted* citations with *enforced* ones. A note in
+ * `page.tsx` cannot carry a test, so moving them there would turn "every
+ * divergence a reader can see is one the page accounts for" back into something
+ * we merely intend. Here `catalog.test.ts` asserts both halves of it.
  *
  * Matched on year and topic rather than on template id: the five ACARA-only and
  * three NSW-only groups each *are* a year's topic, one decision covers the
@@ -275,8 +282,8 @@ export const DIVERGENCE_NOTES: readonly DivergenceNote[] = [
     level: '6',
     topic: 'integers',
     reason:
-      'NSW places integers at Stage 4, which is Year 7. ACARA introduces them at Year 6, so ' +
-      'these carry an ACARA description and no NSW outcome.',
+      'NSW places integers at Stage 4 - Years 7 and 8 - where ACARA introduces them at Year ' +
+      '6, so these carry an ACARA description and no NSW outcome.',
   },
   {
     cites: 'nsw',

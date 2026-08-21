@@ -9,6 +9,7 @@ import {
   resolveInitialLevel,
   STAGES,
   stageForLevel,
+  levelsForStage,
   stageLabel,
 } from './curriculum';
 
@@ -115,6 +116,29 @@ describe('stageForLevel', () => {
     for (const level of ['K', '1', '2', '3', '4', '5', '6'] as const) {
       expect(STAGES).toContain(stageForLevel(level));
     }
+  });
+});
+
+describe('levelsForStage', () => {
+  // The pairing the curriculum page teaches, and the one this app has got
+  // wrong before: Stage 2 is Years 3 and 4, never Year 2.
+  it('gives each stage the school years it spans', () => {
+    expect(levelsForStage('ES1')).toEqual(['K']);
+    expect(levelsForStage('S1')).toEqual(['1', '2']);
+    expect(levelsForStage('S2')).toEqual(['3', '4']);
+    expect(levelsForStage('S3')).toEqual(['5', '6']);
+  });
+
+  // The half that catches a mapping edited on one side only: read one way and
+  // then the other, every level has to come back.
+  it('round-trips: every level is listed by the stage it maps to', () => {
+    for (const level of YEAR_LEVELS) {
+      expect(levelsForStage(stageForLevel(level))).toContain(level);
+    }
+  });
+
+  it('lists every level exactly once across the stages', () => {
+    expect(STAGES.flatMap(levelsForStage)).toEqual([...YEAR_LEVELS]);
   });
 });
 
