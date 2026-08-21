@@ -31,3 +31,25 @@ const NAMES = new Intl.ListFormat('en-AU', { style: 'long', type: 'conjunction' 
 export function nameList(names: string[]): string {
   return NAMES.format(names);
 }
+
+/**
+ * A place as a child says it: "1st", "2nd", "3rd", "4th".
+ *
+ * The family board is read as positions rather than numbers - who is first -
+ * and "position 2" is a spreadsheet where "2nd" is a result. `Intl` has no
+ * ordinal *formatter*, only a plural rule that names the suffix category, which
+ * is what this reads: `en` puts "th" on the teens and on everything else that
+ * is not one, two or three at the end.
+ */
+const ORDINAL_RULES = new Intl.PluralRules('en-AU', { type: 'ordinal' });
+
+const ORDINAL_SUFFIXES: Record<string, string> = {
+  one: 'st',
+  two: 'nd',
+  few: 'rd',
+  other: 'th',
+};
+
+export function ordinal(value: number): string {
+  return `${value}${ORDINAL_SUFFIXES[ORDINAL_RULES.select(value)] ?? 'th'}`;
+}

@@ -14,10 +14,10 @@ function record(overrides: Partial<ChildRecord> = {}): ChildRecord {
 }
 
 describe('recordBanners', () => {
-  it('names the child, the mode and the score', () => {
+  it('names the child, the mode and the score, and says which game it was', () => {
     const [banner] = recordBanners([record()]);
     expect(banner.message).toBe(
-      'Shanaaya scored a personal best in the 4 times table: 20 questions in 90 seconds!',
+      'Shanaaya scored a speed run personal best in the 4 times table: 20 questions!',
     );
   });
 

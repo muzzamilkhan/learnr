@@ -327,8 +327,10 @@ export function SpeedRun({
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Backspace') {
-        // Backspace's browser default is to navigate back when focus is not in an
-        // editable field, which nothing here is.
+        // The pad has no Delete key any more - reaching for one costs more than
+        // the mistyped digit did - but a keyboard player reaches for nothing,
+        // so the physical key still works. Its browser default is to navigate
+        // back when focus is not in an editable field, which nothing here is.
         event.preventDefault();
         updateEntry((value) => value.slice(0, -1));
       } else if (/^[0-9]$/.test(event.key)) {
@@ -456,18 +458,14 @@ export function SpeedRun({
           as a literal class name, since Tailwind reads class names as literals
           and a composed one compiles to nothing. */}
       <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center [@media(min-width:640px)_and_(min-height:501px)]:h-[clamp(16rem,40vh,22rem)]">
-        {/* No tick and no decimal point, so the ten keys take the whole width.
-            Nothing here is checked - an answer commits the instant it matches -
-            and every answer is a whole number, so both would be keys that could
-            only ever refuse what they were pressed on. Backspace stays: a dead
-            entry clears itself, but a child who has typed the first digit of a
-            longer answer and thought better of it still needs a way back. */}
-        <NumberPad
-          disabled={phase !== 'running'}
-          decimal={false}
-          onDigit={press}
-          onBackspace={() => updateEntry((value) => value.slice(0, -1))}
-        />
+        {/* No tick, no decimal point and no Delete: nothing here is checked, every
+            answer is a whole number, and a dead entry already clears itself, so
+            all three would be keys that could only ever refuse or undo what the
+            pad has dealt with. What that buys is where `0` goes - the fourth
+            column, full height, in an ordinary key's clothes - because a third
+            of the answers here contain one and on the bottom row it is the only
+            digit a thumb travels for. See `NumberPad`. */}
+        <NumberPad disabled={phase !== 'running'} decimal={false} onDigit={press} />
       </div>
 
       {phase === 'countdown' && <Countdown count={count} />}

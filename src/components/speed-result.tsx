@@ -2,12 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect } from 'react';
+import { ordinal } from '@/lib/format';
 import type { SpeedOutcome } from '@/lib/speed-records';
+import type { StandingChange } from '@/lib/speedrun/leaderboard';
 import { modeLabel, operationGlyph, operationLabel } from '@/lib/speedrun/modes';
 import { resultTone } from '@/lib/speedrun/records';
 import type { RunResult } from '@/lib/speedrun/run';
+import { ExitIcon } from './exit-icon';
+import { RetryIcon } from './retry-icon';
 import { OPERATION_ACCENT, type Accent } from './speed-cards';
 import { playSound } from './sounds';
+import { TrophyIcon } from './trophy-icon';
 
 /**
  * The ninety seconds are up: the score, and what it beat.
@@ -34,6 +39,23 @@ import { playSound } from './sounds';
  *
  * `fixed inset-0`, so it escapes whatever frame the run was started from - the
  * same reason `RoundReward` covers the play screen rather than sitting in it.
+ *
+ * **The way out is the door in the top-left corner**, the play screen's control
+ * in the play screen's place: leaving is leaving, and a child should not have to
+ * learn a different one per screen. It was a third button in the row beneath the
+ * score, which made three equal boxes of two ways *on* and one way *out* - and
+ * put "Go home" the same size and weight as the button the screen exists for.
+ *
+ * **Going again is a glyph too.** A loop is what repeat looks like on every
+ * remote and every music player a child has already used, so the button they
+ * press most is the one that needs no reading - the argument the door, the tick
+ * and the lightbulb are all built on. The label survives as `aria-label` and
+ * `title`: off the screen, not off the page.
+ *
+ * **And it says when the run moved them on the family board**, which is the one
+ * leaderboard fact that is news rather than something to go and look at. Only
+ * when it moved them, and only when somebody else runs that mode - see
+ * `standingChange`, which decides both and hands back null the rest of the time.
  *
  * **The screen wears the colour of the operation just run** - `OPERATION_ACCENT`,
  * the same table the cards are built from, so the screen that ends a run belongs
@@ -108,6 +130,20 @@ export function SpeedResult({ result, outcome, homeHref, recordsHref, onAgain }:
     <div
       className={`no-select fixed inset-0 z-40 flex flex-col overflow-hidden px-4 py-5 sm:px-8 sm:py-8 ${accent.wash}`}
     >
+      {/* The way out, in the corner the play screen puts it in and drawn as the
+          same door: leaving is leaving, and a child should not have to find a
+          different control for it on every screen. Absolutely placed rather than
+          in the flow, so the score stays centred in the whole viewport and the
+          three-across row of buttons - which is what pushed "Go home" to a
+          corner in the first place - is down to two. */}
+      <Link
+        href={homeHref}
+        aria-label="Go home"
+        title="Go home"
+        className={`${ENTRANCE} absolute top-5 left-4 z-10 shrink-0 rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95 sm:top-8 sm:left-8`}
+      >
+        <ExitIcon />
+      </Link>
       {/* One block and a row of buttons, so the score centres itself in
           whatever the viewport gives rather than sitting under a panel that is
           no longer there. The screen still never scrolls. */}
@@ -141,21 +177,29 @@ export function SpeedResult({ result, outcome, homeHref, recordsHref, onAgain }:
           </p>
 
           <Comparison result={result} outcome={outcome} tone={tone} record={record} />
+          <Standing standing={outcome?.standing ?? null} />
         </header>
 
-        <nav className={`flex shrink-0 gap-3 ${ENTRANCE} ${DELAY[1]}`}>
-          <Link href={recordsHref} className={`${BUTTON} ${SECONDARY}`}>
+        <nav className={`flex shrink-0 items-stretch gap-3 ${ENTRANCE} ${DELAY[1]}`}>
+          <Link href={recordsHref} className={`${BUTTON} flex-1 ${SECONDARY}`}>
             See records
           </Link>
           {/* In place, never a navigation: the whole reason the run screen is one
               component with four phases is that going again is instant. It wears
-              the accent because going again is what this screen is for. */}
-          <button type="button" onClick={onAgain} className={`${BUTTON} ${accent.solid} text-white`}>
-            Try again
+              the accent because going again is what this screen is for, and it
+              is a picture rather than the words for the reason the door beside
+              it is - a loop is what going again looks like on everything a child
+              already uses, and it needs no reading. Square, so the one button
+              that is a glyph is not a wide box with a small mark adrift in it. */}
+          <button
+            type="button"
+            onClick={onAgain}
+            aria-label="Try again"
+            title="Try again"
+            className={`${BUTTON} aspect-square ${accent.solid} text-white`}
+          >
+            <RetryIcon className="size-8 sm:size-9" />
           </button>
-          <Link href={homeHref} className={`${BUTTON} ${SECONDARY}`}>
-            Go home
-          </Link>
         </nav>
       </div>
     </div>
@@ -224,8 +268,41 @@ function Comparison({
   );
 }
 
+/**
+ * Where a run left the player on the family board, and only when it moved them.
+ *
+ * `standingChange` has already decided that there is something to say: nobody
+ * else runs this mode, or the place did not change, and this renders nothing.
+ * That is the whole of why the line is worth reading when it is there - a
+ * standing repeated after every run would be furniture, where a standing that
+ * only appears when it changed is news.
+ *
+ * It is a pill rather than another grey line under the score, because it is a
+ * different kind of fact from the two above it: those measure the run against
+ * the player's own best, and this one measures it against the house.
+ */
+function Standing({ standing }: { standing: StandingChange | null }) {
+  if (standing === null) return null;
+
+  const first = standing.place === 1;
+  const where = `${ordinal(standing.place)} in the family`;
+
+  return (
+    <p
+      className={`${ENTRANCE} ${DELAY[1]} mx-auto mt-4 inline-flex items-center gap-2 rounded-full border-2 bg-(--color-card) px-4 py-1.5 text-base font-semibold sm:text-lg ${
+        first ? 'border-(--color-star) text-(--color-star)' : 'border-(--color-line) text-(--color-ink-soft)'
+      }`}
+    >
+      <TrophyIcon className={`size-5 shrink-0 ${first ? '' : 'text-(--color-ink-soft)'}`} />
+      {/* Arriving on the board is not a climb, so it is not written as one - a
+          first-ever run at a mode is placed rather than promoted. */}
+      {standing.previousPlace === null ? `You're ${where}` : `Up to ${where}`}
+    </p>
+  );
+}
+
 const BUTTON =
-  'flex h-14 flex-1 items-center justify-center rounded-xl text-center text-base leading-tight font-semibold transition active:scale-95 sm:h-16 sm:rounded-2xl sm:text-xl';
+  'flex h-14 items-center justify-center rounded-xl text-center text-base leading-tight font-semibold transition active:scale-95 sm:h-16 sm:rounded-2xl sm:text-xl';
 // No `PRIMARY` constant any more: the one filled button takes the run's accent,
 // which is only known at render.
 const SECONDARY = 'border-2 border-(--color-line) bg-(--color-card) text-(--color-ink-soft)';

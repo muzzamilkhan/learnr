@@ -143,3 +143,59 @@ function placesFor(rows: readonly FamilyRecord[]): Place[] {
 
   return places;
 }
+
+/**
+ * Where a run left a player on the family board, when that changed.
+ *
+ * The result screen is the one place a standing is *news* rather than a thing
+ * to go and look at: the run just happened, and the only leaderboard fact worth
+ * putting in front of a child at that moment is whether it moved them.
+ */
+export interface StandingChange {
+  /** Where they sit now. Ties share a place, exactly as `familyStandings` places them. */
+  place: number;
+  /** Where they sat before this run, or null if they were not on the board at all. */
+  previousPlace: number | null;
+  /** How many other players have a record at this mode. Never zero - see below. */
+  rivals: number;
+}
+
+/**
+ * The move a run made on the family board, or null when there is nothing to
+ * say.
+ *
+ * **Null when nobody else has run this mode.** A board of one is not a
+ * leaderboard - the same judgement `/speed/leaderboard` makes before it draws
+ * anything - and "you're 1st in the family" to a child who is the only person
+ * who has ever played it is a prize for turning up.
+ *
+ * **Null when the place did not change**, which is most runs: a player's own
+ * best can only rise, so a place can only improve, and a run short of their own
+ * best moves nothing. Saying "still 2nd" would turn the one line about the
+ * board into a line that is always there and usually means nothing.
+ *
+ * Arriving on the board at all counts as a move, with `previousPlace` null to
+ * say so - a first-ever run at a mode other people play is exactly the moment
+ * being placed is worth knowing.
+ *
+ * The rank is standard competition ranking, `placesFor`'s rule: one plus the
+ * number of players strictly above, so a tie shares a place. It takes the
+ * rivals' bests as bare numbers because that is all a rank needs, and it makes
+ * the caller - which has just written a row - responsible for leaving its own
+ * out.
+ */
+export function standingChange(
+  rivalBests: readonly number[],
+  previousBest: number | null,
+  best: number,
+): StandingChange | null {
+  if (rivalBests.length === 0) return null;
+
+  const rank = (score: number) => 1 + rivalBests.filter((rival) => rival > score).length;
+
+  const place = rank(best);
+  const previousPlace = previousBest === null ? null : rank(previousBest);
+  if (previousPlace === place) return null;
+
+  return { place, previousPlace, rivals: rivalBests.length };
+}

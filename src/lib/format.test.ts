@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCount, nameList } from './format';
+import { formatCount, nameList, ordinal } from './format';
 
 describe('formatCount', () => {
   it('leaves a small count alone', () => {
@@ -22,5 +22,22 @@ describe('nameList', () => {
 
   it('has nothing to say about nobody', () => {
     expect(nameList([])).toBe('');
+  });
+});
+
+describe('ordinal', () => {
+  it('says a place the way a child does', () => {
+    expect([1, 2, 3, 4, 5].map(ordinal)).toEqual(['1st', '2nd', '3rd', '4th', '5th']);
+  });
+
+  it('gets the teens right, which is the whole reason for the plural rules', () => {
+    expect([11, 12, 13, 21, 22, 23].map(ordinal)).toEqual([
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '23rd',
+    ]);
   });
 });

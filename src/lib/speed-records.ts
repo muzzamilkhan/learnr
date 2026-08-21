@@ -4,8 +4,9 @@ import { isRecord } from './speedrun/records';
 import { modeKey, type Mode } from './speedrun/modes';
 import { parseAvatar } from './avatars';
 import { parsePhoto } from './photo/photo';
-import { extendHouseholdWithShares } from './children';
-import type { FamilyRecord } from './speedrun/leaderboard';
+import { readAccount } from './accounts';
+import { extendHouseholdWithShares, householdId } from './children';
+import { standingChange, type FamilyRecord, type StandingChange } from './speedrun/leaderboard';
 import { HISTORY_RUNS, type SpeedAttempt } from './speedrun/history';
 import type { SummaryRun } from './speedrun/summary';
 
@@ -22,6 +23,13 @@ export interface SpeedOutcome {
   previousBest: number | null;
   best: number;
   isRecord: boolean;
+  /**
+   * The move this run made on the family board, or null when it made none -
+   * nobody else runs this mode, the place did not change, or the household
+   * could not be read. `standingChange` decides which, and the result screen
+   * says nothing at all when this is null.
+   */
+  standing: StandingChange | null;
 }
 
 export interface ChildRecord {
@@ -150,11 +158,62 @@ export async function submitSpeedRun(
   // and neither reads what the other does. A failed attempt row costs a line in
   // the cabinet's table; a failed record costs the outcome this returns, which
   // is why only one of the two can decide what the result screen says.
-  const [, outcome] = await Promise.all([
+  const [, banked] = await Promise.all([
     recordAttempt(userId, modeKey(mode), correct),
     bankRecord(userId, modeKey(mode), correct),
   ]);
-  return outcome;
+  if (banked === null) return null;
+
+  // After the write, never beside it: the place this run earned is a place
+  // among what is *stored*, and reading the board before the row landed would
+  // rank the player on the score they arrived with.
+  return { ...banked, standing: await readStanding(userId, modeKey(mode), banked) };
+}
+
+/** What banking a run settles on its own - the board is asked afterwards. */
+type BankedRecord = Omit<SpeedOutcome, 'standing'>;
+
+/**
+ * Where this run left the player on their family's board, if it moved them.
+ *
+ * Best-effort and quiet, like everything else on this path: the run is over and
+ * the score is already on screen, so a household that cannot be read costs the
+ * one extra line rather than the result. Null is the ordinary answer - most
+ * runs move nobody, and `standingChange` is where that judgement lives.
+ *
+ * Only the *rivals* are read, and the player's own row is left out on purpose:
+ * their own two scores are already in hand as `previousBest` and `best`, and
+ * re-reading the row the write just touched would be asking the database to
+ * confirm what the write already returned.
+ */
+async function readStanding(
+  userId: string,
+  key: string,
+  banked: BankedRecord,
+): Promise<StandingChange | null> {
+  if (!prisma) return null;
+  try {
+    const account = await readAccount(userId);
+    // A child on their own Google account, or a parent with nobody, has no
+    // household - which is the same "there is no board here" the leaderboard
+    // page answers with a sentence.
+    const household = account ? householdId(account) : null;
+    if (household === null) return null;
+
+    const rivals = await prisma.speedRecord.findMany({
+      where: { mode: key, userId: { in: await householdMemberIds(household), not: userId } },
+      select: { best: true },
+    });
+
+    return standingChange(
+      rivals.map((rival) => rival.best),
+      banked.previousBest,
+      banked.best,
+    );
+  } catch (error) {
+    console.error('Failed to read family standing', error);
+    return null;
+  }
 }
 
 /**
@@ -180,7 +239,7 @@ async function bankRecord(
   userId: string,
   key: string,
   correct: number,
-): Promise<SpeedOutcome | null> {
+): Promise<BankedRecord | null> {
   if (!prisma) return null;
   const db = prisma;
 
@@ -304,30 +363,43 @@ export async function dismissSpeedRecords(parentId: string, childId: string): Pr
  * say a family has never played, which is the lie `readObservations` draws the
  * same distinction to prevent.
  */
+/**
+ * Who is on one family's board: the household, widened by every share touching
+ * it.
+ *
+ * Lifted out of `readFamilyRecords` when the result screen needed the same
+ * family for one mode - two copies of "who counts as this family" is exactly
+ * the second truth `ChildShare` carrying no `ownerId` exists to avoid.
+ */
+async function householdMemberIds(parentId: string): Promise<string[]> {
+  if (!prisma) return [];
+  // Independent of one another, so read together rather than one after the
+  // other - the same reason `readPlayerState` folds its reads into one trip.
+  const [household, shares] = await Promise.all([
+    prisma.user.findMany({
+      where: { OR: [{ id: parentId }, { parentId }] },
+      select: { id: true },
+    }),
+    prisma.childShare.findMany({
+      where: { OR: [{ child: { parentId } }, { viewerId: parentId }] },
+      select: { childId: true, viewerId: true, child: { select: { parentId: true } } },
+    }),
+  ]);
+
+  return extendHouseholdWithShares(
+    household.map((user) => user.id),
+    shares.map((share) => ({
+      childId: share.childId,
+      viewerId: share.viewerId,
+      ownerId: share.child.parentId ?? parentId,
+    })),
+  );
+}
+
 export async function readFamilyRecords(parentId: string): Promise<FamilyRecord[] | null> {
   if (!prisma) return [];
   try {
-    // Independent of one another, so read together rather than one after the
-    // other - the same reason `readPlayerState` folds its reads into one trip.
-    const [household, shares] = await Promise.all([
-      prisma.user.findMany({
-        where: { OR: [{ id: parentId }, { parentId }] },
-        select: { id: true },
-      }),
-      prisma.childShare.findMany({
-        where: { OR: [{ child: { parentId } }, { viewerId: parentId }] },
-        select: { childId: true, viewerId: true, child: { select: { parentId: true } } },
-      }),
-    ]);
-
-    const memberIds = extendHouseholdWithShares(
-      household.map((user) => user.id),
-      shares.map((share) => ({
-        childId: share.childId,
-        viewerId: share.viewerId,
-        ownerId: share.child.parentId ?? parentId,
-      })),
-    );
+    const memberIds = await householdMemberIds(parentId);
 
     const rows = await prisma.speedRecord.findMany({
       where: { userId: { in: memberIds } },

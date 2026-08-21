@@ -9,20 +9,32 @@
  * a key that appeared exactly when the answer was fractional would give the
  * answer away.
  *
- * **The tick is optional, and the pad narrows to three columns without it.** A
- * speed run has nothing to check: an answer commits the instant it matches, so
- * a Check key there would be a button that could only ever be pressed on an
- * entry the pad has already refused. Leaving the fourth column empty would keep
- * the keys the size they are on the play screen and put a bare stripe beside
- * them; dropping the column gives the ten keys the whole width instead, which
- * is the right trade on the one screen where a key is hit without looking.
+ * **The tick is optional.** A speed run has nothing to check: an answer commits
+ * the instant it matches, so a Check key there would be a button that could
+ * only ever be pressed on an entry the pad has already refused.
  *
  * **The decimal point goes with it.** Every speed run answer is a whole number
  * by construction (`modes.ts`), and with no Check key an entry is judged as it
  * is typed - so a `.` is not a key that does nothing, it is a key that can only
  * ever kill the entry it lands in, sitting next to the `0` it would be mistaken
- * for. `0` takes the two columns instead, which is the widest key on the pad
- * for the digit most often typed in a hurry.
+ * for.
+ *
+ * **And so does Delete.** A dead entry already clears itself on the keystroke
+ * that killed it, so the only thing left for a backspace to undo is a digit the
+ * player typed and thought better of - which costs less to finish typing and
+ * let the pad refuse than to reach for a key on the far side of the pad. A
+ * physical Backspace still works for a keyboard player, where reaching costs
+ * nothing.
+ *
+ * **What that leaves is where `0` goes, and it is the fourth column, full
+ * height** - the Check key's own slot, in an ordinary key's clothes. A speed
+ * run is scored on how fast a whole number can be typed, and `0` is in about a
+ * third of the answers this pad ever sees; on the bottom row it is the one
+ * digit a thumb has to travel for. Given the tall column it is the biggest
+ * target on the pad and the only one that can be hit without aiming. It is
+ * styled like every other digit rather than like the tick, because it *is* a
+ * digit: the brand-filled column says "this key ends something", which is the
+ * one thing `0` does not do.
  */
 
 import { BackspaceIcon } from './backspace-icon';
@@ -33,8 +45,9 @@ const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 interface Props {
   disabled: boolean;
   onDigit: (digit: string) => void;
-  onBackspace: () => void;
-  /** Whether the tick is offered at all - omitted, the pad is three columns wide. */
+  /** Whether a Delete key is drawn at all. Omitted, the pad has no bottom row. */
+  onBackspace?: () => void;
+  /** Whether the tick is offered at all. Omitted, the fourth column is `0`'s. */
   onCheck?: () => void;
   /** Whether the tick is pressable. Meaningless without `onCheck`. */
   canCheck?: boolean;
@@ -53,10 +66,16 @@ export function NumberPad({
   onBackspace,
   onCheck,
 }: Props) {
+  // A fourth row exists only for the keys that sit in it beside `0`. With
+  // neither a decimal point nor a Delete there is nothing to put there, and an
+  // empty band under the digits would be the stripe this pad has always
+  // refused - so the grid loses the row and `0` moves to the fourth column.
+  const bottomRow = decimal || onBackspace !== undefined;
+
   return (
     <div
-      className={`mx-auto grid h-full w-full max-w-2xl grid-rows-4 gap-2 sm:gap-3 ${
-        onCheck ? 'grid-cols-4' : 'grid-cols-3'
+      className={`mx-auto grid h-full w-full max-w-2xl grid-cols-4 gap-2 sm:gap-3 ${
+        bottomRow ? 'grid-rows-4' : 'grid-rows-3'
       }`}
     >
       {DIGITS.map((digit, index) => (
@@ -90,20 +109,26 @@ export function NumberPad({
         type="button"
         disabled={disabled}
         onClick={() => onDigit('0')}
-        className={`${KEY_CLASS} row-start-4 ${decimal ? 'col-start-2' : 'col-span-2 col-start-1'}`}
+        className={`${KEY_CLASS} ${
+          bottomRow
+            ? `row-start-4 ${decimal ? 'col-start-2' : 'col-span-2 col-start-1'}`
+            : 'col-start-4 row-span-3 row-start-1'
+        }`}
       >
         0
       </button>
 
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onBackspace}
-        aria-label="Delete"
-        className={`${KEY_CLASS} col-start-3 row-start-4`}
-      >
-        <BackspaceIcon />
-      </button>
+      {onBackspace ? (
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={onBackspace}
+          aria-label="Delete"
+          className={`${KEY_CLASS} col-start-3 row-start-4`}
+        >
+          <BackspaceIcon />
+        </button>
+      ) : null}
 
       {onCheck ? (
         <button

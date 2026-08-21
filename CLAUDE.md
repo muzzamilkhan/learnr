@@ -881,8 +881,12 @@ whole of what retiring a mode costs.
 the short word is the one a child reads without decoding four syllables, and
 five cards labelled with it are the same width as each other where
 "Multiplication" beside "Add" is not. `operationNoun` keeps the other form for
-the one place that needs prose - `recordBanners` says "a personal best in easy
-addition", and "in easy add" is not English. Two tables side by side in
+the one place that needs prose - `recordBanners` says "a speed run personal best
+in easy addition", and "in easy add" is not English. It says **"a speed run
+personal best"** rather than a bare one because that banner is the only thing on
+a parent's report not about practice, and it no longer says "in 90 seconds":
+every run is ninety seconds, so the phrase padded the score without telling a
+parent anything they could not assume. Two tables side by side in
 `modes.ts` rather than one derived from the other, because no rule turns
 "Divide" into "division" that isn't this table written twice.
 
@@ -927,7 +931,8 @@ on the left. They are the same wall of the same cards asking neighbouring
 questions - how *I* am going, and how the house is going - and while they were
 two screens the only way to compare a card with itself was out to the chooser
 and back in again, which is the one comparison either screen is opened to make.
-`ScoreTabs` is the bar, and the tabs are **links rather than state**: both
+`ScoreTabs` is the bar - full width, the two tabs sharing it evenly, `ParentNav`'s
+treatment for its reason - and the tabs are **links rather than state**: both
 halves stay server-rendered, `/speed/records` and `/speed/leaderboard` are the
 URLs they always were, and everything already pointing at them - `SpeedCards`,
 the result screen's `recordsHref`, a bookmark - is untouched. A route group
@@ -954,6 +959,41 @@ clock and makes a seed and a render may do neither; the first paint - the
 server's included - is the count-in rather than a flash of the chooser the
 button was pressed to skip. One `SpeedTryLink` serves both walls of cards, since
 the cabinet's card and the leaderboard's card are deliberately the same object.
+
+**The way out of a result is the door, top-left, exactly where the play
+screen puts it.** It was a third button in the row under the score, which made
+three equal boxes of two ways *on* and one way *out* and gave "Go home" the
+same weight as the button the screen exists for. **Going again is a glyph too**
+- a loop, which is what repeat looks like on every remote a child has already
+used - so the button they press most needs no reading, the argument the door,
+the tick and the lightbulb are all built on. Both keep their words in
+`aria-label` and `title`: off the screen, not off the page. What is left in the
+row is "See records" and the accent square beside it.
+
+**And the result says when a run moved the player on the family board.** It is
+the one leaderboard fact that is *news* rather than something to go and look
+at - the run just happened - so it sits on the result and nowhere else.
+`standingChange` (`src/lib/speedrun/leaderboard.ts`, pure and tested beside
+`familyStandings`) decides whether there is anything to say and hands back null
+otherwise: **null when nobody else runs that mode**, because a board of one is
+not a leaderboard and being 1st on it is a prize for turning up - the same
+judgement the leaderboard page makes before it draws anything - and **null when
+the place did not change**, which is most runs. A place can only ever improve
+from your own run, so a standing repeated after every one of them would be
+furniture; a standing that appears only when it moved is worth reading. Arriving
+on the board counts as a move, with `previousPlace` null to say so, and reads
+"You're 3rd in the family" where a climb reads "Up to 2nd". Ties share a place,
+`placesFor`'s rule, so matching the leader is joint first.
+
+The rank is computed from the *rivals'* bests alone - the player's own two
+scores are already in hand as `previousBest` and `best` - and read **after** the
+write, since a place among what is stored is not a place among what the run
+arrived with. It is best-effort and quiet like everything else on this path: a
+household that cannot be read costs the line, not the result. `readStanding`
+resolves the family through `householdId` and `householdMemberIds`, which was
+lifted out of `readFamilyRecords` rather than written twice - two copies of "who
+counts as this family" is the second truth `ChildShare` carrying no `ownerId`
+exists to avoid.
 
 **The cabinet lists what has been run, and nothing else.** A mode never played
 has no record to show, and twenty-six rows of dashes made a to-do list of a
@@ -1193,15 +1233,27 @@ most by the child mistyping most. Nothing is shown about what the answer should
 have been, on the screen or afterwards - ninety seconds is not teaching time,
 and the question is still up to be got right.
 
-**The speed run's pad is three columns wide, with no tick and no decimal
-point** (`NumberPad` takes both as options; the play screen passes both). There
-is nothing to check, and every answer here is a whole number by construction,
-so a `.` would not be a key that does nothing - with the entry judged as it is
-typed it is a key that can only ever kill what it lands in, sitting next to the
-`0` it would be mistaken for. `0` takes the two columns instead, and the ten
-keys take the width the tick had. Backspace stays: a dead entry clears itself,
-but a child who typed the first digit of a longer answer and thought better of
-it still needs a way back.
+**The speed run's pad has no tick, no decimal point and no Delete**
+(`NumberPad` takes all three as options; the play screen passes all three).
+There is nothing to check, and every answer here is a whole number by
+construction, so a `.` would not be a key that does nothing - with the entry
+judged as it is typed it is a key that can only ever kill what it lands in,
+sitting next to the `0` it would be mistaken for. Delete goes for the same kind
+of reason: a dead entry already clears itself on the keystroke that killed it,
+so all a backspace has left to undo is a digit typed and thought better of,
+which costs less to finish and let the pad refuse than to reach across the pad
+for. A physical Backspace still works, because a keyboard player reaches for
+nothing.
+
+**What that buys is the fourth column for `0`, full height** - the Check key's
+own slot, in an ordinary key's clothes, and the pad keeps its four columns
+rather than narrowing to three. A speed run is scored on how fast a whole
+number can be typed and about a third of the answers contain a nought; on the
+bottom row it was the one digit a thumb had to travel for, which is a child's
+own complaint about the pad. Given the tall column it is the biggest target
+there and the only one that can be hit without aiming. Styled like every other
+digit and not like the tick, because it *is* a digit - a brand-filled column
+says "this key ends something", which is the one thing `0` does not do.
 
 **A parent plays too, privately.** `/progress/speed/[op]` renders the same
 component the child gets, and a parent's own runs bank to their own

@@ -56,7 +56,13 @@ export function recordBanners(records: readonly ChildRecord[]): RecordBanner[] {
     banners.push({
       childId: record.childId,
       childName: record.childName,
-      message: `${record.childName} scored a personal best in ${modeDescription(mode)}: ${record.best} questions in 90 seconds!`,
+      // "a speed run personal best", because the banner is the one thing on a
+      // parent's report that is *not* about practice, and a bare "personal
+      // best" beside a page of topics and strengths reads as one. The ninety
+      // seconds are gone from it: every run is ninety seconds, so the phrase
+      // never told a parent anything they could not have assumed, and the score
+      // it padded is the number the sentence is for.
+      message: `${record.childName} scored a speed run personal best in ${modeDescription(mode)}: ${record.best} questions!`,
     });
   }
 

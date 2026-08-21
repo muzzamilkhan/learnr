@@ -6,6 +6,11 @@ import { usePathname } from 'next/navigation';
 /**
  * The two halves of one scores screen: your own runs, and the family's.
  *
+ * Full width, with the two tabs sharing it evenly - `ParentNav`'s treatment and
+ * its reason: a bar that spans what it is a header for reads as a place to go,
+ * where a short control floating at the left reads as a chip somebody dropped
+ * above the cards.
+ *
  * They were two screens with a back arrow each, reached by two separate links,
  * and they answer neighbouring questions about the same wall of cards - how
  * *I* am going, and how the house is going. Splitting them meant going out to
@@ -25,16 +30,11 @@ import { usePathname } from 'next/navigation';
 
 const SCALES = {
   child: {
-    // Full width on a phone, where two equal halves are the whole row, and
-    // capped on anything larger: a tab bar stretched across a six-column wall
-    // of cards stops reading as a control and starts reading as a header.
-    bar: 'flex w-full max-w-md rounded-2xl border-2 border-(--color-line) bg-(--color-card) p-1 text-lg font-semibold',
+    bar: 'flex w-full rounded-2xl border-2 border-(--color-line) bg-(--color-card) p-1 text-lg font-semibold',
     tab: 'flex-1 rounded-xl px-4 py-2 text-center transition',
   },
   parent: {
-    // Narrower than `ParentNav` above it on purpose: a sub-control the width of
-    // the nav it sits under reads as a second nav.
-    bar: 'flex w-full max-w-xs rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold',
+    bar: 'flex w-full rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold',
     tab: 'flex-1 rounded-md px-3 py-1.5 text-center transition',
   },
 } as const;

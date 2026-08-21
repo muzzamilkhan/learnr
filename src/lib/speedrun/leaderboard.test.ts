@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { familyStandings, type FamilyRecord } from './leaderboard';
+import { familyStandings, standingChange, type FamilyRecord } from './leaderboard';
 
 function entry(overrides: Partial<FamilyRecord> = {}): FamilyRecord {
   return {
@@ -130,5 +130,46 @@ describe('familyStandings', () => {
 
   it('ignores a mode key this build no longer knows', () => {
     expect(familyStandings([entry({ mode: 'divide.impossible' })])).toEqual([]);
+  });
+});
+
+describe('the move a run made on the family board', () => {
+  it('says nothing when nobody else has run the mode', () => {
+    // A board of one is not a leaderboard, so being "1st" on it is a prize for
+    // turning up.
+    expect(standingChange([], null, 20)).toBeNull();
+    expect(standingChange([], 12, 20)).toBeNull();
+  });
+
+  it('says nothing when the place did not change', () => {
+    // Short of their own best, and still second either way.
+    expect(standingChange([30], 18, 12)).toBeNull();
+    // Better than their own best, but not enough to pass anybody.
+    expect(standingChange([30], 18, 25)).toBeNull();
+  });
+
+  it('reports a place gained, and where it was gained from', () => {
+    expect(standingChange([30, 20], 15, 25)).toEqual({
+      place: 2,
+      previousPlace: 3,
+      rivals: 2,
+    });
+  });
+
+  it('counts arriving on the board as a move, from nowhere', () => {
+    expect(standingChange([30, 20], null, 25)).toEqual({
+      place: 2,
+      previousPlace: null,
+      rivals: 2,
+    });
+  });
+
+  it('shares a place on a tie, the way the podium does', () => {
+    // Matching the leader is joint first, not second.
+    expect(standingChange([30, 20], 10, 30)).toEqual({
+      place: 1,
+      previousPlace: 3,
+      rivals: 2,
+    });
   });
 });
