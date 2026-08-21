@@ -93,11 +93,11 @@ export interface FigureKindModule<K extends FigureKind> {
    * to say so. This is that seam - `validateTemplate` calls it once, statically,
    * with the raw `answer` expression string, no drawing and no `Rng` involved.
    *
-   * It stays optional rather than a required no-op on the other seven kinds
+   * It stays optional rather than a required no-op on the other eight kinds
    * for the reason `figure-kind-author-notes.md` section 2b gives: every
    * jitter written so far leaves every possible question about it true, so
    * there is nothing for those kinds to say here - and a required method
-   * returning `[]` seven times over is a fact about `array` dressed up as one
+   * returning `[]` eight times over is a fact about `array` dressed up as one
    * about the interface.
    */
   answerIssues?(spec: Extract<FigureSpec, { kind: K }>, answer: Expr): string[];

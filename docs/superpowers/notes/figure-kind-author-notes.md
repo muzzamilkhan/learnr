@@ -10,7 +10,16 @@ expected to get it right in one. Read `src/lib/figures/bar-kind.ts` and
   **`FigureKindModule<'<kind>'>`** — never the wide `AnyFigureKindModule`. TypeScript
   method parameters are bivariant, so the wide type would let a module be filed under a
   `kind` that disagrees with the spec its `build` reads.
-- Four members: `kind`, `fields`, `build`, `issues`.
+- Five members: `kind`, `fields`, `build`, `issues`, and the optional `answerIssues`.
+- **Declare `answerIssues` when your kind's own jitter can pick a *different* answer,
+  not just a different picture** — a transpose that swaps which count a "how many
+  rows?" answer means, say, rather than a rotation that leaves every question about the
+  shape still true. The 50-seed anchoring check catches a picture that never varies; it
+  cannot catch one that varies for a reason unrelated to whether it still agrees with
+  the *particular* answer a template committed to, because the rest of the bound scope
+  usually varies right along with it and looks like healthy variation either way. If
+  that is true of your kind, the check will not find it for you — `answerIssues` is how
+  the kind says so itself. `array-kind.ts`'s `orientation` is the worked example.
 - **`fields` is a mapped-type record and every parameter must appear in it.** A parameter
   in the `FigureSpec` union but missing from `fields` is a compile error — deliberately,
   because otherwise it would silently never be validated.
