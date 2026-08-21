@@ -54,8 +54,9 @@ export type Mark =
    * Text pinned to a point. It was here before anything emitted one, because
    * the kinds the first pass deferred - bar and picture graphs, number lines,
    * clock faces - are unreadable without one and a renderer is cheaper to
-   * write once than to extend. Four of them emit one now, and what a label
-   * costs the geometry around it is `labels.ts`.
+   * write once than to extend. Five of them emit one now - `bar`, `pictograph`,
+   * `number-line`, `clock` and `grid` - and what a label costs the geometry
+   * around it is `labels.ts`.
    */
   | { kind: 'label'; at: Point; text: string };
 

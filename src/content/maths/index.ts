@@ -10,13 +10,21 @@ import { year6 } from './6';
 /**
  * Maths course, Kindergarten to Year 6.
  *
- * Content is written against the Australian Curriculum v9.0 (ACARA), using the
- * official "Mathematics scope and sequence F-10" as the source. Every template
- * carries the content description code it practises in `tags` - e.g.
- * `AC9M4N02`, "explain and use the properties of odd and even numbers" - so the
- * mapping from curriculum to question is checkable rather than asserted. The
- * codes read as AC9 M <year> <strand> <number>, where the strands are N number,
- * A algebra, M measurement, SP space, ST statistics and P probability.
+ * Content is written against **two** syllabuses: the Australian Curriculum v9.0
+ * (ACARA), from the official "Mathematics scope and sequence F-10", and the NSW
+ * Mathematics K-10 Syllabus (2022). Every template carries in `tags` at least
+ * one code for the content it practises - `AC9M4N02`, `MA2-AR-01` - so the
+ * mapping from curriculum to question is checkable rather than asserted. Either
+ * syllabus satisfies that on its own, because the two disagree about which year
+ * some content belongs to and a template can honestly sit in only one of them;
+ * `catalog.test.ts` names every such template, in both directions.
+ *
+ * An ACARA code reads AC9 M <year> <strand> <number>, where the strands are N
+ * number, A algebra, M measurement, SP space, ST statistics and P probability.
+ * An NSW code reads MA <stage> - <focus area> - <number>, and a stage spans two
+ * school years (`stageForLevel`), which is why one Stage 2 code sits on both a
+ * Year 3 and a Year 4 template. NSW outcome *statements* are Crown copyright
+ * and are never reproduced here - the code is a reference, not a quotation.
  *
  * Note how topics recur across years rather than belonging to one: "counting
  * numbers" runs from K into Year 1, "fractions" from Year 2 into Year 6, and so
@@ -24,13 +32,16 @@ import { year6 } from './6';
  *
  * Two rules every template here obeys:
  *
- * - **A question may be a picture, and the picture is generated.** The shape,
- *   symmetry and angle questions carry a `figure` (see `src/lib/figures`), built
- *   from the same bound scope and the same seeded `Rng` as the prompt around it.
- *   None of them pins a rotation: an answer that always drew the same diagram
- *   would teach the diagram, and `validateTemplate` fails a template that does.
- *   What still cannot be drawn - number lines, bar and picture graphs, clock
- *   faces - is left out rather than faked.
+ * - **A question may be a picture, and the picture is generated.** Templates
+ *   spanning fifteen of this course's topics carry a `figure` (see
+ *   `src/lib/figures`) - not only the spatial ones, since data, chance and time
+ *   are picture questions too - built from the same bound scope and the same
+ *   seeded `Rng` as the prompt around it. None of them pins a rotation: an
+ *   answer that always drew the same diagram would teach the diagram, and
+ *   `validateTemplate` fails a template that does. `FIGURE_KINDS`
+ *   is what can be drawn at all, and what a kind can be asked for is measured
+ *   rather than assumed - see `docs/superpowers/notes/figure-content-notes.md`
+ *   before authoring against one.
  * - **A child is never asked to type something the screen cannot express.** The
  *   number pad has no minus key, so the Year 6 integer questions are multiple
  *   choice. Decimal answers start at Year 4, where decimals enter the curriculum.

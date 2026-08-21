@@ -135,22 +135,29 @@ than its distractors (a closed set - three colours, two units - where the odd
 one out is pickable without doing the arithmetic). A sweep of the content
 written before the check existed found **14 templates with a fixed answer rank
 and one option-set leak**. Thirteen of the fifteen needed reworking; the other
-two were "which is largest?", where the rank *is* the question. That is what
-`rankIsTheQuestion` and `propertyIsTheQuestion` are for - two flags rather than
-one blanket "trust me", each suppressing exactly one check, and both visible in
-review, because an undeclared fixed rank is a question a child can beat.
+two were "which is largest?", where the rank *is* the question, and they declare
+`rankIsTheQuestion` to say so. Its sibling `propertyIsTheQuestion` covers the
+other shape - "which of these is even?", where an odd distractor can never be an
+even answer, so drawing the distractors from the answer's own values is
+arithmetically impossible - and no shipped template needs it yet. Two flags
+rather than one blanket "trust me", each suppressing exactly one check, and both
+visible in review, because an undeclared fixed rank is a question a child can
+beat.
 
-**Both checks stand down exactly where a figure question lives, so on those,
-measurement is the only net there is.** The rank check needs every option of
-every draw to be a number, and a shape name or a grid reference is not; the
-closed-set check stops reading disjointness as structure above `CLOSED_SET_MAX`
-(8) distinct answers, and a three-by-three grid reaches nine. Every leak found
-while writing this branch's figure content was found by *measuring* - keying
-each draw by its prompt and sorted option set, learning the modal answer on one
-sample and scoring it on a held-out one against the blind baseline - and in five
-successive years of new content not one of them could have been found by
-validation. A green suite says nothing about a new `choice` template that
-carries a figure. Measure it.
+**On a figure question, both checks tend to stand down, so measurement is the
+only net there is.** Neither exempts a figure structurally - the rank check
+runs on any `choices` template whose options are all numeric. It is the
+*options* that decide: a shape name or a grid reference is not a number, so one
+wordy draw takes the rank check off the table, and all 44 shipped templates
+carrying both a figure and `choices` name their options in words. The
+closed-set check then stops reading disjointness as structure above
+`CLOSED_SET_MAX` (8) distinct answers, and a three-by-three grid reaches nine.
+Every leak found while writing this branch's figure content was found by
+*measuring* - keying each draw by its prompt and sorted option set, learning
+the modal answer on one sample and scoring it on a held-out one against the
+blind baseline. **Eight were found that way over this phase**, at rates up to
+100%, and not one of them could have been found by validation. A green suite
+says nothing about a new `choice` template that carries a figure. Measure it.
 
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
@@ -248,20 +255,22 @@ restating what an outcome *covers* rather than where the syllabus *places* it,
 and each of them read as an obviously harmless line on its own. Say where a
 syllabus puts something; do not say what it says.
 
-**There are no Part A / Part B tags.** NESA says outright that Part A does not
-equate to Year 3 - which part of a stage a concept is taught in is a teacher's
-programming decision, not a property of the content. Tagging it would put a
-guess into the one field that exists to be checkable, which is the lie in the
-type system the `QuestionSpec`/`QuestionTemplate` split already refuses to tell.
+**There are no Part A / Part B tags.** NESA says outright that "Part A does not
+equate to Year 3 only" - which part of a stage a concept is taught in is a
+teacher's programming decision, not a property of the content. Tagging it would
+put a guess into the one field that exists to be checkable, which is the lie in
+the type system the `QuestionSpec`/`QuestionTemplate` split already refuses to
+tell.
 
 **And no topic was renamed into NSW's vocabulary.** NSW would fold `money` into
-additive relations and `algebra` into additive and multiplicative relations;
-both are naming rather than coverage, and `topic` is *stored*, on `Attempt` and
-on `TopicSkill`. A rename orphans every child's history and breaks
-`buildProfile`'s obligation to reproduce the stored row from the attempts. A
-second vocabulary rides in the tag, which is where a second vocabulary belongs.
+additive relations and place value, and `algebra` into additive and
+multiplicative relations; both are naming rather than coverage, and `topic` is
+*stored*, on `Attempt` and on `TopicSkill`. A rename orphans every child's
+history and breaks `buildProfile`'s obligation to reproduce the stored row from
+the attempts. A second vocabulary rides in the tag, which is where a second
+vocabulary belongs.
 
-**Four rules are enforced over all 350 templates**, and the order they were
+**Four rules are enforced over every shipped template**, and the order they were
 added in is the argument for the last two:
 
 - **Every template cites at least one syllabus.** Either satisfies it alone,
@@ -269,8 +278,8 @@ added in is the argument for the last two:
   question is a claim about the curriculum that nothing can check.
 - **An NSW code may only come from the stage its template's year falls in.**
   The characteristic bug of a second citation family, and invisible by
-  inspection across 350 templates: a Stage 2 code on a Year 5 template reads as
-  perfectly plausible and is simply wrong.
+  inspection across a whole catalogue: a Stage 2 code on a Year 5 template
+  reads as perfectly plausible and is simply wrong.
 - **An NSW code has to be one the syllabus actually has**, checked against the
   73 codes transcribed into `catalog.test.ts` from
   `docs/superpowers/notes/nsw-outcome-codes.md`. This is the only one of the
@@ -355,17 +364,22 @@ identically again" be detected at all.
 **Those fifty draws are shared across all of a template's answers, so the check
 gets stricter as the answers multiply** - which is the opposite of what anyone
 assumes and is worth knowing before authoring a wide question. A template with
-four answers gets a dozen drawings each; one with nine gets five or six, and two
+four answers gets a dozen drawings each and one with nine gets five or six -
+but **the refusals do not come from that average, they come from its tail**,
+where an answer happens to turn up only two or three times in the fifty and two
 identical pictures is the whole of the evidence the check needs. For an answer
-whose only lever is a small discrete set - a coordinate plane, where the dot and
-the grid's extent decide the picture between them - the chance an answer's *n*
-drawings all land on one of *e* extents is `e^(1-n)`, which is roughly one
-refusal in six for nine answers over six extents and essentially never for four.
-The seeds are keyed off the template's own id, so that refusal is the same on
-every run and every machine: the risk of a wide answer set is a cost the author
-meets once, at validation, and never something a child sees. The fix is not to
-narrow the question but to widen what varies, or to offer the same few answers
-on every draw and let the picture grow around them.
+whose only lever is a small discrete set - a coordinate plane, where the dot
+and the grid's extent decide the picture between them - the chance an answer's
+*n* drawings all land on one of *e* extents is `e^(1-n)`, and taken **over the
+distribution of counts** that comes to roughly one refusal in six for nine
+answers over six extents, and essentially never for four. Evaluate the same
+formula at the mean instead and it reads about one in two thousand, which is
+exactly the mistake to avoid: the low-count tail is the whole of the risk, and
+averages hide it. The seeds are keyed off the template's own id, so that
+refusal is the same on every run and every machine: the risk of a wide answer
+set is a cost the author meets once, at validation, and never something a child
+sees. The fix is not to narrow the question but to widen what varies, or to
+offer the same few answers on every draw and let the picture grow around them.
 
 **Pinning `rotation: '0'` on a regular polygon therefore fails validation,
 deliberately and with no escape hatch.** Such a shape has no free proportion
@@ -459,20 +473,20 @@ to a kind and forgotten there is a type error, where a list would simply have
 left it unvalidated for good.
 
 The shape vocabulary is closed (`POLYGON_SHAPES`: the triangles, the
-quadrilaterals, and pentagon through octagon). A count of sides would be less to
-author with and not
-enough to author *from* - it cannot tell a rhombus from a kite, and a randomly
-wobbled quadrilateral has no axis of symmetry at all, so the true/false symmetry
-question would have no true case to draw. A polygon takes `shape`, `rotation`,
-`mirror` and `rightAngles`; an angle takes `degrees`, `rotation`, `armLength` and
-`arc`. `mirror` is a **boolean** - whether the dashed line is a genuine axis -
-and which true axis, or which plausible wrong line, is the builder's to vary; the
-template's own variable is what the answer reads. An angle's two arms are
-unequal by default, both because equal arms are an anchor and because children
-read longer arms as a bigger angle, a misconception ACARA names outright. There
-is never a right-angle square: a box in the corner answers "what kind of angle is
-this?" before the child has looked at it, the same reason the play screen's
-header counts nothing.
+quadrilaterals, and pentagon through octagon). A count of sides would be less
+to author with and not enough to author *from* - it cannot tell a rhombus from
+a kite, and a randomly wobbled quadrilateral has no axis of symmetry at all, so
+the true/false symmetry question would have no true case to draw. A polygon
+takes `shape`, `rotation`, `mirror` and `rightAngles`; an angle takes
+`degrees`, `rotation`, `armLength` and `arc`. `mirror` is a **boolean** -
+whether the dashed line is a genuine axis - and which true axis, or which
+plausible wrong line, is the builder's to vary; the template's own variable is
+what the answer reads. An angle's two arms are unequal by default, both because
+equal arms are an anchor and because children read longer arms as a bigger
+angle, a misconception ACARA names outright. There is never a right-angle
+square: a box in the corner answers "what kind of angle is this?" before the
+child has looked at it, the same reason the play screen's header counts
+nothing.
 
 Two content rules, both learned the hard way. **A `mirror` that evaluates falsy
 is reported on a shape whose symmetry axes sit closer than
@@ -521,16 +535,18 @@ functions, not a capability the design turned out to be missing.
 `label` was in `Mark` before anything emitted one, on the argument that those
 kinds are unreadable without it and a renderer is cheaper to write once than to
 extend. **That is the one place the bill came due.** Five kinds emit a label
-now, and it cost `Diagram` a second prop: SVG has no `vector-effect` for
-`font-size`, so unlike `strokeWidth` a label's size cannot be pinned to real
-pixels and each caller estimates its own box (`labelSize`, roughly 7 on the play
-screen and 16 in a report row). It also costs the kinds `labels.ts`, the shared
-arithmetic for what a label takes from the geometry around it - and a figure is
-built once for both call sites, so a kind that places labels by geometry has to
-leave room for the *larger* of the two or its ticks collide in the report. Even
-so, the four `Mark` kinds are still four, which is the claim that was actually
-at risk: every one of the nine kinds draws itself out of paths, arcs, dots and
-labels, so no new decision escaped into `diagram.tsx`.
+now, and it cost `Diagram` a second prop: SVG 2 defines
+`vector-effect: non-scaling-size`, which would do for `font-size` what
+`non-scaling-stroke` does for a line, but no shipping engine implements it - so
+unlike `strokeWidth` a label's size cannot be pinned to real pixels and each
+caller estimates its own box (`labelSize`, roughly 7 on the play screen and 16
+in a report row). It also costs the kinds `labels.ts`, the shared arithmetic for
+what a label takes from the geometry around it - and a figure is built once for
+both call sites, so a kind that places labels by geometry has to leave room for
+the *larger* of the two or its ticks collide in the report. Even so, the four
+`Mark` kinds are still four, which is the claim that was actually at risk: every
+one of the nine kinds draws itself out of paths, arcs, dots and labels, so no
+new decision escaped into `diagram.tsx`.
 
 ## Sessions
 
