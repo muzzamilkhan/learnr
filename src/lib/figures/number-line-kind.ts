@@ -873,10 +873,18 @@ export const numberLineModule: FigureKindModule<'number-line'> = {
         // step of a millionth of the line asks for a million and floors to
         // `Infinity`, which read as "not even one" and was reported as a step
         // too long. Both ends of that mistake are named apart here.
+        //
+        // **Compared with a tolerance, because the span came out of floating
+        // point too.** `0.6 - 0.5` is `0.09999999999999998`, so a step of a
+        // tenth on a tenth-wide line asks for 0.9999999999999998 gaps and read
+        // as "longer than the line" - which refused 54 of the 100 tenth-wide
+        // windows and passed the other 46, on nothing but where the two ends
+        // happened to round. `LATTICE_TOLERANCE` is the same slack
+        // `dividesEvenly` already gives a step for the same reason.
         const wanted = (end - start) / candidate;
         const gaps = tickCount(start, end, candidate);
 
-        if (!(wanted >= 1)) {
+        if (!(wanted >= 1 - LATTICE_TOLERANCE)) {
           if (firstOfItsKind('long')) {
             issues.push(
               `figure.step: a step of ${candidate} is longer than the line from` +

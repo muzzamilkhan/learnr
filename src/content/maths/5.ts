@@ -20,7 +20,8 @@ export const year5: QuestionTemplate[] = [
   // **Year 5 is Stage 3's first year, so every NSW code here is an `MA3-` one
   // Year 6 also cites.** NSW writes one outcome per focus area for the pair of
   // years; what separates the two is the ACARA description and the difficulty,
-  // not the outcome.
+  // not the outcome. The two `symmetry` templates are the only ones in the year
+  // with no NSW code at all, and the comment at them says why.
   //
   // Two things this year is the first to be allowed. **A many-to-one picture
   // graph carries its NSW citation here**: Years K to 4 were held to a key of
@@ -572,10 +573,17 @@ export const year5: QuestionTemplate[] = [
   // done off the face, which is the one a child actually meets - a wall clock
   // says 3:35 and a timetable says 15:35.
   //
-  // **Both say "afternoon" in the prompt, because the face cannot.** A dial has
-  // no am and no pm, so which of two 24-hour times it shows is not something
-  // the picture says and not something a child can be marked wrong for. The
+  // **Both say "pm" in the prompt, because the face cannot.** A dial has no am
+  // and no pm, so which of two 24-hour times it shows is not something the
+  // picture says and not something a child can be marked wrong for. The
   // sentence supplies the half of the day and the picture supplies the rest.
+  //
+  // It says "pm" rather than "afternoon", which is what it said first and which
+  // was false on nearly half of all draws: the hour runs to 11, so the answer
+  // reaches 23:55, and five of the eleven hours are evening or night. "pm" is
+  // the word that is true of every one of them, it is what `maths.4.time.am-or-pm`
+  // has already taught a child by this year, and it is the shorter prompt -
+  // which a figure question wants anyway.
   //
   // Both pin `numerals` and `minuteTicks` for Year 3's reason: an omitted field
   // is a coin toss, not a default, so half of these would otherwise draw a dial
@@ -586,7 +594,7 @@ export const year5: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'time',
     level: '5',
-    prompt: 'This clock shows an afternoon time. What is it in 24-hour time?',
+    prompt: 'This clock shows a pm time. What is it in 24-hour time?',
     // The hour runs to 11 rather than 12: noon is 12:00 in both systems, so a
     // 12 on the face is the one draw where the conversion is not one.
     vars: [
@@ -628,7 +636,7 @@ export const year5: QuestionTemplate[] = [
     // into the same system before a single minute can be counted. The gap runs
     // past the hour about half the time, which is the part a child cannot do by
     // subtracting the two minute readings.
-    prompt: 'This clock shows an afternoon time. How many minutes until {th}:{tms}?',
+    prompt: 'This clock shows a pm time. How many minutes until {th}:{tms}?',
     // **The gap is drawn first and the target built from it**, so all eleven
     // answers come up equally often - drawing two times and subtracting makes
     // the short gaps far the commonest, which teaches a child to answer "5".
@@ -757,6 +765,17 @@ export const year5: QuestionTemplate[] = [
   // practised, and a topic recurring across years is the thing this course is
   // built out of, so a year citing its predecessor's description is the
   // recurrence showing rather than a mistake.
+  //
+  // **They are also the only two templates in this year with no NSW code, and
+  // that is deliberate.** Stage 2 files symmetry and turning under
+  // MA2-2DS-02, transformations - and Stage 3 has no successor to it. Its three
+  // two-dimensional outcomes are classifying triangles and quadrilaterals
+  // (MA3-2DS-01) and two about area. Both questions below draw pentagons,
+  // hexagons, heptagons and octagons and ask about rotational symmetry, which
+  // is neither a classification nor a question about a triangle or a
+  // quadrilateral, so MA3-2DS-01 would be a citation the curriculum page
+  // presents as checkable and which does not check out. A missing citation
+  // costs nothing here: the ACARA pair above says exactly what is practised.
   {
     id: 'maths.5.symmetry.half-turn',
     subject: 'maths',
@@ -793,7 +812,7 @@ export const year5: QuestionTemplate[] = [
       "shape == 'parallelogram' || shape == 'hexagon' || shape == 'octagon'",
     hint: 'Half a turn is the same as looking at it upside down.',
     figure: { kind: 'polygon', shape: 'shape' },
-    tags: ['AC9M4SP03', 'AC9M5SP03', 'MA3-2DS-01'],
+    tags: ['AC9M4SP03', 'AC9M5SP03'],
   },
   {
     id: 'maths.5.symmetry.turn-matches',
@@ -831,7 +850,7 @@ export const year5: QuestionTemplate[] = [
     // turning has to actually be done.
     hint: 'A regular shape matches once for every side. A rectangle, a rhombus and a parallelogram match twice.',
     figure: { kind: 'polygon', shape: 'shape' },
-    tags: ['AC9M4SP03', 'AC9M5SP03', 'MA3-2DS-01'],
+    tags: ['AC9M4SP03', 'AC9M5SP03'],
   },
 
   // Solids, read off **the object rather than off the net**. Years 3 and 4 both
@@ -895,23 +914,32 @@ export const year5: QuestionTemplate[] = [
     // on what shape those faces are. Year 3 asked whether a solid had a
     // triangular face, which is answered by looking; a rectangle that is *not*
     // a square is the harder telling-apart, and it is the one Stage 3
-    // classifying is about. A cuboid's three edges are guaranteed **visibly**
-    // different by the kind itself (`MIN_CUBOID_RATIO` is 1.39), so none of its
-    // six faces is ever a square and none is ever close enough to look like one.
+    // classifying is about.
     //
-    // **True exactly half the time, by construction**: two of the four solids
-    // have a square face, the pick is flat, and nothing is rejected. The
+    // **The pick is these two solids and no others, because they are the only
+    // pair the drawing can be trusted about.** `solid-kind.ts` says outright
+    // that the *lengths* of a solid's edges are deliberately not askable - an
+    // oblique projection foreshortens depth by a convention rather than by
+    // measurement - and a question about square faces is a question about
+    // lengths. The one exception it guarantees is exactly this pair:
+    // `MIN_CUBOID_RATIO` holds a cuboid's edges **visibly** unequal at 1.39 or
+    // worse, and a cube's are always equal, so the cube's front face measures a
+    // side ratio of 1.00 and the cuboid's squarest face 1.39 to 3.33.
+    //
+    // A square pyramid was in this list and had to come out. Its base really is
+    // a square, so the answer said true - and the base is drawn as a
+    // parallelogram whose sides measure 1.82 to 3.23 apart, median 2.29, which
+    // is *less* square-looking than the cuboid's rectangles. The hint below
+    // instructs precisely the reading that then marks it wrong. Any solid whose
+    // square face is not the face you are looking straight at is the same trap.
+    //
+    // **True exactly half the time, by construction**: one of the two solids
+    // has a square face, the pick is flat, and nothing is rejected. The
     // sentence is the same words every draw, so there is no claim in it to
     // leak - the picture is the only place the answer lives.
     prompt: 'True or false: this shape has a face shaped like a square.',
-    vars: [
-      {
-        name: 'shape',
-        kind: 'pick',
-        from: ['cube', 'cuboid', 'square-pyramid', 'triangular-prism'],
-      },
-    ],
-    answer: "shape == 'cube' || shape == 'square-pyramid'",
+    vars: [{ name: 'shape', kind: 'pick', from: ['cube', 'cuboid'] }],
+    answer: "shape == 'cube'",
     hint: 'A rectangle is only a square when all four of its sides are the same length.',
     figure: { kind: 'solid', solid: 'shape', view: "'object'" },
     tags: ['AC9M5SP01', 'MA3-3DS-01'],
@@ -951,32 +979,53 @@ export const year5: QuestionTemplate[] = [
     topic: 'position',
     level: '5',
     prompt: 'What are the coordinates of the dot?',
-    // **Four points, and the same four buttons on every draw.** The dot is
-    // always one of (1,1), (1,2), (2,1) and (2,2), which is a smaller square
-    // than the plane it sits on and is deliberate twice over. The option set
-    // then says nothing at all, since it is the same list whatever was drawn;
-    // and each answer takes about a quarter of the fifty draws the anchoring
-    // check makes, which is far too many for all of them to land on one of the
-    // six extents by chance.
+    // **Six points the dot can be on, and four buttons.** How wide the answer
+    // set may be is a question about the *anchoring check* rather than about
+    // the maths, and it is worth writing the arithmetic down. This kind has one
+    // lever on a plane - the extent, six of them here - because `axisLabels`
+    // cannot jitter where the answer is a pair of numbers and there is no
+    // cell-aspect wobble. The check makes **fifty draws in total, not fifty per
+    // answer**, so a wide answer set leaves some answers with two or three
+    // draws, and those can land on one extent together; two identical pictures
+    // is all the evidence the check has, so it refuses. Measured across 300
+    // distinct template ids: four answers 0 refusals, six answers about 1 in
+    // 60, nine answers about 1 in 10.
     //
-    // A nine-point version of this - the dot anywhere in a three by three -
-    // spreads those fifty draws so thin that an answer can turn up two or
-    // three times and land on one extent by chance, which the check then reads
-    // as an anchored figure. It is a real refusal rather than a false alarm:
-    // two identical pictures *is* all the evidence there is. Four points is
-    // what makes the variation certain rather than likely.
+    // Nine points was tried first and was refused - and drawing that version
+    // 3000 times shows every one of its nine answers does reach all six
+    // extents, so nothing was anchored in fact; the seeds simply did not show
+    // it. Six is where the answer set is worth having and the check is still
+    // near-certain to be satisfied, and because the check is **deterministic
+    // per template id**, a refusal is a thing the author meets once at
+    // authoring time rather than a risk a child ever sees.
     vars: [
       { name: 'x', kind: 'int', min: '1', max: '2' },
-      { name: 'y', kind: 'int', min: '1', max: '2' },
+      { name: 'y', kind: 'int', min: '1', max: '3' },
       { name: 'cols', kind: 'int', min: '3', max: '5' },
       { name: 'rws', kind: 'int', min: '3', max: '4' },
+      // The other column, and any other row - stepped round rather than drawn
+      // and rejected, so no draw is thrown away.
+      { name: 'xn', kind: 'expr', expr: '3 - x' },
+      { name: 'dy', kind: 'int', min: '1', max: '2' },
+      { name: 'yn', kind: 'expr', expr: 'mod(y - 1 + dy, 3) + 1' },
     ],
     // A coordinate pair is written (2,1), which the number pad cannot type - so
-    // it is tapped. Reading the pair backwards is the mistake this is for, and
-    // (1,2) is on the buttons beside (2,1) every time it is the answer.
+    // it is tapped. The four options are the two columns crossed with the two
+    // rows, which is what keeps the option set from answering the question:
+    // both columns are on the buttons every draw and the answer's own column is
+    // either of them equally often, and the same holds of the two rows. Reading
+    // the pair backwards is the mistake this is for, and (1,2) sits beside
+    // (2,1) whenever both are in play.
     answer: "'(' + x + ',' + y + ')'",
     answerType: 'choice',
-    choices: { count: 4, distractors: ["'(1,1)'", "'(1,2)'", "'(2,1)'", "'(2,2)'"] },
+    choices: {
+      count: 4,
+      distractors: [
+        "'(' + xn + ',' + y + ')'",
+        "'(' + x + ',' + yn + ')'",
+        "'(' + xn + ',' + yn + ')'",
+      ],
+    },
     hint: 'The first number is how far along the bottom, the second is how far up.',
     figure: { kind: 'grid', at: "x + ',' + y", columns: 'cols', rows: 'rws', onLines: 'true' },
     tags: ['AC9M5SP02', 'MA3-GM-01'],

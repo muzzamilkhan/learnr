@@ -102,18 +102,27 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 - **A decimals question must pin `from` and `to`.** Reading a tenth needs a one-unit-wide
   line, and exactly one round one contains any given tenth — so 40 of 90 one-decimal values
   have a single available range and would draw the same picture every time.
-- **A tenth is as fine as this kind goes, and a hundredth is not authorable.** With the range
-  left open, the only values under 1 that get a tick under the arrow are the nine tenths and
-  `0.25`/`0.75` — measured over all 99 hundredths, and everything else is refused with "no line
-  the builder can draw around 0.35 has a tick under it". Pinning a tenth-wide window
-  (`from: 2.3, to: 2.4, step: 0.1`) *does* draw hundredths as minor ticks and labels only the
-  two ends, which looks like the way in — but **floating point refuses 54 of the 100 windows**.
-  `figureIssues` asks `(end - start) / step >= 1` with no epsilon, and `0.6 - 0.5` is
-  `0.09999999999999998`, so a step of `0.1` on a `0.5–0.6` line is reported as "longer than the
-  line" while the same step on `2.3–2.4` is clean. That is a `lib` bug rather than a content
-  rule, and until it is fixed a hundredths line can only be built on a hand-picked list of
-  windows — which is not a thing to build content on. Year 5 dropped the idea and asked for a
-  **percentage off a pinned `0–1` line** instead.
+- **A hundredth needs a pinned tenth-wide window, and with the range left open it is refused.**
+  The only values under 1 the builder finds a tick for on its own are the nine tenths and
+  `0.25`/`0.75` — measured over all 99 hundredths; everything else comes back "no line the
+  builder can draw around 0.35 has a tick under it". What does work is pinning the window:
+  `from: 2.3, to: 2.4, step: 0.1` labels only the two ends and draws hundredths as minor ticks.
+
+  **That was refused on 54 of the 100 tenth-wide windows until Year 5's round, and the cause was
+  floating point rather than legibility.** `issues` compared `(end - start) / step >= 1` with no
+  tolerance, and `0.6 - 0.5` is `0.09999999999999998`, so `0.5–0.6` was reported as "a step of
+  0.1 is longer than the line" while `2.3–2.4` was clean — the two separated by nothing but
+  where their ends happened to round. `number-line-kind.ts` now compares against
+  `1 - LATTICE_TOLERANCE`, the same slack `dividesEvenly` three functions above has always
+  given a step, and all 100 windows draw. `number-line-kind.test.ts` sweeps them.
+
+  Two things still hold when you author one. The **division follows the answer**, as the bullet
+  above says, so constrain the answer's offset (`k ∈ {1, 3, 7, 9}` hundredths) or the ticks are
+  worth a twentieth on some draws and a fiftieth on others. And a pinned window is **one
+  picture per answer** apart from the tick and arrow jitter, so the window has to move with the
+  content — which is why Year 5 asked for a **percentage off a pinned `0–1` line** instead of
+  hundredths: a percentage has to be measured against a whole, and a whole that moved would
+  change what the question meant.
 - **A K–2 counting question should pin `step` — and `step` cannot be pinned alone.** Left open,
   a whole number in 0–9 is sometimes drawn on a line reading `3 | 3.5 | 4`, which is legitimate
   and wrong for the year. But pinning `step` by itself fails validation, because `issues` asks
@@ -172,11 +181,23 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   landing on one extent together. `validateTemplate` reads two identical pictures as an anchored
   figure, correctly: two identical pictures is all the evidence there is. Year 5's first
   coordinate template drew the dot anywhere in a 3×3 and was **refused outright** on the answer
-  `(1,3)`. Arithmetic worth doing before authoring: the chance an answer's *n* draws all share
-  one of *e* extents is `e^(1-n)`, so nine answers over six extents fails about one time in six,
-  and four answers over six extents essentially never. Shrink the answer set — Year 5's
-  `position.coordinates` offers the same four points every draw — rather than hoping the seeds
-  are kind.
+  `(1,3)` — and drawing that same version 3000 times shows every one of its nine answers *does*
+  reach all six extents, so nothing was anchored in fact. The seeds simply did not show it.
+
+  Measured refusal rates over 300 distinct template ids, six extents throughout:
+
+  | answers | 4 | 6 | 7 | 9 | 12 |
+  | --- | --- | --- | --- | --- | --- |
+  | refused | 0/300 | 2/300 | 7/300 | ~30/300 | ~94/300 |
+
+  So nine answers is about **one id in ten**, not one in six as an earlier draft of this bullet
+  guessed, and six answers is about one in sixty. **Size the answer set against that table, not
+  against caution.** And note what the risk actually is: `FIGURE_DRAWS` seeds are keyed off the
+  template's own id, so the check is **deterministic per template** — a 2% rate is a 2% chance
+  the author has to adjust something once, at authoring time, not a chance a child ever sees a
+  bad question. Once it is green it is green for ever. Year 5's `position.coordinates` offers
+  six points for that reason; four was thin content bought against a risk that is not borne by
+  anyone downstream.
 
 - **`A1` to `C3` sort, and a directional prompt can pin that order.** The bullet above is what
   produces a two-by-two block of options round the marked square — and if the prompt then names
@@ -217,12 +238,29 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 - Cuboid nets cover the 1-4-1 family only.
 - **The object view and the net view draw prisms of different lengths.** Never ask a child to
   compare a prism's length across the two views.
-- **A cuboid's three edges are guaranteed *visibly* unequal** (`MIN_CUBOID_RATIO`, measured at
-  1.39), so a question may turn on its faces being rectangles rather than squares — which is
-  what `maths.5.shapes.square-face` does. That guarantee is about the drawing, not about the
-  *net*: Years 3 and 4 both left the cuboid out of their net questions on the grounds that
-  telling a cuboid's net from a cube's in a parent's report row is a question about proportion
-  rather than about shape, and Year 5 did not overturn that.
+- **The lengths of a solid's edges are deliberately not askable** (`solid-kind.ts:85-88`): an
+  oblique projection foreshortens depth by a convention rather than by measurement, so a
+  question comparing a solid's depth with its width is reading the convention. **A question
+  about square faces is a question about lengths**, so it lives or dies by the one exception
+  below.
+- **The exception runs one way only: a cuboid is guaranteed not to look like a cube, and
+  nothing is guaranteed to look like a square.** `MIN_CUBOID_RATIO` (1.39) holds a cuboid's
+  three edges visibly unequal, and a cube's are always equal — measured over 300 draws, a
+  cube's front face has a side ratio of 1.00 every time and a cuboid's squarest face 1.39–3.33,
+  median 1.97. So "does this have a square face?" over **cube and cuboid** is sound, and
+  `maths.5.shapes.square-face` is exactly that pair.
+
+  It is sound over **no other solid**. A square pyramid's base really is a square, so the
+  answer says true — and the base draws as a parallelogram whose sides measure **1.82–3.23
+  apart, median 2.29**, which is *less* square-looking than the cuboid's rectangles. A hint
+  saying "a rectangle is only a square when all four sides are the same length" then instructs
+  precisely the reading that marks the pyramid wrong. That template shipped with the pyramid in
+  its pick and had to have it taken out. **Any solid whose square face is not the face you look
+  straight at is the same trap.**
+- The guarantee is about the drawing, not about the *net*: Years 3 and 4 both left the cuboid
+  out of their net questions on the grounds that telling a cuboid's net from a cube's in a
+  parent's report row is a question about proportion rather than about shape, and Year 5 did not
+  overturn that.
 - **Counting off the object is harder than counting off the net**, which is a real difficulty
   step rather than a restatement: a net lays every face out flat, while an object hides three
   edges and one corner behind it and draws them dashed. Year 4 counts a net's edges and
@@ -379,21 +417,55 @@ alike:
   means nothing: `maths.4.time.after-minutes` scores 96.3% keyed with 3805 keys over 4000
   draws, and its null control scores 95.2% — an artefact of one draw per key, not a finding.
 
-**The null above is the *global* one, and on some templates it is the wrong yardstick — run a
-second.** Drawing the answer from the template's whole answer distribution assumes every answer
-was available at every key, which is false wherever the key narrows the field honestly: a
-tapped question's key contains its four buttons, and a prompt that has to state something (a
-picture graph's key, say) narrows the answers to its multiples. So also run a **within-key
-null**: the answer drawn uniformly from that draw's own options, or from the answers actually
-seen at that key. Two Year 5 templates read as leaks against the global null and as clean
-against this one:
+### Use a held-out split, and the nulls stop being load-bearing
 
-| template | keyed | global null | within-key null | reading |
+The statistic above is **in-sample**: the modal answer is read off the same draws it is scored
+on, so it is biased upward by exactly the amount the buckets are small, and on a template with
+thousands of keys it is unreadable. `maths.5.time.clock-24-hour` scores **69.0%** in-sample
+against a 25% blind baseline and looks like the worst leak on the branch; it has 2243 keys over
+4000 draws, 1.53 answers per key, and no leak at all.
+
+**So split the draws.** Learn each key's modal answer on one half — 10,000 draws — and score on
+a second, independently seeded 10,000. A key the held-out half has never seen scores nothing,
+which is the honest outcome for a strategy that has no answer for it. The bias goes, and the
+number is directly comparable with the **blind baseline** with no null control in between:
+
+| template | in-sample | held-out | blind | reading |
 | --- | --- | --- | --- | --- |
-| `maths.5.time.clock-24-hour` | 69.0% | 56.6% | **70.2%** | below its own null; 1.53 answers per key |
-| `maths.5.data.picture-key-difference` | 37.0% | 21.9% | **36.6%** | the prompt states the key, so the answer is a multiple of it |
+| `maths.5.time.clock-24-hour` | 69.0% | **23.4%** | 25.0% | below a guess; the 69% was all bias |
+| `maths.5.position.coordinates` | 25.4% | **25.0%** | 25.0% | at the floor |
+| `maths.5.shapes.square-face` | 50.6% | **50.1%** | 50.0% | at the floor |
+| `maths.5.data.picture-key-difference` | 37.0% | **33.1%** | 21.6% | above the floor, and see below |
 
-Report both. A template above the *within-key* null is the one to look at.
+**Two of the five leaks found on this branch lived in populations where the in-sample number
+was unreadable**, so this is not a refinement — it is the measure. Keep reporting **answers per
+key** beside it, because it says whether a key is an answer sheet, and keep the blind baseline,
+because that is what the number is read against.
+
+**The blind baseline is `1/options` for a tapped question and the *modal answer rate* for a
+typed one** — always give the commonest answer, key unread. It is **not** `1/distinct answers`:
+answers are rarely uniform, so that understates the floor and makes a clean template look like
+a leak. `picture-key-difference` reads 12.5% by the wrong rule and 21.6% by the right one.
+
+A **null control** is still worth running where the split is not available or where you want a
+second opinion, and there are two of them. The **global** null draws the answer from the
+template's whole answer distribution independently of the key, which is what the bullet above
+describes; the **within-key** null draws it uniformly from that draw's own **options**. Use the
+within-key one on a tapped question, where the global one assumes answers the key never offered
+and reads clean templates as leaks. Do **not** build a within-key null out of "the answers
+actually seen at that key": on a key with one or two draws that pool *is* the observed answer,
+so the null converges on the statistic it is meant to check, and that is precisely the
+population it was reached for.
+
+### One floor that is real, structural, and the price of a correct prompt
+
+`maths.5.data.picture-key-difference` scores **33.1% held-out against a 21.6% blind baseline**,
+and it is not a leak to fix. A many-to-one picture graph's prompt **must** say what one picture
+stands for — the graph's key draws an icon and a number and cannot say two *what* — so a child
+who reads the prompt knows the answer is a multiple of *k*, which narrows eight answers to
+three. **1/3 is the true floor**, the measured 32.6% sits on it, and 3.00 answers per key
+confirms nothing beyond that narrowing leaks. Report it as a price rather than hunting it: the
+alternative is a prompt that does not say what the picture means.
 
 ## A false claim must be a claim the question could truthfully have made
 

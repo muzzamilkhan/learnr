@@ -730,6 +730,40 @@ describe('what the number-line kind reports to an author', () => {
     ).toContain('figure.step');
   });
 
+  // A step exactly as long as its line is the boundary case, and it used to be
+  // decided by floating point rather than by arithmetic: `0.6 - 0.5` is
+  // `0.09999999999999998`, so a tenth-wide window asked for 0.9999999999999998
+  // gaps and was refused as "longer than the line" - on 54 of the 100 windows
+  // from 0.0-0.1 to 9.9-10.0, and accepted on the other 46, with nothing to
+  // separate the two but where the ends happened to round. The comparison now
+  // carries `LATTICE_TOLERANCE`, the slack `dividesEvenly` three functions
+  // above has always given a step for the identical reason.
+  it('accepts a step exactly as long as its line, on every tenth-wide window', () => {
+    const refused: string[] = [];
+    for (let tenth = 0; tenth < 100; tenth++) {
+      const from = tenth / 10;
+      const to = (tenth + 1) / 10;
+      const issues = figureIssues(
+        { kind: 'number-line', at: String(from + 0.03), from: String(from), to: String(to), step: '0.1' },
+        {},
+      );
+      if (issues.length > 0) refused.push(`${from}-${to}: ${issues.join()}`);
+    }
+
+    expect(refused).toEqual([]);
+  });
+
+  // The loosening is a tolerance, not a licence: a step genuinely longer than
+  // its line is still refused, and so is one longer by a hair.
+  it('still refuses a step longer than its line by any real amount', () => {
+    expect(
+      figureIssues({ kind: 'number-line', at: '5', from: '0', to: '10', step: '10.1' }, {}).join(),
+    ).toContain('nothing between its ends to label');
+    expect(
+      figureIssues({ kind: 'number-line', at: '0.05', from: '0', to: '0.1', step: '0.2' }, {}).join(),
+    ).toContain('nothing between its ends to label');
+  });
+
   it('says so when two ticks would read the same', () => {
     // The one failure no ink sweep can see: these labels fit their box
     // perfectly, they are simply not distinct. Rounding answers the "does it
