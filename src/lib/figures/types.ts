@@ -51,9 +51,11 @@ export type Mark =
   /** A marked point - the vertex an angle is *at*, which the arms alone do not say. */
   | { kind: 'dot'; at: Point }
   /**
-   * Text pinned to a point. No kind emits one yet; it is here because the kinds
-   * this design defers - number lines, bar and picture graphs - are unreadable
-   * without one, and the renderer is cheaper to write once than to extend.
+   * Text pinned to a point. It was here before anything emitted one, because
+   * the kinds the first pass deferred - bar and picture graphs, number lines,
+   * clock faces - are unreadable without one and a renderer is cheaper to
+   * write once than to extend. Four of them emit one now, and what a label
+   * costs the geometry around it is `labels.ts`.
    */
   | { kind: 'label'; at: Point; text: string };
 
@@ -72,6 +74,7 @@ export const FIGURE_KINDS = [
   'spinner',
   'solid',
   'number-line',
+  'clock',
 ] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
@@ -251,6 +254,33 @@ export type FigureSpec =
        * parent's 64px report row, not on the play screen - see `MIN_TICK_GAP`.
        */
       minorTicks?: Expr;
+    }
+  | {
+      kind: 'clock';
+      /** Hours, 1-12. */ hour: Expr;
+      /**
+       * Minutes, 0-59 - and a multiple of 5, because those are the only
+       * positions the minute hand can be *read* at. Sixty minute ticks round a
+       * dial are 2.95px apart in a parent's 64px report row against a 1.5px
+       * stroke, so they read as a band there and only the twelve hour marks can
+       * be counted; a minute between two of them is **reported** rather than
+       * nudged onto the mark next door. See `clock-kind.ts` for the
+       * measurement, and for what it costs a template.
+       */
+      minute: Expr;
+      /**
+       * Draw the numerals - the quarters, 12, 3, 6 and 9, which is as many as
+       * a report row can tell apart. Omitted, it jitters, which is where a
+       * clock's variation has to come from: the hands *are* the answer, so the
+       * face is the only thing free to move.
+       */
+      numerals?: Expr;
+      /**
+       * Draw the minute track between the hour marks. Omitted, it jitters -
+       * freely, and unlike a number line's minor ticks, because the minute
+       * above can never depend on it.
+       */
+      minuteTicks?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */
