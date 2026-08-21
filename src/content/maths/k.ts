@@ -386,16 +386,30 @@ export const yearK: QuestionTemplate[] = [
     topic: 'time',
     level: 'K',
     prompt: 'Which day comes after {day}?',
+    // Four days in a row, and `o` says where in that run the named day sits -
+    // first, second or third, so the answer sits second, third or fourth.
+    //
+    // **The run used to be pinned to `before, day, after, twoAfter`**, which
+    // put the answer third of four every single time. Seven days gave seven
+    // option sets and seven answers, one to one, so the four buttons named the
+    // day without the week being thought about at all: measured over 600
+    // draws, keying on the option set alone, that beat the question 100% of
+    // the time against a 25% blind guess. Sliding the window leaves the same
+    // four sorts of distractor - the day named, the day before it, the day
+    // after next - and takes the tell out. The named day is still always one
+    // of the four, since it is the trap the question is really about.
     vars: [
       { name: 'n', kind: 'int', min: '0', max: '6' },
+      { name: 'o', kind: 'pick', from: [0, 1, 2] },
       { name: 'day', kind: 'expr', expr: dayName('n') },
       { name: 'after', kind: 'expr', expr: dayName('mod(n + 1, 7)') },
-      { name: 'twoAfter', kind: 'expr', expr: dayName('mod(n + 2, 7)') },
-      { name: 'before', kind: 'expr', expr: dayName('mod(n + 6, 7)') },
+      { name: 'd1', kind: 'expr', expr: dayName('mod(n - o + 7, 7)') },
+      { name: 'd2', kind: 'expr', expr: dayName('mod(n - o + (o == 0 ? 2 : 1) + 7, 7)') },
+      { name: 'd3', kind: 'expr', expr: dayName('mod(n - o + (o == 2 ? 2 : 3) + 7, 7)') },
     ],
     answer: 'after',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['day', 'before', 'twoAfter'] },
+    choices: { count: 4, distractors: ['d1', 'd2', 'd3'] },
     tags: ['AC9MFM02', 'MAE-NSM-02'],
   },
   {
@@ -404,16 +418,21 @@ export const yearK: QuestionTemplate[] = [
     topic: 'time',
     level: 'K',
     prompt: 'Which day comes before {day}?',
+    // The mirror of `day-after` above, and slid for the reason written there:
+    // `o` is where the answer sits in the run of four, so the named day - one
+    // later, and always on screen - lands second, third or fourth.
     vars: [
       { name: 'n', kind: 'int', min: '0', max: '6' },
+      { name: 'o', kind: 'pick', from: [0, 1, 2] },
       { name: 'day', kind: 'expr', expr: dayName('n') },
       { name: 'before', kind: 'expr', expr: dayName('mod(n + 6, 7)') },
-      { name: 'twoBefore', kind: 'expr', expr: dayName('mod(n + 5, 7)') },
-      { name: 'after', kind: 'expr', expr: dayName('mod(n + 1, 7)') },
+      { name: 'd1', kind: 'expr', expr: dayName('mod(n - 1 - o + (o == 0 ? 1 : 0) + 7, 7)') },
+      { name: 'd2', kind: 'expr', expr: dayName('mod(n - 1 - o + (o <= 1 ? 2 : 1) + 7, 7)') },
+      { name: 'd3', kind: 'expr', expr: dayName('mod(n - 1 - o + 3 + 7, 7)') },
     ],
     answer: 'before',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['day', 'after', 'twoBefore'] },
+    choices: { count: 4, distractors: ['d1', 'd2', 'd3'] },
     tags: ['AC9MFM02', 'MAE-NSM-02'],
   },
 

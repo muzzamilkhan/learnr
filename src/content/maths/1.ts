@@ -765,6 +765,17 @@ export const year1: QuestionTemplate[] = [
           "shape == 'cube' ? 0 : shape == 'sphere' ? 1 : shape == 'cone' ? 2 : " +
           "shape == 'cylinder' ? 3 : 4",
       },
+      // Which of the five solids is left *out*. Four options out of five names
+      // means one is always missing, and this is what stops which one it is
+      // being a fact about the answer: `gap` steps from the answer, so every
+      // set of four arises from each of its own four members equally often and
+      // the buttons say nothing about which of them is right.
+      { name: 'gap', kind: 'pick', from: [1, 2, 3, 4] },
+      // The three steps that are not `gap`, smallest first. Written as
+      // ternaries because the expression language has no list to filter.
+      { name: 'a', kind: 'expr', expr: 'gap == 1 ? 2 : 1' },
+      { name: 'b', kind: 'expr', expr: 'gap <= 2 ? 3 : 2' },
+      { name: 'c', kind: 'expr', expr: 'gap == 4 ? 3 : 4' },
     ],
     answer: solidWord('i'),
     answerType: 'choice',
@@ -772,9 +783,16 @@ export const year1: QuestionTemplate[] = [
     // repeat and never include the answer twice. Every one of them is
     // something a six-year-old has held, which is what makes a wrong tap a
     // real mistake rather than a shrug at a word they have never met.
+    //
+    // **The steps are `gap`'s three leftovers rather than a fixed 1, 2, 3.**
+    // Stepping by a fixed 1, 2, 3 always excluded the solid four along from
+    // the answer, so the four names on screen named the answer outright: five
+    // option sets, five answers, one to one. Measured over 600 draws, keying
+    // on the option set alone and nothing else, that beat the question 100% of
+    // the time against a 25% blind guess.
     choices: {
       count: 4,
-      distractors: [solidWord('mod(i + 1, 5)'), solidWord('mod(i + 2, 5)'), solidWord('mod(i + 3, 5)')],
+      distractors: [solidWord('mod(i + a, 5)'), solidWord('mod(i + b, 5)'), solidWord('mod(i + c, 5)')],
     },
     // The view is pinned because the prompt commits to one: "what is this
     // called" of a net is a different question, and a later year's. Which way

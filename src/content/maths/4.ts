@@ -44,12 +44,31 @@ export const year4: QuestionTemplate[] = [
       // answer and above it by construction, so without this the answer is the
       // second-smallest option every single draw.
       { name: 'k', kind: 'pick', from: [-1, 1] },
+      { name: 'm', kind: 'expr', expr: 'n + k' },
+      // Which of the two tenths on screen the place-value errors are built
+      // from - the answer's own digit, or the near-miss's.
+      { name: 'p', kind: 'pick', from: [0, 1] },
+      { name: 'v', kind: 'expr', expr: 'p == 0 ? n : m' },
     ],
-    constraints: ['n + k >= 1'],
+    // `n + k` is kept a single digit at both ends, so the near-miss is another
+    // tenth rather than a bare 1 beside a 10.
+    constraints: ['n + k >= 1', 'n + k <= 9'],
     answer: 'n / 10',
     // Tapped, not typed: the number pad has no decimal point.
     answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 100', 'n', '(n + k) / 10'] },
+    // The two place-value errors - the digit a place too far right, and the
+    // digit with the point forgotten - plus a near-miss tenth.
+    //
+    // **`v` is what keeps the buttons quiet.** Anchoring both errors on `n`
+    // put `n / 100`, `n / 10` and `n` on screen together every draw, so the
+    // answer was always the middle of a run of three each ten times the last:
+    // spot that and the prompt need never be read. Seventeen option sets, one
+    // answer apiece, 100% off the option set alone against a 25% blind guess,
+    // measured over 600 draws. Anchoring them on either tenth leaves the same
+    // three misconceptions on screen and makes the run of three centre on the
+    // answer only half the time - so the set narrows the answer to the two
+    // tenths and the child still has to read which one was asked for.
+    choices: { count: 4, distractors: ['v / 100', 'v', 'm / 10'] },
     hint: 'Tenths go in the first place after the decimal point.',
     tags: ['AC9M4N01', 'MA2-RN-02'],
   },
@@ -125,7 +144,22 @@ export const year4: QuestionTemplate[] = [
     vars: [{ name: 'd', kind: 'pick', from: [2, 4, 5, 10] }],
     answer: '1 / d',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['d / 10', '(10 + d) / 100', '(100 - d) / 100'] },
+    // **The other three unit fractions, so the four buttons are the same four
+    // numbers every draw.** They used to be built from `d` - `d / 10`,
+    // `(10 + d) / 100`, `(100 - d) / 100` - which gave four denominators four
+    // option sets, one answer apiece: the buttons named the answer without the
+    // fraction being read, 100% off the option set alone against a 25% blind
+    // guess over 600 draws. A set that never changes cannot say anything about
+    // which button is right, which is the strongest form of the fix and the
+    // one this template can have: four options and four unit fractions leaves
+    // no room to drop one, so there is nothing here to vary and nothing left
+    // to leak. The cost is the place-value distractor (1/4 as 0.14), and what
+    // replaces it is the confusion this question is actually about - a child
+    // who thinks 1/5 is 0.5 finds it on the screen.
+    choices: {
+      count: 4,
+      distractors: ['d == 2 ? 0.25 : 0.5', 'd <= 4 ? 0.2 : 0.25', 'd == 10 ? 0.2 : 0.1'],
+    },
     tags: ['AC9M4N03', 'MA2-RN-02'],
   },
   {
