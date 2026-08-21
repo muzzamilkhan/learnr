@@ -30,8 +30,10 @@ vertical room first and the prompt fits into what is left. Offering both options
 ("…the big part or the small part?") suppresses narration's spoken option list — but the
 buttons carry those words anyway, and narration reads *them* instead, so the child hears the
 same two words either way and the question above the picture is half the length. One Year 3
-spinner prompt went 131 characters to 69 on exactly this, losing nothing. Offer options in the
-prompt when a *sentence* question needs them; on a figure question, let the buttons do it.
+spinner prompt went **132 characters to 70** on exactly this, losing nothing — both counts
+measured, after the first draft of this paragraph carried two eyeballed ones that were each off
+by one. Offer options in the prompt when a *sentence* question needs them; on a figure
+question, let the buttons do it.
 
 **The same rule binds the `hint`, and it is easier to break there.** A hint is read aloud when
 narration is on, to the child least able to reconcile it with the picture. `bar`'s `style` left
@@ -211,10 +213,14 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
 
   **Year 3 keeps `key: '1'`, and the reasoning generalises upward.** A many-to-one graph at
   Stage 2 would need an `MA2-DATA-*` citation for a convention NSW places a stage above it, and
-  the curriculum page presents citations as checkable. Year 2's key-of-two is a specific
-  carve-out resting on counting in twos being core Stage 1 content, not a general licence. So
-  **a many-to-one graph below Stage 3 is ACARA-only or it is `key: '1'`** — there is no third
-  option, and a Year 4 template that already carries one is in the first case, not the second.
+  the curriculum page presents citations as checkable. So **a many-to-one graph below Stage 3
+  is ACARA-only, or it is `key: '1'`** — unless you can make the specific argument Year 2 made,
+  which is the only shipped exception: `maths.2.data.picture-key-two` carries `key: '2'` beside
+  an `MA1-DATA-02` citation, on the grounds that counting in twos is core Stage 1 content *and*
+  the key is stated in the prompt. That is a carve-out earned by an argument, not a general
+  licence, and Year 3 declined to take it. **Do not add a third case without making the
+  equivalent argument out loud**; a Year 4 template that already carries a many-to-one key and
+  no such argument belongs in the ACARA-only case.
 
 ---
 
