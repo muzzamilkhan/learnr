@@ -46,11 +46,16 @@ import { TrophyIcon } from './trophy-icon';
  * score, which made three equal boxes of two ways *on* and one way *out* - and
  * put "Go home" the same size and weight as the button the screen exists for.
  *
- * **Going again is a glyph too.** A loop is what repeat looks like on every
- * remote and every music player a child has already used, so the button they
- * press most is the one that needs no reading - the argument the door, the tick
- * and the lightbulb are all built on. The label survives as `aria-label` and
- * `title`: off the screen, not off the page.
+ * **Going again is a glyph too**, and neither it nor "See records" is drawn as
+ * a box. A loop is what repeat looks like on every remote and every music
+ * player a child has already used, so the button they press most is the one
+ * that needs no reading - the argument the door, the tick and the lightbulb are
+ * all built on - and its label survives as `aria-label` and `title`: off the
+ * screen, not off the page. The two are stacked and centred, the loop above the
+ * words, because a row of two filled boxes made a toolbar of a screen with one
+ * number on it and put the loudest thing on it under the score rather than the
+ * score itself. What is left is a big coloured glyph and a line of text: one
+ * thing to do, one thing to read.
  *
  * **And it says when the run moved them on the family board**, which is the one
  * leaderboard fact that is news rather than something to go and look at. Only
@@ -180,26 +185,34 @@ export function SpeedResult({ result, outcome, homeHref, recordsHref, onAgain }:
           <Standing standing={outcome?.standing ?? null} />
         </header>
 
-        <nav className={`flex shrink-0 items-stretch gap-3 ${ENTRANCE} ${DELAY[1]}`}>
-          <Link href={recordsHref} className={`${BUTTON} flex-1 ${SECONDARY}`}>
-            See records
-          </Link>
+        {/* One thing to do and one thing to read, stacked and centred under the
+            score. Neither is drawn as a box: two filled buttons side by side
+            made a toolbar of a screen that has one number on it, and the boxes
+            were the loudest thing under a score they were meant to sit beneath. */}
+        <nav className={`flex shrink-0 flex-col items-center gap-5 ${ENTRANCE} ${DELAY[1]}`}>
           {/* In place, never a navigation: the whole reason the run screen is one
-              component with four phases is that going again is instant. It wears
-              the accent because going again is what this screen is for, and it
-              is a picture rather than the words for the reason the door beside
-              it is - a loop is what going again looks like on everything a child
-              already uses, and it needs no reading. Square, so the one button
-              that is a glyph is not a wide box with a small mark adrift in it. */}
+              component with four phases is that going again is instant. It is a
+              picture rather than the words for the reason the door above it is -
+              a loop is what going again looks like on everything a child already
+              uses, and it needs no reading. Large and in the run's accent, since
+              a glyph with nothing drawn round it has only its own size to say
+              that it is the thing to press. */}
           <button
             type="button"
             onClick={onAgain}
             aria-label="Try again"
             title="Try again"
-            className={`${BUTTON} aspect-square ${accent.solid} text-white`}
+            className={`no-select transition active:scale-90 ${accent.text}`}
           >
-            <RetryIcon className="size-8 sm:size-9" />
+            <RetryIcon className="size-16 sm:size-20" />
           </button>
+
+          <Link
+            href={recordsHref}
+            className="no-select text-lg font-semibold text-(--color-ink-soft) underline underline-offset-4 transition active:scale-95 sm:text-xl"
+          >
+            See records
+          </Link>
         </nav>
       </div>
     </div>
@@ -300,9 +313,3 @@ function Standing({ standing }: { standing: StandingChange | null }) {
     </p>
   );
 }
-
-const BUTTON =
-  'flex h-14 items-center justify-center rounded-xl text-center text-base leading-tight font-semibold transition active:scale-95 sm:h-16 sm:rounded-2xl sm:text-xl';
-// No `PRIMARY` constant any more: the one filled button takes the run's accent,
-// which is only known at render.
-const SECONDARY = 'border-2 border-(--color-line) bg-(--color-card) text-(--color-ink-soft)';

@@ -993,8 +993,12 @@ same weight as the button the screen exists for. **Going again is a glyph too**
 used - so the button they press most needs no reading, the argument the door,
 the tick and the lightbulb are all built on. Both keep their words in
 `aria-label` and `title`: off the screen, not off the page. What is left in the
-row is "See records" and the accent square beside it. "See records" now lands
-where the door does - the screen the run was started from, whose top half is the
+row is a big coloured loop with "See records" under it, and **neither is drawn
+as a box**: two filled buttons side by side made a toolbar of a screen with one
+number on it, and put the loudest thing on it under the score rather than the
+score itself. What is left is one thing to do and one thing to read - the glyph
+large enough to say it is the thing to press, since nothing is drawn round it,
+and the link plain underlined text. "See records" lands where the door does - the screen the run was started from, whose top half is the
 scores - so `SpeedRun` no longer takes a `recordsHref` of its own: there is
 nothing left for a second URL to be, and one that could drift is worse than
 none.
