@@ -33,8 +33,9 @@ for whatever the kind may draw — "the shortest one", "read both numbers off th
 **And know what `dot` actually draws before you write against it:** it is **one point marker
 per category, placed at the value's height** — a dot *chart*, not a stacked frequency dot plot
 with one dot per item. Nothing counts the markers, so a question asking a child to count dots
-has no picture to count on half its draws. Read `bar-kind.ts` rather than inferring the shape
-from the word.
+has no picture to count on half its draws. Read `bar-kind.ts`'s `styleMarks` — but note the
+module's own prose calls this style "a dot plot" in a few places, which is the loose usage this
+paragraph exists to disown. **Trust the code over the word, in either file.**
 
 ---
 
@@ -126,6 +127,13 @@ from the word.
 
 ### `fraction-shape`
 - **A circle takes up to 39 parts; a strip or rectangle up to 12.**
+- **A rectangle needs a factor pair with both sides at least 2, so a prime denominator can
+  never draw as one.** Thirds, fifths and sevenths have no grid — `gridFactorPairs(3)` and
+  `gridFactorPairs(5)` are empty — and a pinned `'rectangle'` at a prime is *reported*
+  ("3 is prime, or too oblong to lay out as a grid"). Left to jitter it resolves to a circle or
+  a strip silently, which is fine to draw and easy to describe wrongly: a comment or prompt
+  claiming all three shapes are available at a prime is false. Thirds and fifths are exactly
+  what Years 4 to 6 reach for, so this binds more the further up you go.
 - **Never simplify.** 2/4 and 1/2 are different questions and draw differently. Four parts
   with two shaded is the whole point of showing it equals a half.
 - **`rotation` only turns a circle.** A strip and a rectangle ignore it.
@@ -191,6 +199,13 @@ from the word.
   when the key is stated in the prompt *and* the point of the question is counting in twos,
   which is core content that year; below that, keep `key: '1'` and let the table bound you.
   **Say so in the prompt whenever one icon stands for more than one thing**, whatever the year.
+
+  **Year 3 keeps `key: '1'`, and the reasoning generalises upward.** A many-to-one graph at
+  Stage 2 would need an `MA2-DATA-*` citation for a convention NSW places a stage above it, and
+  the curriculum page presents citations as checkable. Year 2's key-of-two is a specific
+  carve-out resting on counting in twos being core Stage 1 content, not a general licence. So
+  **a many-to-one graph below Stage 3 is ACARA-only or it is `key: '1'`** — there is no third
+  option, and a Year 4 template that already carries one is in the first case, not the second.
 
 ---
 
@@ -263,6 +278,24 @@ rather than assuming it**, exactly as you measure a multiple-choice question's r
 "the rank carries no information". Twelve templates reworked earlier land on two of four ranks
 and are accepted for a reason that does not apply to new work: **new templates must not
 inherit that.** Author option sets where the answer can land anywhere.
+
+## When a year may restate its neighbour's question
+
+`CLAUDE.md` says a topic recurs across years **harder each time**. Usually that settles it. But
+the two syllabuses do not step in the same place, so a year sometimes has to ask a question its
+neighbour already asked — Year 2's grid reference cites ACARA alone because NSW files grid maps
+a stage later, and Year 3 is where both agree.
+
+That is a real reason and it is allowed. Two conditions:
+
+- **The citation must be what makes it a different question.** If the only change is the year
+  number in the id, the restatement is not earning its place.
+- **Say so in the file, at the copy.** Name the template being restated and why the year needs
+  its own. An undeclared duplicate reads as an oversight to the next person, and the kind's own
+  limits are often what forced it — `grid` caps at 5×5, so there is very nearly one
+  grid-reference question it permits at all.
+
+Prefer a genuinely harder sibling beside the restatement, so the year is more than a repeat.
 
 ## Citations
 
