@@ -68,11 +68,11 @@ question needs three or more distinguishable regions, it needs a kind that emits
 
   **Then vary something yourself, because nothing will make you.** A fully pinned line is *not*
   one picture — `build` jitters tick and arrow lengths continuously on every draw, so it
-  produces hundreds of distinct figures and passes the anchoring check without difficulty. That
-  variation is not something a child reads, so a question whose answer is the arrow's position
-  can still be an anchored question while validating clean. Move the variation into the
-  content — a different stretch of the line, a different starting number — rather than waiting
-  for a validation failure that will never arrive.
+  produces hundreds of distinct figures and passes the anchoring check without difficulty. A
+  child can see that jitter, but it says nothing about the answer: the arrow stands in the same
+  place on the same line every time, so the *question* is anchored even though the *figure* is
+  not. Move the variation into the content — a different stretch of the line, a different
+  starting number — rather than waiting for a validation failure that will never arrive.
 
 ### `grid`
 - **Grid map ≤ 5×5. Coordinate plane ≤ 4×4. Unlabelled ≤ 18.** Labels bind before lines, and
