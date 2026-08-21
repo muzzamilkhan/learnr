@@ -1,13 +1,43 @@
 import Link from 'next/link';
-import { OPERATIONS, operationGlyph, operationLabel, type Operation } from '@/lib/speedrun/modes';
+import {
+  modeKey,
+  modeLabel,
+  modesFor,
+  OPERATIONS,
+  operationGlyph,
+  operationLabel,
+  type Operation,
+} from '@/lib/speedrun/modes';
+import { ChevronIcon } from './chevron-icon';
 
 /**
- * The five operations, as cards.
+ * The five operations, and every mode underneath the one that is open.
  *
- * Follows `SubjectCards`' treatment - a coloured glyph tile, the name in large
- * type - but stripped of the topic chips, since a speed run has no topics to
- * name and no year to caption itself with. That absence is the point: this
- * section sits beside "Practice", not inside its level picker.
+ * **Choosing a run is one screen.** It used to be two: five cards here, each a
+ * link to `/speed/<op>`, and a second screen there whose whole job was to ask
+ * which variation - with a Start button under it to confirm a question that
+ * had already been answered twice. Three taps and a page load to begin ninety
+ * seconds. The operation card now opens in place and its modes are the buttons
+ * that start the run, so it is two taps and the second one *is* the run.
+ *
+ * **A `<details>`, not client state**, exactly as the report's "Needs a hand"
+ * rows are: the modes are rendered with the page and the disclosure is the
+ * whole interaction, so this stays a server component with no hydration and no
+ * `'use client'`, and a browser that never runs the JS still opens it. Two
+ * operations open at once is allowed rather than prevented - nothing here is
+ * exclusive, and closing somebody's card because they opened another one is a
+ * decision the control has no reason to make.
+ *
+ * **The cards are a stack, not a grid.** A card that opens has to open to the
+ * full width of the screen or its modes are chips in a column, and a two-column
+ * grid with one cell three times the height of its neighbour is a hole in a
+ * row. Five wide rows is also the shape the thing actually is now: a list of
+ * five things, one of which is showing its contents.
+ *
+ * Follows `SubjectCards`' treatment in the closed state - a coloured glyph
+ * tile, the name in large type - but stripped of the topic chips, since a speed
+ * run has no topics to name and no year to caption itself with. That absence is
+ * the point: this section sits beside "Practice", not inside its level picker.
  *
  * One accent per operation rather than a cycled palette, so "addition" is the
  * same colour here as it is on the cabinet below - `OPERATION_ACCENT` is shared
@@ -97,19 +127,31 @@ export const OPERATION_ACCENT: Record<Operation, Accent> = {
  * `'parent'` they run at the density everything else under `ParentShell` does -
  * `text-base` labels, single-width borders, `rounded-xl` - so the speed screens
  * stop being the one part of a parent's app shouting at them.
+ *
+ * The mode chips carry that same split, and their sizes are the ones the
+ * chooser screen used before it was folded in here: a child's are thumb-sized
+ * targets in two or three columns, a parent's are a denser grid of four.
  */
 const SCALES = {
   child: {
-    grid: 'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5',
-    card: 'gap-4 rounded-3xl border-2 p-5 shadow-sm hover:shadow-md',
+    list: 'space-y-4',
+    card: 'rounded-3xl border-2 shadow-sm hover:shadow-md',
+    summary: 'gap-4 p-5',
     tile: 'size-14 rounded-2xl text-2xl',
     label: 'text-2xl',
+    chevron: 'size-6',
+    modes: 'grid grid-cols-2 gap-3 px-5 pb-5 sm:grid-cols-3 sm:gap-4',
+    mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 text-lg sm:min-h-18 sm:text-xl',
   },
   parent: {
-    grid: 'grid grid-cols-2 gap-3 sm:grid-cols-3',
-    card: 'gap-3 rounded-xl border p-3',
+    list: 'space-y-2',
+    card: 'rounded-xl border',
+    summary: 'gap-3 p-3',
     tile: 'size-9 rounded-lg text-base',
     label: 'text-base',
+    chevron: 'size-4',
+    modes: 'grid grid-cols-3 gap-2 px-3 pb-3 sm:grid-cols-4',
+    mode: 'min-h-11 rounded-xl border px-2 py-1.5 text-sm',
   },
 } as const;
 
@@ -124,25 +166,51 @@ export function SpeedCards({
   const style = SCALES[scale];
 
   return (
-    <ul className={style.grid}>
+    <ul className={style.list}>
       {OPERATIONS.map((op) => {
         const accent = OPERATION_ACCENT[op];
+
         return (
           <li key={op}>
-            <Link
-              href={`${basePath}/${op}`}
-              className={`no-select flex items-center border-(--color-line) bg-(--color-card) transition active:scale-[0.98] ${style.card} ${accent.border}`}
+            <details
+              className={`group no-select overflow-hidden border-(--color-line) bg-(--color-card) transition ${style.card} ${accent.border}`}
             >
-              <span
-                aria-hidden
-                className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
+              {/* `list-none` and the WebKit pseudo-element together are what
+                  remove the browser's own triangle - Safari draws it from the
+                  second and every other engine from the first, and the chevron
+                  below is the one that turns with the card. */}
+              <summary
+                className={`flex cursor-pointer list-none items-center transition active:scale-[0.98] [&::-webkit-details-marker]:hidden ${style.summary}`}
               >
-                {operationGlyph(op)}
-              </span>
-              <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
-                {operationLabel(op)}
-              </span>
-            </Link>
+                <span
+                  aria-hidden
+                  className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
+                >
+                  {operationGlyph(op)}
+                </span>
+                <span className={`min-w-0 flex-1 font-semibold ${style.label}`}>
+                  {operationLabel(op)}
+                </span>
+                <ChevronIcon
+                  className={`shrink-0 text-(--color-ink-soft) transition group-open:rotate-180 ${style.chevron}`}
+                />
+              </summary>
+
+              {/* Every chip is a plain link into the run, and there is no Start
+                  button under them: the mode is the last question there is, so
+                  answering it is the thing that begins the ninety seconds. */}
+              <div className={style.modes}>
+                {modesFor(op).map((mode) => (
+                  <Link
+                    key={modeKey(mode)}
+                    href={`${basePath}/${modeKey(mode)}`}
+                    className={`flex items-center justify-center border-(--color-line) bg-(--color-card) text-center leading-tight font-semibold transition active:scale-95 ${style.mode} ${accent.border}`}
+                  >
+                    {modeLabel(mode)}
+                  </Link>
+                ))}
+              </div>
+            </details>
           </li>
         );
       })}

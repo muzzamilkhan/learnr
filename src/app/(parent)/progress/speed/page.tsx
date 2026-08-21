@@ -1,7 +1,7 @@
 import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { Well } from '@/components/well';
-import { parseScoreTab } from '@/lib/speedrun/tabs';
+import { PARENT_DEFAULT_TAB } from '@/lib/speedrun/tabs';
 import { readParent } from '../../parent';
 
 // Per-parent scores, so it must never be prerendered and shared.
@@ -15,6 +15,13 @@ export const dynamic = 'force-dynamic';
  * the scores are one question and starting a run is another. The board needs no
  * sentence explaining that a parent's own runs are on it: their face is on the
  * podium, which says it better than a line of copy under a heading did.
+ *
+ * **It opens on the leaderboard, where a child's screen opens on their own
+ * records.** A parent's personal bests are the least of what this screen has to
+ * tell them - they play, but they are not who the house is about - and how
+ * everyone is going is the question they came with, the same reason `/`
+ * redirects them to the report rather than to `/children`. Their own runs are
+ * one tap away and still on the same screen.
  *
  * Without this screen the nav's "Speed run" item had nowhere honest to land: it
  * went straight to one arbitrary mode, and nothing in the `(parent)` tree
@@ -30,7 +37,7 @@ export default async function ParentSpeedPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const tab = parseScoreTab((await searchParams).tab);
+  const tab = (await searchParams).tab;
   const { userId } = await readParent();
 
   return (
@@ -40,6 +47,7 @@ export default async function ParentSpeedPage({
             parent's scores and a parent's runs are both under this screen. */}
         <SpeedScores
           tab={tab}
+          defaultTab={PARENT_DEFAULT_TAB}
           tabPath="/progress/speed"
           runPath="/progress/speed"
           userId={userId}

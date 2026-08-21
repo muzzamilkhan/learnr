@@ -19,7 +19,7 @@ import { readAccount } from '@/lib/accounts';
 import { readViewableChildren } from '@/lib/sharing';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
-import { parseScoreTab, SPEED_SECTION } from '@/lib/speedrun/tabs';
+import { CHILD_DEFAULT_TAB, SPEED_SECTION } from '@/lib/speedrun/tabs';
 import { requestNow } from './now';
 
 // The screen is per-child: it opens on the level that child last chose, so it
@@ -91,7 +91,7 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const scoreTab = parseScoreTab((await searchParams).tab);
+  const scoreTab = (await searchParams).tab;
   const session = isAuthConfigured ? await auth() : null;
   const subjects = listSubjects();
   const levels = listLevels();
@@ -287,6 +287,7 @@ export default async function HomePage({
             is not - it lives at `/speed/<op>` however the child got here. */}
         <SpeedScores
           tab={scoreTab}
+          defaultTab={CHILD_DEFAULT_TAB}
           tabPath="/"
           runPath="/speed"
           hash={SPEED_SECTION}

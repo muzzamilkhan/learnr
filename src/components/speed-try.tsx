@@ -6,22 +6,19 @@ import { OPERATION_ACCENT } from './speed-cards';
 /**
  * The button along the bottom of a card: this mode, right now.
  *
- * A card names a mode and shows what has been scored at it, and until now the
- * only thing to do about that was to go back out, pick the operation, find the
- * same mode in the chooser and press Start - four taps to answer the question
- * the card just asked. The button is the answer to it, so it sits on the card
- * that asked.
+ * A card names a mode and shows what has been scored at it, and until this
+ * button existed the only thing to do about that was to go back out, open the
+ * operation and find the same mode again - several taps to answer the question
+ * the card had just asked. The button is the answer to it, so it sits on the
+ * card that asked.
  *
- * **It goes straight into the run, chooser and all skipped.** The mode is
- * already chosen - that is what a card *is* - so a chooser in between would be
- * a screen asking a question that has been answered, with the mode it names
- * already highlighted on it.
+ * **It goes straight into the run.** The mode is already chosen - that is what
+ * a card *is* - so anything in between would be a screen asking a question that
+ * has been answered.
  *
- * **The mode rides in the query, not the path.** `/speed/multiply` is a place
- * and `/speed/multiply.7` would be fourteen of them, which is the reason
- * `SpeedRun` takes an operation and owns the choice itself. A query leaves that
- * intact: the route is the same route, and `?mode=` is an instruction about
- * where to start, thrown away the moment the run does.
+ * **The mode is the route.** `/speed/multiply.7` is a run of the seven times
+ * table and there is nothing else it could be, so this builds the same URL the
+ * picker's own chips do rather than a second way of saying the same thing.
  *
  * It wears the operation's accent like everything else on the card, so the
  * button that starts a Multiply run is the same pink as the card it sits on and
@@ -67,7 +64,7 @@ export function SpeedTryLink({
     // unpositioned sibling after it paints underneath.
     <div className={`relative mt-auto shrink-0 ${style.pad}`}>
       <Link
-        href={`${basePath}/${mode.op}?mode=${modeKey(mode)}`}
+        href={`${basePath}/${modeKey(mode)}`}
         className={`no-select flex w-full items-center justify-center font-bold text-white transition active:scale-95 ${style.link} ${accent.solid}`}
       >
         <BoltIcon className={style.bolt} />

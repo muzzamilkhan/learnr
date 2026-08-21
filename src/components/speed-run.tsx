@@ -1,19 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { submitRunAction } from '@/app/speed/actions';
 import { appendNumeric } from '@/lib/session/answers';
 import type { SpeedOutcome } from '@/lib/speed-records';
-import {
-  modeKey,
-  modeLabel,
-  modesFor,
-  operationGlyph,
-  operationLabel,
-  type Mode,
-  type Operation,
-} from '@/lib/speedrun/modes';
+import { modeKey, type Mode } from '@/lib/speedrun/modes';
 import {
   answerRun,
   COUNTDOWN_MS,
@@ -27,39 +19,43 @@ import {
   type RunResult,
   type RunState,
 } from '@/lib/speedrun/run';
-import { BoltIcon } from './bolt-icon';
 import { ExitIcon } from './exit-icon';
-import { OPERATION_ACCENT } from './speed-cards';
 import { NumberPad } from './number-pad';
 import { playSound, primeSounds } from './sounds';
 import { SpeedResult } from './speed-result';
 import { SpeedTimer } from './speed-timer';
 
 /**
- * A speed run, start to finish: choose a mode, count in, play the ninety
- * seconds, see the score.
+ * A speed run, start to finish: count in, play the ninety seconds, see the
+ * score.
  *
- * Four phases in one client component, because going again has to be instant.
- * A route per phase would put a navigation between a child tapping "Try again"
- * and the next run, and the whole appeal of this screen is that the gap between
+ * Three phases in one client component, because going again has to be instant.
+ * A route per phase would put a navigation between a child tapping the loop and
+ * the next run, and the whole appeal of this screen is that the gap between
  * runs is nothing at all.
  *
- * It takes the **operation**, not a mode: the chooser is the first thing it
- * shows, so which of that operation's modes is being run is this component's own
- * state and never a route. `/speed/multiply` is a place; `/speed/multiply.7`
- * would be fourteen of them, each one a page load away from its neighbours.
+ * **It takes a mode and no longer chooses one.** There used to be a fourth
+ * phase in front of these three - a grid of that operation's modes and a Start
+ * button under it - and it was the second of two screens asking one question:
+ * the five cards picked the operation, this picked the variation, and Start
+ * confirmed what two taps had already said. Choosing now happens where the
+ * cards are, in one screen with no navigation in the middle of it
+ * (`SpeedCards`), so what arrives here is a decision rather than the making of
+ * one, and the route is `/speed/multiply.7` rather than a place with the answer
+ * in its query.
  *
- * `startMode` is the one exception and it changes none of that: a card in the
- * cabinet or on the leaderboard already names a mode, so its Try button says
- * which one to start rather than asking the chooser to ask again. The route is
- * still the operation's, the mode rides in the query, and the moment the run
- * begins it is this component's state exactly as a chosen one would be.
+ * That leaves this component with nothing to render before the count-in, which
+ * is the whole point: the first paint - the server's included - is the run
+ * beginning.
  *
  * The run and the result render `fixed inset-0`, escaping whatever frame they
  * were started from - the same reason `RoundReward` covers the play screen
  * rather than sitting inside it. A parent's shell is a report frame, and a
- * ninety-second game is not a report. The chooser stays in the flow, since that
- * is a screen someone is deciding on rather than playing.
+ * ninety-second game is not a report. There is nothing left in the flow at all
+ * now that the choosing has gone back to the screen it came from, so `scale`
+ * went with it: a run is the same size for everybody, since a question readable
+ * at a glance and a pad hit without looking are not things an adult wants
+ * smaller either.
  *
  * Stripped further than the play screen: the only things on it are the way out
  * and the timer. No profile menu (a run moves neither total), no hint, no
@@ -77,7 +73,7 @@ import { SpeedTimer } from './speed-timer';
  * seconds. A run has a score and a clock, and nothing else to say.
  */
 
-type Phase = 'choosing' | 'countdown' | 'running' | 'result';
+type Phase = 'countdown' | 'running' | 'result';
 
 /** How long the entry box stays red after a dead entry. Long enough to see, short
  * enough to be gone before the next digits are typed - nothing here ever waits. */
@@ -87,13 +83,12 @@ const FLASH_MS = 320;
 const COUNT_FROM = Math.max(1, Math.round(COUNTDOWN_MS / 1000));
 
 interface Props {
-  op: Operation;
   /**
-   * A mode to start on, skipping the chooser - what the Try button on a card
-   * sends. Absent is the ordinary way in: the chooser first, and the mode
-   * chosen there.
+   * The run to play. Not optional and not a starting point to be changed: the
+   * mode is what the route names, so a screen arrived at is a run already
+   * decided on.
    */
-  startMode?: Mode;
+  mode: Mode;
   /** Where "Go home" goes: `/` for a child, `/progress` for a parent. */
   homeHref: string;
   /**
@@ -108,29 +103,10 @@ interface Props {
    */
   backHref: string;
   recordingEnabled: boolean;
-  /**
-   * The scale of the screen that *chooses* a run, and only that one. The run
-   * itself is the same size for everybody: ninety seconds against a clock needs
-   * a question readable at a glance and a pad hit without looking, and those are
-   * not things an adult wants smaller either. What a parent does not need is the
-   * chooser in front of it drawn at a six-year-old's scale, in the middle of a
-   * report drawn at theirs.
-   */
-  scale?: 'child' | 'parent';
 }
 
-export function SpeedRun({
-  op,
-  startMode,
-  homeHref,
-  backHref,
-  recordingEnabled,
-  scale = 'child',
-}: Props) {
-  const modes = useMemo(() => modesFor(op), [op]);
-
-  const [phase, setPhase] = useState<Phase>(startMode ? 'countdown' : 'choosing');
-  const [mode, setMode] = useState<Mode>(startMode ?? modes[0]);
+export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) {
+  const [phase, setPhase] = useState<Phase>('countdown');
   const [run, setRun] = useState<RunState | null>(null);
   /**
    * `run` mirrored outside React state, for the same reason `entryRef` exists on
@@ -189,21 +165,21 @@ export function SpeedRun({
   }, [advance, mode, updateEntry]);
 
   /**
-   * A run arrived at from a card's Try button: the count-in is already on
-   * screen (see the render below), and this is what puts a run under it.
+   * The run itself, put under the count-in that is already on screen (see the
+   * render below).
    *
    * It has to be an effect rather than a lazy initialiser because starting a
    * run reads the clock and makes a seed, and a render may do neither - the
    * same purity rule that sends `requestNow()` to the request boundary. The ref
-   * is what keeps it to once: `start` changes identity with `mode`, and a
-   * deep-linked run must never be restarted underneath a player.
+   * is what keeps it to once: `start` changes identity with `mode`, and a run
+   * must never be restarted underneath a player.
    */
   const started = useRef(false);
   useEffect(() => {
-    if (!startMode || started.current) return;
+    if (started.current) return;
     started.current = true;
     start();
-  }, [startMode, start]);
+  }, [start]);
 
   const finish = useCallback(() => {
     const state = runRef.current;
@@ -364,25 +340,10 @@ export function SpeedRun({
     );
   }
 
-  if (phase === 'choosing') {
-    return (
-      <Chooser
-        op={op}
-        modes={modes}
-        chosen={mode}
-        backHref={backHref}
-        onChoose={setMode}
-        onStart={start}
-        scale={scale}
-      />
-    );
-  }
-
-  // The one frame of a deep-linked run: the phase is already the count-in and
-  // the effect above has not built the run yet. Drawing the count-in over bare
-  // paper is what it will be a moment later anyway, so the screen a Try button
-  // lands on is the count-in from the very first paint - server-rendered
-  // included - rather than a flash of the chooser it was pressed to skip.
+  // The first frame of every run: the phase is the count-in and the effect above
+  // has not built the run yet. Drawing the count-in over bare paper is what it
+  // will be a moment later anyway, so the screen a mode chip lands on is the
+  // count-in from the very first paint, the server's included.
   if (run === null) {
     return (
       <div className="no-select fixed inset-0 z-40 bg-(--color-paper)">
@@ -396,8 +357,9 @@ export function SpeedRun({
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -
           there is no confirmation, because a modal over a running clock is worse
-          than the mis-tap it prevents. It lands on the chooser, not home:
-          abandoning a run is most often about picking a different one. */}
+          than the mis-tap it prevents. It lands on the screen the run was
+          started from, not home: abandoning a run is most often about picking
+          a different one, and that is where the modes are. */}
       <header className="flex shrink-0 items-center gap-3 sm:gap-5">
         <Link
           href={backHref}
@@ -502,134 +464,3 @@ function Countdown({ count }: { count: number }) {
   );
 }
 
-/**
- * Which variation of this operation to run, with whatever has already been
- * scored on each underneath it.
- *
- * Drawn at the child's scale even when a parent's frame is around it, because
- * this is the screen they tap: a chip sized for a laptop pointer is not a chip a
- * six-year-old hits on an iPad, and there is nothing dense enough here to be
- * worth shrinking for an adult.
- */
-/**
- * The chooser at both scales. `'child'` is what it always was; `'parent'` is
- * the density of everything else under `ParentShell`, since a parent picking
- * their own run is doing it inside a report drawn at that size and does not
- * need the six-year-old's targets to press a mode.
- *
- * The glyph tile takes the operation's own accent rather than the grape it was
- * hard-coded to, so the chooser matches the card that led here and the result
- * that follows it.
- */
-const CHOOSER_SCALES = {
-  child: {
-    section: 'mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-8',
-    header: 'flex items-center gap-3 sm:gap-4',
-    exit: 'rounded-full border-2 p-2.5',
-    tile: 'h-14 w-14 rounded-2xl text-3xl sm:h-16 sm:w-16 sm:text-4xl',
-    title: 'truncate text-2xl font-bold sm:text-3xl',
-    caption: 'text-base sm:text-lg',
-    bolt: 'h-4 w-4 sm:h-5 sm:w-5',
-    grid: 'mt-5 grid grid-cols-2 gap-3 sm:mt-7 sm:grid-cols-3 sm:gap-4',
-    mode: 'min-h-16 rounded-2xl border-2 px-2 py-2.5 sm:min-h-18',
-    modeLabel: 'text-lg leading-tight font-semibold sm:text-xl',
-    start: 'mt-6 h-16 gap-3 rounded-2xl text-2xl sm:mt-8 sm:h-20 sm:text-3xl',
-    startBolt: 'h-7 w-7 sm:h-8 sm:w-8',
-  },
-  parent: {
-    section: 'w-full',
-    header: 'flex items-center gap-3',
-    exit: 'rounded-lg border p-1.5',
-    tile: 'h-10 w-10 rounded-xl text-xl',
-    title: 'truncate text-lg font-semibold',
-    caption: 'text-sm',
-    bolt: 'h-3.5 w-3.5',
-    grid: 'mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4',
-    mode: 'min-h-11 rounded-xl border px-2 py-1.5',
-    modeLabel: 'text-sm leading-tight font-semibold',
-    start: 'mt-4 h-11 gap-2 rounded-xl text-base',
-    startBolt: 'h-5 w-5',
-  },
-} as const;
-
-function Chooser({
-  op,
-  modes,
-  chosen,
-  backHref,
-  onChoose,
-  onStart,
-  scale,
-}: {
-  op: Operation;
-  modes: readonly Mode[];
-  chosen: Mode;
-  backHref: string;
-  onChoose: (mode: Mode) => void;
-  onStart: () => void;
-  scale: keyof typeof CHOOSER_SCALES;
-}) {
-  const chosenKey = modeKey(chosen);
-  const style = CHOOSER_SCALES[scale];
-  const accent = OPERATION_ACCENT[op];
-
-  return (
-    <section className={style.section}>
-      <header className={style.header}>
-        <Link
-          href={backHref}
-          aria-label="Go back"
-          className={`shrink-0 border-(--color-line) bg-(--color-card) text-(--color-ink-soft) transition active:scale-95 ${style.exit}`}
-        >
-          <ExitIcon />
-        </Link>
-
-        <div
-          className={`flex shrink-0 items-center justify-center font-bold ${style.tile} ${accent.tile}`}
-        >
-          {operationGlyph(op)}
-        </div>
-
-        <div className="min-w-0">
-          <h1 className={style.title}>{operationLabel(op)}</h1>
-          <p className={`flex items-center gap-1.5 text-(--color-ink-soft) ${style.caption}`}>
-            <BoltIcon className={`text-(--color-sun) ${style.bolt}`} />
-            90 seconds
-          </p>
-        </div>
-      </header>
-
-      <div className={style.grid}>
-        {modes.map((mode) => {
-          const key = modeKey(mode);
-          const selected = key === chosenKey;
-
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onChoose(mode)}
-              className={`flex items-center justify-center text-center transition active:scale-95 ${style.mode} ${
-                selected
-                  ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
-                  : 'border-(--color-line) bg-(--color-card)'
-              }`}
-            >
-              <span className={style.modeLabel}>{modeLabel(mode)}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={onStart}
-        className={`flex w-full items-center justify-center bg-(--color-brand) font-bold text-white transition active:scale-95 ${style.start}`}
-      >
-        <BoltIcon className={style.startBolt} />
-        Start
-      </button>
-    </section>
-  );
-}

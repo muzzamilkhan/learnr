@@ -1,7 +1,7 @@
 import { readAccount } from '@/lib/accounts';
 import { householdId } from '@/lib/children';
 import { readFamilyRecords, readSpeedAttempts } from '@/lib/speed-records';
-import type { ScoreTab } from '@/lib/speedrun/tabs';
+import { parseScoreTab, type ScoreTab } from '@/lib/speedrun/tabs';
 import { FamilyLeaderboard } from './family-leaderboard';
 import { ScoreTabs } from './score-tabs';
 import { SpeedRecordsCabinet } from './speed-records';
@@ -33,6 +33,12 @@ import { SpeedRecordsCabinet } from './speed-records';
  *
  * The household is read here rather than passed in, because only the board tab
  * needs it: on the records tab it is a query nobody would have used.
+ *
+ * **`?tab=` is parsed here rather than by each page**, unlike `?child=` and the
+ * rest: this is the only thing that reads it, and `defaultTab` is what it falls
+ * back to - so a page naming its default *and* normalising against it would be
+ * naming the same fact twice, one edit away from a screen that opens on one tab
+ * and highlights the other.
  */
 
 const SCALES = {
@@ -42,13 +48,21 @@ const SCALES = {
 
 export async function SpeedScores({
   tab,
+  defaultTab,
   tabPath,
   runPath,
   hash,
   userId,
   scale = 'child',
 }: {
-  tab: ScoreTab;
+  /** The raw `?tab=` off the URL, normalised here against `defaultTab`. */
+  tab: string | undefined;
+  /**
+   * Which half this screen opens on, and so also which one is the left tab and
+   * which one the bare URL means - see `tabs.ts`. A child opens on their own
+   * records; a parent opens on the leaderboard.
+   */
+  defaultTab: ScoreTab;
   /** The screen the tabs are on: `/` for a child, `/progress/speed` for a parent. */
   tabPath: string;
   /** Where a run lives, for the Try button on every card. */
@@ -59,12 +73,19 @@ export async function SpeedScores({
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
+  const showing = parseScoreTab(tab, defaultTab);
 
   return (
     <>
-      <ScoreTabs basePath={tabPath} tab={tab} hash={hash} scale={scale} />
+      <ScoreTabs
+        basePath={tabPath}
+        tab={showing}
+        defaultTab={defaultTab}
+        hash={hash}
+        scale={scale}
+      />
       <div className={style.gap}>
-        {tab === 'records' ? (
+        {showing === 'records' ? (
           <Records userId={userId} basePath={runPath} scale={scale} />
         ) : (
           <Board userId={userId} basePath={runPath} scale={scale} />

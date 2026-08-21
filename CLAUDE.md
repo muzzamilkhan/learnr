@@ -890,8 +890,8 @@ parent anything they could not assume. Two tables side by side in
 `modes.ts` rather than one derived from the other, because no rule turns
 "Divide" into "division" that isn't this table written twice.
 
-**Going back is not going home**, so `SpeedRun` takes both. The arrow on the
-chooser and the door inside a run land on the screen the run was started from -
+**Going back is not going home**, so `SpeedRun` takes both. The door inside a
+run lands on the screen the run was started from -
 `/#speed-run` for a child, `/progress/speed` for a parent - because what someone
 is usually undoing is "I picked Multiply", not "I opened this app". For a child
 those are now the same page and not the same place on it: the door aims at the
@@ -901,14 +901,17 @@ does, since the scores are the top of that section - which is why `SpeedRun`
 takes no `recordsHref` of its own any more.
 
 **A parent's speed screens run at the parent's density, but the run itself
-does not.** `SpeedCards` and the chooser take the same `scale` prop
-`SpeedRecordsCabinet` already had: at `'parent'` they are `text-base`/`text-sm`,
-single-width borders and `rounded-xl`, like everything else under `ParentShell`,
-because a parent picking a run is doing it inside a report drawn at that size.
-The ninety seconds themselves are identical for everyone - a question readable
-at a glance and a pad hit without looking are not things an adult wants smaller
-either - and so is the result screen. The line is between choosing and playing,
-not between who is playing.
+does not.** `SpeedCards` takes the same `scale` prop `SpeedRecordsCabinet`
+already had, and carries it down to the mode chips inside a card: at `'parent'`
+they are `text-base`/`text-sm`, single-width borders and `rounded-xl`, like
+everything else under `ParentShell`, because a parent picking a run is doing it
+inside a report drawn at that size. `SpeedRun` takes no `scale` at all any more
+and never did anything else with it - the ninety seconds are identical for
+everyone, since a question readable at a glance and a pad hit without looking
+are not things an adult wants smaller either, and so is the result screen. The
+line is between choosing and playing, not between who is playing, and now that
+choosing happens entirely on the cards the run has nothing on either side of
+that line to size.
 
 **The result screen wears the colour of the operation just run.**
 `OPERATION_ACCENT` is one table shared by the cards, the cabinet and the result,
@@ -928,8 +931,20 @@ that is no longer there.
 
 **The cards, the cabinet and the leaderboard are one screen**, and the scores
 are the top of it. **Every screen that offers a run shows them**: the child's
-home screen under "Speed run", and a parent's `/progress/speed`. Your records is
-the left tab.
+home screen under "Speed run", and a parent's `/progress/speed`.
+
+**Which tab a screen opens on follows who is reading it.** A child opens on
+their own records - they came to see what they scored, and the family board is
+the context for it. A parent opens on the **leaderboard**: their own personal
+bests are the least of what this screen has to tell them, and how everyone in
+the house is going is the question they arrived with, the same judgement that
+sends `/` to the report rather than to `/children`. It is one answer
+(`CHILD_DEFAULT_TAB`, `PARENT_DEFAULT_TAB`) driving three things that must
+agree - which tab is leftmost (`tabOrder`), which one the bare URL means
+(`scoreTabHref`) and what a mistyped `?tab=` falls back to (`parseScoreTab`) -
+so all three take it rather than each knowing a favourite of its own. A tab bar
+whose left tab is not the panel under it is not a state that exists, and a
+default tab that no URL names is a panel nothing can link back to.
 
 **There is no `/speed` page.** The child's speed run screen *is* their home
 screen - the scores and the five cards sit under "Speed run" below practice -
@@ -937,8 +952,9 @@ and a second screen showing the same two things existed only to be the way back
 from a run. `CHILD_SPEED_HREF` (`/#speed-run`) does that without a page to keep
 in step: the anchor and the id it lands on live together in `tabs.ts`, because
 two copies of that string going out of step is a link that scrolls nowhere and
-says nothing about it. `/speed/[op]` stays where it is - a segment needs no page
-of its own.
+says nothing about it. `CHILD_SPEED_HREF` is itself built by calling
+`scoreTabHref` rather than written out, so it cannot drift from the tab bar's
+own idea of where the child's default tab lives.
 
 It was three screens - the cards, and the two walls behind links underneath
 them - which meant the only way to compare a card with itself was out and back
@@ -958,8 +974,13 @@ which tab it is showing, so `ScoreTabs` is a plain server component instead of
 the `usePathname` client one two routes forced. `parseScoreTab` **falls back
 rather than refusing**, unlike `parseMode` and `parseYearLevel` beside it: those
 normalise stored keys and real content, where this only picks which of two
-panels is drawn, so a mistyped tab opens the records rather than 404ing a screen
-that works perfectly.
+panels is drawn, so a mistyped tab opens the screen's own default rather than
+404ing a screen that works perfectly. It falls back to *that* rather than to a
+fixed favourite so a junk tab and a bare URL land on the same panel instead of
+on two. It is called inside `SpeedScores` rather than by each page, unlike
+`?child=` and the rest: that component is the only thing that reads `?tab=`,
+and a page naming its default *and* normalising against it would be naming one
+fact twice.
 
 **The scores sit above the cards** because what a player opens the screen for,
 after their first run, is how they are doing - and the cards are five, so
@@ -985,20 +1006,46 @@ scores are on `/` and whose runs are not. One `basePath` doing both jobs built
 host called `multiply` rather than a path.
 
 **Every card carries a Try button, and it goes straight into the run.** A card
-names a mode and shows what has been scored at it; until it had a button, doing
-something about that meant backing out to the chooser, finding the same mode and
-pressing Start - four taps to answer the question the card had just asked. The
-chooser is skipped because the mode is already chosen: that is what a card *is*.
-**The mode rides in the query, not the path** - `/speed/multiply?mode=multiply.7`
-- so `SpeedRun` still takes an operation and still owns the choice, which is the
-whole of why `/speed/multiply.7` is not a route. It goes through `parseMode`
-like every other stored or typed key and must name a mode of that operation, so
-a hand-typed mismatch simply lands on the chooser. `SpeedRun` starts it in a
-mount effect rather than a lazy initialiser, because starting a run reads the
-clock and makes a seed and a render may do neither; the first paint - the
-server's included - is the count-in rather than a flash of the chooser the
-button was pressed to skip. One `SpeedTryLink` serves both walls of cards, since
-the cabinet's card and the leaderboard's card are deliberately the same object.
+names a mode and shows what has been scored at it, and until it had a button,
+doing something about that meant backing out, opening the operation and finding
+the same mode again to answer the question the card had just asked. One
+`SpeedTryLink` serves both walls of cards, since the cabinet's card and the
+leaderboard's card are deliberately the same object.
+
+**Choosing a run is one screen, and the mode is the route.** It used to be two:
+five operation cards here, and a second screen at `/speed/<op>` whose whole job
+was to ask which variation, with a Start button under it confirming what two
+taps had already said - three taps and a page load in front of ninety seconds.
+The operation card now **opens in place** (`SpeedCards`) and its modes are the
+buttons that start the run, so it is two taps and the second one *is* the run.
+
+That second screen is gone rather than hidden, and it took `SpeedRun`'s
+`'choosing'` phase, its `Chooser`, its `scale` and its `op` prop with it:
+`SpeedRun` takes a `Mode` now, not a starting point it might change, and its
+first paint - the server's included - is the count-in. It still starts the run
+in a mount effect rather than a lazy initialiser, because starting one reads the
+clock and makes a seed and a render may do neither.
+
+**So `/speed/multiply.7` is a route and `/speed/multiply` is not.** The old
+shape was the operation in the path with the mode as an optional `?mode=` on
+top, and it was right while `/speed/multiply` was a screen somebody chose on.
+It isn't one any more, and a route that only works with a query is a route
+lying about what it is. The mode segment also makes `parseMode` the whole of
+the validation, where the pair needed that *plus* a check that the path and the
+query agreed about the operation - a mismatch only a hand-typed URL could
+produce, and one that had to be handled anyway. Ordinary cards and Try buttons
+build the same URL, so there is one way to name a run rather than two.
+
+**The picker is a `<details>`, not client state**, exactly as the report's
+"Needs a hand" rows are: the modes render with the page, the disclosure is the
+whole interaction, and `SpeedCards` stays a server component that a browser
+running no JavaScript can still open. All twenty-six modes are in the HTML. Two
+operations open at once is allowed rather than prevented - nothing here is
+exclusive, and closing somebody's card because they opened another is a decision
+the control has no reason to make. The cards became a **stack** rather than a
+two-column grid when they gained something to open: a card that opens has to
+open the full width or its modes are chips in a column, and a grid with one cell
+three times the height of its neighbour is a hole in a row.
 
 **The way out of a result is the door, top-left, exactly where the play
 screen puts it.** It was a third button in the row under the score, which made
@@ -1240,7 +1287,7 @@ violation and retry the guarded update once. One time round is enough.
 
 **A first run is not a record.** Recording one as a record would make a
 personal best mean somebody *improved*, which a first run has not done, and it
-would let a child exploring the chooser fire twenty-six notifications at
+would let a child working through the modes fire twenty-six notifications at
 their parent in an afternoon. The result screen has a third thing to say rather
 than two - "that's your score to beat", where a fanfare would be invented - and
 a fourth for when the run was never banked at all: signed out, no database, or
@@ -1303,7 +1350,7 @@ there and the only one that can be hit without aiming. Styled like every other
 digit and not like the tick, because it *is* a digit - a brand-filled column
 says "this key ends something", which is the one thing `0` does not do.
 
-**A parent plays too, privately.** `/progress/speed/[op]` renders the same
+**A parent plays too, privately.** `/progress/speed/[mode]` renders the same
 component the child gets, and a parent's own runs bank to their own
 `SpeedRecord` rows the same way. `SpeedBanner` reports someone else's
 achievement and never your own: `readUnseenRecords` is scoped to a parent's
@@ -1311,9 +1358,9 @@ achievement and never your own: `readUnseenRecords` is scoped to a parent's
 banner - there is nothing the banner needs to do to keep that true.
 
 **The parent's routes nest under the report rather than sitting beside it as a
-second top-level path.** The child plays at `/speed/[op]`, reached from the
+second top-level path.** The child plays at `/speed/[mode]`, reached from the
 speed section of their home screen; a parent's own runs live at
-`/progress/speed` and `/progress/speed/[op]` - the first the scores and the same
+`/progress/speed` and `/progress/speed/[mode]` - the first the scores and the same
 `SpeedCards` the child's home screen offers,
 pointed at the parent's own base path, so the nav's "Speed run" item lands
 somewhere all twenty-six modes are reachable rather than on one arbitrary

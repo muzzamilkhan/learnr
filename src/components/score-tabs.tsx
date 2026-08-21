@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SCORE_TABS, scoreTabHref, type ScoreTab } from '@/lib/speedrun/tabs';
+import { scoreTabHref, tabOrder, type ScoreTab } from '@/lib/speedrun/tabs';
 
 /**
  * The two halves of the scores: your own runs, and the family's.
@@ -18,8 +18,11 @@ import { SCORE_TABS, scoreTabHref, type ScoreTab } from '@/lib/speedrun/tabs';
  * reason: a bar that spans what it heads reads as a place to go, where a short
  * control floating at the left reads as a chip somebody dropped above the cards.
  *
- * **Your records is the left tab**, since it is the one a player opens for and
- * the one the leaderboard is context for.
+ * **Which tab is on the left is the screen's own default**, not a fixed order:
+ * a child opens on their own records and a parent opens on the leaderboard, and
+ * the tab a screen opens on is the one it should open *with*. Order, the bare
+ * URL and the fallback are one answer (`defaultTab`) rather than three, so a
+ * bar whose left tab is not the panel underneath it is not a state that exists.
  */
 
 const LABELS: Record<ScoreTab, string> = {
@@ -41,6 +44,7 @@ const SCALES = {
 export function ScoreTabs({
   basePath,
   tab,
+  defaultTab,
   hash,
   scale = 'child',
 }: {
@@ -48,6 +52,8 @@ export function ScoreTabs({
   basePath: string;
   /** Which half is on screen - the page's own answer, already normalised. */
   tab: ScoreTab;
+  /** The tab this screen opens on: leftmost, and what the bare URL means. */
+  defaultTab: ScoreTab;
   /** Where a switch should land, where the tabs are a long way down a screen. */
   hash?: string;
   scale?: keyof typeof SCALES;
@@ -56,10 +62,10 @@ export function ScoreTabs({
 
   return (
     <nav className={`no-select ${style.bar}`}>
-      {SCORE_TABS.map((each) => (
+      {tabOrder(defaultTab).map((each) => (
         <Link
           key={each}
-          href={scoreTabHref(basePath, each, hash)}
+          href={scoreTabHref(basePath, each, defaultTab, hash)}
           aria-current={each === tab ? 'page' : undefined}
           className={`${style.tab} ${
             each === tab

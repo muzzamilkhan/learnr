@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { resolveChild } from '@/lib/children';
 
-/** Where the nav's third item goes: the chooser, with all twenty-six modes
- * on it - not one arbitrary operation, which left the other twenty-five
- * reachable only by hand-editing the URL. */
+/** Where the nav's third item goes: the screen with the scores and all
+ * twenty-six modes on it - not one arbitrary run, which left the other
+ * twenty-five reachable only by hand-editing the URL. */
 const SPEED_RUN_HREF = '/progress/speed';
 
 type ParentScreen = 'progress' | 'children' | 'speed-run';

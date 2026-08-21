@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { ChevronIcon } from './chevron-icon';
 
 export type SelectOption = { value: string; label: string };
 
@@ -136,7 +137,7 @@ export function Select({
           ))}
           {!selected && <span className="col-start-1 row-start-1" />}
         </span>
-        <Chevron className={`ml-auto shrink-0 transition ${style.chevron} ${open ? 'rotate-180' : ''}`} />
+        <ChevronIcon className={`ml-auto shrink-0 transition ${style.chevron} ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -191,20 +192,6 @@ const SIZES = {
     chevron: 'h-6 w-6',
   },
 } as const;
-
-function Chevron({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden className={className}>
-      <path
-        d="M6 9l6 6 6-6"
-        stroke="currentColor"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 function indexOf(options: SelectOption[], value: string) {
   return options.findIndex((option) => option.value === value);
