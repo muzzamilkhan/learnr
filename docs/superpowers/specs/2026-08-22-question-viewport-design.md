@@ -91,20 +91,31 @@ real prompt has and shrink every question to pay for it, and one of `l`s would
 measure too little and clip. Its length is asserted against `MAX_PROMPT_CHARS`
 by a test, so the two cannot drift.
 
-**The fit test is "the sentinel fits **and** the prompt fits".** The sentinel is
-the longer string, so in practice it binds and the size is constant. The second
-half is there because a sentinel is an estimate of width - it is 140 characters
-of some particular letters, and a real prompt of 140 different letters could be
-wider. It is a net against clipping, not a branch anyone plans to reach, and it
-costs one `&&`.
+**The fit test is "the sentinel fits **and** the prompt fits", and it reruns on
+every question.** The sentinel is the longer string, so in practice it binds and
+the size is constant. The second half is there because a sentinel is an
+estimate of width - it is 140 characters of some particular letters, and a real
+prompt of 140 different letters could be wider - and it is only a net against
+clipping if it is checked against the prompt actually on screen, not against
+whichever one happened to be there when the fit last ran.
 
 Two things fall out:
 
-- The layout effect no longer depends on `prompt`, so the fit runs on mount and
-  on resize rather than once per question. `Prompt`'s `key={session.askedCount}`
-  goes with it: it remounts the component on every question, which would run the
-  fit again for an answer that cannot have changed, and the component holds no
-  other state that a question boundary needs to reset.
+- `Prompt`'s `key={session.askedCount}` goes: it remounted the component on
+  every question, and the component holds no other state that a question
+  boundary needs to reset. The layout effect's dependency list keeps `prompt`
+  rather than dropping it, because with the remount gone that dependency is
+  the only thing left that reruns the fit when the question does - the box's
+  own height and width are the effect's other trigger, and neither changes
+  when the text inside it does. Dropping it was tried first, on the argument
+  that a rerun "re-derives an answer that cannot have changed" - which turned
+  out to be the case *for* keeping it, not against: the sentinel binds in the
+  normal run, so the search it triggers returns the identical size and nothing
+  on screen moves. What the dependency buys is that the check above is
+  measured against the prompt actually being shown, which is the only way it
+  is a guarantee rather than a sample. The cost is one binary search per
+  question, on the order of seven iterations - nothing against a question a
+  child spends seconds reading.
 - `promptSize()`'s three length branches collapse to one class. That function
   is what the server renders and what a browser with no JavaScript keeps, and a
   length-keyed size there was the same inconsistency arriving a frame early.

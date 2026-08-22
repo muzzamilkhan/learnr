@@ -76,13 +76,12 @@ const CORRECT_MS = 700;
 const MAX_ENTRY = { text: 16 } as const;
 
 /**
- * The one viewport this screen's stacked layout does not fit: a landscape
- * phone. An iPad in landscape - the shortest screen this otherwise runs on -
- * is 768px tall, and every phone in portrait clears this too; what is left is
- * a phone turned sideways, down around 375-430px, where a figure stacked above
- * the prompt would leave neither any usable room. Below it the two sit side by
- * side instead - see the figure-and-prompt wrapper below - and the pad's own
- * bounds switch with it, for the same reason (see the pad's slot further down).
+ * The one viewport this pad-height query exists for: a landscape phone. An
+ * iPad in landscape - the shortest screen this otherwise runs on - is 768px
+ * tall, and every phone in portrait clears this too; what is left is a phone
+ * turned sideways, down around 375-430px, too short for the pad's own
+ * `16rem` floor to leave the question any room. Below it the pad's bounds
+ * switch away from that floor instead (see the pad's slot further down).
  *
  * `500px` is written out at its one remaining use below rather than held in a
  * constant: Tailwind's scanner reads class names as source-text literals
@@ -910,12 +909,18 @@ function useElapsed(active: boolean, since: number): number {
  * device pays for the worst one. This is fitted against the box that actually
  * exists.
  *
- * **The fit test is "the sentinel fits *and* the prompt fits".** The sentinel
- * is the longer string, so it binds and the size is constant. The second half
- * is a net rather than a branch anyone plans to reach: a sentinel is an
- * estimate of *width*, and a real prompt of unusually wide glyphs could exceed
- * it. It costs one `&&` and it is what makes clipping impossible rather than
- * unlikely.
+ * **The fit test is "the sentinel fits *and* the prompt fits", and it reruns
+ * on every question.** The sentinel is the longer string, so it binds in the
+ * ordinary case and the search returns the identical size - nothing on screen
+ * moves. The second half is a net rather than a branch anyone plans to reach:
+ * a sentinel is an estimate of *width*, and a real prompt of unusually wide
+ * glyphs could exceed it - but a check run against one prompt and then relied
+ * on for every prompt after it is not a check. `prompt` is in the effect's
+ * dependency list for exactly that reason: this component does not remount
+ * between questions, so nothing else would re-run the fit, and the net is
+ * only real if it is measured against the prompt actually on screen. The cost
+ * is one binary search per question, on the order of seven iterations -
+ * nothing against a question a child spends seconds reading.
  *
  * The ceiling is where the two scales live: a phone keeps the `vh` ceiling it
  * always had, and from `sm` up it is twice that, because a tablet or a laptop
@@ -1002,13 +1007,16 @@ function Prompt({
     fit();
 
     // The box changes height when the target bar appears or goes, and width
-    // when the iPad is turned, and neither is a re-render of this component.
-    // It no longer changes when the *question* does - that is the point - so
-    // there is nothing in the dependency list.
+    // when the iPad is turned, and neither is a re-render of this component -
+    // the observer is what catches those. `prompt` is in the dependency list
+    // below for a different reason: this component does not remount between
+    // questions, so nothing else would re-run the fit when the question does,
+    // and the sentinel-and-prompt check above is only a real guarantee if it
+    // is measured against the prompt actually on screen.
     const observer = new ResizeObserver(fit);
     observer.observe(box);
     return () => observer.disconnect();
-  }, []);
+  }, [prompt]);
 
   return (
     <div

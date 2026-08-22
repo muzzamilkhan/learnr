@@ -576,8 +576,8 @@ tap-to-repeat beside it has always been, and fixing one of the two alone would
 leave them inconsistent the other way round.
 
 **The figure sits beside the question rather than above it**, from `sm` up -
-every tablet, every desktop and a phone turned sideways: a row, prompt left and
-figure right, split 40/60 in the figure's favour. The prompt is one size now
+every tablet and every desktop: a row, prompt left and figure right, split
+40/60 in the figure's favour. The prompt is one size now
 (see **UI**) and needs only the room its worst case takes, so the wider share
 goes to the picture. **A portrait phone keeps the column, because there a row
 would make the figure smaller rather than larger.** A row divides width and a
@@ -815,12 +815,15 @@ simple enough for a child to pick up with no explanation.
   "the sentinel fits **and** the prompt fits" - the sentinel is the longer
   string so it binds, and the second half is one `&&` of insurance against a
   real prompt of unusually wide glyphs rather than a branch anybody plans to
-  reach. Nothing about the fit depends on the question any more, so the effect
-  no longer lists `prompt` and `Prompt` no longer takes a `key` off the question
-  number: it runs on mount and on resize, and remounting it per question would
-  re-derive an answer that cannot have changed. `promptSize` collapsed to one
-  `PROMPT_CLASS` for the same reason - a length-keyed size on the server was the
-  same unsteadiness arriving a frame early.
+  reach, and it only means anything measured against the prompt actually on
+  screen. `Prompt` no longer takes a `key` off the question number - the
+  component holds no other state a question boundary needs to reset - but the
+  effect keeps `prompt` in its dependency list: with the remount gone that is
+  the only thing left that reruns the fit when the question does, and the
+  sentinel binds in the normal run, so the rerun returns the identical size and
+  nothing on screen moves. `promptSize` collapsed to one `PROMPT_CLASS` for a
+  different reason - a length-keyed size on the server was the same
+  unsteadiness arriving a frame early.
   **What that one size comes out at is the cap's business, which is why
   `catalog.test.ts` enforces it** - see **Question templates**. Measured in a
   browser on a landscape iPad, a question with no figure lands between 29px and
@@ -835,7 +838,7 @@ simple enough for a child to pick up with no explanation.
   a tablet or a laptop has the height to spend. It is registered with `@property`
   as a `<length>` in `globals.css` - an unregistered custom property computes to
   the word `clamp(...)` rather than a number, and the search needs a number.
-  `promptSize` is still what the server renders, so a prompt arrives about the
+  `PROMPT_CLASS` is still what the server renders, so a prompt arrives about the
   right size rather than snapping into place, and it is what a browser without
   JavaScript keeps. A viewport too short to leave the question any room at all -
   a phone held sideways - collapses the box to nothing, and there the fit stands
