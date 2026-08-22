@@ -45,7 +45,9 @@ import { ChoicePad } from './choice-pad';
 import { ContinueButton } from './continue-button';
 import { Diagram } from './diagram';
 import { ExitIcon } from './exit-icon';
+import { FigureZoom } from './figure-zoom';
 import { HintIcon } from './hint-icon';
+import { MagnifyIcon } from './magnify-icon';
 import { MathsText } from './maths-text';
 import { SpeakerIcon } from './speaker-icon';
 import { questionNarration, spokenText } from '@/lib/speech/narration';
@@ -204,6 +206,8 @@ export function PlaySession({
   const [pending, setPending] = useState<SessionState | null>(null);
   /** Hints are asked for, never pushed - and only for the question in hand. */
   const [hintShown, setHintShown] = useState(false);
+  /** Whether the figure is open full-screen. Only ever true on a question that has one. */
+  const [zoomed, setZoomed] = useState(false);
   /** The round of ten just finished, while its stars are on screen. */
   const [reward, setReward] = useState<Round | null>(null);
   /** The day's goal, while its stars are on screen. Queued behind a round's. */
@@ -359,6 +363,7 @@ export function PlaySession({
     updateEntry('');
     setFeedback(null);
     setHintShown(false);
+    setZoomed(false);
 
     // Ten answers closes a round. Which stars it is worth is read off the answers
     // themselves, so the celebration and the server's recount cannot disagree.
@@ -696,15 +701,17 @@ export function PlaySession({
                 repeatable={narrating}
               />
             </div>
-            <Diagram
-              figure={question.figure}
-              strokeWidth={3.5}
-              // The size every kind that places a label leaves room against,
-              // from `figures/labels.ts` - a literal here would be the private
-              // copy that comment warns about, in the one file the number is
-              // actually a fact about. Not a class name, so the scanner
-              // argument immediately below does not apply to it.
-              labelSize={PLAY_LABEL_SIZE}
+            {/* The tap target and the magnifier badge both belong on a wrapper,
+                not on `Diagram` itself - it renders an `<svg>` and takes no
+                handlers. The layout classes below are the ones that used to
+                sit on `Diagram` directly (see the comment above, which moved
+                with them): the floors, the caps and the row/column share are
+                all facts about the space this element occupies, unchanged by
+                the fact that it now wraps the drawing instead of being it. */}
+            <div
+              onClick={() => setZoomed(true)}
+              role="button"
+              aria-label="See the picture larger"
               // `64px` is the floor documented above, written out rather than
               // read from a constant: a class built by interpolating a JS
               // value into the string is exactly the mistake this file
@@ -723,8 +730,26 @@ export function PlaySession({
               // to give and shrinks to nothing - a figure that does not draw
               // at all - exactly where there is none. `min-w` gets the same
               // treatment for the same reason on the row axis.
-              className="order-1 min-h-[min(64px,100%)] min-w-[min(64px,100%)] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:order-2 sm:max-h-[46vh] sm:max-w-[46vh] sm:flex-[0.6]"
-            />
+              className="order-1 relative flex min-h-[min(64px,100%)] min-w-[min(64px,100%)] max-h-[40vh] max-w-[40vh] w-full flex-1 items-center justify-center sm:order-2 sm:max-h-[46vh] sm:max-w-[46vh] sm:flex-[0.6]"
+            >
+              <Diagram
+                figure={question.figure}
+                strokeWidth={3.5}
+                // The size every kind that places a label leaves room against,
+                // from `figures/labels.ts` - a literal here would be the private
+                // copy that comment warns about, in the one file the number is
+                // actually a fact about. Not a class name, so the scanner
+                // argument above does not apply to it.
+                labelSize={PLAY_LABEL_SIZE}
+                className="h-full w-full"
+              />
+              {/* What says the drawing can be tapped. A picture, for the reason
+                  the door and the tick are pictures - and in the corner rather
+                  than over the drawing, because the drawing is the question. */}
+              <span className="pointer-events-none absolute right-0 bottom-0 rounded-full border-2 border-(--color-line) bg-(--color-card) p-1.5 text-(--color-ink-soft)">
+                <MagnifyIcon />
+              </span>
+            </div>
           </div>
         ) : (
           <Prompt
@@ -802,6 +827,20 @@ export function PlaySession({
           last. */}
       {showTargetReward && targetReward !== null && (
         <TargetReward target={targetReward} onDone={dismissTargetReward} />
+      )}
+
+      {/* z-20, under both celebrations above (z-30, z-40): a round can close
+          on the same answer that had the picture open, and the stars are the
+          thing that must be on top. The zoom cannot survive that answer
+          anyway - `advance` clears it - so this only ever decides one frame. */}
+      {zoomed && question.figure && (
+        <FigureZoom
+          figure={question.figure}
+          prompt={question.prompt}
+          onClose={() => setZoomed(false)}
+          onRepeat={repeatQuestion}
+          repeatable={narrating}
+        />
       )}
     </main>
   );

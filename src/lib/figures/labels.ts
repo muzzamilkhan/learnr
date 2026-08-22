@@ -82,6 +82,22 @@ export const REPORT_LABEL_SIZE = 16;
 export const PLAY_LABEL_SIZE = 7;
 
 /**
+ * The label size for a figure opened full-screen (`figure-zoom.tsx`).
+ *
+ * Smaller than the play screen's, because these are viewBox units and the box
+ * is bigger: a label at 7 units in a 270px box renders around 19 real pixels,
+ * and the same 7 in a ~600px overlay would render around 42 - a caption
+ * shouting over the drawing it labels. 4 puts it back near 24, which is a
+ * comfortable read at arm's length.
+ *
+ * **Safe without any change to the kinds that place labels.** The paragraph
+ * above says a kind has to leave room for the *larger* of the sizes it will be
+ * drawn at, which is still the report's 16. A third size that is smaller than
+ * both asks for less room than the budget already allows.
+ */
+export const ZOOM_LABEL_SIZE = 4;
+
+/**
  * The report row itself: a 64px square drawn at a stroke of 1.5 real pixels.
  * Both are exact rather than estimated - `progress-topics.tsx` renders the
  * figure in an `h-16 w-16` box and passes `strokeWidth={1.5}`.
