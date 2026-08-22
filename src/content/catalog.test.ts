@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateTemplates } from '@/lib/templates/validate';
 import { generateQuestion } from '@/lib/templates/generate';
+import { MAX_PROMPT_CHARS } from '@/lib/templates/limits';
 import { createRng } from '@/lib/rng';
 import { isYearLevel, stageForLevel, type Stage } from '@/lib/curriculum';
 import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
@@ -163,6 +164,24 @@ describe('shipped content', () => {
         expect(q.prompt).not.toContain('{');
         expect(q.prompt.length).toBeGreaterThan(0);
         expect(q.answer).not.toBe('');
+      }
+    }
+  });
+
+  // The play screen sets every question at one size, and that size is the
+  // worst case's. So the cap is not a tidiness rule - it is the only lever
+  // there is on how big every question on the screen gets, and a template
+  // sneaking past it makes every *other* question smaller.
+  //
+  // 50 draws rather than the 25 above: this is a maximum over a distribution
+  // rather than a property of every draw, so it wants the extra sampling.
+  it('never draws a prompt longer than the play screen is sized for', () => {
+    for (const template of allTemplates) {
+      for (let i = 0; i < 50; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-length-${i}`));
+        expect(q.prompt.length, `${template.id}: ${q.prompt}`).toBeLessThanOrEqual(
+          MAX_PROMPT_CHARS,
+        );
       }
     }
   });
