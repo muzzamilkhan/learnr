@@ -795,11 +795,18 @@ export function PlaySession({
           the device with the least height to spare, working against the very
           thing the paragraph above says the floor must not do. So the larger
           bounds now ask for height as well as width: `min-height:501px` is
-          "not the short viewport" (the figure-and-prompt wrapper above uses
-          the same `500px` line, in the same not-a-variable way, for the same
-          reason). A landscape phone fails that second half and keeps the
-          phone-sized clamp regardless of how wide it is; every tablet and
-          desktop this app targets clears both and is unaffected. */}
+          "not the short viewport", and this is the only use of that line left
+          in the file - it is the half of the old pair that was always
+          genuinely about height, keeping the 16rem floor off the device the
+          paragraph above describes. The other half gave the figure-and-prompt
+          wrapper above its row, and that went to `sm:` instead: a landscape
+          phone is wide, so the width query covers the same devices. Retiring
+          it cost nothing - at that viewport the flexible middle column
+          resolves to 0px, so the row the height query used to grant had no
+          height to lay anything out in. A landscape phone fails that second
+          half and keeps the phone-sized clamp regardless of how wide it is;
+          every tablet and desktop this app targets clears both and is
+          unaffected. */}
       <div className="flex h-[clamp(12rem,40vh,20rem)] shrink-0 flex-col justify-center gap-2 [@media(min-width:640px)_and_(min-height:501px)]:h-[clamp(16rem,40vh,22rem)] [@media(min-width:640px)_and_(min-height:501px)]:gap-3">
         {(pending === null || mode === 'tap') && (
           <div className="min-h-0 flex-1">

@@ -99,6 +99,11 @@ Reporting it is `figureIssues`' job, called only by validation.
 
 ## Narration
 
+> **Superseded in part by
+> `docs/superpowers/specs/2026-08-22-question-viewport-design.md`.** The figure
+> is tappable now - it opens full-screen with the prompt along the top - so the
+> last sentence of this section no longer holds. Everything else here does.
+
 A figure question reads its prompt aloud and stops. The picture is the part you
 look at, and it cannot be described without giving the answer away - "a shape
 with three sides" *is* the answer. A pre-literate child can still answer, since
@@ -118,6 +123,12 @@ next month must not change what a parent is shown about last week.
 rather than throwing inside a report. Only figure questions pay for the column.
 
 ## Layout
+
+> **Superseded by
+> `docs/superpowers/specs/2026-08-22-question-viewport-design.md`.** The prompt
+> is a fixed size now, so the figure no longer claims the room first: from `sm`
+> up the two sit in a 40/60 row on every device, and the short-viewport query
+> this section describes is gone.
 
 **The figure outranks the prompt.** Today the prompt is measured and fitted into
 the room between header and pad; with a figure, the figure claims that room

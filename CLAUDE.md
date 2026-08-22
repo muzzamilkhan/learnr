@@ -196,6 +196,25 @@ least 20 templates per year, and no typed answer the number pad cannot enter. A
 template carrying a `figure` is also drawn fifty times and made to prove it never
 draws one answer the same way twice - see **Question diagrams** below.
 
+**A rendered prompt may be no longer than `MAX_PROMPT_CHARS` (140)**
+(`src/lib/templates/limits.ts`), and that is not a tidiness rule: it is the only
+lever there is on how big every question on the play screen is drawn. The screen
+sets one size for all of them and that size is the worst case's (see **UI**), so
+a template sneaking past the cap makes every *other* question smaller. 140 is
+measured rather than chosen - over 300 draws of each of the 350 shipped
+templates the longest prompt is 135 characters
+(`maths.5.chance.most-likely-from-trials`), the median 45 and the shortest 14 -
+and the five characters of slack are there because a cap with no headroom goes
+red the first time a number *inside* an existing template grows a digit, which
+is a template being edited rather than a template getting too long. Five
+characters cost under 2% of the rendered size, which nobody can see; a suite
+going red for a reason nobody meant is expensive. `catalog.test.ts` draws every
+shipped template fifty times against it, fifty rather than the twenty-five its
+neighbours use because this is a maximum over a distribution rather than a
+property of every draw. Shortening the thirty templates already over 90
+characters would buy a larger size for everything, and it is a content pass with
+its own argument rather than a thing to do while the cap is being written.
+
 Content ships for K-6 as **350 templates, one file per school year** under
 `src/content/maths/` - `k.ts` through `6.ts`, concatenated in school order by
 `index.ts`. It was a single 3,500-line `maths.ts` until half again as many
@@ -528,18 +547,60 @@ capability and never uses it, exactly as it inherits `hint`.
 **A figure question reads its prompt aloud and stops.** The picture is the part
 you look at and it cannot be described without giving the answer away - "a shape
 with three sides" *is* the answer. A pre-literate child can still answer, since
-seeing a triangle needs no reading, and the figure is not a second control: it
-takes no tap, and tapping the question still repeats the words.
+seeing a triangle needs no reading, and tapping the question still repeats the
+words.
 
-**The figure outranks the prompt on the play screen.** Ordinarily the prompt is
-measured and fitted into the room between header and pad; with a figure, the
-figure claims that room first and the prompt fits into what is left, because when
-there is a picture the picture is the question. The existing `ResizeObserver`
-re-runs when its box changes, so the prompt shrinks correctly with no new
-machinery. The exception is the viewport that has already run out of height - a
-landscape phone, where a figure stacked above a prompt leaves both unusable - and
-there the two sit side by side, under the `max-height:500px` query that **UI**
-below names as one of the app's two.
+**The figure takes a tap now, and it opens over the whole screen**
+(`src/components/figure-zoom.tsx`, with a magnifier glyph in the figure's corner
+saying so - a picture, for the reason the door, the tick and the lightbulb are
+pictures). That reverses a sentence this section used to carry: the figure was
+not a second control and took no tap. What is unchanged is the reason it said
+so - a figure must not be a second thing to decode - and a tap that only ever
+makes the same picture bigger decodes nothing. **It has to cover the screen,
+because the question area is bound by height and not by width.** Expanding a
+figure into the prompt's half of the row buys almost nothing: on a landscape
+iPad that area is around 270px tall whether the picture has 60% of the width or
+all of it. The only room left to take is the pad's, and taking the pad's room
+means covering the pad - so a child cannot answer while the picture is open, and
+closing it is one tap anywhere rather than a target to find. **The prompt rides
+along**, set small along the top, because the questions this exists for are the
+ones where the picture carries the data - a bar graph, a coordinate grid - and
+reading a graph against a question you are trying to remember is what made the
+small figure hard in the first place. The overlay draws at `ZOOM_LABEL_SIZE`,
+smaller than either size a figure was already drawn at, which needed no change
+to any kind: `labels.ts` makes a kind leave room for the *larger* of the sizes
+it will be drawn at, so a third size below both asks for less room than the
+budget already allows. It is a tap and not yet a keyboard target - the wrapper
+is a `role="button"` with no `tabIndex`, exactly as the prompt's own
+tap-to-repeat beside it has always been, and fixing one of the two alone would
+leave them inconsistent the other way round.
+
+**The figure sits beside the question rather than above it**, from `sm` up -
+every tablet, every desktop and a phone turned sideways: a row, prompt left and
+figure right, split 40/60 in the figure's favour. The prompt is one size now
+(see **UI**) and needs only the room its worst case takes, so the wider share
+goes to the picture. **A portrait phone keeps the column, because there a row
+would make the figure smaller rather than larger.** A row divides width and a
+390px phone has none to divide: side by side the drawing comes out around 195px
+against roughly 280px stacked. The gain from a row is real on a landscape iPad
+(about 150px to 270px) and on a portrait iPad (about 330px to 384px), and
+negative here, so the rule follows the measurement rather than a preference for
+one shape. The 40/60 shares are `sm:`-prefixed for that same reason: below that
+line the wrapper is still a column, where those shares would divide *height* and
+hand the figure 60% of it where stacking already gives it about 74%.
+
+**A landscape phone draws no figure at all, and never did.** At 390px tall the
+header, the pad's own 12rem floor, the hint row and the answer display already
+account for more height than there is, so the flexible middle column resolves to
+nothing and the figure's `min(64px,100%)` floor resolves to nothing with it.
+That is deliberate and predates this layout - it was measured against the code
+before any of it changed - and the floor is written `min(64px,100%)` rather than
+a bare `64px` precisely so a figure disappears where there is no room instead of
+painting itself over the header's speaker button. It is worth saying plainly
+what that costs, because it is not small: on that one viewport a figure question
+cannot be answered, since the picture *is* the question. It is also why retiring
+the figure's own `max-height:500px` rule cost nothing - the row that query
+granted had no height to lay anything out in either way.
 
 **The first pass deferred a list, and said of it that each would be a new figure
 kind and no engine change - which is the test of whether any of the above was
@@ -722,20 +783,53 @@ simple enough for a child to pick up with no explanation.
   carries the identical query, because the two screens must not disagree about
   what "tablet" means.
 - **One short-viewport line, and a second should not be invented.**
-  `max-height:500px` means "landscape phone" - it turns a figure and its prompt
-  into a row, and it is the same boundary the pad's bounds above take from the
-  other side, as `min-height:501px`. There used to be a `max-height:600px`
-  beside it hiding the speed run result's right / missed / answered tally, and
-  it went with the tally rather than being found a second job. Written out as a
-  literal class name rather than kept in a variable, since Tailwind reads class
-  names as literals and a composed one compiles to nothing. Reach for it before
-  adding a number beside it.
-- **The question is measured and fitted, not declared** (`Prompt`). The room it
-  has depends on the device, the orientation, whether a target bar is showing and
-  how long the prompt is, so the box is measured and the largest whole pixel size
-  that still fits is searched for - re-run by a `ResizeObserver` when the box
-  changes. A declared size can only be the one that survives the worst case,
-  which is what left a short question small in the middle of a large screen.
+  `max-height:500px` means "landscape phone", and there is one use of it left:
+  the pad's bounds above take that same boundary from the other side, as
+  `min-height:501px`, where the question genuinely is about height. It had a
+  second use, turning a figure and its prompt into a row, and that went when the
+  figure's layout moved to the `sm` width line - a landscape phone is wide, so
+  the width query already covers every device the height query was reaching for,
+  and the height query was the more specific way of saying the same thing. This
+  note getting *shorter* is the direction it should go. There used to be a
+  `max-height:600px` beside it hiding the speed run result's right / missed /
+  answered tally, and it went with the tally rather than being found a second
+  job. Written out as a literal class name rather than kept in a variable, since
+  Tailwind reads class names as literals and a composed one compiles to nothing.
+  Reach for it before adding a number beside it.
+- **The question is one size, and the box is what is measured** (`Prompt`). The
+  room it has depends on the device, the orientation, whether a target bar is
+  showing and whether the question carries a figure, so the box is still
+  measured and the largest whole pixel size that still fits is still searched
+  for - re-run by a `ResizeObserver` when the box changes. **What it is searched
+  against is `PROMPT_SENTINEL`, not the prompt in hand**: the sentinel is
+  `MAX_PROMPT_CHARS` long, so the size found is the worst case's size and every
+  question in the same box is set at it. The fitter used to measure the question
+  itself, which made the type jump from question to question - about 96px for a
+  short one against about 33px for a long one - and that jump carried no
+  information, since it was a fact about how many words the template's author
+  used rather than about the maths. Deleting the fitter and declaring a
+  `clamp()` is the obvious alternative and is still refused, for the reason the
+  first sentence gives: a declared size has to survive the worst combination of
+  all four of those on every device, so every device pays for the worst one,
+  where this is fitted against the box that actually exists. The fit test is
+  "the sentinel fits **and** the prompt fits" - the sentinel is the longer
+  string so it binds, and the second half is one `&&` of insurance against a
+  real prompt of unusually wide glyphs rather than a branch anybody plans to
+  reach. Nothing about the fit depends on the question any more, so the effect
+  no longer lists `prompt` and `Prompt` no longer takes a `key` off the question
+  number: it runs on mount and on resize, and remounting it per question would
+  re-derive an answer that cannot have changed. `promptSize` collapsed to one
+  `PROMPT_CLASS` for the same reason - a length-keyed size on the server was the
+  same unsteadiness arriving a frame early.
+  **What that one size comes out at is the cap's business, which is why
+  `catalog.test.ts` enforces it** - see **Question templates**. Measured in a
+  browser on a landscape iPad, a question with no figure lands between 29px and
+  43px and one with a figure between 15px and 16px. It is a range and not a
+  number because the answer pad's shape decides how much of the column is left
+  over: a typed answer draws an 80px answer box a tapped one does not, and a
+  two-option `ChoicePad` is shorter than a number pad. So a question is one size
+  for every question of the same *shape*, and independence from length - which
+  is the thing that was actually wrong - holds exactly.
   `--prompt-max` is the ceiling, and it is where the two scales live: a phone
   keeps the `vh` ceiling it always had, and from `sm` up it is twice that, since
   a tablet or a laptop has the height to spend. It is registered with `@property`
@@ -769,6 +863,28 @@ simple enough for a child to pick up with no explanation.
   it. Tapping swaps the bulb for the hint; it resets with each question, and goes
   once the question is answered. Templates without a hint just leave the row
   empty, which keeps the question from jumping.
+- **A fraction is drawn with a bar, not a slash.** `1/2` is the notation the
+  expression language happens to produce, not the one a child is taught, and
+  every fraction in the shipped content is a proper fraction read as one thing -
+  a slash makes it look like a division, which here it never is, since division
+  is written `÷`. The split is the usual one: `src/lib/fractions.ts` decides
+  which slashes are fractions (`splitFractions`, pure and tested, with the gap
+  marker counting as a numerator so `?/12` draws as `?` over `12`) and
+  `src/components/maths-text.tsx` draws them and decides nothing, exactly as
+  `src/lib/figures` and `diagram.tsx` divide. `MathsText` is sized entirely in
+  `em`, so it grows with whatever the fitter chose for the element above it
+  rather than having to be told, and the same component works unchanged in a
+  `text-4xl` choice button and in a hint; the vinculum is `border-current`, so
+  it takes the green of a revealed right answer or the soft ink of a hint
+  without any caller passing it a colour. It is used on the prompt, the hint,
+  the choice buttons and the feedback line, which is every place on the play
+  screen a fraction can appear. **The parent's report is deliberately left as
+  text.** Its answered-question rows are single-line and elided so the column
+  can be read down, and a stacked fraction is about 1.6 line-heights tall; the
+  report's job is a weekly skim and the play screen's is the notation a child is
+  being taught, so the two are allowed to differ. Nothing stored, graded or
+  spoken changes - the value on the `Attempt` and in `gradeAnswer` is still the
+  string `1/2`.
 - **The rewards are a break and a badge, never a running score.** The stars fill
   the screen for a few seconds between rounds and the streak flashes once a day;
   neither sits on the play screen where a child could watch it and worry. There
@@ -855,6 +971,16 @@ translation and is pure like the rest of `lib`: `spokenText` for the symbols,
 precedes it and the sentence's own punctuation when something does - which is
 what tells the two apart in "What goes in the box? 4 + ? = 9". Every `/` in the
 shipped content is a fraction, because division is written `÷`.
+
+**That fraction rule lives in `src/lib/fractions.ts` and narration imports it.**
+The play screen draws a fraction with a bar off the same rule (see **UI**), and
+the spoken form and the drawn form must not be able to disagree about which
+slashes are fractions - two regexes in two files is exactly how they would, one
+tuned and the other not, with nothing on screen to say so. The claim itself used
+to be the comment above and is a test now: `catalog.test.ts` renders every
+prompt, hint, answer and choice across all 350 templates and counts a slash
+falling outside a fraction as a failure. It has been true since the content was
+written, and it is load-bearing in two places rather than one.
 
 **Word options are read out; numbers are not.** A word answer below Year 4 is a
 `choice` question precisely because the child cannot spell it, so three unread

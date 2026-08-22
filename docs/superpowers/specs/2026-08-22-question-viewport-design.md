@@ -109,11 +109,22 @@ Two things fall out:
   is what the server renders and what a browser with no JavaScript keeps, and a
   length-keyed size there was the same inconsistency arriving a frame early.
 
-**The cost, stated plainly.** On a landscape iPad a question with no figure
-lands near 54px and one with a figure near 33px, where a short question gets
-96px today. Short questions get smaller; that is not a side effect to be tuned
-away, it is what "one size" means, and the only lever on how big that size is
-is the cap above.
+**The cost, stated plainly.** Short questions get smaller; that is not a side
+effect to be tuned away, it is what "one size" means, and the only lever on how
+big that size is is the cap above.
+
+> **Corrected after measurement.** This paragraph predicted "near 54px" with no
+> figure and "near 33px" with one. Measured in a browser at 1024x768, a
+> no-figure question lands between **29px and 43px** and a figure question
+> between **15px and 16px**. The arithmetic was wrong because it treated the
+> whole space between header and pad as the prompt's: the middle column also
+> carries the hint row (`min-h-12`/`sm:min-h-14`), the answer display
+> (`h-16`/`sm:h-20` plus a 32px feedback line) and three gaps. It is a *range*
+> rather than one number because the answer pad's shape decides how much of the
+> column is left - a typed answer draws an 80px answer box a tapped one does
+> not, and a two-option `ChoicePad` is shorter than a number pad - so a question
+> is one size for every question of the same shape. The property this section
+> exists for, independence from the prompt's length, holds exactly.
 
 `catalog.test.ts` enforces the cap over many draws of every shipped template.
 
@@ -143,6 +154,23 @@ the pad's own compound query - so this is one fewer place that number is
 written, not a second short-viewport line beside it.
 
 The `min(64px,100%)` floor and the `40vh`/`46vh` caps carry over unchanged.
+
+> **Corrected after measurement: a landscape phone draws no figure at all, and
+> never did.** This section assumed the width query would hand that viewport a
+> usable row of around 180px. Measured at 844x390 it is **0px**, reproducibly,
+> across every question shape sampled. At 390px tall the header (~56), the pad's
+> 12rem floor (192, since 40vh = 156 falls below the minimum), the hint row (48)
+> and the answer display with its feedback line (96) already total 392, so the
+> flexible middle column resolves to nothing and the `min(64px,100%)` floor
+> resolves to nothing with it. That is the documented pre-existing behaviour the
+> floor is written that way to produce - a figure that does not draw at all,
+> rather than one painted over the header's speaker button - and it was
+> confirmed against the unmodified code, so this branch did not cause it. The
+> honest consequence: on that one viewport a figure question cannot be answered,
+> because the picture is the question. It also means retiring the
+> `[@media(max-height:500px)]` rules cost nothing, since the row they granted
+> had no height to lay anything out in either way. Fixing it is out of this
+> branch's scope.
 
 ## The figure, opened large
 
@@ -258,3 +286,18 @@ after any change to this layout.
   the speed run's four operations never produce one.
 - **Answering while the zoom is open.** It would mean the overlay leaving the
   pad uncovered, which is the layout that was measured and rejected.
+
+Two gaps were raised in review and deliberately left, so they are written down
+rather than forgotten:
+
+- **The zoom cannot be opened from a keyboard.** The tappable figure is a
+  `role="button"` with no `tabIndex`, which is exactly what `Prompt`'s
+  tap-to-repeat beside it already is. Giving one of the two a tab stop and not
+  the other would leave the same screen inconsistent in the opposite direction,
+  so both want doing together, with focus handling for the overlay, in a pass of
+  their own.
+- **`figure-zoom.tsx`'s Escape effect depends on `[onClose]`**, which arrives as
+  a fresh inline arrow, so with a minutes-style daily target ticking the window
+  listener is torn down and re-added about once a second while the zoom is open.
+  Harmless - the cleanup always runs and there is only ever one listener - but a
+  `useCallback` at the call site would avoid it.
