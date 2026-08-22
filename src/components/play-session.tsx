@@ -30,6 +30,7 @@ import {
   type TargetAnswer,
 } from '@/lib/rewards/target';
 import { PLAY_LABEL_SIZE } from '@/lib/figures/labels';
+import { PROMPT_SENTINEL } from '@/lib/templates/limits';
 import {
   awardRoundAction,
   awardTargetAction,
@@ -45,6 +46,7 @@ import { ContinueButton } from './continue-button';
 import { Diagram } from './diagram';
 import { ExitIcon } from './exit-icon';
 import { HintIcon } from './hint-icon';
+import { MathsText } from './maths-text';
 import { SpeakerIcon } from './speaker-icon';
 import { questionNarration, spokenText } from '@/lib/speech/narration';
 import {
@@ -707,7 +709,6 @@ export function PlaySession({
             />
             <div className="flex min-h-0 min-w-0 w-full flex-[0.35] flex-col items-center justify-center">
               <Prompt
-                key={session.askedCount}
                 prompt={question.prompt}
                 onRepeat={repeatQuestion}
                 repeatable={narrating}
@@ -716,7 +717,6 @@ export function PlaySession({
           </div>
         ) : (
           <Prompt
-            key={session.askedCount}
             prompt={question.prompt}
             onRepeat={repeatQuestion}
             repeatable={narrating}
@@ -829,22 +829,57 @@ function useElapsed(active: boolean, since: number): number {
 }
 
 /**
- * The question, set as large as the room it has allows. The screen is a fixed
- * height that may not scroll, so the size cannot simply be declared: the space
- * left over between the header and the pad is what the prompt has to fit in, and
- * that space differs by device, by orientation and by whether a target bar is
- * showing. So the box is measured and the size is searched for - the largest
- * whole pixel size at which the prompt still fits, and never larger than the
- * ceiling `--prompt-max` sets.
+ * The question, set at one size whatever it says.
+ *
+ * The screen is a fixed height that may not scroll, so the size cannot simply
+ * be declared: the room left between the header and the pad is what the prompt
+ * has to fit in, and that differs by device, by orientation, by whether a
+ * target bar is showing and by whether this question has a figure. So the box
+ * is measured and the size is searched for - the largest whole pixel size that
+ * still fits, never larger than the ceiling `--prompt-max` sets.
+ *
+ * **What is searched against is `PROMPT_SENTINEL`, not the prompt in hand.**
+ * That one substitution is the whole of this feature
+ * (`docs/superpowers/specs/2026-08-22-question-viewport-design.md`): the
+ * sentinel is `MAX_PROMPT_CHARS` long, so the size found is the worst case's
+ * size, and every question in the same box gets it. Before this, the fit
+ * measured the actual question, so the type jumped between roughly 96px and
+ * roughly 33px across a session - carrying no information, since it was a fact
+ * about how many words the template's author used rather than about the maths.
+ *
+ * The obvious alternative was to delete the fit and declare a `clamp()`, and
+ * the four things in the first paragraph are why not: a declared size has to
+ * survive the worst combination of all of them on every device, so every
+ * device pays for the worst one. This is fitted against the box that actually
+ * exists.
+ *
+ * **The fit test is "the sentinel fits *and* the prompt fits".** The sentinel
+ * is the longer string, so it binds and the size is constant. The second half
+ * is a net rather than a branch anyone plans to reach: a sentinel is an
+ * estimate of *width*, and a real prompt of unusually wide glyphs could exceed
+ * it. It costs one `&&` and it is what makes clipping impossible rather than
+ * unlikely.
  *
  * The ceiling is where the two scales live: a phone keeps the `vh` ceiling it
- * always had, and from `sm` up it is twice the old one, because a tablet or a
- * laptop was leaving the question small in the middle of a large screen. What
- * stops that being a clipped prompt on a landscape iPad - the shortest screen
- * this runs on - is that it is a ceiling and not a size.
+ * always had, and from `sm` up it is twice that, because a tablet or a laptop
+ * was leaving the question small in the middle of a large screen.
  */
 const MIN_PROMPT_PX = 14;
 const FALLBACK_PROMPT_MAX_PX = 96;
+
+/**
+ * The size before the fit runs: what the server renders and what a browser
+ * without JavaScript keeps.
+ *
+ * One class rather than the three length-keyed steps this used to be. A size
+ * chosen by how long the prompt is was the same unsteadiness the fit below now
+ * removes, arriving a frame earlier - and it is a *pre*-hydration guess, so it
+ * only has to be near the middle of the range the fit lands in.
+ *
+ * The sentinel and the real prompt both carry it, so the two are measured
+ * under identical type before either is resized.
+ */
+const PROMPT_CLASS = 'text-[clamp(1.125rem,3.5vh,2.25rem)]';
 
 function Prompt({
   prompt,
@@ -857,20 +892,27 @@ function Prompt({
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLHeadingElement>(null);
+  const sentinelRef = useRef<HTMLParagraphElement>(null);
 
   useLayoutEffect(() => {
     const box = boxRef.current;
     const text = textRef.current;
-    if (!box || !text) return;
+    const sentinel = sentinelRef.current;
+    if (!box || !text || !sentinel) return;
+
+    // A long word can overrun the line at a size whose lines still fit, so
+    // width is checked as well as height.
+    const fits = (el: HTMLElement, height: number) =>
+      el.offsetHeight <= height && el.scrollWidth <= el.clientWidth;
 
     const fit = () => {
       const height = box.clientHeight;
       const width = box.clientWidth;
-      // A viewport too short to leave the question any room at all - a phone held
-      // sideways - collapses the box to nothing. There is no size that fits, so
-      // the declared one is left alone and allowed to overrun, which is what it
-      // did before there was a fit at all. Hiding the overrun would hide the
-      // question.
+      // A viewport too short to leave the question any room at all - a phone
+      // held sideways - collapses the box to nothing. There is no size that
+      // fits, so the declared one is left alone and allowed to overrun, which
+      // is what it did before there was a fit at all. Hiding the overrun would
+      // hide the question.
       if (height <= 0 || width <= 0) return;
 
       const max = readPromptMax(box);
@@ -880,10 +922,15 @@ function Prompt({
 
       while (low <= high) {
         const mid = Math.floor((low + high) / 2);
+        sentinel.style.fontSize = `${mid}px`;
         text.style.fontSize = `${mid}px`;
-        // A long word can overrun the line at a size whose lines still fit, so
-        // width is checked as well as height.
-        if (text.offsetHeight <= height && text.scrollWidth <= text.clientWidth) {
+        // The sentinel is what decides the size - it is the worst case, and it
+        // is the same on every question. The real prompt is checked too, as a
+        // net rather than a branch anyone plans to reach: the sentinel is an
+        // estimate of *width*, so a prompt of unusually wide glyphs could
+        // exceed it, and clipping the question is the one outcome not worth
+        // risking for consistency.
+        if (fits(sentinel, height) && fits(text, height)) {
           best = mid;
           low = mid + 1;
         } else {
@@ -891,41 +938,64 @@ function Prompt({
         }
       }
 
+      sentinel.style.fontSize = '';
       text.style.fontSize = `${best}px`;
     };
 
     fit();
 
-    // The box changes height when the target bar appears or goes, and width when
-    // the iPad is turned, and neither is a re-render of this component.
+    // The box changes height when the target bar appears or goes, and width
+    // when the iPad is turned, and neither is a re-render of this component.
+    // It no longer changes when the *question* does - that is the point - so
+    // there is nothing in the dependency list.
     const observer = new ResizeObserver(fit);
     observer.observe(box);
     return () => observer.disconnect();
-  }, [prompt]);
+  }, []);
 
   return (
     <div
       ref={boxRef}
-      // Tapping the question repeats it, but only while it is being read aloud:
-      // a child who missed it reaches for the words themselves, which needs no
-      // icon and no explaining, and a child who can read never finds a button
-      // where the question is. It is the box and not the text that takes the
-      // tap, since the text is only as big as it needs to be and a child aiming
-      // at a short question would otherwise be aiming at very little.
+      // Tapping the question repeats it, but only while it is being read
+      // aloud: a child who missed it reaches for the words themselves, which
+      // needs no icon and no explaining, and a child who can read never finds
+      // a button where the question is. It is the box and not the text that
+      // takes the tap, since the text is only as big as it needs to be and a
+      // child aiming at a short question would otherwise be aiming at very
+      // little.
       onClick={repeatable ? onRepeat : undefined}
       role={repeatable ? 'button' : undefined}
       aria-label={repeatable ? 'Read the question again' : undefined}
-      className="flex min-h-0 w-full flex-1 items-center justify-center [--prompt-max:clamp(1.375rem,4.5vh,3rem)] sm:[--prompt-max:6rem]"
+      className="relative flex min-h-0 w-full flex-1 items-center justify-center [--prompt-max:clamp(1.375rem,4.5vh,3rem)] sm:[--prompt-max:6rem]"
     >
+      {/* The worst case, measured and never seen.
+          `invisible` and not `hidden`: a `display:none` element has no
+          `offsetHeight` to read, which is the one thing this exists for.
+          `absolute` so it cannot push the thing it is measuring for around -
+          but pinned by `top`/`left` only and **never `inset-0`**, because an
+          element stretched to its container's height reports that height
+          whatever its content does, and the measurement would come back true
+          at every size. `w-full max-w-3xl sm:max-w-5xl` are the real prompt's
+          own width rules, so the two break lines identically. */}
+      <p
+        ref={sentinelRef}
+        aria-hidden
+        role="presentation"
+        className={`pointer-events-none invisible absolute top-0 left-1/2 w-full max-w-3xl -translate-x-1/2 text-center leading-snug font-semibold text-balance sm:max-w-5xl ${PROMPT_CLASS}`}
+      >
+        {PROMPT_SENTINEL}
+      </p>
+
       {/* Sized by the class until the fit runs, so a prompt rendered on the
           server is already about the right size rather than snapping into
-          place. Wider than a page of prose on a big screen: a short question is
-          one line, and a line it can grow along is what lets it grow at all. */}
+          place. Wider than a page of prose on a big screen: a short question
+          is one line, and a line it can grow along is what lets it grow at
+          all. */}
       <h1
         ref={textRef}
-        className={`w-full max-w-3xl text-center leading-snug font-semibold text-balance sm:max-w-5xl ${promptSize(prompt)}`}
+        className={`w-full max-w-3xl text-center leading-snug font-semibold text-balance sm:max-w-5xl ${PROMPT_CLASS}`}
       >
-        {prompt}
+        <MathsText text={prompt} />
       </h1>
     </div>
   );
@@ -936,17 +1006,6 @@ function readPromptMax(box: HTMLElement): number {
   const declared = getComputedStyle(box).getPropertyValue('--prompt-max').trim();
   const px = declared.endsWith('px') ? Number.parseFloat(declared) : Number.NaN;
   return Number.isFinite(px) && px > 0 ? px : FALLBACK_PROMPT_MAX_PX;
-}
-
-/**
- * The size before the fit runs: what the server renders and what a browser
- * without JavaScript keeps. Longer prompts take a smaller step; length is a good
- * enough proxy for lines, as prompts are one plain sentence.
- */
-function promptSize(prompt: string) {
-  if (prompt.length > 90) return 'text-[clamp(1rem,2.8vh,1.875rem)]';
-  if (prompt.length > 45) return 'text-[clamp(1.125rem,3.5vh,2.25rem)]';
-  return 'text-[clamp(1.375rem,4.5vh,3rem)]';
 }
 
 /**
