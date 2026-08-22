@@ -82,13 +82,22 @@ const MAX_ENTRY = { text: 16 } as const;
  * side instead - see the figure-and-prompt wrapper below - and the pad's own
  * bounds switch with it, for the same reason (see the pad's slot further down).
  *
- * `500px` is written out at every use below rather than held in a constant:
- * Tailwind's scanner reads class names as source-text literals (CLAUDE.md
- * says this outright for `OPERATION_ACCENT`, and it is exactly as true of an
- * arbitrary variant), so a class built from `` `${SOME_CONST}:flex-row` ``
- * compiles to nothing - the composed string exists at runtime, but never in
- * the source text the build ever scans. A shared constant here would be a
- * standing invitation to do that again the next time this screen changes.
+ * `500px` is written out at its one remaining use below rather than held in a
+ * constant: Tailwind's scanner reads class names as source-text literals
+ * (CLAUDE.md says this outright for `OPERATION_ACCENT`, and it is exactly as
+ * true of an arbitrary variant), so a class built from
+ * `` `${SOME_CONST}:flex-row` `` compiles to nothing - the composed string
+ * exists at runtime, but never in the source text the build ever scans. A
+ * shared constant here would be a standing invitation to do that again the
+ * next time this screen changes.
+ *
+ * It used to have two uses. The figure-and-prompt wrapper wanted a row on a
+ * landscape phone, and now takes its row from `sm:` instead - a landscape
+ * phone is wide, so the width query covers it, and the height query was the
+ * more specific way of saying the same thing. What is left is the pad's own
+ * `min-height:501px` half, where the question is genuinely about height: a
+ * fixed `16rem` floor built for a device with height to spare must not be
+ * handed to a wide device without any.
  */
 
 /**
@@ -637,47 +646,56 @@ export function PlaySession({
 
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 py-2 sm:gap-6 sm:py-4">
         {question.figure ? (
-          // A question with a figure is a picture with a caption underneath it,
-          // not a sentence with a picture squeezed above it - see the design's
-          // "Layout" section. `Diagram` is the *sole* flex-1 item here, capped
-          // at 40/46vh as a ceiling (ample headroom on every device this app
-          // targets - see the report's per-viewport table - so it is a defence
-          // against an unreasonably tall window rather than the thing that
-          // actually decides the figure's size) and floored at 64px (see the
-          // note above) so it is never asked to draw as a sliver.
+          // A question with a figure is a question *beside* a picture, from
+          // `sm` up - and a picture with a caption under it below that
+          // (`docs/superpowers/specs/2026-08-22-question-viewport-design.md`).
           //
-          // That ceiling keeps a plain `sm:` where the pad below has moved to a
-          // height query, and the difference is the point: a cap written in
-          // `vh` is already a share of the viewport's own height, so it shrinks
-          // on the short viewport by itself and cannot make the mistake the
-          // pad's absolute `16rem` floor made - `sm:` there raised a bound
-          // built for a tall device on a wide short one, while here it only
-          // chooses between two shares of whatever height there actually is,
-          // both of which sit well above what a landscape phone hands this box.
+          // One rule, at the width line, and it replaces the
+          // `[@media(max-height:500px)]` pair that used to live here. Those
+          // existed to give a landscape phone a row; a landscape phone is
+          // *wide*, so the width query gives it one already. `500px` survives
+          // only in the pad's own compound query further down, which makes
+          // this one fewer place that number is written rather than a second
+          // short-viewport line beside it.
           //
-          // `Prompt`'s
-          // own slot is deliberately *not* flex-1: an earlier version gave it
-          // `flex-1` too, which - both siblings then wanting equal shares of a
-          // `flex: 1 1 0%` split - meant the figure's cap never bound at all,
-          // since there was never a competition for it to win. Here the slot
-          // instead carries a much lower `flex-grow` (`flex-[0.35]`, roughly
-          // the "prompt is a caption now" quarter-share the design calls for),
-          // so `Diagram` takes essentially everything up to its own cap and
-          // the slot takes what is left. `Prompt` itself is unchanged - its
-          // root is still `flex-1` and still fits itself to whatever box it
-          // is handed, which is exactly why it can sit inside a slot with a
-          // different flex-grow of its own rather than needing to know about
-          // any of this.
+          // **A portrait phone keeps the column because a row would make the
+          // figure smaller, not larger.** A row divides width and a 390px
+          // phone has none to divide: side by side the drawing comes out
+          // around 195px against roughly 280px stacked. The gain from a row is
+          // real on a landscape iPad (~150px to ~270px) and a portrait iPad
+          // (~330px to ~384px), and negative here - so the rule follows the
+          // measurement rather than a preference for one shape.
           //
-          // On a landscape phone the column becomes a row instead (the one
-          // flex-direction change under a short-viewport media query, `500px`
-          // - see the constant note above for why that number is not held in
-          // a variable), and `items-stretch` goes with it: in the ordinary
-          // column, height is the main axis and flex-grow sizes both children
-          // along it, but a row's main axis is width - stretch is what gives
-          // them a height at all there, and the same caps and floors still
-          // hold once they have one.
-          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 sm:gap-4 [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-stretch">
+          // The split is 40/60 in the figure's favour, but only from `sm` up
+          // (`flex-[0.4]`/`flex-[0.6]`, `sm:`-prefixed). Below `sm` the
+          // wrapper is still a column, so those shares would divide *height*,
+          // not width - handing the figure 60% where the column's own shares
+          // (`flex-[0.35]`/`flex-1`) give it about 74% today. A portrait
+          // phone is the one viewport that keeps the column, and it keeps it
+          // precisely *because* stacking is what makes the figure bigger
+          // there (see above) - an unconditional 60% would shrink the figure
+          // on exactly the device this exception exists to protect, so the
+          // split has to stop at the same width line the column does. The
+          // prompt is a fixed size now (see `Prompt`) and needs only the room
+          // its worst case takes, so the wider share goes to the picture.
+          // `Diagram` is capped at 40/46vh - ample headroom on every device
+          // this targets, so it is a defence against an unreasonably tall
+          // window rather than the thing that decides the figure's size -
+          // and floored at 64px (see the note at the top of this file) so it
+          // is never a sliver.
+          //
+          // `items-stretch` on the row: in the column, height is the main
+          // axis and flex-grow sizes both children along it, but a row's
+          // main axis is width, and stretch is what gives them a height at
+          // all.
+          <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3 sm:flex-row sm:items-stretch sm:gap-4">
+            <div className="order-2 flex min-h-0 w-full min-w-0 flex-[0.35] flex-col items-center justify-center sm:order-1 sm:flex-[0.4]">
+              <Prompt
+                prompt={question.prompt}
+                onRepeat={repeatQuestion}
+                repeatable={narrating}
+              />
+            </div>
             <Diagram
               figure={question.figure}
               strokeWidth={3.5}
@@ -705,15 +723,8 @@ export function PlaySession({
               // to give and shrinks to nothing - a figure that does not draw
               // at all - exactly where there is none. `min-w` gets the same
               // treatment for the same reason on the row axis.
-              className="min-h-[min(64px,100%)] min-w-[min(64px,100%)] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:max-h-[46vh] sm:max-w-[46vh]"
+              className="order-1 min-h-[min(64px,100%)] min-w-[min(64px,100%)] max-h-[40vh] max-w-[40vh] w-full flex-1 sm:order-2 sm:max-h-[46vh] sm:max-w-[46vh] sm:flex-[0.6]"
             />
-            <div className="flex min-h-0 min-w-0 w-full flex-[0.35] flex-col items-center justify-center">
-              <Prompt
-                prompt={question.prompt}
-                onRepeat={repeatQuestion}
-                repeatable={narrating}
-              />
-            </div>
           </div>
         ) : (
           <Prompt
