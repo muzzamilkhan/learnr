@@ -1,4 +1,5 @@
 import type { Question } from '../templates/types';
+import { fractionPattern } from '../fractions';
 
 /**
  * Turning a question into something worth listening to.
@@ -41,13 +42,6 @@ const SYMBOLS: readonly (readonly [RegExp, string])[] = [
  */
 const SPACED_HYPHEN = /(^|\s)-(?=\s|\d)/g;
 
-/**
- * A slash between numbers is a fraction: every one in the shipped content is,
- * because division is written `÷`. The gap marker counts as a number here, so
- * "?/9" reads as a fraction with its top missing.
- */
-const FRACTION = /(\d|\?)\s*\/\s*(?=\d)/g;
-
 /** "$5" says its symbol first and its word last, so the amount has to move. */
 const AMOUNT = /\$(\d+(?:\.\d+)?)/g;
 
@@ -89,7 +83,12 @@ export function spokenText(text: string): string {
   // gap still written as `?`, and the gap rule has to run before anything inserts
   // a space of its own: "$3?" ends in punctuation, but " 3 dollars ?" reads as a
   // gap, and a question would be spoken with a "what" on the end of it.
-  out = out.replace(FRACTION, '$1 out of ');
+  // The fraction rule is `src/lib/fractions.ts`', not a second copy here: the
+  // spoken form and the form the play screen *draws* must not be able to
+  // disagree about which slashes are fractions.
+  out = out.replace(fractionPattern(), (_, numerator: string, denominator: string) => (
+    ` ${numerator} out of ${denominator} `
+  ));
   out = out.replace(GAP, '$1what');
   out = out.replace(COIN, (_, dollars?: string, cents?: string) =>
     dollars === undefined ? ` ${cents} cent ` : ` ${dollars} dollar `,

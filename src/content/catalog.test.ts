@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { validateTemplates } from '@/lib/templates/validate';
 import { generateQuestion } from '@/lib/templates/generate';
 import { MAX_PROMPT_CHARS } from '@/lib/templates/limits';
+import { splitFractions } from '@/lib/fractions';
 import { createRng } from '@/lib/rng';
 import { isYearLevel, stageForLevel, type Stage } from '@/lib/curriculum';
 import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
@@ -182,6 +183,29 @@ describe('shipped content', () => {
         expect(q.prompt.length, `${template.id}: ${q.prompt}`).toBeLessThanOrEqual(
           MAX_PROMPT_CHARS,
         );
+      }
+    }
+  });
+
+  // Both the narration and the play screen's renderer rest on one claim: every
+  // `/` in this content is a fraction, because division is written `÷`. It has
+  // been true since the content was written and it lived in a comment; it is
+  // load-bearing in two places now, so it is checked.
+  //
+  // A slash that is *not* a fraction would be spoken as one and drawn as
+  // ordinary text, which is two screens disagreeing about the same character.
+  it('writes no slash that is not a fraction', () => {
+    for (const template of allTemplates) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-slash-${i}`));
+        const texts = [q.prompt, q.hint ?? '', String(q.answer), ...(q.choices ?? []).map(String)];
+
+        for (const text of texts) {
+          // Every slash the text contains has to be inside a fraction segment.
+          const slashes = (text.match(/\//g) ?? []).length;
+          const inFractions = splitFractions(text).filter((s) => s.kind === 'fraction').length;
+          expect(inFractions, `${template.id}: ${text}`).toBe(slashes);
+        }
       }
     }
   });
