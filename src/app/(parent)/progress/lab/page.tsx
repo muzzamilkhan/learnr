@@ -27,7 +27,7 @@ const LAB_ANSWERS_PER_TOPIC = 50;
  * judged.
  *
  * It nests under `/progress` rather than sitting beside it as its own top-level
- * path, for the reason `/progress/speed` does: a route group adds no path
+ * path, for the reason the report itself does: a route group adds no path
  * segment, so a bare `/progress-lab` would be one hyphen from the real report
  * and told apart only by spelling. Depth cannot be muddled that way.
  */

@@ -1,7 +1,8 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
+import type { Session } from 'next-auth';
 import { auth, isAuthConfigured } from '@/auth';
-import { readAccount, type ChildProfile } from '@/lib/accounts';
+import { readAccount, type Account, type ChildProfile } from '@/lib/accounts';
 import { readViewableChildren, type ViewableChild } from '@/lib/sharing';
 
 export interface ParentContext {
@@ -19,6 +20,28 @@ export interface ParentContext {
   /** The children they own, which is the only set any mutation applies to. */
   profiles: ChildProfile[] | null;
 }
+
+export interface Viewer {
+  session: Session | null;
+  userId: string | undefined;
+  account: Account | null;
+}
+
+/**
+ * Who is asking, without deciding anything about it.
+ *
+ * `readParent` below is a gate - it redirects anyone who is not a parent - and
+ * that is the right shape for a screen only a parent has any business on. The
+ * unified `/speed` is not one of those: it serves a parent and sends a child on
+ * to their own speed screen, so it has to *ask* the role rather than be bounced
+ * on it. Both go through here and both are `cache`d, so a parent landing on
+ * `/speed` reads their account once and not once per caller.
+ */
+export const readViewer = cache(async (): Promise<Viewer> => {
+  const session = isAuthConfigured ? await auth() : null;
+  const userId = session?.user?.id;
+  return { session, userId, account: userId ? await readAccount(userId) : null };
+});
 
 /**
  * Who is asking, and who they may look at.
@@ -38,13 +61,11 @@ export interface ParentContext {
  * is a frame, not a gate.
  */
 export const readParent = cache(async (): Promise<ParentContext> => {
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
+  const { session, userId, account } = await readViewer();
   if (!userId) redirect('/');
 
   // A child must not reach these screens, and neither must an account that has
   // not said what kind it is yet.
-  const account = await readAccount(userId);
   if (account?.role !== 'parent') redirect('/');
 
   const viewable = await readViewableChildren(userId);

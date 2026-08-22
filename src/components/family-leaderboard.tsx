@@ -215,7 +215,7 @@ export function FamilyLeaderboard({
 }: {
   /** Every household member's bests. Null means the read failed. */
   records: FamilyRecord[] | null;
-  /** Where the Try button goes: `/speed` for a child, `/progress/speed` for a parent. */
+  /** Where the Try button goes: `/speed` - the run route serves both. */
   basePath?: string;
   scale?: keyof typeof SCALES;
 }) {

@@ -3,11 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { resolveChild } from '@/lib/children';
-
-/** Where the nav's third item goes: the screen with the scores and all
- * twenty-six modes on it - not one arbitrary run, which left the other
- * twenty-five reachable only by hand-editing the URL. */
-const SPEED_RUN_HREF = '/progress/speed';
+import { PARENT_SPEED_HREF } from '@/lib/speedrun/tabs';
 
 type ParentScreen = 'progress' | 'children' | 'speed-run';
 
@@ -69,27 +65,25 @@ export function ParentNav() {
     <nav className="no-select mt-4 flex rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold">
       <NavLink href="/progress" label="Progress" active={screen === 'progress'} />
       <NavLink href="/children" label="Children" active={screen === 'children'} />
-      <NavLink href={SPEED_RUN_HREF} label="Speed run" active={screen === 'speed-run'} />
+      <NavLink href={PARENT_SPEED_HREF} label="Speed run" active={screen === 'speed-run'} />
     </nav>
   );
 }
 
 /**
- * Which of the three the current path is on. The parent's speed pages are
- * nested at `/progress/speed/...` rather than sitting beside `/progress` as
- * their own top-level segment, precisely so they can never collide with the
- * child's own `/speed/...` routes - a route group adds no path segment, so two
- * bare top-level names would be told apart only by spelling. That nesting is
- * why `/progress/speed` has to be checked *before* the bare `/progress` below
- * it: both prefixes match a speed URL, and the more specific one has to win or
- * every speed screen would highlight "Progress" instead of "Speed run". A
- * later reordering of these two lines is the exact mistake this comment exists
- * to catch.
+ * Which of the three the current path is on.
+ *
+ * The speed screens used to be nested at `/progress/speed/...` so they could not
+ * collide with the child's `/speed/...`, and that cost this function an ordering
+ * constraint: both prefixes matched a speed URL, so the more specific one had to
+ * be tested first or every speed screen highlighted "Progress". There is one
+ * `/speed` now, serving whoever is signed in, so the three prefixes are disjoint
+ * and no line here depends on sitting above another.
  */
 function useParentScreen(): ParentScreen {
   const pathname = usePathname() ?? '';
   if (pathname.startsWith('/children')) return 'children';
-  if (pathname.startsWith('/progress/speed')) return 'speed-run';
+  if (pathname.startsWith(PARENT_SPEED_HREF)) return 'speed-run';
   return 'progress';
 }
 

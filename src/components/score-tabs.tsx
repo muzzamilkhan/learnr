@@ -48,7 +48,7 @@ export function ScoreTabs({
   hash,
   scale = 'child',
 }: {
-  /** The screen the tabs are on: `/` for a child, `/progress/speed` for a parent. */
+  /** The screen the tabs are on: `/` for a child, `/speed` for a parent. */
   basePath: string;
   /** Which half is on screen - the page's own answer, already normalised. */
   tab: ScoreTab;

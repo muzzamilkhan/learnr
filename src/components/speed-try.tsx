@@ -49,7 +49,7 @@ export function SpeedTryLink({
   scale,
 }: {
   mode: Mode;
-  /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
+  /** `/speed` for everyone - the run route branches on the reader, not the URL. */
   basePath: string;
   scale: keyof typeof SCALES;
 }) {

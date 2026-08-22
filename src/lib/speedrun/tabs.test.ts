@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHILD_DEFAULT_TAB,
   CHILD_SPEED_HREF,
+  PARENT_SPEED_HREF,
   PARENT_DEFAULT_TAB,
   parseScoreTab,
   scoreTabHref,
@@ -50,11 +51,9 @@ describe('scoreTabHref', () => {
   it('follows the screen, so a parent bare URL is the board', () => {
     // The half that opens has to be the half the bare path names, or the tab a
     // screen opens on is one nothing can link back to.
-    expect(scoreTabHref('/progress/speed', 'leaderboard', PARENT_DEFAULT_TAB)).toBe(
-      '/progress/speed',
-    );
-    expect(scoreTabHref('/progress/speed', 'records', PARENT_DEFAULT_TAB)).toBe(
-      '/progress/speed?tab=records',
+    expect(scoreTabHref(PARENT_SPEED_HREF, 'leaderboard', PARENT_DEFAULT_TAB)).toBe('/speed');
+    expect(scoreTabHref(PARENT_SPEED_HREF, 'records', PARENT_DEFAULT_TAB)).toBe(
+      '/speed?tab=records',
     );
   });
 
@@ -73,6 +72,17 @@ describe('scoreTabHref', () => {
     expect(CHILD_SPEED_HREF).toBe('/#speed-run');
     expect(CHILD_SPEED_HREF).toBe(
       scoreTabHref('/', CHILD_DEFAULT_TAB, CHILD_DEFAULT_TAB, SPEED_SECTION),
+    );
+  });
+
+  it('gives a parent one speed path, which their bare URL names', () => {
+    // A parent's scores and a parent's runs are the same screen, so the nav
+    // item, the door out of a run and every Try button are one string. It has
+    // to be the bare path too: the tab a parent opens on is the leaderboard,
+    // and a default tab no URL names is a panel nothing can link back to.
+    expect(PARENT_SPEED_HREF).toBe('/speed');
+    expect(PARENT_SPEED_HREF).toBe(
+      scoreTabHref(PARENT_SPEED_HREF, PARENT_DEFAULT_TAB, PARENT_DEFAULT_TAB),
     );
   });
 });

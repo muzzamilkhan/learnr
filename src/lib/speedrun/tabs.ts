@@ -12,12 +12,15 @@
  * The child's speed section, and the anchor that lands on it.
  *
  * A child's speed run screen *is* their home screen - the scores and the five
- * cards sit under "Speed run" below practice - so everything that used to point
- * at `/speed` now points here, and there is no `/speed` page any more: a second
- * screen showing the same two things existed only to be the way back from a
- * run, and a fragment does that without a page to keep in step. The id and the
- * href live together because the two going out of step is a link that scrolls
- * nowhere, silently.
+ * cards sit under "Speed run" below practice - so everything a child follows to
+ * their speed run points here: a screen of their own showing the same two things
+ * existed only to be the way back from a run, and a fragment does that without a
+ * page to keep in step. The id and the href live together because the two going
+ * out of step is a link that scrolls nowhere, silently.
+ *
+ * `/speed` is a page again, but a parent's (`PARENT_SPEED_HREF`) - a child who
+ * asks for it is redirected here, so this stays the one place their speed
+ * section is named.
  */
 export const SPEED_SECTION = 'speed-run';
 
@@ -108,3 +111,23 @@ export const CHILD_SPEED_HREF = scoreTabHref(
   CHILD_DEFAULT_TAB,
   SPEED_SECTION,
 );
+
+/**
+ * A parent's speed screen: their scores and all twenty-six modes to start a run
+ * at, and the runs themselves beneath it.
+ *
+ * **It is one string because it is now one screen.** The parent's speed pages
+ * used to be nested under the report at `/progress/speed`, deliberately, so a
+ * bare `(parent)/speed` could not sit beside the child's `/speed/...` as a
+ * second top-level path told apart only by spelling. What retires that argument
+ * is that there is no second path any more: `/speed` and `/speed/[mode]` are one
+ * pair of routes serving whoever is signed in, branching on the viewer's role
+ * rather than on the URL, so there is nothing left for a copied `href` to get
+ * backwards. A child is sent on to `CHILD_SPEED_HREF`, whose speed screen is
+ * still their home screen.
+ *
+ * It is the *bare* path rather than a tab on one, because a parent opens on the
+ * leaderboard and `scoreTabHref` puts a screen's default tab on its bare URL -
+ * a default tab no URL names is a panel nothing can link back to.
+ */
+export const PARENT_SPEED_HREF = '/speed';

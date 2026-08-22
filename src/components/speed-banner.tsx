@@ -10,7 +10,7 @@ import { StarIcon } from './star-icon';
 /**
  * "Shanaaya scored her personal best..." - never your own. `readUnseenRecords`
  * is scoped to this parent's *children*, so a parent who beats their own best
- * on `/progress/speed` produces no row here at all; there is nothing this
+ * on `/speed` produces no row here at all; there is nothing this
  * component needs to do to keep that true.
  *
  * One row per child rather than one per achievement: dismissing marks every

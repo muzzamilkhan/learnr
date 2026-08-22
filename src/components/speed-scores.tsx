@@ -9,8 +9,8 @@ import { SpeedRecordsCabinet } from './speed-records';
 /**
  * The scores, whole: the two tabs and whichever wall of cards they name.
  *
- * Two screens show this - the child's home screen and a parent's
- * `/progress/speed` - and they differ in the frame around it and nothing else,
+ * Two screens show this - the child's home screen and a parent's `/speed` -
+ * and they differ in the frame around it and nothing else,
  * so the reads, the empty states and the tabs live here rather than being
  * written out twice and drifting.
  *
@@ -63,7 +63,7 @@ export async function SpeedScores({
    * records; a parent opens on the leaderboard.
    */
   defaultTab: ScoreTab;
-  /** The screen the tabs are on: `/` for a child, `/progress/speed` for a parent. */
+  /** The screen the tabs are on: `/` for a child, `/speed` for a parent. */
   tabPath: string;
   /** Where a run lives, for the Try button on every card. */
   runPath: string;

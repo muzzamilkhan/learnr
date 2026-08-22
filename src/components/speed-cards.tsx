@@ -55,7 +55,7 @@ import { ChevronIcon } from './chevron-icon';
  *
  * `basePath` is what lets one component serve both trees rather than forking a
  * parent copy: the child runs at `/speed/...`, a parent's own runs nest under
- * `/progress/speed/...` (see CLAUDE.md's "Speed run" section on why the
+ * `/speed/...` for both (see CLAUDE.md's "Speed run" section on why the
  * parent's routes nest rather than sitting beside the child's as a second
  * top-level path).
  *
@@ -242,7 +242,7 @@ export function SpeedCards({
   basePath = '/speed',
   scale = 'child',
 }: {
-  /** `/speed` for the child, `/progress/speed` for a parent's own runs. */
+  /** `/speed` for everyone - the run route branches on the reader, not the URL. */
   basePath?: string;
   scale?: keyof typeof SCALES;
 }) {

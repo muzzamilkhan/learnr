@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
 import { SpeedRun } from '@/components/speed-run';
 import { parseMode } from '@/lib/speedrun/modes';
-import { CHILD_SPEED_HREF } from '@/lib/speedrun/tabs';
+import { CHILD_SPEED_HREF, PARENT_SPEED_HREF } from '@/lib/speedrun/tabs';
+import { readViewer } from '../../(parent)/parent';
 
 // Per-player state (whether recording is enabled), so it must never be
 // prerendered and shared.
@@ -27,19 +27,33 @@ export const dynamic = 'force-dynamic';
  * instead of that plus a check that the mode and the path agreed about the
  * operation - a mismatch that could only ever be hand-typed and had to be
  * handled anyway.
+ *
+ * **A parent plays here too, and the run itself is identical.** Their runs used
+ * to have a route of their own under `/progress/speed/[mode]`, rendering this
+ * very component with two different hrefs on it - which is what the whole second
+ * route amounted to. The ninety seconds are the same for everyone: a question
+ * readable at a glance and a pad hit without looking are not things an adult
+ * wants smaller, which is why `SpeedRun` takes no scale. So all that is left to
+ * branch is where the two ways out lead, and that is a property of the reader
+ * rather than of the URL.
+ *
+ * **Going back is not going home**, so both are passed. The door inside a run
+ * lands on the screen the run was started from - a parent's `/speed`, a child's
+ * home section - because what someone is undoing is "I picked Multiply", not "I
+ * opened this app". Home differs too: a parent's home is the report.
  */
 export default async function SpeedPage({ params }: { params: Promise<{ mode: string }> }) {
   const mode = parseMode(decodeURIComponent((await params).mode));
   if (!mode) notFound();
 
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
+  const { userId, account } = await readViewer();
+  const isParent = account?.role === 'parent';
 
   return (
     <SpeedRun
       mode={mode}
-      homeHref="/"
-      backHref={CHILD_SPEED_HREF}
+      homeHref={isParent ? '/progress' : '/'}
+      backHref={isParent ? PARENT_SPEED_HREF : CHILD_SPEED_HREF}
       recordingEnabled={Boolean(userId)}
     />
   );

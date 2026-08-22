@@ -1149,7 +1149,7 @@ parent anything they could not assume. Two tables side by side in
 
 **Going back is not going home**, so `SpeedRun` takes both. The door inside a
 run lands on the screen the run was started from -
-`/#speed-run` for a child, `/progress/speed` for a parent - because what someone
+`/#speed-run` for a child, `/speed` for a parent - because what someone
 is usually undoing is "I picked Multiply", not "I opened this app". For a child
 those are now the same page and not the same place on it: the door aims at the
 speed section, where the cards and the scores are, and the result screen's own
@@ -1188,7 +1188,7 @@ that is no longer there.
 
 **The cards, the cabinet and the leaderboard are one screen**, and the scores
 are the top of it. **Every screen that offers a run shows them**: the child's
-home screen under "Speed run", and a parent's `/progress/speed`.
+home screen under "Speed run", and a parent's `/speed`.
 
 **Which tab a screen opens on follows who is reading it.** A child opens on
 their own records - they came to see what they scored, and the family board is
@@ -1203,7 +1203,9 @@ so all three take it rather than each knowing a favourite of its own. A tab bar
 whose left tab is not the panel under it is not a state that exists, and a
 default tab that no URL names is a panel nothing can link back to.
 
-**There is no `/speed` page.** The child's speed run screen *is* their home
+**There is no `/speed` page for a child**, though `/speed` is now a page - a
+parent's, see the routes below, and a child asking for it is redirected to the
+section named here. The child's speed run screen *is* their home
 screen - the scores and the five cards sit under "Speed run" below practice -
 and a second screen showing the same two things existed only to be the way back
 from a run. `CHILD_SPEED_HREF` (`/#speed-run`) does that without a page to keep
@@ -1251,7 +1253,7 @@ better.
 `#speed-run`). The speed section is below practice there, so a tab switch is a
 navigation that would otherwise land a child at the top of the screen, several
 scrolls from the wall they were reading. It is the one screen that needs it, and
-the reason it is a parameter rather than always-on: on `/progress/speed` the
+the reason it is a parameter rather than always-on: on `/speed` the
 tabs are already at the top, and a fragment there would be a jump to where the
 page already is.
 
@@ -1454,7 +1456,7 @@ one row a mode: the best, the **latest** run, and the change between that run
 and the one before it. Each is one number - a run's score is now also its count
 of questions, so there is no "8 of 20" left to disambiguate a bare 8 with. The
 child's own trophy screen and the parent's own runs at
-`/progress/speed` both keep the cabinet - the cards are the right shape
+`/speed` both keep the cabinet - the cards are the right shape
 for the question those screens answer.
 
 **The latest run is the number in the middle, and the best is only the standing
@@ -1485,7 +1487,7 @@ player who had records saw blank cards while the leaderboard, still reading
 
 **The family leaderboard ranks the household, per mode, first to third.**
 the leaderboard tab, beside the cabinet on every screen that offers a run - the
-child's home screen and `/progress/speed`. A household is `User.parentId` read
+child's home screen and `/speed`. A household is `User.parentId` read
 from both ends - a parent and the children they manage - which `householdId`
 (`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
 for the reason ownership always is, so there is no second column to drift out of
@@ -1665,30 +1667,52 @@ there and the only one that can be hit without aiming. Styled like every other
 digit and not like the tick, because it *is* a digit - a brand-filled column
 says "this key ends something", which is the one thing `0` does not do.
 
-**A parent plays too, privately.** `/progress/speed/[mode]` renders the same
+**A parent plays too, privately.** `/speed/[mode]` renders the same
 component the child gets, and a parent's own runs bank to their own
 `SpeedRecord` rows the same way. `SpeedBanner` reports someone else's
 achievement and never your own: `readUnseenRecords` is scoped to a parent's
 *children*, so a parent beating their own best produces no row in their own
 banner - there is nothing the banner needs to do to keep that true.
 
-**The parent's routes nest under the report rather than sitting beside it as a
-second top-level path.** The child plays at `/speed/[mode]`, reached from the
-speed section of their home screen; a parent's own runs live at
-`/progress/speed` and `/progress/speed/[mode]` - the first the scores and the same
-`SpeedCards` the child's home screen offers,
-pointed at the parent's own base path, so the nav's "Speed run" item lands
-somewhere all twenty-six modes are reachable rather than on one arbitrary
-operation. A route group adds no path
-segment, so a bare
-`(parent)/speed` would sit exactly beside the child's `/speed/...` - two top-level
-URLs a hyphen apart, told apart only by spelling, and a redirect or a copied
-`href` that gets the two backwards produces no build error and no test
-failure. Nesting under `/progress/speed/...` distinguishes by depth instead,
-which cannot be muddled the same way. It costs `useParentScreen` an ordering
-constraint: `/progress/speed` has to be checked before the bare `/progress`
-prefix below it, or every speed screen in the parent's own nav would highlight
-"Progress" instead of "Speed run".
+**`/speed` and `/speed/[mode]` are one pair of routes serving whoever is signed
+in, branching on the reader rather than on the URL.** A parent's speed screens
+used to nest under the report at `/progress/speed` and `/progress/speed/[mode]`,
+on a real argument: a route group adds no path segment, so a bare
+`(parent)/speed` would have sat exactly beside the child's `/speed/...` - two
+top-level URLs a hyphen apart, told apart only by spelling, and a redirect or a
+copied `href` that got the two backwards produces no build error and no test
+failure. Nesting distinguished by depth instead, which cannot be muddled the
+same way.
+
+**What retires that argument is that there is no second path left to confuse.**
+The two routes were never two screens: `/progress/speed` rendered the same
+`SpeedScores` and `SpeedCards` the child's home screen does, and
+`/progress/speed/[mode]` rendered the same `SpeedRun` with two different hrefs
+on it - which is what the whole second route amounted to, since the ninety
+seconds are identical for everyone and `SpeedRun` takes no scale. A parent and a
+child asking for `/speed` are asking the same question, and the difference
+between the answers is a frame and a density, not an address. So `readViewer`
+(`src/app/(parent)/parent.ts`) reads the role without deciding anything on it -
+`readParent` beside it is a *gate* and redirects, which is the wrong shape for a
+screen that serves two kinds of reader - and each route branches once.
+
+**A child is redirected rather than served.** Their speed screen is still their
+home screen, so `/speed` sends them to `CHILD_SPEED_HREF`; drawing the section a
+second time at its own URL would be the duplication that deleting `/speed` fixed
+the first time. A signed-out visitor goes the same way, landing on the page that
+offers them a way in. `PARENT_SPEED_HREF` is the one place the parent's path is
+named, beside `CHILD_SPEED_HREF` and for its reason.
+
+The `/speed` page draws `ParentShell` itself rather than inheriting it, since it
+sits outside the `(parent)` route group - it has to, that group adding no path
+segment and `/speed` being the path. `ParentNav` reads the URL for which item is
+current, so the nav highlights "Speed run" from here exactly as it did from under
+`/progress`. What the move *buys* `useParentScreen` is the end of an ordering
+constraint: `/progress/speed` and `/progress` both matched a speed URL, so the
+specific one had to be tested first or every speed screen highlighted
+"Progress". The three prefixes are disjoint now and no line depends on sitting
+above another. The cost is one account read on the child's run path, which
+previously needed only the session.
 
 ## Accounts
 

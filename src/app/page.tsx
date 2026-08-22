@@ -272,7 +272,7 @@ export default async function HomePage({
           start a run. This is the speed run's start page for a child - the cards
           here go straight into a run, the door inside a run comes back to it and
           `SPEED_SECTION` is what that door aims at - so what has been scored
-          belongs on it, the same way it does on a parent's `/progress/speed`.
+          belongs on it, the same way it does on a parent's `/speed`.
           It used to be the cards and two links out to walls on other screens,
           which asked a child to leave the screen they were on to look at cards
           about the very modes it was offering. */}
