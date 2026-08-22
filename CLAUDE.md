@@ -1866,6 +1866,39 @@ paths apart. That only works if both agree on the cookie, so `auth.ts` pins
 `SESSION_COOKIE_NAME`/`SESSION_COOKIE_OPTIONS` explicitly rather than leaving
 Auth.js to switch the `__Secure-` prefix implicitly, and exports them.
 
+**`/signin` is where a sign-in goes when it does not work, and it is not
+optional.** `auth.ts` names it as `pages.signIn`, and Auth.js resolves *every*
+`SignInError` against that setting - `AccessDenied`, `OAuthCallbackError`,
+`OAuthAccountNotLinked` and `MissingCSRF` all carry `kind = 'signIn'` - so it is
+not a screen anybody navigates to on purpose. It shipped missing for a while,
+which made the ordinary act of tapping "Sign in with Google" and then declining
+on Google's own consent screen land on a 404, indistinguishable from the app
+being broken. `GET /api/auth/signin` redirects here too, with a `?callbackUrl=`.
+
+Deleting the `pages.signIn` line instead - one line rather than a page - would
+have let Auth.js render its own, and that is the wrong way round: the built-in
+page is unstyled and unbranded, which is the objection this app already makes to
+a native `<select>`, only louder, since this is a whole screen and the first one
+a failed sign-in shows. It carries **both ways in as peers**, the landing page's
+rule, and it holds harder here: somebody bounced out of a sign-in is exactly who
+might have been trying the wrong one of the two. A signed-in visitor is
+redirected home rather than offered a second sign-in.
+
+`src/lib/signin.ts` is the pure half, tested, and it is two boundary normalisers
+beside `parseYearLevel` and the rest. `authErrorMessage` turns an `?error=` code
+into a sentence about the account rather than the protocol - "OAuthAccountNotLinked"
+is true and useless to a parent - and **falls back rather than refusing**, for
+`parseScoreTab`'s reason: Auth.js may add error types in a minor release, and a
+page rendering nothing for one it has not heard of leaves somebody with no
+account of why they are on it. Only the codes a single Google provider can
+actually produce are named; a list obliged to be complete is a list that goes
+stale against a dependency. `parseCallbackUrl` refuses anything but a path
+inside this app, since it decides where a freshly signed-in session is pointed:
+an absolute URL there would hand somebody's new session to a site somebody else
+chose, the argument `parsePhoto` makes about a remote image. `//host` and `/\host`
+are refused by name, because a slash a backslash disagree about is exactly where
+an open redirect lives.
+
 `src/lib/accounts.ts` holds the Prisma side, following `records.ts`: every child
 mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**
