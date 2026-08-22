@@ -1079,7 +1079,7 @@ function Hint({
     <div className="flex min-h-12 shrink-0 items-center justify-center px-2 sm:min-h-14">
       {hint === undefined || answered ? null : shown ? (
         <p className="max-w-2xl text-center text-[clamp(1rem,2.4vh,1.5rem)] text-balance text-(--color-ink-soft)">
-          {hint}
+          <MathsText text={hint} />
         </p>
       ) : (
         <button
@@ -1190,7 +1190,13 @@ function FeedbackLine({ feedback }: { feedback: Feedback }) {
       aria-live="polite"
       className="h-8 text-center text-xl font-semibold text-(--color-right) sm:h-9 sm:text-3xl"
     >
-      {feedback?.state === 'wrong' ? `The answer is ${feedback.expected}` : ''}
+      {feedback?.state === 'wrong' ? (
+        <>
+          The answer is <MathsText text={feedback.expected} />
+        </>
+      ) : (
+        ''
+      )}
     </p>
   );
 }

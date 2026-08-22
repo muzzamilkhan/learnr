@@ -1,5 +1,7 @@
 'use client';
 
+import { MathsText } from './maths-text';
+
 /**
  * The input for questions that are tapped rather than typed: true/false and
  * multiple choice. One tap answers - there is no Check button to press, because
@@ -7,6 +9,11 @@
  *
  * At most four options (`MAX_CHOICES`), so every target stays thumb-sized on an
  * iPad in both orientations.
+ *
+ * A label may be a fraction (`maths.5.fractions.equivalent-shaded` and
+ * `maths.5.chance.spinner-fraction` are both `choice` templates whose answers
+ * are fractions), so it is drawn through `MathsText` rather than as text. The
+ * `value` is untouched: `1/2` is still what is graded and recorded.
  */
 
 export interface ChoiceOption {
@@ -59,7 +66,7 @@ export function ChoicePad({ options, disabled, chosen, reveal, onChoose }: Props
             onClick={() => onChoose(option.value)}
             className={`${BASE} ${tone} ${disabled && !isChosen && !isAnswer ? 'opacity-40' : ''}`}
           >
-            {option.label}
+            <MathsText text={option.label} />
           </button>
         );
       })}
