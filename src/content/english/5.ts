@@ -49,6 +49,14 @@ import { wordFrom, type WordBank } from './helpers';
  * out a different member, so the same buttons arrive with a different
  * correct answer depending on which sentence is read.
  *
+ * **Two of the four pairs are true homophones and two are not, and both
+ * belong here.** `stationary`/`stationery` and `principal`/`principle` sound
+ * identical; `council`/`counsel` and `affect`/`effect` are commonly-confused
+ * words a Year 5 writer mixes up for the same reason - they sound alike
+ * enough in running speech - which is the conventional Year 5-6
+ * "homophones and commonly confused words" framing this topic is taught
+ * under, not a looser use of the word "homophone".
+ *
  * **Figurative language is the one topic whose option set is genuinely
  * fixed** - `simile`, `metaphor` and `personification` are both the three
  * answers and the three distractors on every draw. That is fine and passes
@@ -609,11 +617,18 @@ export const year5: QuestionTemplate[] = [
     subject: 'english',
     topic: 'figurative language',
     level: '5',
-    prompt: 'What tells you this is a {label}? {sentence}',
+    // The device name is never named in the prompt - only in `identify`'s
+    // answer buttons - because `FIG_SIGNAL_LIST` is a fixed one-to-one
+    // mapping off `type`. Naming the device here would let a child who has
+    // only memorised "similes use like or as" answer from the word "simile"
+    // without ever reading `{sentence}`, the boolean surface-cue problem
+    // generalised to a choice question whose own prompt hands over the
+    // answer - a leak the options-only measurement cannot see, because the
+    // option set itself is genuinely fine.
+    prompt: 'What tells you this sentence uses figurative language? {sentence}',
     vars: [
       { name: 'type', kind: 'pick', from: [0, 1, 2] },
       { name: 'i', kind: 'int', min: '0', max: '4' },
-      { name: 'label', kind: 'expr', expr: FIG_LABEL('type') },
       { name: 'sentence', kind: 'expr', expr: FIG_SENTENCE('type', 'i') },
       { name: 'answer', kind: 'expr', expr: TEXT_AT(FIG_SIGNAL_LIST, 'type') },
     ],
