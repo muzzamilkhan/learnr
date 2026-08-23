@@ -90,8 +90,8 @@ const WHICH_WITCH_SENTENCES: readonly string[] = [
 
 const WEIGHT_WAIT: WordBank = ['weight', 'wait'];
 const WEIGHT_WAIT_SENTENCES: readonly string[] = [
-  'Please ? for me outside.',
   'What is the ? of this box?',
+  'Please ? for me outside.',
 ];
 
 const BREAK_BRAKE: WordBank = ['break', 'brake'];
@@ -102,8 +102,8 @@ const BREAK_BRAKE_SENTENCES: readonly string[] = [
 
 const FLOWER_FLOUR: WordBank = ['flower', 'flour'];
 const FLOWER_FLOUR_SENTENCES: readonly string[] = [
-  'Add more ? to the cake mixture.',
   'She picked a beautiful ? from the garden.',
+  'Add more ? to the cake mixture.',
 ];
 
 /** The literal string at index `i` of `list`, as an expression. */
@@ -298,7 +298,7 @@ export const year4: QuestionTemplate[] = [
     subject: 'english',
     topic: 'prefixes and suffixes',
     level: '4',
-    prompt: 'Which word means done in a {word} way?',
+    prompt: 'Which word means done in a way that is {word}?',
     vars: [
       { name: 'i', kind: 'int', min: '0', max: '5' },
       { name: 'd1', kind: 'int', min: '1', max: '5' },
@@ -669,7 +669,7 @@ export const year4: QuestionTemplate[] = [
     subject: 'english',
     topic: 'synonyms',
     level: '4',
-    prompt: '{eTarget} and {eAnswer} mean the same thing. Which word means the same as {target}?',
+    prompt: 'Here, {eTarget} and {eAnswer} mean the same thing. Which word means the same as {target}?',
     vars: [
       { name: 'ep', kind: 'int', min: '0', max: '5' },
       { name: 'es', kind: 'pick', from: [0, 1] },
