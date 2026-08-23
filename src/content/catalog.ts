@@ -372,9 +372,9 @@ export function syllabusDivergences(
   templates: QuestionTemplate[] = allTemplates,
 ): Divergence[] {
   const forSubject = templates.filter((t) => t.subject === subject);
-  // Filter SYLLABUSES to only those matching this subject, since we now have
-  // entries for both maths and English - a maths divergence must only look at
-  // maths syllabuses.
+  // Filter SYLLABUSES to only those matching this subject, since SYLLABUSES
+  // now carries entries for both maths and English - a maths divergence must
+  // only look at maths syllabuses.
   const relevantSyllabuses = SYLLABUSES.filter((s) => s.subject === subject);
 
   return unique(forSubject.map((t) => t.level))

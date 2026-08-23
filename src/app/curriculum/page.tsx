@@ -203,7 +203,7 @@ export default function CurriculumPage() {
               </span>
             </h3>
 
-            {SYLLABUSES.map((syllabus) => {
+            {SYLLABUSES.filter((s) => s.subject === 'maths').map((syllabus) => {
               const cited = codes.filter((c) => c.syllabus === syllabus.id);
               // A divergence citing the *other* syllabus is this one's gap: the
               // content is here, and this source has no code for it.
