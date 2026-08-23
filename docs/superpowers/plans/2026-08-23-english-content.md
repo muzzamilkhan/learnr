@@ -978,6 +978,15 @@ a noun or exclusively a verb, so a child who answers one correctly answers the
 other by pure negation, exercising no new judgment. Ask whether the second
 question can be *derived* from the first, not just whether the code differs.
 
+**Not every reversal is a dual.** A *bijective same-fact reversal* is fine and
+already shipped: `which-is-plural`/`which-is-singular` asks the same 1:1 mapping
+from both ends, and knowing one direction does not hand you the other without
+doing the work. What Year 1 got wrong was a *negation-derivable exclusive-category
+dual* - `is-doing-word` beside `is-naming-word` over a bank where every word is
+exclusively one or the other, so the second answer is the first one negated. Ask
+which of the two you have.
+
+
 The maths
 content's apparent near-duplicates are not a precedent for this — `counting-numbers`'
 four variants each compute a **different answer expression**. Prefer fewer,
