@@ -51,28 +51,32 @@ const ACCENTS = [
   },
 ] as const;
 
-const SUBJECT_ACCENT: Record<string, number> = { maths: 0 };
+const SUBJECT_ACCENT: Record<string, number> = { maths: 0, english: 1 };
 
 function accentFor(subject: string, index: number) {
   return ACCENTS[SUBJECT_ACCENT[subject] ?? index % ACCENTS.length]!;
 }
 
 /**
- * The subject's picture. Maths gets its four signs; anything else gets its first
- * letter, which is at least stable and is never a wrong picture.
+ * The subject's picture. Maths gets its four signs; English gets a serif Aa
+ * pair to denote letters; anything unlisted falls back to its first letter,
+ * which is stable and never a wrong picture.
  */
 function SubjectGlyph({ subject }: { subject: string }) {
-  if (subject !== 'maths') {
-    return <span className="text-3xl font-bold uppercase">{subject.slice(0, 1)}</span>;
+  if (subject === 'maths') {
+    return (
+      <span className="grid grid-cols-2 gap-x-1 text-2xl leading-none font-bold">
+        <span>+</span>
+        <span>&minus;</span>
+        <span>&times;</span>
+        <span>&divide;</span>
+      </span>
+    );
   }
-  return (
-    <span className="grid grid-cols-2 gap-x-1 text-2xl leading-none font-bold">
-      <span>+</span>
-      <span>&minus;</span>
-      <span>&times;</span>
-      <span>&divide;</span>
-    </span>
-  );
+  if (subject === 'english') {
+    return <span className="font-serif text-3xl leading-none font-bold">Aa</span>;
+  }
+  return <span className="text-3xl font-bold uppercase">{subject.slice(0, 1)}</span>;
 }
 
 /** How many topics fit on a card before the rest are counted rather than named. */
