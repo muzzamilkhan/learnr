@@ -366,29 +366,6 @@ export const yearK: QuestionTemplate[] = [
     tags: ['AC9EFLY10', 'ENE-PHOKW-01'],
   },
   {
-    id: 'english.K.letters-and-sounds.find-letter',
-    subject: 'english',
-    topic: 'letters and sounds',
-    level: 'K',
-    prompt: 'Which one is the letter {target}?',
-    vars: [
-      { name: 'i', kind: 'int', min: '0', max: '7' },
-      { name: 'd1', kind: 'int', min: '1', max: '7' },
-      { name: 'd2', kind: 'int', min: '1', max: '7' },
-      { name: 'target', kind: 'expr', expr: wordFrom(ALPHABET, 'i') },
-      { name: 'answer', kind: 'expr', expr: wordFrom(ALPHABET, 'i') },
-    ],
-    constraints: ['d1 != d2'],
-    answer: 'answer',
-    answerType: 'choice',
-    choices: {
-      count: 3,
-      distractors: [wordFrom(ALPHABET, '(i + d1) % 8'), wordFrom(ALPHABET, '(i + d2) % 8')],
-    },
-    hint: 'Look for the shape of that letter.',
-    tags: ['AC9EFLY13', 'ENE-PHOKW-01'],
-  },
-  {
     id: 'english.K.letters-and-sounds.word-for-sound',
     subject: 'english',
     topic: 'letters and sounds',
@@ -641,7 +618,7 @@ export const yearK: QuestionTemplate[] = [
     subject: 'english',
     topic: 'opposites',
     level: 'K',
-    prompt: '{eTarget} and {eAnswer} are opposites. What is the opposite of {target}?',
+    prompt: 'Here, {eTarget} and {eAnswer} are opposites. What is the opposite of {target}?',
     vars: [
       { name: 'ep', kind: 'int', min: '0', max: '5' },
       { name: 'es', kind: 'pick', from: [0, 1] },
