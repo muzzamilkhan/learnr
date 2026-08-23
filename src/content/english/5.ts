@@ -311,6 +311,14 @@ export const year5: QuestionTemplate[] = [
       { name: 'a', kind: 'int', min: '0', max: '3' },
       { name: 'd1', kind: 'int', min: '1', max: '5' },
       { name: 'd2', kind: 'int', min: '1', max: '5' },
+      // Fresh indices for the two distractor words, independent of `t` and
+      // `a`. Reusing either ties a distractor's position within its family to
+      // the target's or the answer's own position - a correlation
+      // `validateTemplate` cannot see and a 600-draw measurement often
+      // misses, but which a 3,000-draw held-out measurement turns up as a
+      // 15-to-17-point leak over blind guessing.
+      { name: 'e1', kind: 'int', min: '0', max: '3' },
+      { name: 'e2', kind: 'int', min: '0', max: '3' },
       { name: 'target', kind: 'expr', expr: ROOT_WORD('f', 't') },
       { name: 'answer', kind: 'expr', expr: ROOT_WORD('f', 'a') },
     ],
@@ -319,7 +327,7 @@ export const year5: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [ROOT_WORD('(f + d1) % 6', 't'), ROOT_WORD('(f + d2) % 6', 'a')],
+      distractors: [ROOT_WORD('(f + d1) % 6', 'e1'), ROOT_WORD('(f + d2) % 6', 'e2')],
     },
     hint: 'Look for the part of the word that stays the same and means the same thing.',
     tags: ['AC9E5LY09', 'EN3-SPELL-01'],
@@ -333,23 +341,24 @@ export const year5: QuestionTemplate[] = [
     vars: [
       { name: 'f', kind: 'int', min: '0', max: '5' },
       { name: 'i', kind: 'int', min: '0', max: '3' },
-      { name: 'j', kind: 'int', min: '0', max: '3' },
       { name: 'd1', kind: 'int', min: '1', max: '5' },
       { name: 'd2', kind: 'int', min: '1', max: '5' },
+      // Fresh indices for the two distractor words, independent of the
+      // answer's own index `i`. Reusing `i` for a distractor (as the previous
+      // version of this template did) ties that distractor's position to the
+      // answer's, which a 3,000-draw held-out measurement finds as a
+      // 15-point leak that `validateTemplate` cannot see.
+      { name: 'e1', kind: 'int', min: '0', max: '3' },
+      { name: 'e2', kind: 'int', min: '0', max: '3' },
       { name: 'meaning', kind: 'expr', expr: ROOT_MEANING_AT('f') },
       { name: 'answer', kind: 'expr', expr: ROOT_WORD('f', 'i') },
     ],
-    // One distractor reuses the answer's own index `i` in a different family,
-    // and the other uses a separate free index `j` - the same shape the
-    // rhyme worked example uses for its own two distractors, so no index is
-    // ever unique to the answer's slot the way a fixed `i + 1`/`i + 2` offset
-    // would make it.
-    constraints: ['i != j', 'd1 != d2'],
+    constraints: ['d1 != d2'],
     answer: 'answer',
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [ROOT_WORD('(f + d1) % 6', 'i'), ROOT_WORD('(f + d2) % 6', 'j')],
+      distractors: [ROOT_WORD('(f + d1) % 6', 'e1'), ROOT_WORD('(f + d2) % 6', 'e2')],
     },
     hint: 'The root inside each word shows which family it belongs to.',
     tags: ['AC9E5LY09', 'EN3-SPELL-01'],
@@ -798,6 +807,12 @@ export const year5: QuestionTemplate[] = [
       { name: 'a', kind: 'int', min: '0', max: '5' },
       { name: 'd1', kind: 'int', min: '1', max: '5' },
       { name: 'd2', kind: 'int', min: '1', max: '5' },
+      // Fresh indices for the two distractor words, independent of `t` and
+      // `a` - reusing either ties a distractor's position within its family
+      // to the target's or the answer's own position, a leak `validateTemplate`
+      // cannot see but a 3,000-draw held-out measurement finds.
+      { name: 'e1', kind: 'int', min: '0', max: '5' },
+      { name: 'e2', kind: 'int', min: '0', max: '5' },
       { name: 'target', kind: 'expr', expr: SILENT_WORD('f', 't') },
       { name: 'answer', kind: 'expr', expr: SILENT_WORD('f', 'a') },
     ],
@@ -806,7 +821,7 @@ export const year5: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [SILENT_WORD('(f + d1) % 6', 't'), SILENT_WORD('(f + d2) % 6', 'a')],
+      distractors: [SILENT_WORD('(f + d1) % 6', 'e1'), SILENT_WORD('(f + d2) % 6', 'e2')],
     },
     hint: 'Look for the same silent letter combination.',
     tags: ['AC9E5LY08', 'EN3-SPELL-01'],

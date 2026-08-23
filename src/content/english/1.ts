@@ -485,6 +485,12 @@ export const year1: QuestionTemplate[] = [
       { name: 'a', kind: 'int', min: '0', max: '5' },
       { name: 'd1', kind: 'int', min: '1', max: '3' },
       { name: 'd2', kind: 'int', min: '1', max: '3' },
+      // Fresh indices for the two distractor words, independent of `t` and
+      // `a` - reusing either ties a distractor's position within its family
+      // to the target's or the answer's own position, a leak `validateTemplate`
+      // cannot see but a 3,000-draw held-out measurement finds.
+      { name: 'e1', kind: 'int', min: '0', max: '5' },
+      { name: 'e2', kind: 'int', min: '0', max: '5' },
       { name: 'target', kind: 'expr', expr: RHYME_WORD('f', 't') },
       { name: 'answer', kind: 'expr', expr: RHYME_WORD('f', 'a') },
     ],
@@ -493,7 +499,7 @@ export const year1: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [RHYME_WORD('(f + d1) % 4', 't'), RHYME_WORD('(f + d2) % 4', 'a')],
+      distractors: [RHYME_WORD('(f + d1) % 4', 'e1'), RHYME_WORD('(f + d2) % 4', 'e2')],
     },
     hint: 'Say the words out loud. Rhyming words end with the same sound.',
     tags: ['AC9E1LE04', 'EN1-PHOKW-01'],

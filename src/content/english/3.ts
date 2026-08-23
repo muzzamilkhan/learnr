@@ -708,6 +708,12 @@ export const year3: QuestionTemplate[] = [
       { name: 'a', kind: 'int', min: '0', max: '3' },
       { name: 'd1', kind: 'int', min: '1', max: '3' },
       { name: 'd2', kind: 'int', min: '1', max: '3' },
+      // Fresh indices for the two distractor words, independent of `t` and
+      // `a` - reusing either ties a distractor's position within its family
+      // to the target's or the answer's own position, a leak `validateTemplate`
+      // cannot see but a 3,000-draw held-out measurement finds.
+      { name: 'e1', kind: 'int', min: '0', max: '3' },
+      { name: 'e2', kind: 'int', min: '0', max: '3' },
       { name: 'target', kind: 'expr', expr: SPELL_WORD('f', 't') },
       { name: 'answer', kind: 'expr', expr: SPELL_WORD('f', 'a') },
     ],
@@ -716,7 +722,7 @@ export const year3: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [SPELL_WORD('(f + d1) % 4', 't'), SPELL_WORD('(f + d2) % 4', 'a')],
+      distractors: [SPELL_WORD('(f + d1) % 4', 'e1'), SPELL_WORD('(f + d2) % 4', 'e2')],
     },
     hint: 'Look for the same group of letters making the same sound.',
     tags: ['AC9E3LY11', 'EN2-SPELL-01'],
