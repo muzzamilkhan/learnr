@@ -1,7 +1,9 @@
 # LearnR
 
 A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
-designed for a standard iPad. Maths is the only subject so far.
+designed for a standard iPad. Maths and English are the two subjects that ship;
+see **English content** below for how the second one changed the rules the first
+one had settled.
 
 ## Commands
 
@@ -215,18 +217,22 @@ property of every draw. Shortening the thirty templates already over 90
 characters would buy a larger size for everything, and it is a content pass with
 its own argument rather than a thing to do while the cap is being written.
 
-Content ships for K-6 as **350 templates, one file per school year** under
+Maths content ships for K-6 as **350 templates, one file per school year** under
 `src/content/maths/` - `k.ts` through `6.ts`, concatenated in school order by
 `index.ts`. It was a single 3,500-line `maths.ts` until half again as many
 questions were about to be written into it, and the split is filing rather than
 structure: `mathsTemplates` is the same array in the same order it always was,
 and `catalog.ts` never learned there is more than one file. What it buys is that
 a year is the unit a content change touches, so two years being written no
-longer means one file being edited twice.
+longer means one file being edited twice. English follows the identical shape
+under `src/content/english/` - a file per year, concatenated by its own
+`index.ts` - and adds a further 155 templates; see **English content** below for
+what carried over unchanged and what a second subject made this section revisit.
 
 Every template cites the content it practises in `tags` - `AC9M4N02`,
 `MA2-AR-01` - so the curriculum link is checkable rather than claimed. There are
-**two** syllabuses behind those codes, which is the next section.
+**two syllabus families** behind those codes, across **four** documents - one
+ACARA and one NSW document per subject - which is the next section.
 
 All four answer types render, so any of them is safe to author. **Pick the type
 the pad can express**:
@@ -242,13 +248,16 @@ A negative answer has to be multiple choice, because the pad has no minus key -
 that is why the Year 6 integer questions are `choice`. A distractor a child would
 find nonsensical is still bad content, so keep them plausible.
 
-**`text` is a last resort, and never below Year 4.** A word answer makes the child
-spell before they can answer, which tests literacy rather than maths - a
+**`text` is a last resort, and never below Year 4 - in maths.** A word answer makes
+the child spell before they can answer, which tests literacy rather than maths - a
 Kindergartener knows a triangle long before they can spell it. Word answers in K-3
-are `choice` instead, and `catalog.test.ts` enforces that. Any answer drawn from a
-small closed set ("red or blue?", "metres or centimetres?") is a `choice` question
-at any level; a two-option `choices` with both literals as distractors is the
-usual shape.
+maths are `choice` instead, and `catalog.test.ts` enforces that. Any answer drawn
+from a small closed set ("red or blue?", "metres or centimetres?") is a `choice`
+question at any level; a two-option `choices` with both literals as distractors is
+the usual shape. **English inverts this rule rather than merely relaxing it**,
+because spelling is not a side effect of an English question the way it is of a
+maths one - it *is* the skill being taught, above Kindergarten. See
+**English content** below for the floor and ceiling that replace maths' flat ban.
 
 **`QuestionSpec` and `QuestionTemplate` are a deliberate split**
 (`src/lib/templates/types.ts`). A spec is everything it takes to make a
@@ -260,15 +269,82 @@ a lie told in the type system, in the one place a level is guaranteed to be a
 real Australian school year. `specsFor` in `src/lib/speedrun/modes.ts` returns
 bare `QuestionSpec`s for exactly this reason, and reuses `generate` unchanged.
 
-## Two syllabuses
+## English content
 
-Content is written against **two** curriculum documents at once: ACARA's
-*Mathematics: Scope and sequence F-10 (v9.0)* and the **NSW Mathematics K-10
-Syllabus (2022)**. `SYLLABUSES` in `src/content/catalog.ts` names both, and
-`syllabusOf` tells a tag's family apart by its shape. NSW is there because NSW
-schools teach the NSW syllabus and not ACARA directly: a parent reading
-`/curriculum` should be able to find their child's **stage**, which is the word
-their child's school actually uses.
+Maths taught a single number in a hundred different sentences; English mostly
+teaches from a *closed vocabulary* - homophone families, synonym pairs, the same
+few dozen irregular plurals - and that difference forced its own rules rather
+than letting it inherit maths' unchanged.
+
+**A closed word bank is exactly the shape the two anchoring checks in
+`validateTemplate` were built to stand down for.** The rank check reads numeric
+options; a shape name or `weight`/`wait` is not a number, so it never fires. The
+closed-set check stops reading disjointness as structure above `CLOSED_SET_MAX`
+distinct answers, and a bank of six rhyming families or six synonym pairs sits
+right at the edge of that. Both checks exist to catch an option set that
+predicts its own answer, and a small closed bank is the case where that is
+easiest to write by accident and hardest for either check to see - which is why
+English content leans on the same "offer the whole family across more than one
+sentence" fix throughout (see the homophones note in
+`src/content/english/4.ts`): the same buttons have to arrive with a different
+correct answer depending on which sentence is being asked, so no set is ever a
+fixed answer to memorise.
+
+**That reasoning is sound and was still not enough**, which is the argument for
+`src/content/english/leaks.test.ts`. It draws thousands of questions per
+`choices` template, learns the modal answer per option set on half the draws,
+and scores that rule against the other half - the same measurement `figures`
+content is checked with, because a closed vocabulary and a jittered figure fail
+the same way: a rule that never appears in `validateTemplate`'s checks can still
+be *learnable from the buttons*, and the only way to know is to try to learn it.
+It found real leaks the two structural checks could not: an index reused
+between the target and a distractor measured at up to +18 points over blind
+guessing on held-out draws, invisible to a rank check because the options
+weren't numeric and invisible to the closed-set check because the leak was
+about *which* member of the set was offered, not about the set itself. A green
+`validateTemplate` suite said nothing about that until this test measured it -
+which is the same lesson the figures work drew from measuring diagram anchoring
+directly rather than trusting a static check to have anticipated every shape a
+leak could take. It is scoped to `subject === 'english'` and to templates that
+actually generate `choices` on a probe draw, and it is also honest about what it
+still cannot see: it keys on the option set alone, deliberately excluding the
+prompt, so a question that hands over its own answer in the prompt's own words
+is invisible to it. Read `leaks.test.ts`'s own doc comment before assuming it
+covers everything that can leak.
+
+**The typed-answer rule maths wrote gets inverted rather than merely relaxed.**
+Maths bans `text` below Year 4 because spelling a maths answer tests literacy
+instead of maths - a Kindergartener knows a triangle long before they can spell
+it. English has no equivalent side effect to avoid: spelling correctly *is* the
+skill `EN1-SPELL-01` and its siblings name, so a typed answer is measuring the
+right thing from Year 1 on, and Kindergarten alone keeps the maths-shaped ban -
+hunting individual letters on a QWERTY pad tests pad navigation rather than
+phonics at that age. Past Kindergarten the rule is a band rather than a
+ceiling or a floor alone: `catalog.test.ts` caps typed answers at 40% of a
+year's templates, because a typed answer costs roughly three times what a
+tapped one does to answer and a year that drifted mostly-typed would starve the
+reinforcement selector of the observations `MIN_OBSERVATIONS` and
+`SECURE_OBSERVATIONS` are counted in; and it floors typed answers at 15% spread
+across at least two topics, because the selector weights topics and a year
+whose only typing sits in one topic lets a child secure in that topic go a
+whole year without typing anything - which is backwards for exactly the
+children doing best. Both are measured on the *generated* `answerType`, not
+the declared one, for the reason `answerType` is inferred at all: a template
+that declares nothing and evaluates to a string is a typed question whatever
+its author thought it was.
+
+## Two syllabus families
+
+Content is written against **two publishing families**, across **four**
+curriculum documents once English joined maths: ACARA's *Mathematics: Scope and
+sequence F-10 (v9.0)* and the NSW Mathematics K-10 Syllabus (2022), and ACARA's
+*English* v9.0 scope and sequence alongside the NSW English K-10 Syllabus
+(2022) beside it. `SYLLABUSES` in `src/content/catalog.ts` names all four,
+scoped by `subject` so a maths code and an English code are never checked
+against the wrong pair, and `syllabusOf` tells a tag's family apart by its
+shape. NSW is there because NSW schools teach the NSW syllabus and not ACARA
+directly: a parent reading `/curriculum` should be able to find their child's
+**stage**, which is the word their child's school actually uses.
 
 **A stage is derived and never stored** (`stageForLevel`): Early Stage 1 is
 Kindergarten, Stage 1 is Years 1-2, Stage 2 is Years 3-4, Stage 3 is Years 5-6.
@@ -981,9 +1057,10 @@ the spoken form and the drawn form must not be able to disagree about which
 slashes are fractions - two regexes in two files is exactly how they would, one
 tuned and the other not, with nothing on screen to say so. The claim itself used
 to be the comment above and is a test now: `catalog.test.ts` renders every
-prompt, hint, answer and choice across all 350 templates and counts a slash
-falling outside a fraction as a failure. It has been true since the content was
-written, and it is load-bearing in two places rather than one.
+prompt, hint, answer and choice across every shipped template, maths and
+English alike, and counts a slash falling outside a fraction as a failure. It
+has been true since the content was written, and it is load-bearing in two
+places rather than one.
 
 **Word options are read out; numbers are not.** A word answer below Year 4 is a
 `choice` question precisely because the child cannot spell it, so three unread
@@ -2287,10 +2364,11 @@ are, with the "three in four" line as their caption. Inside a well, lists are
 `divide-y` rows rather than cards - a card in a well reads as double-boxed.
 
 **Subject is a dropdown, not tabs** (`SubjectPicker`, alongside `ChildPicker`
-and URL-backed the same way), and it renders even though maths is the only
-subject. A row of one tab is a label pretending to be a control; a dropdown with
-one option is honestly a dropdown, and reads the same the day a second subject
-ships.
+and URL-backed the same way). It was written while maths was still the only
+subject, on the argument that a row of one tab is a label pretending to be a
+control where a dropdown with one option is honestly a dropdown - and it reads
+the same now that English has made it a real choice, which is what that
+argument was for.
 
 **A parent's profile menu has no stars and no streak.** They don't play, so both
 would be counting nothing; `page.tsx` skips those two reads entirely for a
