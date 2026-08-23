@@ -231,11 +231,20 @@ describe('shipped content', () => {
     }
   });
 
-  // Spelling a word on the letter pad is a literacy test, not a maths one. In the
-  // early years the answer is tapped instead: a word a child of that age cannot
-  // reliably spell would hide what they actually know about the maths.
-  it('never asks a child in K to Year 3 to spell an answer', () => {
-    const early = allTemplates.filter((t) => ['K', '1', '2', '3'].includes(t.level));
+  // Spelling a word on the letter pad is a literacy test, not a maths one. In
+  // the early years the maths answer is tapped instead: a word a child of that
+  // age cannot reliably spell would hide what they actually know about the
+  // maths.
+  //
+  // **In English the reason inverts, which is why this is scoped by subject
+  // rather than by year alone.** A Year 2 child asked for the plural of "box"
+  // is being asked exactly what the syllabus asks of them, and four buttons
+  // would test recognition where the outcome is production. English has its own
+  // floor - Kindergarten - and its own cap, both below.
+  it('never asks a child in K to Year 3 to spell a maths answer', () => {
+    const early = allTemplates.filter(
+      (t) => t.subject === 'maths' && ['K', '1', '2', '3'].includes(t.level),
+    );
 
     for (const template of early) {
       for (let i = 0; i < 25; i++) {
@@ -323,6 +332,7 @@ describe('shipped content', () => {
     }
 
     const missingAcara = allTemplates
+      .filter((t) => t.subject === 'maths')
       .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'acara'))
       .map((t) => t.id);
 
@@ -390,6 +400,7 @@ describe('shipped content', () => {
     ];
 
     const missingNsw = allTemplates
+      .filter((t) => t.subject === 'maths')
       .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
       .map((t) => t.id);
 
