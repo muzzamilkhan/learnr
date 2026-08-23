@@ -27,6 +27,8 @@ Every task's requirements implicitly include all of these.
 - **Every year needs at least 20 templates.**
 - **Word banks are shared:** every word a `choices` template can offer must be capable of being both the answer and a distractor across draws. See Task 4.
 - Run `npm test` and `npm run typecheck` before every commit.
+- **Never run `npm run build`, any `npm run db:*` command, or a dev server.** This worktree's `.env` carries a real production `DATABASE_URL`, and `npm run build` runs `db:deploy` first - which would apply migrations to it. Verification is `npm test` and `npm run typecheck`.
+- **Everything runs under vitest.** `tsx` is not a dependency, and the `@/` import alias is configured only in `vitest.config.mts`, so a standalone `.ts` script cannot resolve this repo's imports. Anything that needs to execute against the content is a test file under `src/**/*.test.ts`.
 
 ---
 
@@ -91,7 +93,7 @@ Sourced during design. **ACARA** codes and descriptions come from ACARA's own `e
 - `src/content/english/index.ts` - concatenates the seven in school order into `englishTemplates`.
 - `src/content/english/helpers.test.ts` - unit tests for the helpers.
 - `docs/superpowers/notes/nsw-english-outcome-codes.md` - the transcribed NSW English outcome codes by stage.
-- `scripts/measure-choice-leaks.ts` - the option-set leak audit (Task 13).
+- `src/content/english/leaks.test.ts` - the option-set leak audit (Task 13), a fourth check beyond the three in `validateTemplate`.
 
 **Modified:**
 
@@ -1312,14 +1314,15 @@ git commit -m "Finish with the roots English borrowed from somewhere else"
 
 - [ ] **Step 1: Find out what actually diverged**
 
+Write Step 3's set-equality test first, with **both lists empty**, and run it:
+
 ```bash
-npx tsx -e "
-import { syllabusDivergences } from './src/content/catalog';
-console.log(JSON.stringify(syllabusDivergences('english'), null, 2));
-"
+npx vitest run src/content/catalog.test.ts -t 'cites one syllabus alone'
 ```
 
-If the output is empty, every English template cites both syllabuses and Steps 2 and 3 are a no-op - say so in the task report and go to Step 4. That is a real possibility here: the citation table at the top of this plan pairs every topic with both an ACARA code and an NSW one.
+The failure diff names every English template citing one syllabus alone - which is exactly the list Steps 2 and 3 need, obtained by the route that already works rather than by a side query. (`tsx` is not a dependency here and the `@/` alias lives only in the vitest config, so a standalone script cannot resolve this repo's imports.)
+
+If the test **passes** with both lists empty, every English template cites both syllabuses, there are no divergences, and Steps 2 and 3 are a no-op - say so in the task report and go to Step 4. That is a real possibility: the citation table at the top of this plan pairs every topic with both an ACARA code and an NSW one.
 
 - [ ] **Step 2: Write a note for each divergence**
 
@@ -1375,37 +1378,65 @@ git commit -m "Say where the two syllabuses disagree about English, if they do"
 ### Task 13: Measure the option-set leaks
 
 **Files:**
-- Create: `scripts/measure-choice-leaks.ts`
+- Create: `src/content/english/leaks.test.ts`
 
 **Interfaces:**
 - Consumes: every English content task.
-- Produces: a report, and whatever template fixes it forces.
+- Produces: an enforced check, and whatever template fixes it forces.
+
+**A test rather than a script**, for two reasons. `tsx` is not a dependency of this repo and the `@/` alias is configured only in `vitest.config.mts`, so a standalone `.ts` script cannot resolve these imports at all. And the RNG is seeded, so the measurement is deterministic - which means it can be an enforced check on every run rather than something somebody has to remember to do. That is strictly stronger than a script, and it keeps the point intact: the measurement is a *new* check, because the existing three cannot see this.
 
 **A green suite says little about a new `choice` template.** Eight option-set leaks were found during the figures work by measuring, at rates up to 100%, and not one could have been found by the checks that existed then. The prediction check only speaks where an option set repeats, and a leak that narrows the answer to two buttons of four passes it cleanly. English is a word-bank subject, which is exactly where a set is most likely to repeat.
 
-- [ ] **Step 1: Write the script**
+- [ ] **Step 1: Write the test**
 
-Create `scripts/measure-choice-leaks.ts`:
+Create `src/content/english/leaks.test.ts`:
 
 ```ts
+import { describe, it, expect } from 'vitest';
+import { allTemplates } from '../catalog';
+import { generateQuestion } from '@/lib/templates/generate';
+import { createRng } from '@/lib/rng';
+
 /**
  * How often a `choice` question can be answered from its buttons alone.
  *
  * For each template: draw many questions, key each by its prompt and sorted
  * option set, learn the modal answer for each key on a training sample, then
  * score that rule on a held-out sample. Compare against the blind baseline -
- * 1/n for n options - and report anything meaningfully above it.
+ * the mean of 1/n over the options actually offered - and fail anything
+ * meaningfully above it.
  *
- * Held out rather than scored in-sample because a rule learned and tested on
- * the same draws reports the *sample's* noise as signal, which for a template
- * whose sets rarely repeat is most of what it would find.
+ * **This is a fourth check, not a restatement of the three in
+ * `validateTemplate`.** Those refuse a fixed answer rank, a closed set the
+ * distractors never draw from, and an option set that predicts its answer -
+ * and the third only speaks where a set repeats, so a leak that narrows the
+ * answer to two buttons of four passes all three cleanly. Eight such leaks
+ * were found by measuring during the figures work, at rates up to 100%, and
+ * not one could have been found by the checks that existed then.
+ *
+ * **Held out rather than scored in-sample**, because a rule learned and tested
+ * on the same draws reports the sample's own noise as signal - which, for a
+ * template whose option sets rarely repeat, would be most of what it found.
+ *
+ * A template whose sets almost never repeat scores nothing here and is
+ * reported as *unmeasurable* rather than as clean: no evidence is not evidence
+ * of no leak, and saying so is the honest reading.
  */
-import { allTemplates } from '../src/content/catalog';
-import { generateQuestion } from '../src/lib/templates/generate';
-import { createRng } from '../src/lib/rng';
-
 const DRAWS = 600;
 const TRAIN = 300;
+
+/**
+ * How far above blind guessing counts as a leak.
+ *
+ * Not zero: a held-out sample of a few hundred draws carries real sampling
+ * noise, and a template whose answer is genuinely uniform over its options
+ * still lands a few points either side of its baseline. 15 points is
+ * comfortably outside that band and far below what an actual leak produces -
+ * the figures work measured leaks at 60% to 100% against baselines of 25% to
+ * 33%.
+ */
+const MARGIN = 0.15;
 
 interface Row {
   id: string;
@@ -1414,69 +1445,83 @@ interface Row {
   baseline: number;
 }
 
-const rows: Row[] = [];
+function measure(): { rows: Row[]; unmeasurable: string[] } {
+  const rows: Row[] = [];
+  const unmeasurable: string[] = [];
 
-for (const template of allTemplates) {
-  if (template.subject !== 'english') continue;
+  for (const template of allTemplates) {
+    if (template.subject !== 'english') continue;
 
-  const draws = Array.from({ length: DRAWS }, (_, i) =>
-    generateQuestion(template, createRng(`${template.id}-leak-${i}`)),
-  ).filter((q) => q.choices && q.choices.length > 0);
+    const draws = Array.from({ length: DRAWS }, (_, i) =>
+      generateQuestion(template, createRng(`${template.id}-leak-${i}`)),
+    ).filter((q) => q.choices && q.choices.length > 0);
 
-  if (draws.length < 100) continue;
+    if (draws.length === 0) continue;
 
-  const key = (q: (typeof draws)[number]) =>
-    `${q.prompt} ${[...q.choices!].map(String).sort().join('')}`;
+    const key = (q: (typeof draws)[number]) =>
+      `${q.prompt} ${[...q.choices!].map(String).sort().join(' ')}`;
 
-  const counts = new Map<string, Map<string, number>>();
-  for (const q of draws.slice(0, TRAIN)) {
-    const byAnswer = counts.get(key(q)) ?? new Map<string, number>();
-    const a = String(q.answer);
-    byAnswer.set(a, (byAnswer.get(a) ?? 0) + 1);
-    counts.set(key(q), byAnswer);
+    const counts = new Map<string, Map<string, number>>();
+    for (const q of draws.slice(0, TRAIN)) {
+      const byAnswer = counts.get(key(q)) ?? new Map<string, number>();
+      const a = String(q.answer);
+      byAnswer.set(a, (byAnswer.get(a) ?? 0) + 1);
+      counts.set(key(q), byAnswer);
+    }
+
+    const modal = new Map<string, string>();
+    for (const [k, byAnswer] of counts) {
+      modal.set(k, [...byAnswer.entries()].sort((a, b) => b[1] - a[1])[0][0]);
+    }
+
+    let scored = 0;
+    let hit = 0;
+    let blind = 0;
+    for (const q of draws.slice(TRAIN)) {
+      const guess = modal.get(key(q));
+      if (guess === undefined) continue;
+      scored++;
+      blind += 1 / q.choices!.length;
+      if (guess === String(q.answer)) hit++;
+    }
+
+    // Too few held-out draws shared a key with the training half for any rate
+    // computed from them to mean anything.
+    if (scored < 30) {
+      unmeasurable.push(template.id);
+      continue;
+    }
+
+    rows.push({ id: template.id, scored, hit, baseline: blind / scored });
   }
 
-  const modal = new Map<string, string>();
-  for (const [k, byAnswer] of counts) {
-    modal.set(k, [...byAnswer.entries()].sort((a, b) => b[1] - a[1])[0][0]);
-  }
+  return { rows, unmeasurable };
+}
 
-  let scored = 0;
-  let hit = 0;
-  let options = 0;
-  for (const q of draws.slice(TRAIN)) {
-    const guess = modal.get(key(q));
-    if (guess === undefined) continue;
-    scored++;
-    options += q.choices!.length;
-    if (guess === String(q.answer)) hit++;
-  }
+describe('English multiple-choice questions', () => {
+  it('cannot be answered from the buttons alone', () => {
+    const { rows } = measure();
 
-  if (scored === 0) continue;
-  rows.push({
-    id: template.id,
-    scored,
-    hit,
-    baseline: scored / options,
+    const leaks = rows
+      .filter((r) => r.hit / r.scored > r.baseline + MARGIN)
+      .sort((a, b) => b.hit / b.scored - a.hit / a.scored)
+      .map(
+        (r) =>
+          `${r.id}: ${((r.hit / r.scored) * 100).toFixed(0)}% from the options alone ` +
+          `(blind ${(r.baseline * 100).toFixed(0)}%, n=${r.scored})`,
+      );
+
+    expect(leaks).toEqual([]);
   });
-}
-
-rows.sort((a, b) => b.hit / b.scored - a.hit / a.scored);
-
-for (const r of rows) {
-  const rate = r.hit / r.scored;
-  const flag = rate > r.baseline + 0.15 ? '  <-- LEAK' : '';
-  console.log(
-    `${(rate * 100).toFixed(0).padStart(3)}%  (blind ${(r.baseline * 100).toFixed(0)}%)  ` +
-      `n=${String(r.scored).padStart(3)}  ${r.id}${flag}`,
-  );
-}
+});
 ```
 
 - [ ] **Step 2: Run it**
 
-Run: `npx tsx scripts/measure-choice-leaks.ts`
-Expected: a line per English `choice` template, worst first.
+Run: `npx vitest run src/content/english/leaks.test.ts`
+Expected: PASS, or a failure naming each leaking template with its measured rate and its blind baseline.
+
+While developing, also print the `unmeasurable` list once (a temporary `console.log`, removed before committing) and **record it in the task report**. Those templates are not verified clean - their option sets almost never repeat, so the method has nothing to measure - and reporting them as unmeasurable rather than silently passing them is the whole point of the distinction.
 
 - [ ] **Step 3: Fix every leak**
 
@@ -1487,10 +1532,9 @@ A template whose sets almost never repeat will report `n` close to zero and a me
 - [ ] **Step 4: Re-run until clean, then commit**
 
 ```bash
-npx tsx scripts/measure-choice-leaks.ts
 npm test
 npm run typecheck
-git add scripts/measure-choice-leaks.ts src/content/english
+git add src/content/english
 git commit -m "Measure whether the buttons give the answer away, because the suite cannot"
 ```
 
@@ -1596,6 +1640,6 @@ git commit -m "Tell the two subjects apart before either is read"
 - `npm test` and `npm run typecheck` pass.
 - Every English year has at least 20 templates; about 155 in total.
 - Every English template cites an ACARA English description and, where the syllabus has one, an NSW English outcome from its own stage.
-- `npx tsx scripts/measure-choice-leaks.ts` flags nothing.
+- The leak measurement in `src/content/english/leaks.test.ts` flags nothing, and its unmeasurable list is recorded.
 - `/curriculum` shows both subjects with their own documents.
 - The home screen offers two subjects at every level from K to 6.
