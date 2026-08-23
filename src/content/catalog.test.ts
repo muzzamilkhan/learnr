@@ -510,10 +510,17 @@ describe('shipped content', () => {
   // like a code, so a transposition survives every other check and reaches the
   // curriculum page, where a parent is invited to look it up. See NSW_OUTCOMES
   // above for why the list is transcribed and why MAO-WM-01 is not in it.
+  // Scoped to maths: `NSW_OUTCOMES` is the maths transcription, and English's
+  // own codes are checked against `ENGLISH_NSW_OUTCOMES` below by the sibling
+  // test `cites no NSW English outcome the syllabus does not have`. Before
+  // English content existed `allTemplates` was maths-only and this filter was
+  // a no-op; it stopped being one the moment a template could carry a code
+  // shaped like `EN*-*-NN`, which `syllabusOf` reads as 'nsw' the same as a
+  // maths code and this list has never heard of.
   it('cites no NSW outcome code the syllabus does not have', () => {
     const known = new Set(Object.values(NSW_OUTCOMES).flat());
 
-    for (const template of allTemplates) {
+    for (const template of allTemplates.filter((t) => t.subject === 'maths')) {
       for (const tag of template.tags ?? []) {
         if (syllabusOf(tag) !== 'nsw') continue;
         expect(known.has(tag), `${template.id} cites ${tag}, which is not an NSW outcome`).toBe(
