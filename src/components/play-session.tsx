@@ -977,6 +977,36 @@ function Prompt({
       // hide the question.
       if (height <= 0 || width <= 0) return;
 
+      /**
+       * Measure with no transition on either element, or the search reads the
+       * size it is replacing rather than the one it just set.
+       *
+       * The reduced-motion block in `globals.css` puts
+       * `transition-duration: 0.01ms !important` on `*`, and the initial value
+       * of `transition-property` is `all` - so for anyone with reduced motion
+       * turned on, `font-size` is a transitioned property. The loop below sets
+       * a size and reads `offsetHeight` straight back, which then returns the
+       * *pre*-transition height: every candidate size appeared to fit, the
+       * search returned the ceiling, and the question rendered at 96px in a
+       * box a hundred pixels tall - overflowing far enough to cover the hint
+       * button under it and swallow the tap.
+       *
+       * That is a real screen for a real setting, and it is invisible to anyone
+       * who does not have the setting on - which is what makes it worth a
+       * comment this long. `SpeedTimer` is the same rule from the other side: it
+       * *wants* its transition, so it writes one the block cannot flatten, where
+       * this measurement wants no transition at all.
+       *
+       * Suppressing rather than overriding is right here. Nothing about the fit
+       * is animated - it runs once per question and the size it lands on is what
+       * the reader sees - so there is no motion for anybody's setting to have an
+       * opinion about, and restoring the declaration below leaves whatever the
+       * element had.
+       */
+      const measured = [sentinel, text];
+      const transitions = measured.map((el) => el.style.transition);
+      for (const el of measured) el.style.transition = 'none';
+
       const max = readPromptMax(box);
       let low = MIN_PROMPT_PX;
       let high = Math.max(MIN_PROMPT_PX, Math.round(max));
@@ -1002,6 +1032,13 @@ function Prompt({
 
       sentinel.style.fontSize = '';
       text.style.fontSize = `${best}px`;
+
+      // Put back whatever was there, after a forced reflow so the size just
+      // written is the transition's starting point rather than its end.
+      void text.offsetWidth;
+      measured.forEach((el, index) => {
+        el.style.transition = transitions[index] ?? '';
+      });
     };
 
     fit();

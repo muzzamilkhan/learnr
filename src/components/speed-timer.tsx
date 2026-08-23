@@ -58,12 +58,30 @@ export function SpeedTimer({ runningSince, pulse }: { runningSince: number | nul
     const gone = Math.max(0, Date.now() - runningSince);
     const left = Math.max(0, SPEED_RUN_MS - gone);
 
-    bar.style.transition = 'none';
+    /**
+     * Both transitions are written `!important`, which is the one place in this
+     * app an inline declaration needs it.
+     *
+     * The reduced-motion block in `globals.css` puts
+     * `transition-duration: 0.01ms !important` on `*`, and an author
+     * `!important` from a stylesheet beats a plain inline declaration - so for
+     * anyone with reduced motion turned on this bar drained to empty in the
+     * first frame and the run's only clock read "time's up" for the whole
+     * ninety seconds. An inline `!important` is the one thing that outranks it.
+     *
+     * The exception is deliberate rather than a way around the rule. What that
+     * block exists to suppress is decoration; this is the only thing on the
+     * screen that says how long is left, and a linear width over ninety seconds
+     * is not the kind of movement it is protecting anybody from. The pulse
+     * above it - which genuinely is decoration - is a CSS animation and stays
+     * suppressed.
+     */
+    bar.style.setProperty('transition', 'none', 'important');
     bar.style.width = `${(left / SPEED_RUN_MS) * 100}%`;
     // Forced reflow, so the browser has a width to transition *from*. Without it
     // both style writes land in one frame and the bar jumps straight to zero.
     void bar.offsetWidth;
-    bar.style.transition = `width ${left}ms linear`;
+    bar.style.setProperty('transition', `width ${left}ms linear`, 'important');
     bar.style.width = '0%';
 
     return () => observer.disconnect();
