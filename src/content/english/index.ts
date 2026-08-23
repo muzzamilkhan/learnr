@@ -3,6 +3,7 @@ import { yearK } from './k';
 import { year1 } from './1';
 import { year2 } from './2';
 import { year3 } from './3';
+import { year4 } from './4';
 
 /**
  * English course, Kindergarten to Year 6.
@@ -35,4 +36,10 @@ import { year3 } from './3';
  *   families, so `hat` is the answer when the target is `cat` and a distractor
  *   when the target is `dog`.
  */
-export const englishTemplates: QuestionTemplate[] = [...yearK, ...year1, ...year2, ...year3];
+export const englishTemplates: QuestionTemplate[] = [
+  ...yearK,
+  ...year1,
+  ...year2,
+  ...year3,
+  ...year4,
+];
