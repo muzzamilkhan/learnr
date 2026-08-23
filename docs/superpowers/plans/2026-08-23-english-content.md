@@ -934,6 +934,56 @@ option set** - and in a word-list subject it almost always is.
 
 ---
 
+## Self-check before you report — learned from Kindergarten
+
+Kindergarten shipped 22 templates and needed a fix round for six findings. All six
+were invisible to `npm test`, which was green throughout. Run this list against
+your own year before reporting.
+
+**1. Measure every `choice` template, keyed on the OPTIONS ALONE.**
+Draw 600, learn the modal answer per option-set on the first 300, score it on the
+last 300 against the mean of `1 / choices.length`. Flag anything more than 15
+points above blind. Write it as a temporary test, run it, then delete it — the
+permanent version is Task 13's deliverable.
+
+Key on the options and **not** on the prompt. Including the prompt makes the key
+unique per question, so the learned rule just memorises each answer and scores
+100% on anything well-posed — which measures nothing. Measured both ways on
+Kindergarten: prompt-plus-options flagged all 17 choice templates, options-alone
+flagged 3.
+
+**2. No odd-one-out questions.** See the rule above. Both of Kindergarten's
+scored 100%.
+
+**3. Does every frame admit exactly one word from its own bank?**
+Kindergarten shipped `'At night we ?.'` with `sleep` as the answer and `nap` in
+the same bank — reachable as a distractor in about a fifth of draws. A child
+answering `nap` is right and is marked wrong. Check **every frame against every
+other word in its bank by hand**; the automated checks cannot see this, and a
+measurement will not catch it either because the template is not leaking, it is
+simply wrong.
+
+**4. Are two of your templates the same question in different words?**
+The test is mechanical, not aesthetic: if two templates have the same `vars`, the
+same `constraints`, the same `distractors` and the same `answer` expression, they
+are one question rendered twice however differently the prompt reads. The maths
+content's apparent near-duplicates are not a precedent for this — `counting-numbers`'
+four variants each compute a **different answer expression**. Prefer fewer,
+genuinely distinct templates over hitting a per-topic count.
+
+**5. Can a boolean question be answered from a surface cue?**
+Kindergarten's `is-a-sentence` drew its fragments lowercase and unpunctuated,
+while two templates beside it in the same topic taught "look for a capital and a
+full stop" — so it could be answered without ever judging the thing it tested.
+Make the true and false cases differ **only** in the property being asked about.
+
+**6. Sequence questions have honest end effects.** "Which letter comes after
+`{x}`?" cannot offer the first letter as an answer or the last as a target. That
+asymmetry is structural rather than a bank built wrong, and is acceptable — but
+know which of the two you have.
+
+---
+
 ### Task 5: Kindergarten
 
 **Files:**
