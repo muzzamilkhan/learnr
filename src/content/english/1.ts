@@ -145,6 +145,15 @@ const PLURAL_FORM: WordBank = ['cats', 'boxes', 'dogs', 'buses', 'hats', 'foxes'
 // Six pairs, one bank per side of the pair - the same shape Kindergarten's
 // opposites use, with its own six words so this topic isn't a rerun of
 // hot/cold and big/small under a new year number.
+//
+// Both `OPP_A` and `OPP_B` are plain, single-syllable, regular words - as
+// typeable as a plurals suffix - so `write-opposite` and its worked-example
+// pair type the same content the three `choice` templates above already
+// recognise, the same way `plurals` answers the identical idea both ways.
+// That is deliberate: Year 1's typed exposure sat entirely in `plurals`
+// before these two, which meant a child whose plurals went secure could stop
+// typing for the rest of the year - and "Year 1 is where typing starts"
+// stops being true in practice for exactly the children doing well.
 // ---------------------------------------------------------------------------
 
 const OPP_A: WordBank = ['happy', 'open', 'full', 'loud', 'early', 'clean'];
@@ -175,8 +184,22 @@ const OPPOSITE_WORD = (p: Expr, s: Expr): Expr =>
 // set on every draw of pair 0, and it is offered with `dog` correct about
 // half the time and `run` correct the other half - there is no rule to learn
 // from the buttons, only from reading which question was actually asked.
-// `is-doing-word` and `is-naming-word` ask the same distinction as bare
-// booleans, which carry no option set to leak from at all.
+// `is-doing-word` is the same distinction as a bare boolean, which carries no
+// option set to leak from at all.
+//
+// **`is-doing-word` and a first draft of `is-naming-word` were logical duals
+// over the identical draw** - same `i` (0-19), same `CLASS_WORDS` bank, one
+// answer the literal negation of the other (`i >= 10` against `i < 10`).
+// Every word in that bank is exclusively a noun or exclusively a verb, so a
+// child who answered one correctly answered the other by negation without
+// exercising any new judgement - the mechanical duplicate test never catches
+// it because the answer *expressions* differ, but it is the same evidence
+// asked twice. `naming-word-in-context` replaces it: a fresh three-word
+// sentence ("The dog can chase the ball.") with a *subject* noun and an
+// *object* noun either side of the verb, so recognising the object as a
+// naming word too is new evidence `is-doing-word-in-sentence` never
+// provides - that template's own sentences only ever have one noun to ask
+// about.
 // ---------------------------------------------------------------------------
 
 const NOUN_WORDS: WordBank = [
@@ -222,6 +245,28 @@ const CLASS_CANDIDATE = (i: Expr, ok: Expr): Expr =>
 const CLASS_KIND_LABEL = (asksVerb: Expr): Expr =>
   `${asksVerb} == 1 ? 'doing word' : 'naming word'`;
 
+// A three-word sentence - subject, verb, object - so a naming-word question
+// has two nouns to ask about rather than the one `SENT_NOUNS` pairs give
+// `is-doing-word-in-sentence`. Every subject/object pair is a plausible
+// scene (a dog chasing a ball, a cat catching a bug), read aloud to check
+// none of the eighteen combinations comes out strange.
+const SUBJ_NOUNS: WordBank = ['dog', 'cat', 'bird', 'frog', 'rabbit', 'mouse'];
+const SCENE_VERBS: WordBank = ['chase', 'catch', 'watch', 'follow', 'find', 'see'];
+const OBJ_NOUNS: WordBank = ['ball', 'bug', 'kite', 'worm', 'leaf', 'stick'];
+
+/** "The {subj} can {verb} the {obj}." for triple `i`, as an expression. */
+const SCENE_SENTENCE = (i: Expr): Expr =>
+  `'The ' + (${wordFrom(SUBJ_NOUNS, i)}) + ' can ' + (${wordFrom(SCENE_VERBS, i)}) + ` +
+  `' the ' + (${wordFrom(OBJ_NOUNS, i)}) + '.'`;
+
+/**
+ * The subject, the verb or the object of triple `i`, chosen by `role`
+ * (0 = subject, 1 = verb, 2 = object), as an expression.
+ */
+const SCENE_CANDIDATE = (i: Expr, role: Expr): Expr =>
+  `${role} == 1 ? (${wordFrom(SCENE_VERBS, i)}) : ` +
+  `${role} == 2 ? (${wordFrom(OBJ_NOUNS, i)}) : (${wordFrom(SUBJ_NOUNS, i)})`;
+
 // ---------------------------------------------------------------------------
 // Sentences
 //
@@ -245,22 +290,16 @@ const NAME_SENTENCES: readonly (readonly [string, string])[] = [
 ];
 
 // Five nouns that take "an" (they start with a vowel sound) and five that
-// take "a" - `AAN_NOUNS` and `AAN_ARTICLE` share their index the way
-// `PLURAL_BASE` and `PLURAL_FORM` do, and `AAN_SENTENCES` names the same ten
-// nouns in the same order so the two templates below are testing one rule
-// rather than two.
-const AAN_NOUNS: WordBank = [
-  'elephant',
-  'apple',
-  'orange',
-  'umbrella',
-  'ant',
-  'dog',
-  'cat',
-  'ball',
-  'house',
-  'banana',
-];
+// take "a" - elephant, apple, orange, umbrella and ant, then dog, cat, ball,
+// house and banana. `AAN_ARTICLE`, `AAN_SENTENCES` and `AAN_FRAMES` all name
+// them in that same order, so the three stay in step without a fourth bank
+// of bare nouns nothing below actually indexes into. `AAN_FRAMES` names them
+// a third time, one full sentence each rather than a bare noun after a fixed
+// verb - a single frame ("I ate ? {noun}.") read the same over all ten
+// produced "I ate an elephant." and, for the two pet nouns, something worse
+// than nonsense ("I ate a dog."). Every frame here gives its own noun the
+// verb it actually goes with, the same discipline `AAN_SENTENCES` already
+// uses.
 const AAN_ARTICLE: WordBank = ['an', 'an', 'an', 'an', 'an', 'a', 'a', 'a', 'a', 'a'];
 
 const AAN_SENTENCES: readonly (readonly [string, string])[] = [
@@ -275,6 +314,33 @@ const AAN_SENTENCES: readonly (readonly [string, string])[] = [
   ['We live in a house.', 'We live in an house.'],
   ['I ate a banana.', 'I ate an banana.'],
 ];
+
+// One sentence per noun, blank where the article goes, each noun given a verb
+// it actually fits - unlike the fixed "I ate ?" frame this replaced, nothing
+// here asks a child to eat an umbrella or a pet. Index-aligned with
+// `AAN_ARTICLE` and `AAN_SENTENCES` so the same noun order runs through all
+// three banks.
+const AAN_FRAMES: readonly string[] = [
+  'I saw ? elephant at the zoo.',
+  'She ate ? apple for lunch.',
+  'He picked ? orange from the tree.',
+  'I opened ? umbrella in the rain.',
+  'There is ? ant on the table.',
+  'I saw ? dog in the park.',
+  'She has ? cat at home.',
+  'He kicked ? ball across the yard.',
+  'We live in ? house on the hill.',
+  'I ate ? banana for lunch.',
+];
+
+/** The frame at index `i` of `frames`, as an expression string literal. */
+const FRAME_TEXT = (frames: readonly string[], i: Expr): Expr =>
+  frames
+    .slice(0, -1)
+    .reduceRight(
+      (rest, frame, index) => `${i} == ${index} ? '${frame}' : ${rest}`,
+      `'${frames[frames.length - 1]}'`,
+    );
 
 /** The correct or incorrect text of pair `i` from `pairs`, chosen by `ok` (1 for correct), as an expression. */
 const PAIR_TEXT = (pairs: readonly (readonly [string, string])[], i: Expr, ok: Expr): Expr =>
@@ -688,6 +754,42 @@ export const year1: QuestionTemplate[] = [
     hint: 'Use the example to see what "opposite" means.',
     tags: ['AC9E1LA09', 'EN1-VOCAB-01'],
   },
+  {
+    id: 'english.1.opposites.write-opposite',
+    subject: 'english',
+    topic: 'opposites',
+    level: '1',
+    prompt: 'Write the opposite of {target}.',
+    vars: [
+      { name: 'p', kind: 'int', min: '0', max: '5' },
+      { name: 's', kind: 'pick', from: [0, 1] },
+      { name: 'target', kind: 'expr', expr: OPPOSITE_WORD('p', 's') },
+    ],
+    answer: OPPOSITE_WORD('p', '1 - s'),
+    answerType: 'text',
+    hint: 'An opposite means the total reverse.',
+    tags: ['AC9E1LA09', 'EN1-VOCAB-01'],
+  },
+  {
+    id: 'english.1.opposites.write-opposite-worked-example',
+    subject: 'english',
+    topic: 'opposites',
+    level: '1',
+    prompt: '{eTarget} and {eAnswer} are opposites. Write the opposite of {target}.',
+    vars: [
+      { name: 'ep', kind: 'int', min: '0', max: '5' },
+      { name: 'es', kind: 'pick', from: [0, 1] },
+      { name: 'p', kind: 'int', min: '1', max: '5' },
+      { name: 's', kind: 'pick', from: [0, 1] },
+      { name: 'eTarget', kind: 'expr', expr: OPPOSITE_WORD('ep', 'es') },
+      { name: 'eAnswer', kind: 'expr', expr: OPPOSITE_WORD('ep', '1 - es') },
+      { name: 'target', kind: 'expr', expr: OPPOSITE_WORD('(ep + p) % 6', 's') },
+    ],
+    answer: OPPOSITE_WORD('(ep + p) % 6', '1 - s'),
+    answerType: 'text',
+    hint: 'Use the example to see what "opposite" means.',
+    tags: ['AC9E1LA09', 'EN1-VOCAB-01'],
+  },
 
   // -------------------------------------------------------------------
   // Word classes
@@ -733,16 +835,25 @@ export const year1: QuestionTemplate[] = [
     tags: ['AC9E1LA07', 'EN1-CWT-01'],
   },
   {
-    id: 'english.1.word-classes.is-naming-word',
+    id: 'english.1.word-classes.naming-word-in-context',
     subject: 'english',
     topic: 'word classes',
     level: '1',
-    prompt: 'Is {word} a naming word?',
+    prompt: 'Is {candidate} a naming word in this sentence? {sentence}',
     vars: [
-      { name: 'i', kind: 'int', min: '0', max: '19' },
-      { name: 'word', kind: 'expr', expr: wordFrom(CLASS_WORDS, 'i') },
+      { name: 'i', kind: 'int', min: '0', max: '5' },
+      { name: 'askVerb', kind: 'pick', from: [0, 1] },
+      // When `askVerb` is 0 the candidate is a noun either way, so a second
+      // coin picks *which* noun - subject or object - rather than always
+      // asking about the subject. That is the new evidence this template
+      // adds over `is-doing-word-in-sentence`: an object noun is a naming
+      // word too, not just the one at the front of the sentence.
+      { name: 'objPick', kind: 'pick', from: [0, 1] },
+      { name: 'role', kind: 'expr', expr: "askVerb == 1 ? 1 : (objPick == 1 ? 2 : 0)" },
+      { name: 'sentence', kind: 'expr', expr: SCENE_SENTENCE('i') },
+      { name: 'candidate', kind: 'expr', expr: SCENE_CANDIDATE('i', 'role') },
     ],
-    answer: 'i < 10',
+    answer: 'role != 1',
     hint: 'A naming word names a person, animal or thing.',
     tags: ['AC9E1LA07', 'EN1-CWT-01'],
   },
@@ -801,10 +912,10 @@ export const year1: QuestionTemplate[] = [
     subject: 'english',
     topic: 'sentences',
     level: '1',
-    prompt: 'Which word goes in the blank? I ate ? {noun}.',
+    prompt: 'Which word finishes the sentence? {frame}',
     vars: [
       { name: 'i', kind: 'int', min: '0', max: '9' },
-      { name: 'noun', kind: 'expr', expr: wordFrom(AAN_NOUNS, 'i') },
+      { name: 'frame', kind: 'expr', expr: FRAME_TEXT(AAN_FRAMES, 'i') },
       { name: 'answer', kind: 'expr', expr: wordFrom(AAN_ARTICLE, 'i') },
     ],
     answer: 'answer',
