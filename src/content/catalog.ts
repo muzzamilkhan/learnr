@@ -1,6 +1,7 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
 import { compareYearLevels, type Stage, type YearLevel } from '@/lib/curriculum';
 import { mathsTemplates } from './maths';
+import { englishTemplates } from './english';
 
 /**
  * The in-repo course catalog. Once courses are authored by AI and stored in the
@@ -11,7 +12,7 @@ import { mathsTemplates } from './maths';
  * recurs across years at increasing difficulty. Neither owns the other, so the
  * catalog can be walked from either end - `topicsForLevel` and `levelsForTopic`.
  */
-export const allTemplates: QuestionTemplate[] = [...mathsTemplates];
+export const allTemplates: QuestionTemplate[] = [...mathsTemplates, ...englishTemplates];
 
 export interface LevelSummary {
   level: YearLevel;
@@ -82,6 +83,8 @@ export type SyllabusId = 'acara' | 'nsw';
 
 export interface Syllabus {
   id: SyllabusId;
+  /** The subject whose content this document covers. */
+  subject: string;
   name: string;
   shortName: string;
   url: string;
@@ -89,9 +92,10 @@ export interface Syllabus {
 }
 
 /**
- * The syllabuses a template may cite. Two rather than one because NSW schools
- * teach the NSW syllabus and not ACARA directly, and a NSW parent should be
- * able to find their child's stage on the curriculum page.
+ * The syllabuses a template may cite. Two families (ACARA and NSW) with two
+ * subjects each (maths and English) because NSW schools teach the NSW syllabus
+ * and not ACARA directly, and a NSW parent should be able to find their child's
+ * stage on the curriculum page.
  *
  * A code is a *reference*, which matters legally as well as structurally: ACARA
  * material is CC BY 4.0 and quotable, NESA material is Crown copyright and is
@@ -103,17 +107,38 @@ export interface Syllabus {
 export const SYLLABUSES: readonly Syllabus[] = [
   {
     id: 'acara',
+    subject: 'maths',
     name: 'Australian Curriculum Version 9.0 — Mathematics (Foundation to Year 10)',
     shortName: 'ACARA v9.0',
     url: 'https://www.australiancurriculum.edu.au',
     pattern: /^AC9M(F|\d{1,2})[A-Z]+\d{2}$/,
   },
   {
+    id: 'acara',
+    subject: 'english',
+    name: 'Australian Curriculum Version 9.0 — English (Foundation to Year 10)',
+    shortName: 'ACARA v9.0',
+    url: 'https://www.australiancurriculum.edu.au',
+    // English has exactly three strands, so they are named rather than matched
+    // as `[A-Z]+`: a mistyped strand fails here instead of reaching the
+    // membership list looking like a real code.
+    pattern: /^AC9E(F|\d{1,2})(LA|LE|LY)\d{2}$/,
+  },
+  {
     id: 'nsw',
+    subject: 'maths',
     name: 'NSW Mathematics K–10 Syllabus (2022)',
     shortName: 'NSW K–10 (2022)',
     url: 'https://curriculum.nsw.edu.au/learning-areas/mathematics/mathematics-k-10-2022',
     pattern: /^MA(E|O|[1-3])-[A-Z0-9]+-\d{2}$/,
+  },
+  {
+    id: 'nsw',
+    subject: 'english',
+    name: 'NSW English K–10 Syllabus (2022)',
+    shortName: 'NSW K–10 (2022)',
+    url: 'https://curriculum.nsw.edu.au/learning-areas/english/english-k-10-2022',
+    pattern: /^EN(E|[1-3])-[A-Z]+-\d{2}$/,
   },
 ];
 
@@ -121,11 +146,29 @@ export function syllabusOf(code: string): SyllabusId | null {
   return SYLLABUSES.find((s) => s.pattern.test(code))?.id ?? null;
 }
 
+/**
+ * The subject whose syllabus a code comes from, or `null` for a tag that is not
+ * a curriculum code.
+ *
+ * A second narrow lookup rather than widening `syllabusOf`'s return, because the
+ * two questions have different callers: `/curriculum` needs the subject to name
+ * the right document and link the right URL, and `catalog.test.ts` needs it to
+ * refuse a maths code on an English template - while everything that already
+ * asks which *family* published a code is unchanged.
+ */
+export function syllabusSubjectOf(code: string): string | null {
+  return SYLLABUSES.find((s) => s.pattern.test(code))?.subject ?? null;
+}
+
 const STAGE_BY_PREFIX: Record<string, Stage> = {
   MAE: 'ES1',
   MA1: 'S1',
   MA2: 'S2',
   MA3: 'S3',
+  ENE: 'ES1',
+  EN1: 'S1',
+  EN2: 'S2',
+  EN3: 'S3',
 };
 
 /** The stage an NSW outcome code belongs to, or `null` if it names no one stage. */
@@ -330,6 +373,10 @@ export function syllabusDivergences(
   templates: QuestionTemplate[] = allTemplates,
 ): Divergence[] {
   const forSubject = templates.filter((t) => t.subject === subject);
+  // Filter SYLLABUSES to only those matching this subject, since SYLLABUSES
+  // now carries entries for both maths and English - a maths divergence must
+  // only look at maths syllabuses.
+  const relevantSyllabuses = SYLLABUSES.filter((s) => s.subject === subject);
 
   return unique(forSubject.map((t) => t.level))
     .sort(compareYearLevels)
@@ -339,7 +386,7 @@ export function syllabusDivergences(
       return unique(forLevel.map((t) => t.topic))
         .sort()
         .flatMap((topic) =>
-          SYLLABUSES.map(({ id }) => {
+          relevantSyllabuses.map(({ id }) => {
             const citing = forLevel.filter(
               (t) =>
                 t.topic === topic &&

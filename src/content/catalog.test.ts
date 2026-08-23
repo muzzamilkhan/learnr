@@ -20,6 +20,7 @@ import {
   subjectOverview,
   SYLLABUSES,
   syllabusOf,
+  syllabusSubjectOf,
   nswStageOfCode,
 } from './catalog';
 
@@ -152,6 +153,84 @@ const NSW_OUTCOMES: Record<Stage, readonly string[]> = {
   ],
 };
 
+/**
+ * Every NSW *English* outcome code a template may cite, by stage - the four
+ * stage tables of `docs/superpowers/notes/nsw-english-outcome-codes.md`, and
+ * nothing else. Beside `NSW_OUTCOMES` and for its reasons: it is the only check
+ * in this file that tests a citation for truth rather than for shape, it is
+ * transcribed rather than parsed because a regex that stops matching yields an
+ * empty list and an empty membership list waves every code through, and it
+ * fails safe against omissions and nothing else - a wrong entry here stays
+ * green forever, so the manual two-way diff against the notes file is the whole
+ * of the guard.
+ *
+ * Per-stage counts (ES1 11, S1 9, S2 11, S3 7 - 38) reconciled against the
+ * totals the notes file states for itself. Repeat that if you touch either
+ * side.
+ *
+ * Two structural facts that look like transcription errors and are not. Stage 1
+ * has no phonological-awareness and no print-concepts outcome: both fold into
+ * EN1-PHOKW-01, which is why Year 1 rhyme cites PHOKW where Kindergarten rhyme
+ * cites PHOAW. And Stage 3 has no reading-fluency outcome, unlike the three
+ * stages below it.
+ *
+ * **Stage 3 is incomplete, on purpose.** NESA's Stage 3 content page did not
+ * render its Creating-written-texts or Handwriting-and-digital-transcription
+ * detail sections when this list was transcribed, so codes beyond
+ * `EN3-CWT-01` in either focus area were never seen on a NESA page and are not
+ * guessed here. See the notes file for what was tried. The gap fails the same
+ * direction every omission in this list does - a template that ever needs one
+ * of those codes gets a loud failure and a lookup, not a fabricated citation.
+ */
+const ENGLISH_NSW_OUTCOMES: Record<Stage, readonly string[]> = {
+  ES1: [
+    'ENE-OLC-01',
+    'ENE-VOCAB-01',
+    'ENE-PHOAW-01',
+    'ENE-PRINT-01',
+    'ENE-PHOKW-01',
+    'ENE-REFLU-01',
+    'ENE-RECOM-01',
+    'ENE-CWT-01',
+    'ENE-SPELL-01',
+    'ENE-HANDW-01',
+    'ENE-UARL-01',
+  ],
+  S1: [
+    'EN1-OLC-01',
+    'EN1-VOCAB-01',
+    'EN1-PHOKW-01',
+    'EN1-REFLU-01',
+    'EN1-RECOM-01',
+    'EN1-CWT-01',
+    'EN1-SPELL-01',
+    'EN1-HANDW-01',
+    'EN1-UARL-01',
+  ],
+  S2: [
+    'EN2-OLC-01',
+    'EN2-VOCAB-01',
+    'EN2-REFLU-01',
+    'EN2-RECOM-01',
+    'EN2-CWT-01',
+    'EN2-CWT-02',
+    'EN2-CWT-03',
+    'EN2-SPELL-01',
+    'EN2-HANDW-01',
+    'EN2-HANDW-02',
+    'EN2-UARL-01',
+  ],
+  S3: [
+    'EN3-OLC-01',
+    'EN3-VOCAB-01',
+    'EN3-RECOM-01',
+    'EN3-CWT-01',
+    'EN3-SPELL-01',
+    'EN3-UARL-01',
+    'EN3-UARL-02',
+  ],
+};
+
 describe('shipped content', () => {
   it('every template is valid', () => {
     const result = validateTemplates(allTemplates);
@@ -230,11 +309,33 @@ describe('shipped content', () => {
     }
   });
 
-  // Spelling a word on the letter pad is a literacy test, not a maths one. In the
-  // early years the answer is tapped instead: a word a child of that age cannot
-  // reliably spell would hide what they actually know about the maths.
-  it('never asks a child in K to Year 3 to spell an answer', () => {
-    const early = allTemplates.filter((t) => ['K', '1', '2', '3'].includes(t.level));
+  // The letter pad has no space key and no apostrophe key, and caps entry at 16
+  // characters - so a typed answer it cannot produce is a question no child can
+  // answer. Enforced rather than intended, like the number pad's own rule above.
+  it('never asks a child to type a word the letter pad cannot enter', () => {
+    for (const template of allTemplates) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-typed-text-${i}`));
+        if (q.answerType !== 'text') continue;
+        expect(String(q.answer), template.id).toMatch(/^[A-Za-z]{1,16}$/);
+      }
+    }
+  });
+
+  // Spelling a word on the letter pad is a literacy test, not a maths one. In
+  // the early years the maths answer is tapped instead: a word a child of that
+  // age cannot reliably spell would hide what they actually know about the
+  // maths.
+  //
+  // **In English the reason inverts, which is why this is scoped by subject
+  // rather than by year alone.** A Year 2 child asked for the plural of "box"
+  // is being asked exactly what the syllabus asks of them, and four buttons
+  // would test recognition where the outcome is production. English has its own
+  // floor - Kindergarten - and its own cap, both below.
+  it('never asks a child in K to Year 3 to spell a maths answer', () => {
+    const early = allTemplates.filter(
+      (t) => t.subject === 'maths' && ['K', '1', '2', '3'].includes(t.level),
+    );
 
     for (const template of early) {
       for (let i = 0; i < 25; i++) {
@@ -322,6 +423,7 @@ describe('shipped content', () => {
     }
 
     const missingAcara = allTemplates
+      .filter((t) => t.subject === 'maths')
       .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'acara'))
       .map((t) => t.id);
 
@@ -389,6 +491,7 @@ describe('shipped content', () => {
     ];
 
     const missingNsw = allTemplates
+      .filter((t) => t.subject === 'maths')
       .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
       .map((t) => t.id);
 
@@ -420,10 +523,17 @@ describe('shipped content', () => {
   // like a code, so a transposition survives every other check and reaches the
   // curriculum page, where a parent is invited to look it up. See NSW_OUTCOMES
   // above for why the list is transcribed and why MAO-WM-01 is not in it.
+  // Scoped to maths: `NSW_OUTCOMES` is the maths transcription, and English's
+  // own codes are checked against `ENGLISH_NSW_OUTCOMES` below by the sibling
+  // test `cites no NSW English outcome the syllabus does not have`. Before
+  // English content existed `allTemplates` was maths-only and this filter was
+  // a no-op; it stopped being one the moment a template could carry a code
+  // shaped like `EN*-*-NN`, which `syllabusOf` reads as 'nsw' the same as a
+  // maths code and this list has never heard of.
   it('cites no NSW outcome code the syllabus does not have', () => {
     const known = new Set(Object.values(NSW_OUTCOMES).flat());
 
-    for (const template of allTemplates) {
+    for (const template of allTemplates.filter((t) => t.subject === 'maths')) {
       for (const tag of template.tags ?? []) {
         if (syllabusOf(tag) !== 'nsw') continue;
         expect(known.has(tag), `${template.id} cites ${tag}, which is not an NSW outcome`).toBe(
@@ -640,8 +750,13 @@ describe('syllabusDivergences', () => {
   // The page renders every one of these, and a divergence with no note is an em
   // dash with nothing beside it - the easy case explained and the rest hidden,
   // which is the opposite of what that page is for.
+  // Looped over every subject rather than named "maths" - a third subject's
+  // divergences (or lack of them) are then checked with no edit here, the same
+  // argument Step 4 of the English content plan makes for not adding a copy of
+  // this pair per subject.
   it('explains every divergence the shipped content produces', () => {
-    const unexplained = syllabusDivergences('maths')
+    const unexplained = listSubjects()
+      .flatMap((s) => syllabusDivergences(s.subject))
       .filter((d) => d.reason === null)
       .map((d) => `${d.cites}: ${d.level} ${d.topic}`);
 
@@ -653,7 +768,9 @@ describe('syllabusDivergences', () => {
   // by a citation would otherwise sit here reading perfectly well and explaining
   // nothing on the page.
   it('records no note that has outlived its divergence', () => {
-    const live = syllabusDivergences('maths').map((d) => `${d.cites}:${d.level}:${d.topic}`);
+    const live = listSubjects()
+      .flatMap((s) => syllabusDivergences(s.subject))
+      .map((d) => `${d.cites}:${d.level}:${d.topic}`);
     const orphans = DIVERGENCE_NOTES.map((n) => `${n.cites}:${n.level}:${n.topic}`).filter(
       (key) => !live.includes(key),
     );
@@ -687,7 +804,94 @@ describe('syllabus sources', () => {
   it('is not fooled by a tag that is only a note to ourselves', () => {
     expect(syllabusOf('needs-review')).toBe(null);
     expect(syllabusOf('MA9-XX-01')).toBe(null);
+    expect(syllabusOf('AC9X4N02')).toBe(null);
+    // English's pattern names its three strands (LA/LE/LY) rather than
+    // matching any two letters, so a maths-shaped "N0" strand fails it too -
+    // this is not a maths code that happens to also be English's.
     expect(syllabusOf('AC9E4N02')).toBe(null);
+  });
+
+  it('recognises an ACARA English content description', () => {
+    expect(syllabusOf('AC9EFLY09')).toBe('acara');
+    expect(syllabusOf('AC9E3LY10')).toBe('acara');
+    expect(syllabusOf('AC9E6LA09')).toBe('acara');
+  });
+
+  it('recognises an NSW English outcome at every stage', () => {
+    expect(syllabusOf('ENE-PHOAW-01')).toBe('nsw');
+    expect(syllabusOf('EN1-PHOKW-01')).toBe('nsw');
+    expect(syllabusOf('EN2-SPELL-01')).toBe('nsw');
+    expect(syllabusOf('EN3-UARL-01')).toBe('nsw');
+  });
+
+  // English has exactly three strands - LA Language, LE Literature, LY Literacy -
+  // so the pattern names them. A mistyped strand is then a shape error caught
+  // here rather than a plausible code that has to reach the membership list.
+  it('rejects an English code with a strand that does not exist', () => {
+    expect(syllabusOf('AC9E3XX10')).toBe(null);
+    expect(syllabusOf('AC9E3L10')).toBe(null);
+  });
+
+  it('reads the stage an NSW English outcome belongs to', () => {
+    expect(nswStageOfCode('ENE-PHOAW-01')).toBe('ES1');
+    expect(nswStageOfCode('EN1-SPELL-01')).toBe('S1');
+    expect(nswStageOfCode('EN2-CWT-01')).toBe('S2');
+    expect(nswStageOfCode('EN3-VOCAB-01')).toBe('S3');
+  });
+
+  it('names the subject whose syllabus a code comes from', () => {
+    expect(syllabusSubjectOf('AC9M4N02')).toBe('maths');
+    expect(syllabusSubjectOf('MA2-AR-01')).toBe('maths');
+    expect(syllabusSubjectOf('AC9E3LY10')).toBe('english');
+    expect(syllabusSubjectOf('EN2-SPELL-01')).toBe('english');
+    expect(syllabusSubjectOf('needs-review')).toBe(null);
+  });
+
+  it('names all four documents', () => {
+    expect(SYLLABUSES.map((s) => [s.id, s.subject])).toEqual([
+      ['acara', 'maths'],
+      ['acara', 'english'],
+      ['nsw', 'maths'],
+      ['nsw', 'english'],
+    ]);
+  });
+
+  // /curriculum draws each subject's `name` and `url` off its own entry rather
+  // than the other's, so a family's two subjects must actually name two
+  // different documents - the crossed-link bug a shared constant would
+  // reintroduce. NSW names two entirely separate syllabuses, each at its own
+  // URL; ACARA's two documents share one landing page (the specific-document
+  // link lives only in the page's worked examples), so only NSW's `url` is
+  // checked for divergence.
+  it('gives each subject its own document within a family', () => {
+    for (const family of ['acara', 'nsw'] as const) {
+      const maths = SYLLABUSES.find((s) => s.id === family && s.subject === 'maths')!;
+      const english = SYLLABUSES.find((s) => s.id === family && s.subject === 'english')!;
+      expect(maths.name).not.toBe(english.name);
+    }
+    const nswMaths = SYLLABUSES.find((s) => s.id === 'nsw' && s.subject === 'maths')!;
+    const nswEnglish = SYLLABUSES.find((s) => s.id === 'nsw' && s.subject === 'english')!;
+    expect(nswMaths.url).not.toBe(nswEnglish.url);
+  });
+
+  it('finds English content to cite, grouped by year, like maths', () => {
+    const maths = curriculumCodes('maths');
+    const english = curriculumCodes('english');
+
+    expect(english.length).toBeGreaterThan(0);
+    for (const { level, codes } of english) {
+      expect(codes.length, `${level} has no cited codes`).toBeGreaterThan(0);
+      for (const { code } of codes) {
+        expect(syllabusSubjectOf(code), code).toBe('english');
+      }
+    }
+    // Both subjects run their own citations independently - an English code
+    // must never turn up under a maths year and vice versa.
+    for (const { codes } of maths) {
+      for (const { code } of codes) {
+        expect(syllabusSubjectOf(code), code).toBe('maths');
+      }
+    }
   });
 
   it('rejects a Stage 4 code, deliberately out of our K-6 scope', () => {
@@ -708,8 +912,18 @@ describe('syllabus sources', () => {
     expect(nswStageOfCode('AC9M4N02')).toBe(null);
   });
 
-  it('names both sources', () => {
-    expect(SYLLABUSES.map((s) => s.id)).toEqual(['acara', 'nsw']);
+  // Catches a code transcribed into the wrong stage's block, which the
+  // two-way diff against the notes file can miss because both lists would
+  // still agree with each other.
+  it('transcribes English outcome codes that are shaped like English outcomes', () => {
+    for (const [stage, codes] of Object.entries(ENGLISH_NSW_OUTCOMES)) {
+      expect(codes.length, `${stage} is empty`).toBeGreaterThan(0);
+      for (const code of codes) {
+        expect(syllabusOf(code), code).toBe('nsw');
+        expect(syllabusSubjectOf(code), code).toBe('english');
+        expect(nswStageOfCode(code), code).toBe(stage);
+      }
+    }
   });
 });
 
@@ -769,5 +983,134 @@ describe('subjectOverview', () => {
     expect(overview.levels).toEqual([]);
     expect(overview.templateCount).toBe(0);
     expect(overview.topicCount).toBe(0);
+  });
+});
+
+describe('English content', () => {
+  const englishTemplates = allTemplates.filter((t) => t.subject === 'english');
+  const englishLevels = () =>
+    listSubjects().find((s) => s.subject === 'english')?.levels ?? [];
+
+  // A session draws at random from a year's pool, so a thin year means a child
+  // sees the same question shapes over and over. The same floor maths is held
+  // to, for the same reason.
+  it('gives every English year enough templates for a varied session', () => {
+    for (const level of englishLevels()) {
+      expect(level.templateCount, `Year ${level.level}`).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  // An English template cites English syllabuses. Every other citation test
+  // checks shape, stage or existence; this one checks that the document is
+  // about the subject, which is the mistake a copy-paste from the maths content
+  // would make and nothing else would catch.
+  it('cites only English syllabuses, and maths cites only maths ones', () => {
+    for (const template of allTemplates) {
+      for (const tag of template.tags ?? []) {
+        expect(syllabusSubjectOf(tag), `${template.id} cites ${tag}`).toBe(template.subject);
+      }
+    }
+  });
+
+  it('cites no NSW English outcome the syllabus does not have', () => {
+    const known = new Set(Object.values(ENGLISH_NSW_OUTCOMES).flat());
+
+    for (const template of englishTemplates) {
+      for (const tag of template.tags ?? []) {
+        if (syllabusOf(tag) !== 'nsw') continue;
+        expect(known.has(tag), `${template.id} cites ${tag}, which is not an NSW outcome`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  // An Early Stage 1 child is still learning letter *shapes*, and a QWERTY pad
+  // is not alphabetical. Asked to type "cat" they hunt three letters across
+  // three rows, and what the question measures is pad navigation rather than
+  // phonics. So the maths ban survives into English at exactly one year.
+  it('never asks a Kindergartener to type a word', () => {
+    for (const template of englishTemplates.filter((t) => t.level === 'K')) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-k-typed-${i}`));
+        expect(q.answerType, template.id).not.toBe('text');
+      }
+    }
+  });
+
+  // Typed answers are the easiest English questions to author and much the
+  // slowest to answer - one touch against up to sixteen, on a pad with no word
+  // completion. A year that drifted to mostly-typing would be a year where a
+  // child gets through a third as many questions in a sitting, which starves
+  // the selector of the observations `MIN_OBSERVATIONS` and
+  // `SECURE_OBSERVATIONS` are counted in.
+  //
+  // Measured on the *generated* answerType and not the declared one, for the
+  // reason `answerType` is inferred in the first place: a template that
+  // declares nothing and whose answer evaluates to a string is a typed question
+  // whatever its author thought, and a cap counting declarations would miss
+  // exactly the templates nobody noticed were typed.
+  it('keeps typed answers to a minority of every English year', () => {
+    for (const level of englishLevels()) {
+      const forLevel = englishTemplates.filter((t) => t.level === level.level);
+      const typed = forLevel.filter(
+        (t) => generateQuestion(t, createRng(`${t.id}-cap`)).answerType === 'text',
+      );
+
+      expect(
+        typed.length / forLevel.length,
+        `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
+      ).toBeLessThanOrEqual(0.4);
+    }
+  });
+
+  // A floor as well as a ceiling, and the spread is the half that matters.
+  // The reinforcement selector weights *topics*, so a year whose typed
+  // exposure all sits in one topic lets a child who is secure in that topic
+  // go a whole year without typing anything - which makes "this is where
+  // typing starts" false in practice for exactly the children doing best.
+  // Kindergarten is exempt: an Early Stage 1 child hunting letters on a
+  // QWERTY pad is being tested on pad navigation rather than on English.
+  it('gives every English year past Kindergarten some typing, in more than one topic', () => {
+    for (const level of englishLevels()) {
+      if (level.level === 'K') continue;
+      const forLevel = englishTemplates.filter((t) => t.level === level.level);
+      const typed = forLevel.filter(
+        (t) => generateQuestion(t, createRng(`${t.id}-floor`)).answerType === 'text',
+      );
+      const topics = new Set(typed.map((t) => t.topic));
+
+      expect(
+        typed.length / forLevel.length,
+        `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
+      ).toBeGreaterThanOrEqual(0.15);
+      expect(topics.size, `Year ${level.level} types in only: ${[...topics].join(', ')}`)
+        .toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  // The same shape the maths exceptions take, and closed the same way. Asserting
+  // only that a named template lacks a code catches an addition and misses a
+  // subtraction: with "cites at least one syllabus" satisfied by either, a
+  // citation quietly dropped from any *other* English template would pass green.
+  // So the complete set is asserted, and every member of it names a decision.
+  it('names every English template that cites one syllabus alone', () => {
+    // Both lists are empty: every English template cites both syllabuses,
+    // unlike maths, where several topics divide ACARA and NSW on when a
+    // concept is taught. Left as set equalities anyway, exactly as the maths
+    // ones are - a citation quietly dropped from a future English template
+    // would otherwise pass this test in silence.
+    const acaraOnly: string[] = [];
+    const nswOnly: string[] = [];
+
+    const missingNsw = englishTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
+      .map((t) => t.id);
+    const missingAcara = englishTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'acara'))
+      .map((t) => t.id);
+
+    expect(missingNsw.sort()).toEqual([...acaraOnly].sort());
+    expect(missingAcara.sort()).toEqual([...nswOnly].sort());
   });
 });

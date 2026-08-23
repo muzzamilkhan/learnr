@@ -3,7 +3,7 @@ import { SignInButton } from '@/components/auth-buttons';
 import { CodeSignIn } from '@/components/code-sign-in';
 import { GetStarted } from '@/components/get-started';
 import { LogoLockup, LogoMark } from '@/components/logo';
-import { subjectOverview } from '@/content/catalog';
+import { listLevels, listSubjects, subjectOverview } from '@/content/catalog';
 import { shortYearLabel, yearLabel } from '@/lib/curriculum';
 import { formatCount } from '@/lib/format';
 
@@ -129,10 +129,39 @@ function Panel({
   );
 }
 
+/** A subject's name as a heading reads it - "Maths", "English". */
+const SUBJECT_HEADING_LABELS: Record<string, string> = {
+  maths: 'Maths',
+  english: 'English',
+};
+
+const subjectHeading = (subject: string) => SUBJECT_HEADING_LABELS[subject] ?? subject;
+
+/**
+ * A subject's name as prose reads it, mid-sentence - "maths" is a common noun
+ * here and "English" a proper one, so the two are not the same casing. Kept
+ * as its own small table rather than lower-casing `SUBJECT_HEADING_LABELS`,
+ * since that would also lower-case "English".
+ */
+const SUBJECT_PROSE_LABELS: Record<string, string> = {
+  maths: 'maths',
+  english: 'English',
+};
+
+const subjectListLabel = (subjects: string[]) =>
+  new Intl.ListFormat('en-AU', { style: 'long', type: 'conjunction' }).format(
+    subjects.map((subject) => SUBJECT_PROSE_LABELS[subject] ?? subject),
+  );
+
 export function Landing() {
-  const maths = subjectOverview('maths');
-  const first = maths.levels[0];
-  const last = maths.levels[maths.levels.length - 1];
+  // Every subject that ships, not just maths - a second one arriving here
+  // needs no edit to this page, which is the same argument `subjectOverview`
+  // itself is built on: a claim derived from the shipped questions rather
+  // than asserted by hand cannot say more than a child is actually asked.
+  const subjects = listSubjects().map((s) => subjectOverview(s.subject));
+  const levels = listLevels();
+  const first = levels[0];
+  const last = levels[levels.length - 1];
 
   return (
     <>
@@ -163,16 +192,15 @@ export function Landing() {
               {first && last ? (
                 <p className="inline-flex items-center gap-2 rounded-full bg-(--color-card) px-3 py-1 text-xs font-semibold text-(--color-grape) shadow-sm">
                   <span aria-hidden className="size-1.5 rounded-full bg-(--color-grape)" />
-                  {shortYearLabel(first.level)} to {shortYearLabel(last.level)} · Australian
-                  Curriculum
+                  {shortYearLabel(first)} to {shortYearLabel(last)} · Australian Curriculum
                 </p>
               ) : null}
               <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-                Maths practice that meets your child where they are.
+                Practice that meets your child where they are.
               </h1>
               <p className="mt-4 max-w-prose text-lg leading-relaxed text-(--color-ink-soft)">
-                Short rounds of maths at their own school year, in a place with nothing to lose -
-                and a straight weekly read for you on how it is really going.
+                Short rounds at their own school year, in a place with nothing to lose - and a
+                straight weekly read for you on how it is really going.
               </p>
               {/* The one call to action on the page, centred under the copy it
                   follows rather than tucked against the left margin - a single
@@ -202,8 +230,8 @@ export function Landing() {
                 tone="bg-(--color-grape-soft) text-(--color-grape)"
                 title="Questions pitched at their year"
               >
-                You set the school year, and every question comes from that year&rsquo;s maths.
-                Nothing is out of reach, and nothing is babyish.
+                You set the school year, and every question comes from that year&rsquo;s
+                curriculum. Nothing is out of reach, and nothing is babyish.
               </Point>
               <Point
                 glyph="↗"
@@ -282,36 +310,47 @@ export function Landing() {
 
         {/* The curriculum is the one claim on this page a parent can check, so it
             is shown rather than asserted - every year, with its real topics,
-            read straight out of the questions that ship. */}
+            read straight out of the questions that ship. One subsection per
+            subject rather than one hard-coded to maths, so a second (or third)
+            subject shows up here the day its content ships, with no edit to
+            this page. */}
         <Panel className="mt-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <div>
-              <Eyebrow tone="text-(--color-leaf)">What it covers</Eyebrow>
-              <h2 className="mt-1 text-xl font-semibold">Every year of primary maths.</h2>
-            </div>
-            {maths.templateCount > 0 ? (
-              <p className="text-sm text-(--color-ink-soft)">
-                {formatCount(maths.templateCount)} questions · {formatCount(maths.topicCount)}{' '}
-                topics
-              </p>
-            ) : null}
-          </div>
+          <Eyebrow tone="text-(--color-leaf)">What it covers</Eyebrow>
+          <h2 className="mt-1 text-xl font-semibold">Every year of primary school.</h2>
           <p className="mt-1 max-w-prose text-sm text-(--color-ink-soft)">
             Listed straight from the questions themselves, so this page cannot say more than your
             child is actually asked.
           </p>
-          <ul className="mt-4 divide-y divide-(--color-line)">
-            {maths.levels.map((level) => (
-              <li key={level.level} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-2">
-                <span className="w-20 shrink-0 rounded-lg bg-(--color-grape-soft) px-2 py-0.5 text-center text-xs font-bold text-(--color-grape)">
-                  {shortYearLabel(level.level)}
-                </span>
-                <span className="min-w-0 flex-1 text-sm text-(--color-ink-soft)">
-                  {level.topics.join(', ')}
-                </span>
-              </li>
-            ))}
-          </ul>
+          {subjects.map((subject, i) => (
+            <div key={subject.subject} className={i === 0 ? 'mt-4' : 'mt-6'}>
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h3 className="text-sm font-bold text-(--color-ink)">
+                  {subjectHeading(subject.subject)}
+                </h3>
+                {subject.templateCount > 0 ? (
+                  <p className="text-sm text-(--color-ink-soft)">
+                    {formatCount(subject.templateCount)} questions ·{' '}
+                    {formatCount(subject.topicCount)} topics
+                  </p>
+                ) : null}
+              </div>
+              <ul className="mt-2 divide-y divide-(--color-line)">
+                {subject.levels.map((level) => (
+                  <li
+                    key={level.level}
+                    className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-2"
+                  >
+                    <span className="w-20 shrink-0 rounded-lg bg-(--color-grape-soft) px-2 py-0.5 text-center text-xs font-bold text-(--color-grape)">
+                      {shortYearLabel(level.level)}
+                    </span>
+                    <span className="min-w-0 flex-1 text-sm text-(--color-ink-soft)">
+                      {level.topics.join(', ')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
           <Link
             href="/curriculum"
             className="mt-4 flex items-center gap-3 rounded-xl border border-(--color-line) p-3 transition hover:border-(--color-grape)"
@@ -338,7 +377,9 @@ export function Landing() {
           <p className="text-sm text-(--color-ink-soft)">
             {first && last ? (
               <>
-                {yearLabel(first.level)} to {yearLabel(last.level)}. Maths today, more to come.
+                {yearLabel(first)} to {yearLabel(last)}, across {subjectListLabel(
+                  subjects.map((s) => s.subject),
+                )}.
               </>
             ) : null}
           </p>
