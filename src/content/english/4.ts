@@ -47,12 +47,15 @@ import { wordFrom, type WordBank } from './helpers';
  *
  * **Synonyms uses harder vocabulary than Year 2's** (`furious`/`angry`,
  * `exhausted`/`weary`, `gigantic`/`huge`, `ancient`/`old`,
- * `delighted`/`pleased`, `terrified`/`frightened`) and adds one template that
+ * `delighted`/`pleased`, `terrified`/`frightened`), adds one template that
  * asks for a synonym from inside a sentence rather than as an isolated pair,
- * which is the "established and new vocabulary ... in context" `AC9E4LA11`
- * asks for.
+ * and adds a fourth on antonyms (`brave`/`cowardly`, `polite`/`rude`,
+ * `generous`/`selfish`, `honest`/`dishonest`, `careful`/`careless`,
+ * `patient`/`impatient`) over its own bank - `AC9E4LA11` names synonyms and
+ * antonyms together, and a fourth "which means the same" question would have
+ * used only half of it.
  *
- * **Six of twenty-two templates generate a typed answer, across prefixes and
+ * **Four of twenty-two templates generate a typed answer, across prefixes and
  * suffixes and plurals** - comfortably inside the 15%-40% band and spread so
  * a child secure in one of those topics still types in the other.
  */
@@ -216,6 +219,18 @@ const SYN4_SENTENCES: readonly string[] = [
   'She was delighted with her new bike.',
   'The child was terrified of the thunder.',
 ];
+
+// AC9E4LA11 names synonyms and antonyms together, so a fourth synonyms
+// template draws on the second half of the code instead of repeating the
+// first with fewer buttons - a distinct family/index scaffold over its own
+// bank of six opposite pairs, none of which overlaps a trait any other pair
+// in this bank names.
+const ANT4_A: WordBank = ['brave', 'polite', 'generous', 'honest', 'careful', 'patient'];
+const ANT4_B: WordBank = ['cowardly', 'rude', 'selfish', 'dishonest', 'careless', 'impatient'];
+
+/** The word at pair `p`, on side `s` (0 for `ANT4_A`, 1 for `ANT4_B`), as an expression. */
+const ANTONYM4_WORD = (p: Expr, s: Expr): Expr =>
+  `${s} == 0 ? (${wordFrom(ANT4_A, p)}) : (${wordFrom(ANT4_B, p)})`;
 
 export const year4: QuestionTemplate[] = [
   // -------------------------------------------------------------------
@@ -680,26 +695,29 @@ export const year4: QuestionTemplate[] = [
     tags: ['AC9E4LA11', 'EN2-VOCAB-01'],
   },
   {
-    id: 'english.4.synonyms.two-choices',
+    id: 'english.4.synonyms.which-antonym',
     subject: 'english',
     topic: 'synonyms',
     level: '4',
-    prompt: 'Which word means the same as {target}?',
+    prompt: 'Which word means the opposite of {target}?',
     vars: [
       { name: 'p', kind: 'int', min: '0', max: '5' },
       { name: 's', kind: 'pick', from: [0, 1] },
-      { name: 'd', kind: 'int', min: '1', max: '5' },
-      { name: 'sw', kind: 'pick', from: [0, 1] },
-      { name: 'target', kind: 'expr', expr: SYNONYM4_WORD('p', 's') },
-      { name: 'answer', kind: 'expr', expr: SYNONYM4_WORD('p', '1 - s') },
+      { name: 'd1', kind: 'int', min: '1', max: '5' },
+      { name: 'd2', kind: 'int', min: '1', max: '5' },
+      { name: 's2', kind: 'pick', from: [0, 1] },
+      { name: 's3', kind: 'pick', from: [0, 1] },
+      { name: 'target', kind: 'expr', expr: ANTONYM4_WORD('p', 's') },
+      { name: 'answer', kind: 'expr', expr: ANTONYM4_WORD('p', '1 - s') },
     ],
+    constraints: ['d1 != d2'],
     answer: 'answer',
     answerType: 'choice',
     choices: {
-      count: 2,
-      distractors: [SYNONYM4_WORD('(p + d) % 6', 'sw')],
+      count: 3,
+      distractors: [ANTONYM4_WORD('(p + d1) % 6', 's2'), ANTONYM4_WORD('(p + d2) % 6', 's3')],
     },
-    hint: 'A synonym means almost the same thing.',
+    hint: 'An antonym means the opposite thing.',
     tags: ['AC9E4LA11', 'EN2-VOCAB-01'],
   },
   {
