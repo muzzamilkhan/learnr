@@ -299,6 +299,17 @@ const PUNCT_LABEL_3: readonly string[] = [
 ];
 const PUNCT_LABEL_2: readonly string[] = ['punctuated correctly', 'missing a comma'];
 
+// `PUNCT_LABEL_3` reads as an option ("with a comma in the wrong place") but
+// not as the middle of a sentence - `list-issue` and `clause-issue` fill
+// `{label}` into "Which sentence is {label} ...", where that entry produces
+// "is with a comma in the wrong place", so the prompt slot gets its own
+// wording instead.
+const PUNCT_LABEL_3_PROMPT: readonly string[] = [
+  'is punctuated correctly',
+  'is missing a comma',
+  'has a comma in the wrong place',
+];
+
 const LIST_CORRECT: readonly string[] = [
   'We packed apples, bananas and grapes for the picnic.',
   'The zoo has lions, tigers and bears in the north wing.',
@@ -505,6 +516,15 @@ export const year6: QuestionTemplate[] = [
       { name: 'word', kind: 'expr', expr: ROOT_WORD('f', 'i') },
       { name: 'answer', kind: 'expr', expr: ROOT_NAME_AT('f') },
     ],
+    // Two exclusions, both about a typed exact-string match admitting a
+    // second defensible answer. `scrib` (family 4) spells "scribe" as well
+    // as "scrib" in every SCRIB_WORDS entry, so it is excluded here as
+    // Year 5's write-root excludes it. `aqueduct` (family 2, index 2) reads
+    // as "aque" rather than "aqua" - the letters present are not the root's
+    // spelling - so that one word is excluded on its own rather than the
+    // whole AQUA family, which is otherwise fine. Neither exclusion touches
+    // the choice templates above, whose options disambiguate both cases.
+    constraints: ['f != 4', '!(f == 2 && i == 2)'],
     answer: 'answer',
     answerType: 'text',
     hint: 'Look for the meaningful chunk of letters shared by that word family.',
@@ -766,7 +786,7 @@ export const year6: QuestionTemplate[] = [
     subject: 'english',
     topic: 'figurative language',
     level: '6',
-    prompt: 'This is not a {wrongLabel}. What is it? {sentence}',
+    prompt: 'Not {wrongLabel}. Which one is it? {sentence}',
     vars: [
       { name: 'type', kind: 'int', min: '0', max: '4' },
       { name: 'i', kind: 'int', min: '0', max: '4' },
@@ -806,13 +826,13 @@ export const year6: QuestionTemplate[] = [
     subject: 'english',
     topic: 'punctuation',
     level: '6',
-    prompt: 'Which sentence is {label} in its list?',
+    prompt: 'Which sentence {label} in its list?',
     vars: [
       { name: 'cat', kind: 'pick', from: [0, 1, 2] },
       { name: 'i0', kind: 'int', min: '0', max: '4' },
       { name: 'i1', kind: 'int', min: '0', max: '4' },
       { name: 'i2', kind: 'int', min: '0', max: '4' },
-      { name: 'label', kind: 'expr', expr: TEXT_AT(PUNCT_LABEL_3, 'cat') },
+      { name: 'label', kind: 'expr', expr: TEXT_AT(PUNCT_LABEL_3_PROMPT, 'cat') },
       { name: 'answer', kind: 'expr', expr: LIST_SENTENCE('cat', 'i0') },
     ],
     answer: 'answer',
@@ -833,13 +853,13 @@ export const year6: QuestionTemplate[] = [
     subject: 'english',
     topic: 'punctuation',
     level: '6',
-    prompt: 'Which sentence is {label} after its opening clause?',
+    prompt: 'Which sentence {label} after its opening clause?',
     vars: [
       { name: 'cat', kind: 'pick', from: [0, 1, 2] },
       { name: 'i0', kind: 'int', min: '0', max: '4' },
       { name: 'i1', kind: 'int', min: '0', max: '4' },
       { name: 'i2', kind: 'int', min: '0', max: '4' },
-      { name: 'label', kind: 'expr', expr: TEXT_AT(PUNCT_LABEL_3, 'cat') },
+      { name: 'label', kind: 'expr', expr: TEXT_AT(PUNCT_LABEL_3_PROMPT, 'cat') },
       { name: 'answer', kind: 'expr', expr: CLAUSE_SENTENCE('cat', 'i0') },
     ],
     answer: 'answer',
