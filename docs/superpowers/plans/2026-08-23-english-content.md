@@ -1008,6 +1008,25 @@ while two templates beside it in the same topic taught "look for a capital and a
 full stop" — so it could be answered without ever judging the thing it tested.
 Make the true and false cases differ **only** in the property being asked about.
 
+**7. Does a hole in the prompt hand over the answer?**
+Year 5 shipped `'What tells you this is a {label}? {sentence}'` where `{label}`
+and the answer were both driven by the same variable through a fixed 1:1
+mapping - so a child who knew "similes use like or as" answered on reading the
+word "simile", and `{sentence}` did no work at all.
+
+**This is the one failure mode none of the tooling can see.** The options-only
+measurement is blind to it, because the option set is genuinely fine; both
+opt-out flags are irrelevant, because nothing about the options is the problem.
+It is the boolean surface-cue failure generalised to a choice question whose own
+prompt gives the game away.
+
+The test: for each `{hole}` in your prompt, ask whether knowing *only* that
+hole's value determines the answer. If it does, the rest of the question is
+decoration. Naming a category in the prompt is fine when the options still have
+to be evaluated against it (`match-the-example` gives the label and offers three
+sentences); it is fatal when a fixed lookup turns that label straight into the
+answer.
+
 **6. Sequence questions have honest end effects.** "Which letter comes after
 `{x}`?" cannot offer the first letter as an answer or the last as a target. That
 asymmetry is structural rather than a bank built wrong, and is acceptable — but
