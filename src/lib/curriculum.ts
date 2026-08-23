@@ -130,3 +130,22 @@ const STAGE_LABELS: Record<Stage, string> = {
 export function stageLabel(stage: Stage): string {
   return STAGE_LABELS[stage];
 }
+
+/**
+ * The order subjects are offered in where one of them has to be picked first.
+ *
+ * Alphabetical puts English in front of maths, which would make English the
+ * subject a parent's report opens on - and maths is the one every child
+ * practises from Kindergarten, so it leads. A subject not named here sorts
+ * after the ones that are, alphabetically among themselves, so a third subject
+ * shipping is a line to add rather than a screen that breaks.
+ */
+export const SUBJECT_ORDER: readonly string[] = ['maths', 'english'];
+
+export function compareSubjects(a: string, b: string): number {
+  const ranked = (subject: string) => {
+    const index = SUBJECT_ORDER.indexOf(subject);
+    return index === -1 ? SUBJECT_ORDER.length : index;
+  };
+  return ranked(a) - ranked(b) || a.localeCompare(b);
+}

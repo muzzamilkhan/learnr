@@ -53,6 +53,19 @@ export const TABLES: readonly number[] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
  * and in what a **mixed** run draws from, where the easy question among the
  * hard ones is the point.
  */
+/**
+ * The subject a speed run belongs to.
+ *
+ * Every one of the twenty-six modes is arithmetic - add, subtract, multiply,
+ * divide and a mix of the four - so a run says nothing about English and a
+ * "Speed runs" panel on an English report is a panel that can only ever be
+ * empty or misleading. A run still writes no `Attempt` and carries no level or
+ * topic (see the `QuestionSpec`/`QuestionTemplate` split): this names which
+ * subject's screens are the right place to *show* runs, not a curriculum
+ * placement for them.
+ */
+export const SPEED_RUN_SUBJECT = 'maths';
+
 export const SINGLE_TABLES: readonly number[] = TABLES.filter((table) => table !== 10);
 
 export const TABLE_BUNDLES: readonly TableChoice[] = ['2-5', '6-9', '11-12', 'all'];

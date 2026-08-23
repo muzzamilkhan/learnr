@@ -11,6 +11,7 @@ import {
   stageForLevel,
   levelsForStage,
   stageLabel,
+  compareSubjects,
 } from './curriculum';
 
 describe('YEAR_LEVELS', () => {
@@ -148,5 +149,23 @@ describe('stageLabel', () => {
     expect(stageLabel('S1')).toBe('Stage 1');
     expect(stageLabel('S2')).toBe('Stage 2');
     expect(stageLabel('S3')).toBe('Stage 3');
+  });
+});
+
+describe('compareSubjects', () => {
+  it('puts maths first, since it is the subject a report opens on', () => {
+    expect(['english', 'maths'].sort(compareSubjects)).toEqual(['maths', 'english']);
+  });
+
+  it('sorts a subject it has never heard of after the ones it has', () => {
+    expect(['science', 'english', 'maths'].sort(compareSubjects)).toEqual([
+      'maths',
+      'english',
+      'science',
+    ]);
+  });
+
+  it('falls back to alphabetical among unknown subjects', () => {
+    expect(['science', 'art'].sort(compareSubjects)).toEqual(['art', 'science']);
   });
 });

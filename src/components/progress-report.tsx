@@ -3,6 +3,7 @@ import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/repo
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/records';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
+import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import type { SummaryRun } from '@/lib/speedrun/summary';
 import { ProfileFace } from './profile-face';
 import { ChildPicker, type PickableChild } from './child-picker';
@@ -126,18 +127,24 @@ export function ProgressReport({
         </div>
       )}
 
-      {/* Outside the block above rather than inside it: a speed run writes no
+      {/* Maths only, because every speed run mode is arithmetic
+          (`SPEED_RUN_SUBJECT`) - on an English report this well could only ever
+          say "no speed runs yet" about runs English never had.
+
+          Outside the block above rather than inside it: a speed run writes no
           `Attempt`, so it has bests to show even for a child who has never
           answered a curriculum question, and the well would otherwise be
           hidden behind a message that is only true of the report above it. */}
-      <div className="mt-4">
-        <Well
-          title="Speed runs"
-          note={`How ${child.name} is going at each mode, last played first.`}
-        >
-          <SpeedTable runs={speedRuns} />
-        </Well>
-      </div>
+      {subject === SPEED_RUN_SUBJECT && (
+        <div className="mt-4">
+          <Well
+            title="Speed runs"
+            note={`How ${child.name} is going at each mode, last played first.`}
+          >
+            <SpeedTable runs={speedRuns} />
+          </Well>
+        </div>
+      )}
     </>
   );
 }

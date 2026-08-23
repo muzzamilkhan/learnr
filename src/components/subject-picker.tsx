@@ -5,10 +5,14 @@ import { useRouter } from 'next/navigation';
 import { Select } from '@/components/select';
 
 /**
- * Which subject this screen is about. A dropdown rather than tabs: maths is the
- * only subject today, and a row of one tab is a label pretending to be a
- * control. A dropdown with one option is honestly a dropdown, and reads the
- * same the day a second subject ships.
+ * Which subject this screen is about. A dropdown rather than tabs: it was
+ * written while maths was the only subject, when a row of one tab would have
+ * been a label pretending to be a control and a dropdown with one option was
+ * honestly a dropdown. It reads the same now English has made it a real
+ * choice, which is what that argument was for.
+ *
+ * The order the options arrive in is the caller's, and the report hands them
+ * over maths-first (`compareSubjects`) rather than alphabetically.
  *
  * Like `ChildPicker`, the choice goes in the URL so a refresh keeps it.
  */

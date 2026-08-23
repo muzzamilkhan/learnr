@@ -3,6 +3,7 @@ import { listSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
 import { SpeedBanner } from '@/components/speed-banner';
 import { resolveChild } from '@/lib/children';
+import { compareSubjects } from '@/lib/curriculum';
 import {
   readAnsweredQuestions,
   readObservations,
@@ -10,6 +11,7 @@ import {
   readSittings,
 } from '@/lib/records';
 import { readSpeedSummaries, readUnseenRecords } from '@/lib/speed-records';
+import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
 
@@ -81,7 +83,16 @@ export default async function ProgressPage({
     );
   }
 
-  const subjects = listSubjects().map((summary) => summary.subject);
+  // `listSubjects` sorts alphabetically, which puts English in front of maths
+  // and so makes English the report's default. Maths is the subject a parent
+  // opens this screen for - it is the one every child practises from
+  // Kindergarten - so it leads here, and the first entry is what a bare
+  // `/progress` resolves to. Ordering is this screen's, not the catalog's: the
+  // landing page lists subjects to describe coverage, where alphabetical is
+  // the honest order.
+  const subjects = listSubjects()
+    .map((summary) => summary.subject)
+    .sort(compareSubjects);
   const subject = subjects.find((option) => option === subjectParam) ?? subjects[0] ?? 'maths';
 
   const now = requestNow();
@@ -94,7 +105,10 @@ export default async function ProgressPage({
     // The resolved child's own runs, not the parent's - so the well and the
     // heading above it can never disagree about who is on screen, and so the
     // numbers here survive a banner about this same child being dismissed.
-    readSpeedSummaries(child.id),
+    // Only asked for on the subject that shows them: every mode is arithmetic,
+    // so an English report draws no speed run well and would be paying for a
+    // query nothing renders.
+    subject === SPEED_RUN_SUBJECT ? readSpeedSummaries(child.id) : Promise.resolve(null),
   ]);
 
   return (
