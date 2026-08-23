@@ -968,7 +968,17 @@ simply wrong.
 **4. Are two of your templates the same question in different words?**
 The test is mechanical, not aesthetic: if two templates have the same `vars`, the
 same `constraints`, the same `distractors` and the same `answer` expression, they
-are one question rendered twice however differently the prompt reads. The maths
+are one question rendered twice however differently the prompt reads.
+
+**The mechanical test has a loophole Year 1 fell through: two templates can be
+*logical duals* and still pass it.** `is-doing-word` (`i >= 10`) beside
+`is-naming-word` (`i < 10`) over one bank have different answer expressions, so
+the letter of the test clears them — but every word in that bank is exclusively
+a noun or exclusively a verb, so a child who answers one correctly answers the
+other by pure negation, exercising no new judgment. Ask whether the second
+question can be *derived* from the first, not just whether the code differs.
+
+The maths
 content's apparent near-duplicates are not a precedent for this — `counting-numbers`'
 four variants each compute a **different answer expression**. Prefer fewer,
 genuinely distinct templates over hitting a per-topic count.
