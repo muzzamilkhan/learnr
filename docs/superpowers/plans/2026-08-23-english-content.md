@@ -831,6 +831,13 @@ const RHYME_FAMILIES: readonly WordBank[] = [
     { name: 'a', kind: 'int', min: '0', max: '3' },
     { name: 'd1', kind: 'int', min: '1', max: '3' },
     { name: 'd2', kind: 'int', min: '1', max: '3' },
+    // Fresh indices for the two distractors, independent of `t` and `a`.
+    // Reusing either would tie a distractor's position inside its family to
+    // the answer's position inside its own - a correlation `validateTemplate`
+    // cannot see and a 600-draw measurement often misses, but which shows up
+    // at 3,000 draws as a 15-to-17-point leak. See the note below.
+    { name: 'e1', kind: 'int', min: '0', max: '3' },
+    { name: 'e2', kind: 'int', min: '0', max: '3' },
     { name: 'target', kind: 'expr', expr: FAMILY_WORD('f', 't') },
     { name: 'answer', kind: 'expr', expr: FAMILY_WORD('f', 'a') },
   ],
@@ -842,8 +849,8 @@ const RHYME_FAMILIES: readonly WordBank[] = [
   choices: {
     count: 3,
     distractors: [
-      FAMILY_WORD('(f + d1) % 4', 't'),
-      FAMILY_WORD('(f + d2) % 4', 'a'),
+      FAMILY_WORD('(f + d1) % 4', 'e1'),
+      FAMILY_WORD('(f + d2) % 4', 'e2'),
     ],
   },
   hint: 'Say the words out loud. Rhyming words end with the same sound.',
@@ -851,13 +858,38 @@ const RHYME_FAMILIES: readonly WordBank[] = [
 }
 ```
 
-**Verified before any year was written.** This exact template was built and run
-through `validateTemplate`: it passes all three anchoring checks with no errors,
-and over 60 draws the answer values and the distractor values genuinely overlap
-- `hat` turns up as both. The pattern works; what remains per year is choosing
-the words.
+**Verified before any year was written, and the verification was not enough.**
+This exact template was built and run through `validateTemplate`: it passes all
+three anchoring checks with no errors, and over 60 draws the answer values and
+the distractor values genuinely overlap - `hat` turns up as both. All of that
+is true and none of it caught the index-reuse leak below, which took 3,000
+held-out draws to separate from noise. Structural validation and role overlap
+are necessary and are not sufficient; the sample size is part of the claim.
 
 **Why this passes the closed-set check:** across draws `hat` is the answer when `f` picks the `at` family and a distractor when `f` picks `og`. The answer values and the distractor values overlap, so there is no disjointness for the check to object to - and no child can learn that a particular button is the right one, which is the same fact stated as teaching rather than as validation.
+
+**The index-reuse leak, measured across the whole course.** The version of this
+shape that drew its distractors as `FAMILY_WORD('(f + d1) % 4', 't')` and
+`FAMILY_WORD('(f + d2) % 4', 'a')` - reusing the target's and the answer's own
+positions inside the offset families - leaks **15 to 17 points** above blind.
+Six shipped templates carried it before it was found.
+
+It is worth understanding why it hid for so long. `validateTemplate` passes it:
+the answer and distractor values genuinely overlap, so the closed-set check has
+nothing to object to, and the option sets move enough that the prediction check
+stays silent. A 600-draw measurement passes it too, or reports a 10-to-13-point
+gap that reads as noise - the very sample the first five years were measured at.
+Only at 3,000 held-out draws does it separate cleanly from the baseline.
+
+The mechanism is that a word's identity encodes its position in its family, so
+reusing `t` or `a` for a distractor correlates the distractor with the answer.
+The three buttons together then carry more about which one is right than they
+should. **Draw a fresh index per distractor** and it drops to about a point.
+
+The lesson generalises past this scaffold: any distractor expression that
+mentions a variable the *answer* also depends on is a candidate leak, and the
+sample size at which you measure decides whether you see it.
+
 
 **No "odd one out" question, ever. It is answerable from the buttons alone by
 construction, and no bank can fix it.**
@@ -1597,8 +1629,16 @@ import { createRng } from '@/lib/rng';
  * reported as *unmeasurable* rather than as clean: no evidence is not evidence
  * of no leak, and saying so is the honest reading.
  */
-const DRAWS = 600;
-const TRAIN = 300;
+/**
+ * **3,000 held-out draws, not 300, and the difference is not academic.** The
+ * index-reuse leak that six shipped templates carried measures 15 to 17 points
+ * above blind at this sample and 10 to 13 - indistinguishable from noise - at
+ * 600 draws. Five of the seven content years were first measured at the smaller
+ * sample and passed. Raising it costs about forty seconds on the whole suite,
+ * which is the cheapest insurance in this repo.
+ */
+const DRAWS = 6000;
+const TRAIN = 3000;
 
 /**
  * How far above blind guessing counts as a leak.
@@ -1662,7 +1702,7 @@ function measure(): { rows: Row[]; unmeasurable: string[] } {
 
     // Too few held-out draws shared a key with the training half for any rate
     // computed from them to mean anything.
-    if (scored < 30) {
+    if (scored < 100) {
       unmeasurable.push(template.id);
       continue;
     }
@@ -1699,6 +1739,36 @@ Expected: PASS, or a failure naming each leaking template with its measured rate
 While developing, also print the `unmeasurable` list once (a temporary `console.log`, removed before committing) and **record it in the task report**. Those templates are not verified clean - their option sets almost never repeat, so the method has nothing to measure - and reporting them as unmeasurable rather than silently passing them is the whole point of the distinction.
 
 - [ ] **Step 3: Fix every leak**
+
+**Six are already known, and they are all one bug.** A controller sweep at
+3,000 held-out draws found these, every one of them the family/index scaffold
+reusing the target's or the answer's own index for a distractor:
+
+| Template | Excess over blind |
+| --- | --- |
+| `english.5.word-roots.same-root` | +17.1pt |
+| `english.K.rhyme.which-rhymes` | +16.8pt |
+| `english.1.rhyme.which-rhymes` | +16.0pt |
+| `english.3.spelling-patterns.which-same-pattern` | +16.0pt |
+| `english.5.word-roots.which-comes-from-root` | +15.6pt |
+| `english.5.spelling-patterns.same-silent-pattern` | +15.3pt |
+
+**The fix is known and proven twice** - `english.6.word-roots.same-root` and
+`english.1.rhyme.finish-the-rhyme` both use it and both measure about a point.
+Draw a fresh index per distractor rather than reusing `t` or `a`:
+
+```ts
+// was: distractors reuse the target's and answer's own positions
+distractors: [FAMILY_WORD('(f + d1) % 4', 't'), FAMILY_WORD('(f + d2) % 4', 'a')],
+
+// now: two independent indices, so a distractor's position inside its family
+// says nothing about the answer's position inside its own
+{ name: 'e1', kind: 'int', min: '0', max: '3' },
+{ name: 'e2', kind: 'int', min: '0', max: '3' },
+distractors: [FAMILY_WORD('(f + d1) % 4', 'e1'), FAMILY_WORD('(f + d2) % 4', 'e2')],
+```
+
+Apply it to all six, re-measure, and check nothing else crossed the line.
 
 For anything flagged, **widen what varies** - a bigger word bank, more sentence frames, distractors drawn from more families. Do **not** reach for `rankIsTheQuestion` or `propertyIsTheQuestion`: neither is expected anywhere in English content, and a template that seems to need one has a bank built wrong. If you believe a declaration is genuinely right, stop and put the argument in the task report for review rather than declaring it.
 
