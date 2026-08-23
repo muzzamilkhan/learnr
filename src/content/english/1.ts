@@ -567,7 +567,7 @@ export const year1: QuestionTemplate[] = [
     subject: 'english',
     topic: 'rhyme',
     level: '1',
-    prompt: '{eTarget} and {eAnswer} rhyme. Which word rhymes with {target}?',
+    prompt: 'Here, {eTarget} and {eAnswer} rhyme. Which word rhymes with {target}?',
     vars: [
       { name: 'ef', kind: 'int', min: '0', max: '3' },
       { name: 'et', kind: 'int', min: '0', max: '5' },
@@ -737,7 +737,7 @@ export const year1: QuestionTemplate[] = [
     subject: 'english',
     topic: 'opposites',
     level: '1',
-    prompt: '{eTarget} and {eAnswer} are opposites. What is the opposite of {target}?',
+    prompt: 'Here, {eTarget} and {eAnswer} are opposites. What is the opposite of {target}?',
     vars: [
       { name: 'ep', kind: 'int', min: '0', max: '5' },
       { name: 'es', kind: 'pick', from: [0, 1] },
@@ -783,7 +783,7 @@ export const year1: QuestionTemplate[] = [
     subject: 'english',
     topic: 'opposites',
     level: '1',
-    prompt: '{eTarget} and {eAnswer} are opposites. Write the opposite of {target}.',
+    prompt: 'Here, {eTarget} and {eAnswer} are opposites. Write the opposite of {target}.',
     vars: [
       { name: 'ep', kind: 'int', min: '0', max: '5' },
       { name: 'es', kind: 'pick', from: [0, 1] },

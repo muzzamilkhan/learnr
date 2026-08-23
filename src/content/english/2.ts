@@ -412,7 +412,7 @@ export const year2: QuestionTemplate[] = [
     subject: 'english',
     topic: 'past tense',
     level: '2',
-    prompt: '{eWord} became {eForm} yesterday. Which word means {word} already happened?',
+    prompt: 'Here, {eWord} became {eForm} yesterday. Which word means {word} already happened?',
     vars: [
       { name: 'ei', kind: 'int', min: '0', max: '5' },
       { name: 'i', kind: 'int', min: '1', max: '5' },
@@ -469,8 +469,8 @@ export const year2: QuestionTemplate[] = [
         name: 'frame',
         kind: 'expr',
         expr:
-          "blankFirst == 1 ? ('? and ' + word2 + ' make ' + full + '.') : " +
-          "(word1 + ' and ? make ' + full + '.')",
+          "blankFirst == 1 ? ('Here, ? and ' + word2 + ' make ' + full + '.') : " +
+          "('Here, ' + word1 + ' and ? make ' + full + '.')",
       },
       { name: 'answer', kind: 'expr', expr: 'blankFirst == 1 ? word1 : word2' },
     ],
@@ -708,7 +708,7 @@ export const year2: QuestionTemplate[] = [
     subject: 'english',
     topic: 'synonyms',
     level: '2',
-    prompt: '{eTarget} and {eAnswer} mean the same thing. Which word means the same as {target}?',
+    prompt: 'Here, {eTarget} and {eAnswer} mean the same thing. Which word means the same as {target}?',
     vars: [
       { name: 'ep', kind: 'int', min: '0', max: '5' },
       { name: 'es', kind: 'pick', from: [0, 1] },
