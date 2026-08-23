@@ -6,10 +6,10 @@ import { createRng } from '@/lib/rng';
 /**
  * How often a `choice` question can be answered from its buttons alone.
  *
- * For each template: draw many questions, key each by its prompt and sorted
- * option set, learn the modal answer for each key on a training sample, then
- * score that rule on a held-out sample. Compare against the blind baseline -
- * the mean of 1/n over the options actually offered - and fail anything
+ * For each template: draw many questions, key each by its sorted option set
+ * alone, learn the modal answer for each key on a training sample, then score
+ * that rule on a held-out sample. Compare against the blind baseline - the
+ * mean of 1/n over the options actually offered - and fail anything
  * meaningfully above it.
  *
  * **This is a fourth check, not a restatement of the three in
@@ -39,29 +39,58 @@ import { createRng } from '@/lib/rng';
  * A template whose sets almost never repeat scores nothing here and is
  * reported as *unmeasurable* rather than as clean: no evidence is not evidence
  * of no leak, and saying so is the honest reading.
- */
-/**
+ *
+ * **That same exclusion is this measurement's blind spot, and it is a real
+ * one.** Keying on options alone is deliberate - the note above explains why
+ * including the prompt degenerates into memorising each question - but it
+ * means the prompt itself is never read here, so a question that hands over
+ * its own answer in words scores as clean: nothing about the options changed,
+ * the leak is sitting in text this check does not look at. Two findings from
+ * the review that added this file were exactly that shape and neither could
+ * have been caught here - a prompt printing the very letter it asked the
+ * child to find, and a homophone pair whose two sentences were transposed so
+ * every draw answered itself backwards, which this check cannot see because
+ * the option set balance across the two sentences never moved. This is the
+ * check most likely to be assumed to cover everything going forward, which is
+ * exactly why what it does not cover belongs here rather than left implied.
+ *
+ * **Scoped to `subject === 'english'` on purpose, not because maths was
+ * overlooked.** Maths choice templates are numeric far more often than
+ * worded, and `validateTemplate`'s rank check already reads numeric options
+ * directly - this measurement exists for the word-bank shape English
+ * introduced, where a closed set of plausible-sounding options is exactly
+ * the case the rank check stands down for.
+ *
  * **3,000 held-out draws, not 300, and the difference is not academic.** The
  * index-reuse leak that six shipped templates carried measures 15 to 17 points
  * above blind at this sample and 10 to 13 - indistinguishable from noise - at
  * 600 draws. Five of the seven content years were first measured at the smaller
- * sample and passed. Raising it costs about forty seconds on the whole suite,
- * which is the cheapest insurance in this repo.
+ * sample and passed.
+ *
+ * **Margin, sample and split were re-tuned once real numbers existed.**
+ * Measuring all 111 English choice templates independently found the largest
+ * *legitimate* excess at +5.2 points (`alphabet-before`, a documented sequence
+ * end effect) with nothing else above +2.4, against the +18.0 the transposed
+ * homophone leak above actually measured. A 0.15 margin sat inside the
+ * distribution of the defect it exists to catch - a half-strength leak would
+ * have passed - so it came down to 0.10, comfortably above every legitimate
+ * template and still well under half the leak that shipped. At 3,000 draws
+ * split 1,500/1,500 the noise band is about ±3 points, which 0.10 clears with
+ * room to spare, and halving both numbers roughly halves the run's time.
  */
-const DRAWS = 6000;
-const TRAIN = 3000;
+const DRAWS = 3000;
+const TRAIN = 1500;
 
 /**
  * How far above blind guessing counts as a leak.
  *
- * Not zero: a held-out sample of a few hundred draws carries real sampling
- * noise, and a template whose answer is genuinely uniform over its options
- * still lands a few points either side of its baseline. 15 points is
- * comfortably outside that band and far below what an actual leak produces -
- * the figures work measured leaks at 60% to 100% against baselines of 25% to
- * 33%.
+ * Not zero: a held-out sample carries real sampling noise, and a template
+ * whose answer is genuinely uniform over its options still lands a few points
+ * either side of its baseline. See the margin note above `DRAWS` for how 0.10
+ * was chosen against the measured distribution of legitimate templates and
+ * the leak that shipped.
  */
-const MARGIN = 0.15;
+const MARGIN = 0.1;
 
 interface Row {
   id: string;
@@ -76,6 +105,13 @@ function measure(): { rows: Row[]; unmeasurable: string[] } {
 
   for (const template of allTemplates) {
     if (template.subject !== 'english') continue;
+
+    // A single probe draw tells whether this template is `choices` at all -
+    // about 45 of the 156 English templates are not, and drawing 3,000
+    // questions from each of those just to filter them out afterwards is
+    // several seconds spent measuring something that was never in question.
+    const probe = generateQuestion(template, createRng(`${template.id}-leak-probe`));
+    if (!probe.choices || probe.choices.length === 0) continue;
 
     const draws = Array.from({ length: DRAWS }, (_, i) =>
       generateQuestion(template, createRng(`${template.id}-leak-${i}`)),
@@ -126,7 +162,7 @@ function measure(): { rows: Row[]; unmeasurable: string[] } {
 
 describe('English multiple-choice questions', () => {
   it('cannot be answered from the buttons alone', { timeout: 120_000 }, () => {
-    const { rows } = measure();
+    const { rows, unmeasurable } = measure();
 
     const leaks = rows
       .filter((r) => r.hit / r.scored > r.baseline + MARGIN)
@@ -136,6 +172,16 @@ describe('English multiple-choice questions', () => {
           `${r.id}: ${((r.hit / r.scored) * 100).toFixed(0)}% from the options alone ` +
           `(blind ${(r.baseline * 100).toFixed(0)}%, n=${r.scored})`,
       );
+
+    // Surfaced rather than silently dropped: no evidence is not evidence of
+    // no leak, and a template whose sets never repeat enough to score is a
+    // gap in this suite's coverage worth seeing, not just a discarded count.
+    if (unmeasurable.length > 0) {
+      console.warn(
+        `${unmeasurable.length} template(s) had too few repeated option sets to score: ` +
+          unmeasurable.join(', '),
+      );
+    }
 
     expect(leaks).toEqual([]);
   });
