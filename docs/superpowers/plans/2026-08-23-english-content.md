@@ -829,8 +829,8 @@ const RHYME_FAMILIES: readonly WordBank[] = [
     { name: 'a', kind: 'int', min: '0', max: '3' },
     { name: 'd1', kind: 'int', min: '1', max: '3' },
     { name: 'd2', kind: 'int', min: '1', max: '3' },
-    { name: 'target', kind: 'expr', value: FAMILY_WORD('f', 't') },
-    { name: 'answer', kind: 'expr', value: FAMILY_WORD('f', 'a') },
+    { name: 'target', kind: 'expr', expr: FAMILY_WORD('f', 't') },
+    { name: 'answer', kind: 'expr', expr: FAMILY_WORD('f', 'a') },
   ],
   // The answer must not be the target itself, and the two distractors must come
   // from two different other families - otherwise two buttons could coincide.
@@ -849,6 +849,12 @@ const RHYME_FAMILIES: readonly WordBank[] = [
 }
 ```
 
+**Verified before any year was written.** This exact template was built and run
+through `validateTemplate`: it passes all three anchoring checks with no errors,
+and over 60 draws the answer values and the distractor values genuinely overlap
+- `hat` turns up as both. The pattern works; what remains per year is choosing
+the words.
+
 **Why this passes the closed-set check:** across draws `hat` is the answer when `f` picks the `at` family and a distractor when `f` picks `og`. The answer values and the distractor values overlap, so there is no disjointness for the check to object to - and no child can learn that a particular button is the right one, which is the same fact stated as teaching rather than as validation.
 
 **Shape B - typed, one word.** Years 1 to 6 only, and no more than 40% of a year:
@@ -862,7 +868,7 @@ const RHYME_FAMILIES: readonly WordBank[] = [
   prompt: 'Write the plural of {word}.',
   vars: [
     { name: 'i', kind: 'int', min: '0', max: '5' },
-    { name: 'word', kind: 'expr', value: wordFrom(HISS_WORDS, 'i') },
+    { name: 'word', kind: 'expr', expr: wordFrom(HISS_WORDS, 'i') },
   ],
   // Every word in HISS_WORDS ends in a hissing sound, so every plural takes
   // -es. A bank mixing -s and -es words would need the rule as a second
@@ -889,7 +895,7 @@ const RHYME_FAMILIES: readonly WordBank[] = [
   vars: [
     { name: 'i', kind: 'int', min: '0', max: '5' },
     { name: 'ok', kind: 'pick', from: [0, 1] },
-    { name: 'sentence', kind: 'expr', value: SENTENCE('i', 'ok') },
+    { name: 'sentence', kind: 'expr', expr: SENTENCE('i', 'ok') },
   ],
   answer: 'ok == 1',
   hint: 'A sentence always starts with a capital letter.',
