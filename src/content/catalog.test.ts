@@ -309,6 +309,19 @@ describe('shipped content', () => {
     }
   });
 
+  // The letter pad has no space key and no apostrophe key, and caps entry at 16
+  // characters - so a typed answer it cannot produce is a question no child can
+  // answer. Enforced rather than intended, like the number pad's own rule above.
+  it('never asks a child to type a word the letter pad cannot enter', () => {
+    for (const template of allTemplates) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-typed-text-${i}`));
+        if (q.answerType !== 'text') continue;
+        expect(String(q.answer), template.id).toMatch(/^[A-Za-z]{1,16}$/);
+      }
+    }
+  });
+
   // Spelling a word on the letter pad is a literacy test, not a maths one. In
   // the early years the maths answer is tapped instead: a word a child of that
   // age cannot reliably spell would hide what they actually know about the
@@ -791,7 +804,11 @@ describe('syllabus sources', () => {
   it('is not fooled by a tag that is only a note to ourselves', () => {
     expect(syllabusOf('needs-review')).toBe(null);
     expect(syllabusOf('MA9-XX-01')).toBe(null);
-    expect(syllabusOf('AC9X4N02')).toBe(null);   // was AC9E4N02, which is English now
+    expect(syllabusOf('AC9X4N02')).toBe(null);
+    // English's pattern names its three strands (LA/LE/LY) rather than
+    // matching any two letters, so a maths-shaped "N0" strand fails it too -
+    // this is not a maths code that happens to also be English's.
+    expect(syllabusOf('AC9E4N02')).toBe(null);
   });
 
   it('recognises an ACARA English content description', () => {
@@ -1078,12 +1095,13 @@ describe('English content', () => {
   // citation quietly dropped from any *other* English template would pass green.
   // So the complete set is asserted, and every member of it names a decision.
   it('names every English template that cites one syllabus alone', () => {
-    const acaraOnly: string[] = [
-      // Fill from Step 1. Each id gets a comment naming the divergence.
-    ];
-    const nswOnly: string[] = [
-      // Likewise.
-    ];
+    // Both lists are empty: every English template cites both syllabuses,
+    // unlike maths, where several topics divide ACARA and NSW on when a
+    // concept is taught. Left as set equalities anyway, exactly as the maths
+    // ones are - a citation quietly dropped from a future English template
+    // would otherwise pass this test in silence.
+    const acaraOnly: string[] = [];
+    const nswOnly: string[] = [];
 
     const missingNsw = englishTemplates
       .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
