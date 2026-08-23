@@ -992,6 +992,16 @@ content's apparent near-duplicates are not a precedent for this — `counting-nu
 four variants each compute a **different answer expression**. Prefer fewer,
 genuinely distinct templates over hitting a per-topic count.
 
+**A template that differs only in how many buttons it shows is not a distinct
+template.** This has now appeared twice: Kindergarten's `rhyme.pick-of-two` had
+a byte-identical prompt to `rhyme.which-rhymes` and Year 4's
+`synonyms.two-choices` had one to `synonyms.which-synonym`, each differing only
+in offering two options instead of three. Both clear the mechanical test,
+because having one fewer distractor variable makes the `constraints` differ
+trivially. A child meets the same sentence twice. Adding a worked pair or a
+sentence context *is* a distinct angle; changing the option count is not.
+
+
 **5. Can a boolean question be answered from a surface cue?**
 Kindergarten's `is-a-sentence` drew its fragments lowercase and unpunctuated,
 while two templates beside it in the same topic taught "look for a capital and a
