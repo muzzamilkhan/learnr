@@ -4,6 +4,7 @@ import { year1 } from './1';
 import { year2 } from './2';
 import { year3 } from './3';
 import { year4 } from './4';
+import { year5 } from './5';
 
 /**
  * English course, Kindergarten to Year 6.
@@ -42,4 +43,5 @@ export const englishTemplates: QuestionTemplate[] = [
   ...year2,
   ...year3,
   ...year4,
+  ...year5,
 ];
