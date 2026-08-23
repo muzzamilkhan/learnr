@@ -17,7 +17,7 @@ Every task's requirements implicitly include all of these.
 - **Rendered prompts are at most 140 characters** (`MAX_PROMPT_CHARS`). Enforced over 50 draws of every template.
 - **No slash may appear anywhere** in a prompt, hint, answer or choice unless it is a fraction. English content should contain no slashes at all.
 - **At most 4 options** on a multiple choice question (`MAX_CHOICES`), at least 2.
-- **Template ids are `subject.level.topic.variant`**, with the topic's spaces replaced by hyphens - e.g. `english.2.compound-words.join-two`.
+- **Template ids are `subject.level.topic.variant`**, with the topic's spaces replaced by hyphens - e.g. `english.2.compound-words.join-two`. **Kindergarten's level segment is a capital `K`** (`english.K.rhyme.which-rhymes`): `catalog.test.ts` builds the id regex from `template.level` itself, so a lowercase `k` fails.
 - **Every template cites at least one syllabus**, and **every tag must be a recognised curriculum code**. There is no room for a `needs-review` tag.
 - **An NSW code may only come from the stage its template's year falls in.** ES1 = K, S1 = Years 1-2, S2 = Years 3-4, S3 = Years 5-6.
 - **NESA outcome statements are Crown copyright and are never reproduced** - not in a `tags` array, not in a code comment, not in a notes file, not on a page. Say where the syllabus *places* something; never say what it *says*. ACARA descriptions are CC BY 4.0 and may be quoted or paraphrased.
@@ -887,7 +887,7 @@ the words.
 
 ```ts
 {
-  id: 'english.k.sentences.starts-with-capital',
+  id: 'english.K.sentences.starts-with-capital',
   subject: 'english',
   topic: 'sentences',
   level: 'K',
