@@ -20,6 +20,7 @@ import {
   subjectOverview,
   SYLLABUSES,
   syllabusOf,
+  syllabusSubjectOf,
   nswStageOfCode,
 } from './catalog';
 
@@ -687,7 +688,52 @@ describe('syllabus sources', () => {
   it('is not fooled by a tag that is only a note to ourselves', () => {
     expect(syllabusOf('needs-review')).toBe(null);
     expect(syllabusOf('MA9-XX-01')).toBe(null);
-    expect(syllabusOf('AC9E4N02')).toBe(null);
+    expect(syllabusOf('AC9X4N02')).toBe(null);   // was AC9E4N02, which is English now
+  });
+
+  it('recognises an ACARA English content description', () => {
+    expect(syllabusOf('AC9EFLY09')).toBe('acara');
+    expect(syllabusOf('AC9E3LY10')).toBe('acara');
+    expect(syllabusOf('AC9E6LA09')).toBe('acara');
+  });
+
+  it('recognises an NSW English outcome at every stage', () => {
+    expect(syllabusOf('ENE-PHOAW-01')).toBe('nsw');
+    expect(syllabusOf('EN1-PHOKW-01')).toBe('nsw');
+    expect(syllabusOf('EN2-SPELL-01')).toBe('nsw');
+    expect(syllabusOf('EN3-UARL-01')).toBe('nsw');
+  });
+
+  // English has exactly three strands - LA Language, LE Literature, LY Literacy -
+  // so the pattern names them. A mistyped strand is then a shape error caught
+  // here rather than a plausible code that has to reach the membership list.
+  it('rejects an English code with a strand that does not exist', () => {
+    expect(syllabusOf('AC9E3XX10')).toBe(null);
+    expect(syllabusOf('AC9E3L10')).toBe(null);
+  });
+
+  it('reads the stage an NSW English outcome belongs to', () => {
+    expect(nswStageOfCode('ENE-PHOAW-01')).toBe('ES1');
+    expect(nswStageOfCode('EN1-SPELL-01')).toBe('S1');
+    expect(nswStageOfCode('EN2-CWT-01')).toBe('S2');
+    expect(nswStageOfCode('EN3-VOCAB-01')).toBe('S3');
+  });
+
+  it('names the subject whose syllabus a code comes from', () => {
+    expect(syllabusSubjectOf('AC9M4N02')).toBe('maths');
+    expect(syllabusSubjectOf('MA2-AR-01')).toBe('maths');
+    expect(syllabusSubjectOf('AC9E3LY10')).toBe('english');
+    expect(syllabusSubjectOf('EN2-SPELL-01')).toBe('english');
+    expect(syllabusSubjectOf('needs-review')).toBe(null);
+  });
+
+  it('names all four documents', () => {
+    expect(SYLLABUSES.map((s) => [s.id, s.subject])).toEqual([
+      ['acara', 'maths'],
+      ['acara', 'english'],
+      ['nsw', 'maths'],
+      ['nsw', 'english'],
+    ]);
   });
 
   it('rejects a Stage 4 code, deliberately out of our K-6 scope', () => {
@@ -706,10 +752,6 @@ describe('syllabus sources', () => {
   it('gives the working-mathematically code no stage', () => {
     expect(nswStageOfCode('MAO-WM-01')).toBe(null);
     expect(nswStageOfCode('AC9M4N02')).toBe(null);
-  });
-
-  it('names both sources', () => {
-    expect(SYLLABUSES.map((s) => s.id)).toEqual(['acara', 'nsw']);
   });
 });
 
