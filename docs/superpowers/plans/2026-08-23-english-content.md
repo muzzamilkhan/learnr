@@ -857,6 +857,31 @@ the words.
 
 **Why this passes the closed-set check:** across draws `hat` is the answer when `f` picks the `at` family and a distractor when `f` picks `og`. The answer values and the distractor values overlap, so there is no disjointness for the check to object to - and no child can learn that a particular button is the right one, which is the same fact stated as teaching rather than as validation.
 
+**No "odd one out" question, ever. It is answerable from the buttons alone by
+construction, and no bank can fix it.**
+
+This was measured rather than reasoned: `english.K.rhyme.not-rhyme` ("Which word
+does NOT rhyme with *cat*?") and `english.K.syllables.odd-clap-count` ("Which
+word does NOT have 3 claps?") both scored **100% against a 33% blind baseline**
+when a rule was learned from the option set alone. Both passed
+`validateTemplate` cleanly.
+
+The reason is structural. For "which does not rhyme with *cat*?" to have exactly
+one answer, the two distractors must both rhyme with the target - which means
+they rhyme with **each other**. So `{hat, mat, dog}` announces `dog` without the
+prompt being read at all. Widening the bank changes nothing: any bank produces
+two-that-match and one-that-does-not. Making the distractors *not* rhyme with
+each other gives the question two correct answers instead.
+
+The same holds for any "which is not", "which does not belong", or
+"find the odd one" phrasing over a property the options themselves carry. Ask
+the positive question instead - "which word rhymes with *cat*?" - where the
+target in the prompt is what picks the answer out, and the same three buttons
+can arise from several different answers.
+
+**A negative question is only safe when the property is not visible in the
+option set** - and in a word-list subject it almost always is.
+
 **Shape B - typed, one word.** Years 1 to 6 only, and no more than 40% of a year:
 
 ```ts
@@ -1425,6 +1450,18 @@ import { createRng } from '@/lib/rng';
  * on the same draws reports the sample's own noise as signal - which, for a
  * template whose option sets rarely repeat, would be most of what it found.
  *
+ * **The key is the option set and NOT the prompt, which is where this differs
+ * from the figures work it is modelled on.** There the prompt is a constant
+ * caption ("What shape is this?") and the *figure* carries the question, so
+ * keying on prompt-plus-options asks "do the buttons give away what the
+ * picture should be telling you". Here the prompt carries the question, so
+ * including it makes the key unique per question and the modal rule degenerates
+ * into memorising the answer to each one - which scores 100% on any
+ * well-posed question and measures nothing. Measured both ways on the
+ * Kindergarten content: prompt-plus-options flagged all 17 choice templates at
+ * 100%, options-alone flagged 3. The rule is to key on everything the child can
+ * see *except* the thing that is supposed to determine the answer.
+ *
  * A template whose sets almost never repeat scores nothing here and is
  * reported as *unmeasurable* rather than as clean: no evidence is not evidence
  * of no leak, and saying so is the honest reading.
@@ -1464,8 +1501,9 @@ function measure(): { rows: Row[]; unmeasurable: string[] } {
 
     if (draws.length === 0) continue;
 
+    // Keyed on the OPTIONS ALONE, deliberately - see the note above.
     const key = (q: (typeof draws)[number]) =>
-      `${q.prompt} ${[...q.choices!].map(String).sort().join(' ')}`;
+      [...q.choices!].map(String).sort().join(' ');
 
     const counts = new Map<string, Map<string, number>>();
     for (const q of draws.slice(0, TRAIN)) {
