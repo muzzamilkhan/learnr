@@ -916,3 +916,82 @@ describe('subjectOverview', () => {
     expect(overview.topicCount).toBe(0);
   });
 });
+
+describe('English content', () => {
+  const englishTemplates = allTemplates.filter((t) => t.subject === 'english');
+  const englishLevels = () =>
+    listSubjects().find((s) => s.subject === 'english')?.levels ?? [];
+
+  // A session draws at random from a year's pool, so a thin year means a child
+  // sees the same question shapes over and over. The same floor maths is held
+  // to, for the same reason.
+  it('gives every English year enough templates for a varied session', () => {
+    for (const level of englishLevels()) {
+      expect(level.templateCount, `Year ${level.level}`).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  // An English template cites English syllabuses. Every other citation test
+  // checks shape, stage or existence; this one checks that the document is
+  // about the subject, which is the mistake a copy-paste from the maths content
+  // would make and nothing else would catch.
+  it('cites only English syllabuses, and maths cites only maths ones', () => {
+    for (const template of allTemplates) {
+      for (const tag of template.tags ?? []) {
+        expect(syllabusSubjectOf(tag), `${template.id} cites ${tag}`).toBe(template.subject);
+      }
+    }
+  });
+
+  it('cites no NSW English outcome the syllabus does not have', () => {
+    const known = new Set(Object.values(ENGLISH_NSW_OUTCOMES).flat());
+
+    for (const template of englishTemplates) {
+      for (const tag of template.tags ?? []) {
+        if (syllabusOf(tag) !== 'nsw') continue;
+        expect(known.has(tag), `${template.id} cites ${tag}, which is not an NSW outcome`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  // An Early Stage 1 child is still learning letter *shapes*, and a QWERTY pad
+  // is not alphabetical. Asked to type "cat" they hunt three letters across
+  // three rows, and what the question measures is pad navigation rather than
+  // phonics. So the maths ban survives into English at exactly one year.
+  it('never asks a Kindergartener to type a word', () => {
+    for (const template of englishTemplates.filter((t) => t.level === 'K')) {
+      for (let i = 0; i < 25; i++) {
+        const q = generateQuestion(template, createRng(`${template.id}-k-typed-${i}`));
+        expect(q.answerType, template.id).not.toBe('text');
+      }
+    }
+  });
+
+  // Typed answers are the easiest English questions to author and much the
+  // slowest to answer - one touch against up to sixteen, on a pad with no word
+  // completion. A year that drifted to mostly-typing would be a year where a
+  // child gets through a third as many questions in a sitting, which starves
+  // the selector of the observations `MIN_OBSERVATIONS` and
+  // `SECURE_OBSERVATIONS` are counted in.
+  //
+  // Measured on the *generated* answerType and not the declared one, for the
+  // reason `answerType` is inferred in the first place: a template that
+  // declares nothing and whose answer evaluates to a string is a typed question
+  // whatever its author thought, and a cap counting declarations would miss
+  // exactly the templates nobody noticed were typed.
+  it('keeps typed answers to a minority of every English year', () => {
+    for (const level of englishLevels()) {
+      const forLevel = englishTemplates.filter((t) => t.level === level.level);
+      const typed = forLevel.filter(
+        (t) => generateQuestion(t, createRng(`${t.id}-cap`)).answerType === 'text',
+      );
+
+      expect(
+        typed.length / forLevel.length,
+        `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
+      ).toBeLessThanOrEqual(0.4);
+    }
+  });
+});

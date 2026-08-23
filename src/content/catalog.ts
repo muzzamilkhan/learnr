@@ -1,6 +1,7 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
 import { compareYearLevels, type Stage, type YearLevel } from '@/lib/curriculum';
 import { mathsTemplates } from './maths';
+import { englishTemplates } from './english';
 
 /**
  * The in-repo course catalog. Once courses are authored by AI and stored in the
@@ -11,7 +12,7 @@ import { mathsTemplates } from './maths';
  * recurs across years at increasing difficulty. Neither owns the other, so the
  * catalog can be walked from either end - `topicsForLevel` and `levelsForTopic`.
  */
-export const allTemplates: QuestionTemplate[] = [...mathsTemplates];
+export const allTemplates: QuestionTemplate[] = [...mathsTemplates, ...englishTemplates];
 
 export interface LevelSummary {
   level: YearLevel;
