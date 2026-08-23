@@ -247,9 +247,11 @@ const CLASS_KIND_LABEL = (asksVerb: Expr): Expr =>
 
 // A three-word sentence - subject, verb, object - so a naming-word question
 // has two nouns to ask about rather than the one `SENT_NOUNS` pairs give
-// `is-doing-word-in-sentence`. Every subject/object pair is a plausible
-// scene (a dog chasing a ball, a cat catching a bug), read aloud to check
-// none of the eighteen combinations comes out strange.
+// `is-doing-word-in-sentence`. All three banks share index `i`, so there are
+// six whole sentences here, not a cross of every subject with every object -
+// each was read aloud on its own (a dog chasing a ball, a cat catching a
+// bug, a bird watching a kite, a frog following a worm, a rabbit finding a
+// leaf, a mouse seeing a stick) to check none of the six comes out strange.
 const SUBJ_NOUNS: WordBank = ['dog', 'cat', 'bird', 'frog', 'rabbit', 'mouse'];
 const SCENE_VERBS: WordBank = ['chase', 'catch', 'watch', 'follow', 'find', 'see'];
 const OBJ_NOUNS: WordBank = ['ball', 'bug', 'kite', 'worm', 'leaf', 'stick'];
