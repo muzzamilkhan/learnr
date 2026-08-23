@@ -403,6 +403,12 @@ export const year5: QuestionTemplate[] = [
       { name: 'word', kind: 'expr', expr: ROOT_WORD('f', 'i') },
       { name: 'answer', kind: 'expr', expr: ROOT_NAME_AT('f') },
     ],
+    // `scrib` (family 5) is excluded here only: every SCRIB_WORDS entry
+    // spells "scribe" as well as "scrib", and a typed answer is graded by
+    // exact string match, so "scribe" is a defensible second answer this
+    // template cannot accept. The choice templates above are unaffected -
+    // their options disambiguate the two spellings for the child.
+    constraints: ['f != 5'],
     answer: 'answer',
     answerType: 'text',
     hint: 'Look for the meaningful chunk of letters shared by that word family.',
