@@ -153,6 +153,84 @@ const NSW_OUTCOMES: Record<Stage, readonly string[]> = {
   ],
 };
 
+/**
+ * Every NSW *English* outcome code a template may cite, by stage - the four
+ * stage tables of `docs/superpowers/notes/nsw-english-outcome-codes.md`, and
+ * nothing else. Beside `NSW_OUTCOMES` and for its reasons: it is the only check
+ * in this file that tests a citation for truth rather than for shape, it is
+ * transcribed rather than parsed because a regex that stops matching yields an
+ * empty list and an empty membership list waves every code through, and it
+ * fails safe against omissions and nothing else - a wrong entry here stays
+ * green forever, so the manual two-way diff against the notes file is the whole
+ * of the guard.
+ *
+ * Per-stage counts (ES1 11, S1 9, S2 11, S3 7 - 38) reconciled against the
+ * totals the notes file states for itself. Repeat that if you touch either
+ * side.
+ *
+ * Two structural facts that look like transcription errors and are not. Stage 1
+ * has no phonological-awareness and no print-concepts outcome: both fold into
+ * EN1-PHOKW-01, which is why Year 1 rhyme cites PHOKW where Kindergarten rhyme
+ * cites PHOAW. And Stage 3 has no reading-fluency outcome, unlike the three
+ * stages below it.
+ *
+ * **Stage 3 is incomplete, on purpose.** NESA's Stage 3 content page did not
+ * render its Creating-written-texts or Handwriting-and-digital-transcription
+ * detail sections when this list was transcribed, so codes beyond
+ * `EN3-CWT-01` in either focus area were never seen on a NESA page and are not
+ * guessed here. See the notes file for what was tried. The gap fails the same
+ * direction every omission in this list does - a template that ever needs one
+ * of those codes gets a loud failure and a lookup, not a fabricated citation.
+ */
+const ENGLISH_NSW_OUTCOMES: Record<Stage, readonly string[]> = {
+  ES1: [
+    'ENE-OLC-01',
+    'ENE-VOCAB-01',
+    'ENE-PHOAW-01',
+    'ENE-PRINT-01',
+    'ENE-PHOKW-01',
+    'ENE-REFLU-01',
+    'ENE-RECOM-01',
+    'ENE-CWT-01',
+    'ENE-SPELL-01',
+    'ENE-HANDW-01',
+    'ENE-UARL-01',
+  ],
+  S1: [
+    'EN1-OLC-01',
+    'EN1-VOCAB-01',
+    'EN1-PHOKW-01',
+    'EN1-REFLU-01',
+    'EN1-RECOM-01',
+    'EN1-CWT-01',
+    'EN1-SPELL-01',
+    'EN1-HANDW-01',
+    'EN1-UARL-01',
+  ],
+  S2: [
+    'EN2-OLC-01',
+    'EN2-VOCAB-01',
+    'EN2-REFLU-01',
+    'EN2-RECOM-01',
+    'EN2-CWT-01',
+    'EN2-CWT-02',
+    'EN2-CWT-03',
+    'EN2-SPELL-01',
+    'EN2-HANDW-01',
+    'EN2-HANDW-02',
+    'EN2-UARL-01',
+  ],
+  S3: [
+    'EN3-OLC-01',
+    'EN3-VOCAB-01',
+    'EN3-RECOM-01',
+    'EN3-CWT-01',
+    'EN3-SPELL-01',
+    'EN3-UARL-01',
+    'EN3-UARL-02',
+  ],
+};
+
 describe('shipped content', () => {
   it('every template is valid', () => {
     const result = validateTemplates(allTemplates);
@@ -763,6 +841,20 @@ describe('syllabus sources', () => {
   it('gives the working-mathematically code no stage', () => {
     expect(nswStageOfCode('MAO-WM-01')).toBe(null);
     expect(nswStageOfCode('AC9M4N02')).toBe(null);
+  });
+
+  // Catches a code transcribed into the wrong stage's block, which the
+  // two-way diff against the notes file can miss because both lists would
+  // still agree with each other.
+  it('transcribes English outcome codes that are shaped like English outcomes', () => {
+    for (const [stage, codes] of Object.entries(ENGLISH_NSW_OUTCOMES)) {
+      expect(codes.length, `${stage} is empty`).toBeGreaterThan(0);
+      for (const code of codes) {
+        expect(syllabusOf(code), code).toBe('nsw');
+        expect(syllabusSubjectOf(code), code).toBe('english');
+        expect(nswStageOfCode(code), code).toBe(stage);
+      }
+    }
   });
 });
 
