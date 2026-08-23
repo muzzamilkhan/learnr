@@ -133,6 +133,26 @@ interface AcaraExample {
   quote?: string;
 }
 
+/**
+ * The specific downloaded document a subject's content was written from, where
+ * one exists - `syllabus.url` alone only ever reaches the Australian
+ * Curriculum website's front door, and a parent checking a citation deserves
+ * the actual document rather than a search away from it. English has no entry
+ * here yet because its content was written against the website's browsable
+ * scope and sequence rather than a single downloaded file.
+ */
+interface AcaraSourceDoc {
+  url: string;
+  label: string;
+}
+
+const ACARA_SOURCE_DOCS: Partial<Record<string, AcaraSourceDoc>> = {
+  maths: {
+    url: 'https://www.australiancurriculum.edu.au/content/dam/en/curriculum/ac-version-9/downloads/mathematics/mathematics-scope-and-sequence-f-10-v9.docx',
+    label: 'Mathematics: Scope and sequence F–10 (v9.0)',
+  },
+};
+
 const ACARA_EXAMPLES: Record<string, AcaraExample> = {
   maths: {
     code: 'AC9M4N02',
@@ -194,6 +214,7 @@ const yearsInStage = (levels: YearLevel[]) => {
 function AcaraPanel({ subject }: { subject: string }) {
   const syllabus = findSyllabus(subject, 'acara');
   const example = ACARA_EXAMPLES[subject];
+  const sourceDoc = ACARA_SOURCE_DOCS[subject];
 
   return (
     <>
@@ -206,6 +227,19 @@ function AcaraPanel({ subject }: { subject: string }) {
         </a>
         .
       </p>
+      {sourceDoc ? (
+        <p>
+          The specific document the Kindergarten to Year 6 content was written from is ACARA’s{' '}
+          <a href={sourceDoc.url} className="text-(--color-brand) underline">
+            {sourceDoc.label}
+          </a>
+          , downloaded from the{' '}
+          <a href={syllabus.url} className="text-(--color-brand) underline">
+            Australian Curriculum website
+          </a>
+          .
+        </p>
+      ) : null}
       {example ? (
         <p>
           Its codes read as <code>{ACARA_PREFIXES[subject]}</code> + year + strand + number - for
