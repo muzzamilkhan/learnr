@@ -140,8 +140,11 @@ const ACARA_EXAMPLES: Record<string, AcaraExample> = {
     quote: 'explain and use the properties of odd and even numbers',
   },
   english: {
-    code: 'AC9E4LA08',
+    code: 'AC9E4LA11',
     label: 'Year 4 Language',
+    quote:
+      'expand vocabulary by exploring a range of synonyms and antonyms, and using words ' +
+      'encountered in a range of sources',
   },
 };
 
@@ -248,6 +251,10 @@ function NswPanel({ subject }: { subject: string }) {
 }
 
 export default function CurriculumPage() {
+  // Alphabetical, and not reordered here: this is the same order
+  // `listSubjects()` gives the home screen's subject cards, so the two
+  // screens agree on which subject comes first rather than each keeping its
+  // own idea of it.
   const subjects = listSubjects();
 
   return (
