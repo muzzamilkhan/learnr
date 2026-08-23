@@ -839,6 +839,44 @@ describe('syllabus sources', () => {
     ]);
   });
 
+  // /curriculum draws each subject's `name` and `url` off its own entry rather
+  // than the other's, so a family's two subjects must actually name two
+  // different documents - the crossed-link bug a shared constant would
+  // reintroduce. NSW names two entirely separate syllabuses, each at its own
+  // URL; ACARA's two documents share one landing page (the specific-document
+  // link lives only in the page's worked examples), so only NSW's `url` is
+  // checked for divergence.
+  it('gives each subject its own document within a family', () => {
+    for (const family of ['acara', 'nsw'] as const) {
+      const maths = SYLLABUSES.find((s) => s.id === family && s.subject === 'maths')!;
+      const english = SYLLABUSES.find((s) => s.id === family && s.subject === 'english')!;
+      expect(maths.name).not.toBe(english.name);
+    }
+    const nswMaths = SYLLABUSES.find((s) => s.id === 'nsw' && s.subject === 'maths')!;
+    const nswEnglish = SYLLABUSES.find((s) => s.id === 'nsw' && s.subject === 'english')!;
+    expect(nswMaths.url).not.toBe(nswEnglish.url);
+  });
+
+  it('finds English content to cite, grouped by year, like maths', () => {
+    const maths = curriculumCodes('maths');
+    const english = curriculumCodes('english');
+
+    expect(english.length).toBeGreaterThan(0);
+    for (const { level, codes } of english) {
+      expect(codes.length, `${level} has no cited codes`).toBeGreaterThan(0);
+      for (const { code } of codes) {
+        expect(syllabusSubjectOf(code), code).toBe('english');
+      }
+    }
+    // Both subjects run their own citations independently - an English code
+    // must never turn up under a maths year and vice versa.
+    for (const { codes } of maths) {
+      for (const { code } of codes) {
+        expect(syllabusSubjectOf(code), code).toBe('maths');
+      }
+    }
+  });
+
   it('rejects a Stage 4 code, deliberately out of our K-6 scope', () => {
     expect(syllabusOf('MA4-INT-C-01')).toBe(null);
   });
