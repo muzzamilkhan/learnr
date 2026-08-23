@@ -24,6 +24,8 @@ Every task's requirements implicitly include all of these.
 - **Typed answers are one word, A-Z only, at most 16 characters.** The letter pad has no space key and no apostrophe key. Any answer containing an apostrophe or a space must be `choice`.
 - **English Kindergarten uses no `text` answers at all.** Every K template is `choice`, `boolean` or `number`.
 - **At most 40% of any English year's templates may generate a `text` answer.**
+- **At least 15% of a Year 1-6 English year's templates must generate a typed answer, spanning at least two topics.** A floor as well as the 40% ceiling, and the spread matters more than the count: the reinforcement selector weights *topics*, so a year whose typed exposure sits in one topic lets a child who is secure in that topic go a whole year without typing anything - which makes "this is where typing starts" false in practice for exactly the children doing best. Kindergarten is exempt and stays at zero.
+- **Read every sentence frame's draws out loud before shipping them.** No automated check can see that a frame is nonsense or worse: Year 1 first shipped `'I ate ? {noun}.'` over a bank containing `elephant`, `umbrella`, `house`, `dog` and `cat`. The a/an grammar was correct in all ten draws, the leak measurement was clean, and two of them were sentences no six-year-old should be shown.
 - **Every year needs at least 20 templates.**
 - **Word banks are shared:** every word a `choices` template can offer must be capable of being both the answer and a distractor across draws. See Task 4.
 - Run `npm test` and `npm run typecheck` before every commit.
@@ -1439,6 +1441,37 @@ it('names every English template that cites one syllabus alone', () => {
   expect(missingNsw.sort()).toEqual([...acaraOnly].sort());
   expect(missingAcara.sort()).toEqual([...nswOnly].sort());
 });
+```
+
+- [ ] **Step 3b: Enforce the typed-answer floor**
+
+Add beside the existing 40% cap in the `English content` block:
+
+```ts
+  // A floor as well as a ceiling, and the spread is the half that matters.
+  // The reinforcement selector weights *topics*, so a year whose typed
+  // exposure all sits in one topic lets a child who is secure in that topic
+  // go a whole year without typing anything - which makes "this is where
+  // typing starts" false in practice for exactly the children doing best.
+  // Kindergarten is exempt: an Early Stage 1 child hunting letters on a
+  // QWERTY pad is being tested on pad navigation rather than on English.
+  it('gives every English year past Kindergarten some typing, in more than one topic', () => {
+    for (const level of englishLevels()) {
+      if (level.level === 'K') continue;
+      const forLevel = englishTemplates.filter((t) => t.level === level.level);
+      const typed = forLevel.filter(
+        (t) => generateQuestion(t, createRng(`${t.id}-floor`)).answerType === 'text',
+      );
+      const topics = new Set(typed.map((t) => t.topic));
+
+      expect(
+        typed.length / forLevel.length,
+        `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
+      ).toBeGreaterThanOrEqual(0.15);
+      expect(topics.size, `Year ${level.level} types in only: ${[...topics].join(', ')}`)
+        .toBeGreaterThanOrEqual(2);
+    }
+  });
 ```
 
 - [ ] **Step 4: Check every divergence has a note**
