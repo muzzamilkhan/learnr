@@ -737,8 +737,13 @@ describe('syllabusDivergences', () => {
   // The page renders every one of these, and a divergence with no note is an em
   // dash with nothing beside it - the easy case explained and the rest hidden,
   // which is the opposite of what that page is for.
+  // Looped over every subject rather than named "maths" - a third subject's
+  // divergences (or lack of them) are then checked with no edit here, the same
+  // argument Step 4 of the English content plan makes for not adding a copy of
+  // this pair per subject.
   it('explains every divergence the shipped content produces', () => {
-    const unexplained = syllabusDivergences('maths')
+    const unexplained = listSubjects()
+      .flatMap((s) => syllabusDivergences(s.subject))
       .filter((d) => d.reason === null)
       .map((d) => `${d.cites}: ${d.level} ${d.topic}`);
 
@@ -750,7 +755,9 @@ describe('syllabusDivergences', () => {
   // by a citation would otherwise sit here reading perfectly well and explaining
   // nothing on the page.
   it('records no note that has outlived its divergence', () => {
-    const live = syllabusDivergences('maths').map((d) => `${d.cites}:${d.level}:${d.topic}`);
+    const live = listSubjects()
+      .flatMap((s) => syllabusDivergences(s.subject))
+      .map((d) => `${d.cites}:${d.level}:${d.topic}`);
     const orphans = DIVERGENCE_NOTES.map((n) => `${n.cites}:${n.level}:${n.topic}`).filter(
       (key) => !live.includes(key),
     );
@@ -1000,5 +1007,54 @@ describe('English content', () => {
         `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
       ).toBeLessThanOrEqual(0.4);
     }
+  });
+
+  // A floor as well as a ceiling, and the spread is the half that matters.
+  // The reinforcement selector weights *topics*, so a year whose typed
+  // exposure all sits in one topic lets a child who is secure in that topic
+  // go a whole year without typing anything - which makes "this is where
+  // typing starts" false in practice for exactly the children doing best.
+  // Kindergarten is exempt: an Early Stage 1 child hunting letters on a
+  // QWERTY pad is being tested on pad navigation rather than on English.
+  it('gives every English year past Kindergarten some typing, in more than one topic', () => {
+    for (const level of englishLevels()) {
+      if (level.level === 'K') continue;
+      const forLevel = englishTemplates.filter((t) => t.level === level.level);
+      const typed = forLevel.filter(
+        (t) => generateQuestion(t, createRng(`${t.id}-floor`)).answerType === 'text',
+      );
+      const topics = new Set(typed.map((t) => t.topic));
+
+      expect(
+        typed.length / forLevel.length,
+        `Year ${level.level}: ${typed.length} of ${forLevel.length} typed`,
+      ).toBeGreaterThanOrEqual(0.15);
+      expect(topics.size, `Year ${level.level} types in only: ${[...topics].join(', ')}`)
+        .toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  // The same shape the maths exceptions take, and closed the same way. Asserting
+  // only that a named template lacks a code catches an addition and misses a
+  // subtraction: with "cites at least one syllabus" satisfied by either, a
+  // citation quietly dropped from any *other* English template would pass green.
+  // So the complete set is asserted, and every member of it names a decision.
+  it('names every English template that cites one syllabus alone', () => {
+    const acaraOnly: string[] = [
+      // Fill from Step 1. Each id gets a comment naming the divergence.
+    ];
+    const nswOnly: string[] = [
+      // Likewise.
+    ];
+
+    const missingNsw = englishTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'nsw'))
+      .map((t) => t.id);
+    const missingAcara = englishTemplates
+      .filter((t) => !t.tags?.some((tag) => syllabusOf(tag) === 'acara'))
+      .map((t) => t.id);
+
+    expect(missingNsw.sort()).toEqual([...acaraOnly].sort());
+    expect(missingAcara.sort()).toEqual([...nswOnly].sort());
   });
 });
