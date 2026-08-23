@@ -1,6 +1,7 @@
 import type { QuestionTemplate } from '@/lib/templates/types';
 import { yearK } from './k';
 import { year1 } from './1';
+import { year2 } from './2';
 
 /**
  * English course, Kindergarten to Year 6.
@@ -33,4 +34,4 @@ import { year1 } from './1';
  *   families, so `hat` is the answer when the target is `cat` and a distractor
  *   when the target is `dog`.
  */
-export const englishTemplates: QuestionTemplate[] = [...yearK, ...year1];
+export const englishTemplates: QuestionTemplate[] = [...yearK, ...year1, ...year2];
