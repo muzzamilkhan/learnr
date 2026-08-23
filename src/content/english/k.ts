@@ -13,7 +13,7 @@ import { wordFrom, type WordBank } from './helpers';
  * learning letter shapes, and the letter pad is a QWERTY layout rather than an
  * alphabetical one - asked to type "cat" they hunt three letters across three
  * rows, which measures pad navigation rather than phonics. Every template
- * below is `choice`, `boolean`, or a syllable count typed as a single digit on
+ * below is `choice`, `boolean`, or a small count typed as a single digit on
  * the number pad.
  *
  * **Every word bank here is shared between the answer role and the distractor
@@ -24,22 +24,30 @@ import { wordFrom, type WordBank } from './helpers';
  * every template draws its target from one family and its distractors from
  * the others, so a word or a letter is the right button on one draw and a
  * wrong one on the next.
+ *
+ * **No "odd one out" question, ever** - see `content-shapes.md`. Measuring
+ * every `choice` template here (modal answer learned from the option set
+ * alone, scored on held-out draws) found two that were 100% solvable without
+ * the prompt: `rhyme.not-rhyme` and `syllables.odd-clap-count`, both since
+ * removed. The reason is structural, not a bank defect - see the doc for why
+ * no bank fixes it - so every negative-form question was replaced with a
+ * positive one instead of repaired.
  */
 
 // ---------------------------------------------------------------------------
 // Letters and sounds
 //
 // Eight words paired with their own true first letter, eight paired with
-// their own true last letter, and five three-letter words paired with their
-// own true medial vowel - indexed together so the correct letter for a word
-// is read off the same index rather than computed, which the expression
-// language has no way to do from a string. Every helper below is a plain
-// `wordFrom` lookup rather than the two-argument "family, index" chain
-// `content-shapes.md` calls `FAMILY_WORD`: each "family" here is a single
-// word-letter pair, one flat bank rather than a list of them, and stepping
-// the index by an offset (mod the bank's length) reaches a different pair's
-// letter, which is what lets a letter be the answer for one word and a
-// distractor for another.
+// their own true last letter, five three-letter words paired with their own
+// true medial vowel, and a flat alphabet bank for letter recognition and
+// sequencing - indexed together so the correct letter for a word is read off
+// the same index rather than computed, which the expression language has no
+// way to do from a string. Every helper below is a plain `wordFrom` lookup
+// rather than the two-argument "family, index" chain `content-shapes.md`
+// calls `FAMILY_WORD`: each "family" here is a single word-letter pair, one
+// flat bank rather than a list of them, and stepping the index by an offset
+// (mod the bank's length) reaches a different pair's letter, which is what
+// lets a letter be the answer for one word and a distractor for another.
 // ---------------------------------------------------------------------------
 
 const START_WORDS: WordBank = ['cat', 'dog', 'sun', 'pig', 'bed', 'fish', 'moon', 'ant'];
@@ -54,8 +62,23 @@ const END_LETTERS: WordBank = ['n', 'g', 'p', 'l', 'h', 'b', 'm', 'x'];
 const MIDDLE_WORDS: WordBank = ['cat', 'hen', 'pig', 'dog', 'cup'];
 const MIDDLE_LETTERS: WordBank = ['a', 'e', 'i', 'o', 'u'];
 
-/** The whole alphabet a letter-recognition question draws its options from. */
+/** The whole alphabet a letter-recognition or letter-sequence question draws its options from. */
 const ALPHABET: WordBank = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+// Six words of varying length, for the plain "how many letters" count - a
+// `number` answer, so it carries none of the choice-anchoring risk at all:
+// there is no option set to leak from. `letterCount` reads the length off
+// which index was drawn, the same way `syllableCount` reads a clap count,
+// since the expression language cannot measure a string.
+const LETTER_COUNT_WORDS: WordBank = ['cat', 'frog', 'apple', 'ox', 'sun', 'rainbow'];
+const LETTER_COUNT_VALUES = [3, 4, 5, 2, 3, 7] as const;
+
+/** How many letters the word at `i` of `LETTER_COUNT_WORDS` has. */
+const letterCount = (i: Expr): Expr =>
+  LETTER_COUNT_VALUES.slice(0, -1).reduceRight(
+    (rest, count, index) => `${i} == ${index} ? ${count} : ${rest}`,
+    `${LETTER_COUNT_VALUES[LETTER_COUNT_VALUES.length - 1]}`,
+  );
 
 // ---------------------------------------------------------------------------
 // Rhyme
@@ -143,17 +166,29 @@ const OPPOSITE_WORD = (p: Expr, s: Expr): Expr =>
 // ---------------------------------------------------------------------------
 // Sentences
 //
-// Three pairs of "correct, incorrect" whole sentences, for the three
-// `boolean` questions - `content-shapes.md`'s worked Shape C, applied to a
-// capital letter, a full stop, and a complete idea. `PAIR_TEXT` reads the
+// Four pairs of "correct, incorrect" whole sentences, for the four `boolean`
+// questions - `content-shapes.md`'s worked Shape C, applied to a capital
+// letter, a full stop, a complete idea, and a question. `PAIR_TEXT` reads the
 // pair at index `i` and picks the right or the wrong version off `ok`, the
 // same "family, index" chain as everything above, specialised so each
 // "family" is one pair of strings rather than a bank of words.
 //
-// The two fill-in-the-blank choice questions share the letters-and-sounds
+// **`FRAGMENT_SENTENCES`' "incorrect" halves are properly capitalised and
+// punctuated.** They are fragments because they are incomplete thoughts, not
+// because they look wrong on the page - `starts-with-capital` and
+// `ends-with-full-stop` already sit in this same topic and teach exactly
+// those surface cues, so leaving them in the fragments here would let a
+// child answer `is-a-sentence` correctly from "no capital, no full stop"
+// without ever judging completeness.
+//
+// The three fill-in-the-blank choice questions share the letters-and-sounds
 // technique rather than the rhyme one: each frame names its own missing word
 // by position, one word per index, so the frame - not the option set - is
-// what tells a repeat of the same three buttons which one is right this time.
+// what tells a repeat of the same three buttons which one is right this
+// time. **Every frame is written to admit exactly one of its bank's words**;
+// a frame two words both fit is a fill-in-the-blank question the pad marks
+// wrong for a right answer, which measuring `complete-with-noun` and
+// `complete-with-verb` against held-out draws is what caught.
 // ---------------------------------------------------------------------------
 
 const CAPITAL_SENTENCES: readonly (readonly [string, string])[] = [
@@ -175,12 +210,24 @@ const FULL_STOP_SENTENCES: readonly (readonly [string, string])[] = [
 ];
 
 const FRAGMENT_SENTENCES: readonly (readonly [string, string])[] = [
-  ['The little dog barks loudly.', 'the little dog'],
-  ['My sister likes to draw.', 'likes to draw'],
-  ['We ran to the bus stop.', 'to the bus stop'],
-  ['The cake smells so good.', 'so good'],
-  ['A frog jumped into the pond.', 'into the pond'],
-  ['Our teacher reads us a story.', 'reads us a'],
+  ['The little dog barks loudly.', 'The little dog.'],
+  ['My sister likes to draw.', 'Likes to draw.'],
+  ['We ran to the bus stop.', 'To the bus stop.'],
+  ['The cake smells so good.', 'So good.'],
+  ['A frog jumped into the pond.', 'Into the pond.'],
+  ['Our teacher reads us a story.', 'Reads us a story.'],
+];
+
+// A question and a statement built from the same idea, so telling them apart
+// depends on the sentence's own shape - "can", "is", "do" up front and a
+// question mark - and not on any word the two versions don't share.
+const QUESTION_SENTENCES: readonly (readonly [string, string])[] = [
+  ['Can you see the moon?', 'You can see the moon.'],
+  ['Is the cat asleep?', 'The cat is asleep.'],
+  ['Do dogs like to run?', 'Dogs like to run.'],
+  ['Will it rain today?', 'It will rain today.'],
+  ['Are we going to the park?', 'We are going to the park.'],
+  ['Can birds fly high?', 'Birds can fly high.'],
 ];
 
 /** The correct or incorrect text of pair `i` from `pairs`, chosen by `ok` (1 for correct), as an expression. */
@@ -193,25 +240,48 @@ const PAIR_TEXT = (pairs: readonly (readonly [string, string])[], i: Expr, ok: E
       `(${ok} == 1 ? '${pairs[pairs.length - 1][0]}' : '${pairs[pairs.length - 1][1]}')`,
     );
 
+// Each frame is written to fit exactly one of `NOUN_WORDS` - a detail the
+// original wording, checked here, got wrong for the last one: "The ? swims
+// in the pond" is just as true of a dog as of a fish, so the frame now names
+// something only a fish does.
 const NOUN_FRAMES: readonly string[] = [
   'My pet ? can bark.',
   'The furry ? can purr.',
   'The bright ? is hot.',
-  'I kicked the ? to my friend.',
-  'The little ? can fly.',
-  'The ? swims in the pond.',
+  'I kicked the round ? to my friend to play a game.',
+  'The little ? can fly high in the sky.',
+  'The shiny ? blows bubbles under the water.',
 ];
 const NOUN_WORDS: WordBank = ['dog', 'cat', 'sun', 'ball', 'bird', 'fish'];
 
+// A fresh verb bank, replacing one that paired `sleep` and `nap` - two words
+// close enough in meaning that three of its six frames turned out to admit
+// either. These six name a distinct, visible action each, and every frame
+// below names the one detail (four legs in a yard, a fence, hands and knees,
+// branch to branch) that only its own verb fits.
 const VERB_FRAMES: readonly string[] = [
-  'The dog can ? fast.',
-  'The bird can ? high.',
-  'At night we ?.',
-  'The fish can ? well.',
-  'The baby likes to ?.',
-  'My cat likes to ? all day.',
+  'The dog can ? fast on its four legs across the yard.',
+  'The bird can ? high in the sky.',
+  'The fish can ? well through the water.',
+  'The rabbit likes to ? around the garden on its back legs.',
+  'The baby likes to ? across the floor on hands and knees.',
+  'The monkey can ? from branch to branch up the tall tree.',
 ];
-const VERB_WORDS: WordBank = ['run', 'fly', 'sleep', 'swim', 'crawl', 'nap'];
+const VERB_WORDS: WordBank = ['run', 'fly', 'swim', 'hop', 'crawl', 'climb'];
+
+// Six feelings, each tied to one physical cue no other word in the bank
+// shares - a rumbling tummy is hunger and nothing else, covering your ears
+// is loudness and nothing else - which is what keeps each frame down to one
+// right answer.
+const ADJ_FRAMES: readonly string[] = [
+  'She smiled and laughed because she felt so ?.',
+  'His tummy rumbled because he was ?.',
+  'He yawned and rubbed his eyes because he was ?.',
+  'She put on a warm coat because it was ?.',
+  'The music was so ? that we covered our ears.',
+  'The ? puppy hid behind the couch whenever visitors arrived.',
+];
+const ADJ_WORDS: WordBank = ['happy', 'hungry', 'tired', 'cold', 'loud', 'shy'];
 
 /** The frame at index `i` of `frames`, as an expression string literal. */
 const FRAME_TEXT = (frames: readonly string[], i: Expr): Expr =>
@@ -341,6 +411,53 @@ export const yearK: QuestionTemplate[] = [
     hint: 'Say each word out loud and listen to the first sound.',
     tags: ['AC9EFLY13', 'ENE-PHOKW-01'],
   },
+  {
+    id: 'english.K.letters-and-sounds.letter-count',
+    subject: 'english',
+    topic: 'letters and sounds',
+    level: 'K',
+    prompt: 'How many letters are in {word}?',
+    vars: [
+      { name: 'i', kind: 'int', min: '0', max: '5' },
+      { name: 'word', kind: 'expr', expr: wordFrom(LETTER_COUNT_WORDS, 'i') },
+    ],
+    answer: letterCount('i'),
+    hint: 'Point to each letter and count.',
+    tags: ['AC9EFLY13', 'ENE-PHOKW-01'],
+  },
+  {
+    id: 'english.K.letters-and-sounds.alphabet-next',
+    subject: 'english',
+    topic: 'letters and sounds',
+    level: 'K',
+    prompt: 'Which letter comes right after {target} in the alphabet?',
+    vars: [
+      // `i` stops at 6 rather than 7 so `i + 1` never runs off the end of the
+      // bank - the letter after the last one in this alphabet is not asked.
+      // The distractors are drawn as two *independent* letters from the whole
+      // bank (excluding the answer) rather than as offsets from the answer's
+      // own position: offsetting from the answer, as `find-letter` does, ties
+      // the distractor identities to the same seven-value range the answer
+      // comes from, which measuring this template against held-out draws
+      // showed was narrow enough to let a rule learned from the buttons
+      // alone predict the answer half the time. Two independent draws over
+      // the full eight-letter bank widen the option set past that.
+      { name: 'i', kind: 'int', min: '0', max: '6' },
+      { name: 'j1', kind: 'int', min: '0', max: '7' },
+      { name: 'j2', kind: 'int', min: '0', max: '7' },
+      { name: 'target', kind: 'expr', expr: wordFrom(ALPHABET, 'i') },
+      { name: 'answer', kind: 'expr', expr: wordFrom(ALPHABET, 'i + 1') },
+    ],
+    constraints: ['j1 != i + 1', 'j2 != i + 1', 'j1 != j2'],
+    answer: 'answer',
+    answerType: 'choice',
+    choices: {
+      count: 3,
+      distractors: [wordFrom(ALPHABET, 'j1'), wordFrom(ALPHABET, 'j2')],
+    },
+    hint: 'Say the alphabet from the start until you reach {target}.',
+    tags: ['AC9EFLY13', 'ENE-PHOKW-01'],
+  },
 
   // -------------------------------------------------------------------
   // Rhyme
@@ -382,6 +499,16 @@ export const yearK: QuestionTemplate[] = [
       { name: 'a', kind: 'int', min: '0', max: '3' },
       { name: 'd1', kind: 'int', min: '1', max: '3' },
       { name: 'd2', kind: 'int', min: '1', max: '3' },
+      // `e1` and `e2` give the two distractors their own word-index within
+      // their family, independent of `t` and `a` - `which-rhymes` reuses `t`
+      // and `a` for its distractors, which ties part of the option set's
+      // identity to the target and the answer and narrows how many distinct
+      // sets the draws actually reach. Measured against held-out draws, that
+      // narrower set let a rule learned from the buttons alone predict the
+      // answer half the time; the extra two variables widen the option set
+      // enough that no such rule survives past the training draws.
+      { name: 'e1', kind: 'int', min: '0', max: '3' },
+      { name: 'e2', kind: 'int', min: '0', max: '3' },
       { name: 'target', kind: 'expr', expr: RHYME_WORD('f', 't') },
       { name: 'answer', kind: 'expr', expr: RHYME_WORD('f', 'a') },
     ],
@@ -390,63 +517,9 @@ export const yearK: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 3,
-      distractors: [RHYME_WORD('(f + d1) % 4', 't'), RHYME_WORD('(f + d2) % 4', 'a')],
+      distractors: [RHYME_WORD('(f + d1) % 4', 'e1'), RHYME_WORD('(f + d2) % 4', 'e2')],
     },
     hint: 'Think of a word that ends with the same sound as {target}.',
-    tags: ['AC9EFLY09', 'ENE-PHOAW-01'],
-  },
-  {
-    id: 'english.K.rhyme.not-rhyme',
-    subject: 'english',
-    topic: 'rhyme',
-    level: 'K',
-    prompt: 'Which word does NOT rhyme with {target}?',
-    vars: [
-      { name: 'f', kind: 'int', min: '0', max: '3' },
-      { name: 't', kind: 'int', min: '0', max: '3' },
-      { name: 'g', kind: 'int', min: '1', max: '3' },
-      { name: 'a', kind: 'int', min: '0', max: '3' },
-      { name: 'd1', kind: 'int', min: '0', max: '3' },
-      { name: 'd2', kind: 'int', min: '0', max: '3' },
-      { name: 'target', kind: 'expr', expr: RHYME_WORD('f', 't') },
-      { name: 'answer', kind: 'expr', expr: RHYME_WORD('(f + g) % 4', 'a') },
-    ],
-    // The two distractors are rhyming words from the target's own family,
-    // different indices so the two buttons cannot coincide with each other or
-    // with the target itself.
-    constraints: ['d1 != t', 'd2 != t', 'd1 != d2'],
-    answer: 'answer',
-    answerType: 'choice',
-    choices: {
-      count: 3,
-      distractors: [RHYME_WORD('f', 'd1'), RHYME_WORD('f', 'd2')],
-    },
-    hint: 'Two of these sound the same at the end. Find the one that sounds different.',
-    tags: ['AC9EFLY09', 'ENE-PHOAW-01'],
-  },
-  {
-    id: 'english.K.rhyme.pick-of-two',
-    subject: 'english',
-    topic: 'rhyme',
-    level: 'K',
-    prompt: 'Which word rhymes with {target}?',
-    vars: [
-      { name: 'f', kind: 'int', min: '0', max: '3' },
-      { name: 't', kind: 'int', min: '0', max: '3' },
-      { name: 'a', kind: 'int', min: '0', max: '3' },
-      { name: 'g', kind: 'int', min: '1', max: '3' },
-      { name: 'b', kind: 'int', min: '0', max: '3' },
-      { name: 'target', kind: 'expr', expr: RHYME_WORD('f', 't') },
-      { name: 'answer', kind: 'expr', expr: RHYME_WORD('f', 'a') },
-    ],
-    constraints: ['t != a'],
-    answer: 'answer',
-    answerType: 'choice',
-    choices: {
-      count: 2,
-      distractors: [RHYME_WORD('(f + g) % 4', 'b')],
-    },
-    hint: 'Say the words out loud.',
     tags: ['AC9EFLY09', 'ENE-PHOAW-01'],
   },
 
@@ -504,38 +577,6 @@ export const yearK: QuestionTemplate[] = [
     hint: 'Clap each word out to count its parts.',
     tags: ['AC9EFLY09', 'ENE-PHOAW-01'],
   },
-  {
-    id: 'english.K.syllables.odd-clap-count',
-    subject: 'english',
-    topic: 'syllables',
-    level: 'K',
-    prompt: 'Which word does NOT have {n} claps?',
-    vars: [
-      // `nFam` names the clap-count the question asks about; the two
-      // distractors are two *different* words that genuinely have that many
-      // claps, drawn by index so they are not always the same two words, and
-      // the answer comes from a different, randomly offset family - the same
-      // shape as `rhyme.not-rhyme`, and for the same reason: fixing the
-      // distractors to two literal indices would make the option set itself
-      // (rather than the child's counting) decide the answer.
-      { name: 'nFam', kind: 'int', min: '0', max: '2' },
-      { name: 'd1', kind: 'int', min: '0', max: '3' },
-      { name: 'd2', kind: 'int', min: '0', max: '3' },
-      { name: 'g', kind: 'int', min: '1', max: '2' },
-      { name: 'a', kind: 'int', min: '0', max: '3' },
-      { name: 'n', kind: 'expr', expr: 'nFam + 1' },
-      { name: 'answer', kind: 'expr', expr: SYLLABLE_WORD('(nFam + g) % 3', 'a') },
-    ],
-    constraints: ['d1 != d2'],
-    answer: 'answer',
-    answerType: 'choice',
-    choices: {
-      count: 3,
-      distractors: [SYLLABLE_WORD('nFam', 'd1'), SYLLABLE_WORD('nFam', 'd2')],
-    },
-    hint: 'Clap each word. Two of them have the same number of parts.',
-    tags: ['AC9EFLY09', 'ENE-PHOAW-01'],
-  },
 
   // -------------------------------------------------------------------
   // Opposites
@@ -587,32 +628,6 @@ export const yearK: QuestionTemplate[] = [
       distractors: [OPPOSITE_WORD('(p + d) % 6', 'sw')],
     },
     hint: 'Think of the total opposite of {target}.',
-    tags: ['AC9EFLA08', 'ENE-VOCAB-01'],
-  },
-  {
-    id: 'english.K.opposites.fill-in-opposite',
-    subject: 'english',
-    topic: 'opposites',
-    level: 'K',
-    prompt: 'Finish it: {target} and ? are opposites.',
-    vars: [
-      { name: 'p', kind: 'int', min: '0', max: '5' },
-      { name: 's', kind: 'pick', from: [0, 1] },
-      { name: 'd1', kind: 'int', min: '1', max: '5' },
-      { name: 'd2', kind: 'int', min: '1', max: '5' },
-      { name: 's2', kind: 'pick', from: [0, 1] },
-      { name: 's3', kind: 'pick', from: [0, 1] },
-      { name: 'target', kind: 'expr', expr: OPPOSITE_WORD('p', 's') },
-      { name: 'answer', kind: 'expr', expr: OPPOSITE_WORD('p', '1 - s') },
-    ],
-    constraints: ['d1 != d2'],
-    answer: 'answer',
-    answerType: 'choice',
-    choices: {
-      count: 3,
-      distractors: [OPPOSITE_WORD('(p + d1) % 6', 's2'), OPPOSITE_WORD('(p + d2) % 6', 's3')],
-    },
-    hint: 'The missing word means the total reverse of {target}.',
     tags: ['AC9EFLA08', 'ENE-VOCAB-01'],
   },
   {
@@ -698,6 +713,21 @@ export const yearK: QuestionTemplate[] = [
     tags: ['AC9EFLA09', 'ENE-CWT-01'],
   },
   {
+    id: 'english.K.sentences.is-a-question',
+    subject: 'english',
+    topic: 'sentences',
+    level: 'K',
+    prompt: 'Is this sentence asking a question? {sentence}',
+    vars: [
+      { name: 'i', kind: 'int', min: '0', max: '5' },
+      { name: 'ok', kind: 'pick', from: [0, 1] },
+      { name: 'sentence', kind: 'expr', expr: PAIR_TEXT(QUESTION_SENTENCES, 'i', 'ok') },
+    ],
+    answer: 'ok == 1',
+    hint: 'A question often starts with a word like Can, Is, Do or Will.',
+    tags: ['AC9EFLA09', 'ENE-CWT-01'],
+  },
+  {
     id: 'english.K.sentences.complete-with-noun',
     subject: 'english',
     topic: 'sentences',
@@ -739,6 +769,29 @@ export const yearK: QuestionTemplate[] = [
     choices: {
       count: 3,
       distractors: [wordFrom(VERB_WORDS, '(i + d1) % 6'), wordFrom(VERB_WORDS, '(i + d2) % 6')],
+    },
+    hint: 'Read the sentence and see which word makes sense.',
+    tags: ['AC9EFLA09', 'ENE-CWT-01'],
+  },
+  {
+    id: 'english.K.sentences.complete-with-adjective',
+    subject: 'english',
+    topic: 'sentences',
+    level: 'K',
+    prompt: 'Which word finishes the sentence? {frame}',
+    vars: [
+      { name: 'i', kind: 'int', min: '0', max: '5' },
+      { name: 'd1', kind: 'int', min: '1', max: '5' },
+      { name: 'd2', kind: 'int', min: '1', max: '5' },
+      { name: 'frame', kind: 'expr', expr: FRAME_TEXT(ADJ_FRAMES, 'i') },
+      { name: 'answer', kind: 'expr', expr: wordFrom(ADJ_WORDS, 'i') },
+    ],
+    constraints: ['d1 != d2'],
+    answer: 'answer',
+    answerType: 'choice',
+    choices: {
+      count: 3,
+      distractors: [wordFrom(ADJ_WORDS, '(i + d1) % 6'), wordFrom(ADJ_WORDS, '(i + d2) % 6')],
     },
     hint: 'Read the sentence and see which word makes sense.',
     tags: ['AC9EFLA09', 'ENE-CWT-01'],
