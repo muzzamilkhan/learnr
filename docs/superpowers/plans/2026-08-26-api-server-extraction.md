@@ -374,10 +374,30 @@ Add to `learnr/package.json`, at the top level:
   "workspaces": ["packages/*"],
 ```
 
-- [ ] **Step 4: Write `packages/core/package.json`**
+- [ ] **Step 4: Link the sources into the package**
 
-The `exports` map points at the existing sources. `src` stays where it is; the
-package is a window onto it, not a copy.
+Node refuses an `exports` target outside the package directory — a path like
+`../../src/lib/rng.ts` fails at import with `ERR_INVALID_PACKAGE_TARGET`
+("targets must start with ./"). This has been verified; do not try it.
+
+The sources must therefore appear *inside* `packages/core`. Moving them would
+rewrite every import in the web app, so symlink them instead — the files stay
+exactly where they are, and the package becomes a window onto them:
+
+```bash
+ln -s ../../src packages/core/src
+```
+
+Confirm it points where you expect:
+
+```bash
+ls -l packages/core/src        # -> ../../src
+cat packages/core/src/lib/rng.ts | head -3
+```
+
+- [ ] **Step 5: Write `packages/core/package.json`**
+
+Every target now starts with `./` and resolves through the symlink.
 
 ```json
 {
@@ -385,42 +405,47 @@ package is a window onto it, not a copy.
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    "./rng": "../../src/lib/rng.ts",
-    "./day": "../../src/lib/day.ts",
-    "./curriculum": "../../src/lib/curriculum.ts",
-    "./avatars": "../../src/lib/avatars.ts",
-    "./children": "../../src/lib/children.ts",
-    "./login-code": "../../src/lib/login-code.ts",
-    "./share-link": "../../src/lib/share-link.ts",
-    "./photo/photo": "../../src/lib/photo/photo.ts",
-    "./figures/types": "../../src/lib/figures/types.ts",
-    "./session": "../../src/lib/session/session.ts",
-    "./analytics/profile": "../../src/lib/analytics/profile.ts",
-    "./analytics/report": "../../src/lib/analytics/report.ts",
-    "./analytics/errors": "../../src/lib/analytics/errors.ts",
-    "./rewards/stars": "../../src/lib/rewards/stars.ts",
-    "./rewards/streak": "../../src/lib/rewards/streak.ts",
-    "./rewards/target": "../../src/lib/rewards/target.ts",
-    "./speedrun/modes": "../../src/lib/speedrun/modes.ts",
-    "./speedrun/records": "../../src/lib/speedrun/records.ts",
-    "./speedrun/leaderboard": "../../src/lib/speedrun/leaderboard.ts",
-    "./speedrun/history": "../../src/lib/speedrun/history.ts",
-    "./speedrun/summary": "../../src/lib/speedrun/summary.ts",
-    "./content/catalog": "../../src/content/catalog.ts"
+    "./rng": "./src/lib/rng.ts",
+    "./day": "./src/lib/day.ts",
+    "./curriculum": "./src/lib/curriculum.ts",
+    "./avatars": "./src/lib/avatars.ts",
+    "./children": "./src/lib/children.ts",
+    "./login-code": "./src/lib/login-code.ts",
+    "./share-link": "./src/lib/share-link.ts",
+    "./photo/photo": "./src/lib/photo/photo.ts",
+    "./figures/types": "./src/lib/figures/types.ts",
+    "./session": "./src/lib/session/session.ts",
+    "./analytics/profile": "./src/lib/analytics/profile.ts",
+    "./analytics/report": "./src/lib/analytics/report.ts",
+    "./analytics/errors": "./src/lib/analytics/errors.ts",
+    "./rewards/stars": "./src/lib/rewards/stars.ts",
+    "./rewards/streak": "./src/lib/rewards/streak.ts",
+    "./rewards/target": "./src/lib/rewards/target.ts",
+    "./speedrun/modes": "./src/lib/speedrun/modes.ts",
+    "./speedrun/records": "./src/lib/speedrun/records.ts",
+    "./speedrun/leaderboard": "./src/lib/speedrun/leaderboard.ts",
+    "./speedrun/history": "./src/lib/speedrun/history.ts",
+    "./speedrun/summary": "./src/lib/speedrun/summary.ts",
+    "./content/catalog": "./src/content/catalog.ts"
   }
 }
 ```
 
-- [ ] **Step 5: Run the test**
+Add the symlink to `learnr/.gitignore`? **No** — commit it. Git stores a symlink
+as a symlink, and a fresh clone needs it to resolve the package.
+
+- [ ] **Step 6: Run the test**
 
 ```bash
 npm install
 npm test -- packages/core
 ```
 
-Expected: PASS.
+Expected: PASS. `npm install` creates `node_modules/@learnr/core` as a symlink to
+`packages/core`, which itself symlinks to `src` — verified working, including from
+a second repo consuming it via `file:`.
 
-- [ ] **Step 6: Confirm the existing suite is untouched**
+- [ ] **Step 7: Confirm the existing suite is untouched**
 
 ```bash
 npm test && npm run typecheck
@@ -428,7 +453,7 @@ npm test && npm run typecheck
 
 Expected: PASS — this task added a package boundary and changed no behaviour.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add -A
