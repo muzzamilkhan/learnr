@@ -6,7 +6,13 @@
 
 **Architecture:** The pure engine (`src/lib` minus the five impure files, plus `src/content`) is published as `@learnr/core`, consumed by both the web app and the API server. The API server owns Prisma, the schema and migrations, and exposes the endpoints from the design spec. The web app keeps the engine and its UI, drops Prisma, and calls the API from its server components and actions. Auth.js stays in the web app and shares session state with the API through the `Session` table.
 
-**Tech Stack:** Node 24, TypeScript 5, Fastify 5, zod 4, `fastify-type-provider-zod` (schemas generate the OpenAPI document), Prisma 7 with `@prisma/adapter-pg`, Vitest 4, Testcontainers (`@testcontainers/postgresql`).
+**Tech Stack:** Node 24, TypeScript 5, Fastify 5.5+, zod 4.1.5+, `fastify-type-provider-zod` 6 (schemas generate the OpenAPI document), `@fastify/swagger` 9.5+, Prisma 7 with `@prisma/adapter-pg`, Vitest 4, Testcontainers (`@testcontainers/postgresql`).
+
+**Version note:** `fastify-type-provider-zod` v4 and v5 peer-depend on zod 3; only
+v6+ accepts zod 4. It also peer-depends on `@fastify/swagger` and `openapi-types`,
+so both are direct dependencies from Task 1 rather than added later. `npm install`
+must complete with no peer warnings and without `--legacy-peer-deps` — if it does
+not, the versions are wrong.
 
 **Spec:** `docs/superpowers/specs/2026-08-26-ios-port-design.md`
 
@@ -174,9 +180,11 @@ Expected: FAIL — `Cannot find module '../src/server'`.
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "^5.2.0",
-    "fastify-type-provider-zod": "^4.0.2",
-    "zod": "^4.0.0"
+    "@fastify/swagger": "^9.5.1",
+    "fastify": "^5.5.0",
+    "fastify-type-provider-zod": "^6.1.0",
+    "openapi-types": "^12.1.3",
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@types/node": "^24",
@@ -2955,9 +2963,8 @@ Expected: FAIL — 404, there is no such route.
 
 - [ ] **Step 3: Register the OpenAPI plugins**
 
-```bash
-npm install @fastify/swagger@^9.4.0
-```
+`@fastify/swagger` is already a dependency from Task 1 — it is a peer of
+`fastify-type-provider-zod` 6. Nothing to install.
 
 In `src/server.ts`, before the route registrations:
 
