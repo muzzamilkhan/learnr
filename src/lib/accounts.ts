@@ -77,20 +77,30 @@ export async function readAccount(userId: string): Promise<Account | null> {
 }
 
 /**
- * Take the one-time role choice. A compare-and-set on `role IS NULL`, so the
- * choice is permanent in the database rather than only in the UI that offers it:
- * replaying the action later changes nothing.
+ * Claim the parent role for an account that has not got one yet. There is no
+ * choice left to make: a Google sign-in is a grown-up by definition, because the
+ * only way to become a child is a parent creating the profile and handing over a
+ * login code. A self-declared child was an account nobody managed - `parentId`
+ * null, so the level their parent set could not be enforced on them - and the one
+ * shape of child the rest of the app does not describe.
+ *
+ * Still a compare-and-set on `role IS NULL`, which is the property that outlived
+ * the chooser it was written for: a role already set is never overwritten, so an
+ * account that predates this - a managed child included, though one can never
+ * reach here - is not quietly promoted. `sharing.ts` writes the identical
+ * statement inside its acceptance transaction, where it has to run on the same
+ * connection.
  */
-export async function chooseRole(userId: string, role: Role): Promise<boolean> {
+export async function claimParentRole(userId: string): Promise<boolean> {
   if (!prisma) return false;
   try {
     const written = await prisma.user.updateMany({
       where: { id: userId, role: null },
-      data: { role },
+      data: { role: 'parent' },
     });
     return written.count > 0;
   } catch (error) {
-    console.error('Failed to choose role', error);
+    console.error('Failed to claim the parent role', error);
     return false;
   }
 }

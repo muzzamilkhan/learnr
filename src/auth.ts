@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma, isDatabaseConfigured } from '@/lib/db';
+import { claimParentRole } from '@/lib/accounts';
 
 /**
  * Google is the only NextAuth provider. The other way in - a child redeeming a
@@ -46,6 +47,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = user?.id ?? (token?.sub as string);
       }
       return session;
+    },
+  },
+  events: {
+    /**
+     * Signing in with Google *is* saying you are a grown-up, so it is taken as
+     * the answer rather than followed by a screen asking the question. There is
+     * no child to choose: a child is a profile their parent made, with no email
+     * and no `Account` row, and they arrive by code rather than through here.
+     *
+     * On the event rather than in a page because a role is what every parent
+     * screen gates on, and a page is not the only door - it also has to reach the
+     * accounts that predate the column, which a create-time hook never would.
+     * `claimParentRole` is a compare-and-set, so every sign-in after the first
+     * writes nothing.
+     */
+    async signIn({ user }) {
+      if (user.id) await claimParentRole(user.id);
     },
   },
 });

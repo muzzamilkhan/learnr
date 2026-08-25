@@ -64,8 +64,9 @@ export const readParent = cache(async (): Promise<ParentContext> => {
   const { session, userId, account } = await readViewer();
   if (!userId) redirect('/');
 
-  // A child must not reach these screens, and neither must an account that has
-  // not said what kind it is yet.
+  // A child must not reach these screens, and neither must an account whose role
+  // has not been claimed yet - `/` claims it and sends them back, so the bounce
+  // heals rather than loops.
   if (account?.role !== 'parent') redirect('/');
 
   const viewable = await readViewableChildren(userId);

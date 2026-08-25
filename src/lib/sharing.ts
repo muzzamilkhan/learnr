@@ -388,10 +388,11 @@ export async function acceptShareInvite(
         skipDuplicates: true,
       });
 
-      // A brand-new account arriving through a link has already said what it is
-      // by following one, so it never meets the role chooser. A compare-and-set
-      // on `role IS NULL`, like `chooseRole`, so an existing child account is
-      // never quietly promoted.
+      // A grown-up arriving through a link is a parent, the same answer a
+      // Google sign-in gets everywhere else. A compare-and-set on `role IS
+      // NULL`, like `claimParentRole`, written out here rather than called
+      // because it has to run inside this transaction - so an existing child
+      // account is never quietly promoted.
       await tx.user.updateMany({ where: { id: viewerId, role: null }, data: { role: 'parent' } });
 
       return { ok: true, children: children.length } as const;

@@ -9,7 +9,6 @@ import { parseAvatar } from '@/lib/avatars';
 import { parseTarget } from '@/lib/rewards/target';
 import { parsePhoto } from '@/lib/photo/photo';
 import {
-  chooseRole,
   createChild,
   issueLoginCode,
   readAccount,
@@ -17,7 +16,6 @@ import {
   removeChild,
   updateChild,
   type ChildInput,
-  type Role,
 } from '@/lib/accounts';
 import {
   acceptShareInvite,
@@ -41,20 +39,6 @@ export async function saveSelectedLevelAction(level: string): Promise<void> {
   if (!session?.user?.id) return;
 
   await writeSelectedLevel(session.user.id, parsed);
-}
-
-/**
- * The one-time role choice. `chooseRole` refuses to overwrite an existing role, so
- * this cannot be replayed into a change however it is called.
- */
-export async function chooseRoleAction(role: Role): Promise<void> {
-  if (role !== 'parent' && role !== 'child') return;
-
-  const session = await auth();
-  if (!session?.user?.id) return;
-
-  await chooseRole(session.user.id, role);
-  revalidatePath('/');
 }
 
 /**

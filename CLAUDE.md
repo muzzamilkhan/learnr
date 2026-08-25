@@ -1922,12 +1922,35 @@ previously needed only the session.
 
 ## Accounts
 
-There are two kinds of account, chosen once and then permanent. On first sign-in
-a user picks **parent** or **child** (`User.role`, null until they choose). The
-choice is a compare-and-set on `role IS NULL`, so it cannot be replayed into a
-change; every account that predates the column meets the chooser on its next
-sign-in, which is why the migration deliberately backfills nothing. A person is a
-better source for this than a heuristic over their data.
+There are two kinds of account, `parent` and `child` (`User.role`), and **a
+Google sign-in can only ever produce a parent**. A child is a profile their
+parent made - no email, no `Account` row - and a login code is their only way
+in, so signing in with Google *is* saying you are a grown-up and it is taken as
+the answer rather than followed by a screen asking the question.
+
+It used to be a choice: a chooser on `/` offering two cards to any account whose
+role was null. What retired it is that the second card produced an account
+nobody managed. A self-declared child had `parentId` null, and `parentId` is the
+whole of what fixes a level - so `/play`'s redirect of a mismatched `?level=`
+did not apply to them, and the year their parent set was bypassable by signing
+in with Google and picking "child". It is also what makes dropping Google from
+the planned iOS app sound: the child is the only native user there, and a
+provider that cannot produce a child is a provider the native app does not need.
+
+**The compare-and-set outlived the chooser it was written for.**
+`claimParentRole` is still `UPDATE ... WHERE role IS NULL`, so a role already
+set is never overwritten - a managed child cannot be promoted by any path, and
+`sharing.ts` writes the identical statement inside its acceptance transaction
+for that reason rather than because it is a second policy.
+
+**It is claimed on the sign-in event, and healed on `/`.** `events.signIn` in
+`auth.ts` is the door every Google account comes through, including the accounts
+that predate the column, which a create-time hook would have missed. A session
+does not expire, though, so an account still holding one from before that event
+existed would never pass through it - which is why `/` claims the role too when
+it finds a signed-in account without one, and treats it as a parent. Every other
+parent screen redirects a null role to `/`, so that bounce heals rather than
+loops.
 
 A **parent does not play**, so they get neither the level picker nor a subject
 card. They get two screens instead, and **the report is the one they land on**:
@@ -2002,8 +2025,10 @@ what fixes the level. A managed child gets `SubjectCards` for their
 parameter back to theirs - hiding the dropdown while leaving a typed URL open
 would not be enforcing anything.
 
-A child who signs in with their own Google account (`role: 'child'`,
-`parentId: null`) behaves exactly as before, dropdown and all.
+**A child with no parent is a shape the app no longer creates.** The level
+dropdown is still what `/` draws for a `child` row without a `parentId`, since
+there is nothing else it could honestly show one, but nothing can mint one any
+more - every `child` row comes from a parent, and so carries the level lock.
 
 **Signed out, both ways in live in the landing page's top bar as peers** - a
 grown-up signs in with Google, a child types their code, and neither is the
@@ -2211,9 +2236,10 @@ every id in it is checked against the issuer's current children at acceptance. A
 child removed in between is simply not granted. The page behind the link runs the
 same filter, so it cannot promise what the acceptance would then not give.
 
-**A new account arriving through a link never meets the role chooser** - it is a
-compare-and-set to `parent` on `role IS NULL`, because following the link already
-answered that question. A viewer is an ordinary parent account: they can add
+**A new account arriving through a link is a parent like any other Google
+sign-in** - a compare-and-set to `parent` on `role IS NULL`, the same statement
+`claimParentRole` makes, written out inline because it has to run inside the
+acceptance transaction. A viewer is an ordinary parent account: they can add
 children of their own, and being shared someone else's is a grant beside that,
 not a lesser kind of account. A signed-in *child* account is refused at the page
 rather than allowed to collect other families' children.

@@ -11,11 +11,10 @@ import { LevelPicker } from '@/components/level-picker';
 import { LogoMark } from '@/components/logo';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
-import { RoleChooser } from '@/components/role-chooser';
 import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
-import { readAccount } from '@/lib/accounts';
+import { claimParentRole, readAccount } from '@/lib/accounts';
 import { readViewableChildren } from '@/lib/sharing';
 import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
@@ -102,7 +101,16 @@ export default async function HomePage({
 
   const userId = session?.user?.id;
   const account = userId ? await readAccount(userId) : null;
-  const isParent = account?.role === 'parent';
+
+  // A signed-in account with no role is a grown-up who has not been told so yet:
+  // the role is claimed at sign-in, and a session does not expire, so an account
+  // that predates that write is still holding one and would otherwise never pass
+  // through it. Claimed here rather than left to a screen asking the question,
+  // because there is no question left - see `claimParentRole`. The write is a
+  // compare-and-set and this is the only page that can see the gap, so it costs a
+  // no-op statement once per such account and nothing at all afterwards.
+  if (userId && account?.role === null) await claimParentRole(userId);
+  const isParent = account !== null && account.role !== 'child';
 
   // A parent doesn't play, so there is no level to reopen on, no run of days, no
   // stars and no goal - reading them would only put numbers on their screen that
@@ -120,23 +128,6 @@ export default async function HomePage({
 
   const initialLevel = resolveInitialLevel(player?.selectedLevel ?? null, levels);
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
-
-  // Signed in but hasn't said what kind of account this is. Asked once, kept
-  // forever - including for every account that predates the choice existing.
-  if (account && account.role === null) {
-    return (
-      <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-        <header className="mb-12 flex items-center gap-5">
-          <LogoMark size="lg" />
-          <div>
-            <h1 className="text-5xl font-bold tracking-tight">Welcome to LearnR</h1>
-            <p className="mt-2 text-2xl text-(--color-ink-soft)">Who&rsquo;s using this account?</p>
-          </div>
-        </header>
-        <RoleChooser />
-      </main>
-    );
-  }
 
   // A parent opens this app to see how their children are going, so that is what
   // their home screen is. The report lives at `/progress` and is not rebuilt here
