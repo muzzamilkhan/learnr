@@ -2042,28 +2042,45 @@ export interface StartRecordInput {
 and in the `learningSession.create` call, include `...(input.id ? { id: input.id } : {})`
 in `data`.
 
-In `recordAttempt`, the attempt's `id` is now supplied. Change the
-`attempt.create(...)` to an upsert keyed on it, so a replayed flush writes once:
+Guard the skill fold so a replay does not double-count. `updateTopicSkill`
+increments `attempts` and is **not** idempotent, so it must run only when the row
+was newly created. `foldPlayStreak` is a different matter: it already guards on
+`playStreakDay: { lt: next.lastDay }`, so a replay writes nothing and reports
+`streakAdvanced: false` — it is safe to call either way, and calling it is what
+gives the caller the right `AttemptResult`.
+
+Restructure the body of `recordAttempt` so the whole thing reads:
 
 ```ts
-    const written = await db.attempt.upsert({
-      where: { id: attempt.id },
-      create: { id: attempt.id, learningSessionId, ...rest },
-      update: {},
-      select: { id: true },
-    });
-```
+    if (!(await ownsSession(userId, learningSessionId))) return null;
 
-Guard the skill fold so a replay does not double-count: only call
-`updateTopicSkill` when the row was newly created. Detect that by checking first:
-
-```ts
+    // A retried offline flush re-sends answers already written. The attempt
+    // row itself dedupes on its client-supplied id, but `updateTopicSkill`
+    // increments a counter and would count the answer twice - so a replay
+    // must skip the fold. `foldPlayStreak` is guarded already and is safe to
+    // run either way, and is what produces the result the caller expects.
     const already = await db.attempt.findUnique({
       where: { id: attempt.id },
       select: { id: true },
     });
-    if (already) return readStreakOnly(userId);
+
+    if (already) return await foldPlayStreak(userId, attempt);
+
+    await db.attempt.create({
+      data: {
+        id: attempt.id,
+        learningSessionId,
+        // ...every other field exactly as it is today, figure spread included
+      },
+    });
+
+    await updateTopicSkill(userId, attempt);
+    return await foldPlayStreak(userId, attempt);
 ```
+
+`foldPlayStreak` is the existing private helper in this file; do not add a new
+one. Keep the `figure` spread and its comment exactly as they are — the comment
+explains why the spread cannot become a cast.
 
 - [ ] **Step 8: Write `src/routes/auth.ts`**
 
@@ -2499,7 +2516,6 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireParent } from '../auth/plugin';
-import { listChildren } from '../data/accounts';
 import { readViewableChildren } from '../data/sharing';
 import { readAnsweredQuestions, readObservations, readSittings } from '../data/records';
 import {
