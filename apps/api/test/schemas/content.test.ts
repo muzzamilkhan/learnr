@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PACKS } from '@learnr/core/content/packs';
+import { CONTENT_MANIFEST, PACKS } from '@learnr/core/content/packs';
 import { FIGURE_KINDS } from '@learnr/core/figures/types';
 import '@learnr/core/figures/build';
 import { figureKindModule } from '@learnr/core/figures/registry';
 import {
   choiceSpecSchema,
+  contentManifestSchema,
   figureSpecSchema,
   questionTemplateSchema,
 } from '../../src/schemas/dto.js';
@@ -73,5 +74,19 @@ describe('questionTemplateSchema', () => {
     };
 
     expect(choiceSpecSchema.parse(spec)).toEqual(spec);
+  });
+});
+
+describe('contentManifestSchema', () => {
+  /**
+   * The manifest schemas had no runtime exercise at all before this - a
+   * schema that only ever meets the compiler's structural check can still
+   * throw on real bytes (an `integer` where a count is fractional, say), and
+   * that gap is exactly why the earlier `templateCount` break surprised the
+   * plan: nothing here parsed the manifest to notice. This is the same shape
+   * as the template round-trip above, against the one manifest that ships.
+   */
+  it('round-trips the shipped manifest without losing a field', () => {
+    expect(contentManifestSchema.parse(CONTENT_MANIFEST)).toEqual(CONTENT_MANIFEST);
   });
 });

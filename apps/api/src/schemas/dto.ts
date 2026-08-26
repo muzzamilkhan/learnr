@@ -653,10 +653,26 @@ export type Mirrored = {
  * satisfy `true` while naming what is wrong - which is what a reader sees in the
  * compiler error.
  *
- * `Mark` and `Mode` are unions, and `keyof` a union is only the keys common to
- * every arm, so key comparison would wave a missing arm through. They are held
- * to assignability in both directions instead, which for a union of object
- * literals is exact.
+ * `Mark`, `Mode` and the two unions this task adds (`VarSpec`, `FigureSpec`) are
+ * all unions, and `keyof` a union is only the keys common to every arm, so key
+ * comparison alone would wave a missing arm through - `Mirrors` is for a plain
+ * object and none of the four can go through it directly.
+ *
+ * They do not all take the same fix, and which one a new union needs is worth
+ * checking before reaching for the nearer one. Assignability in both directions
+ * (`Both`, below) is exact for `Mode` and `Mark`, because every field on every
+ * arm of both is required - there is nothing optional for assignability to fail
+ * to notice. It stops being exact the moment an arm carries an *optional*
+ * field: proved by deleting `rightAngles` from `figureSpecSchema`'s `polygon`
+ * arm and watching the typecheck stay green anyway. TypeScript treats "the
+ * property is absent" and "the property is declared optional and absent" as
+ * mutually assignable, so a whole optional field can vanish from one arm
+ * without `Both` ever seeing it - the same blindness the comment on `Check`
+ * warns about for a plain object, reappearing per arm. `VarSpec` and
+ * `FigureSpec` both carry optional fields per arm, so they are held by
+ * `CheckEachArm` instead: `Check`'s exact key sets, both ways, run once per
+ * discriminant value, so a dropped field still names itself and the arm it
+ * went missing from.
  */
 type Mirrors<Schema extends z.ZodType, Dto> = Check<z.infer<Schema>, Dto>;
 
@@ -671,13 +687,37 @@ type Check<Inferred, Dto> = [Inferred] extends [Dto]
     : { schemaIsMissing: Exclude<keyof Dto, keyof Inferred> }
   : { schemaDoesNotDescribe: Dto };
 
-/** The two unions, held to exactness both ways rather than by key. */
+/** The `kind`-discriminated unions, checked exactly - see `CheckEachArm`. */
 export type MirroredUnions = {
   mark: Assert<Both<z.infer<typeof markSchema>, Mark>>;
   mode: Assert<Both<z.infer<typeof modeSchema>, Mode>>;
   modeListing: Assert<Both<z.infer<typeof modeListingSchema>, Mode & { key: string }>>;
-  varSpec: Assert<Both<z.infer<typeof varSpecSchema>, VarSpec>>;
-  figureSpec: Assert<Both<z.infer<typeof figureSpecSchema>, FigureSpec>>;
+  varSpec: Assert<CheckEachArm<z.infer<typeof varSpecSchema>, VarSpec>>;
+  figureSpec: Assert<CheckEachArm<z.infer<typeof figureSpecSchema>, FigureSpec>>;
 };
 
 type Both<A, B> = [A] extends [B] ? ([B] extends [A] ? true : { notExactly: B }) : { notExactly: B };
+
+/** The arm of union `U` whose discriminant `K` is `V`. */
+type ArmWith<U, K extends PropertyKey, V> = U extends Record<K, V> ? U : never;
+
+/** Every discriminant value `K` takes across union `U`. */
+type Discriminants<U, K extends PropertyKey> = U extends Record<K, infer V> ? V : never;
+
+/**
+ * A `kind`-discriminated union, held to `Check`'s exact key sets arm by arm
+ * rather than to `Both`'s whole-union assignability - see the comment on
+ * `Mirrors` for why the two are not interchangeable. Reuses `Check` once per
+ * discriminant value the DTO's union takes, so a field dropped from a single
+ * arm's schema names itself, and names the arm it went missing from, rather
+ * than passing unnoticed the way `Both` does.
+ *
+ * Collapses to `true` only when every arm's `Check` does; otherwise the
+ * result is the whole per-discriminant map, so the failing arm reads off the
+ * key it is filed under.
+ */
+type CheckEachArm<Schema, Dto, K extends PropertyKey = 'kind'> = ArmChecksAllTrue<{
+  [V in Discriminants<Dto, K> & PropertyKey]: Check<ArmWith<Schema, K, V>, ArmWith<Dto, K, V>>;
+}>;
+
+type ArmChecksAllTrue<T> = T[keyof T] extends true ? true : T;
