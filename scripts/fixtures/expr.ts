@@ -2,7 +2,7 @@ import { evaluate } from '../../src/lib/expr';
 import { createRng } from '../../src/lib/rng';
 import { generateQuestion } from '../../src/lib/templates/generate';
 import type { QuestionTemplate } from '../../src/lib/templates/types';
-import { canonicaliseCase, digest } from './canonical';
+import { canonicaliseCase, canonicalScope, digest } from './canonical';
 import { seedFor } from './corpus';
 import type { DigestSet } from './digests';
 import { EXPR_TRAPS } from './expr-traps';
@@ -89,7 +89,7 @@ export function exprSet(templates: readonly QuestionTemplate[]): DigestSet {
       EXPR_TRAPS.map(({ expr, scope, expect }) =>
         canonicaliseCase([
           ['expr', expr],
-          ['scope', JSON.stringify(scope ?? {})],
+          ...canonicalScope('scope', scope ?? {}),
           ['value', String(expect)],
         ]),
       ),
@@ -113,7 +113,7 @@ export function exprSet(templates: readonly QuestionTemplate[]): DigestSet {
         cases.push(
           canonicaliseCase([
             ['expr', expr],
-            ['scope', JSON.stringify(scope)],
+            ...canonicalScope('scope', scope),
             ['value', value],
           ]),
         );

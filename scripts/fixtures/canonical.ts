@@ -71,6 +71,20 @@ export function canonicalFigure(figure: Figure): Field[] {
   return fields;
 }
 
+/**
+ * A scope's entries, sorted by key and named `<prefix>.<key>`.
+ *
+ * A Swift dictionary has no insertion order to borrow, so anything keyed by
+ * name has to sort before it can be compared - `vars` here, and the same
+ * treatment `expr.ts` needs for the scope it evaluates expressions against.
+ * One function so the two can never sort differently.
+ */
+export function canonicalScope(prefix: string, scope: Record<string, unknown>): Field[] {
+  return Object.entries(scope)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([name, value]) => [`${prefix}.${name}`, String(value)] as const);
+}
+
 export function canonicalQuestion(q: GeneratedQuestion): Field[] {
   const fields: Field[] = [
     ['prompt', q.prompt],
@@ -79,9 +93,7 @@ export function canonicalQuestion(q: GeneratedQuestion): Field[] {
   ];
   if (q.choices) fields.push(['choices', q.choices.map(String).join('|')]);
   if (q.hint !== undefined) fields.push(['hint', q.hint]);
-  for (const [name, value] of Object.entries(q.vars).sort(([a], [b]) => (a < b ? -1 : 1))) {
-    fields.push([`vars.${name}`, String(value)]);
-  }
+  fields.push(...canonicalScope('vars', q.vars));
   if (q.figure) fields.push(...canonicalFigure(q.figure));
   return fields;
 }
