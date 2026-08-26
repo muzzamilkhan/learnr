@@ -6,6 +6,7 @@
     "./rng": "./src/lib/rng.ts",
     "./day": "./src/lib/day.ts",
     "./curriculum": "./src/lib/curriculum.ts",
+    "./dto": "./src/lib/dto.ts",
     "./avatars": "./src/lib/avatars.ts",
     "./children": "./src/lib/children.ts",
     "./login-code": "./src/lib/login-code.ts",
