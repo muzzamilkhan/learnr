@@ -38,6 +38,11 @@ describe('GET /content/manifest', () => {
       method: 'GET', url: '/content/manifest', headers: { 'if-none-match': etag },
     });
     expect(second.statusCode).toBe(304);
+    // 304 must be genuinely bodyless - see the doc comment on the route's
+    // response schema for why that depends on `.send()` taking no argument.
+    expect(second.body).toBe('');
+    expect(second.headers['content-type']).toBeUndefined();
+    expect(second.headers['content-length']).toBeUndefined();
   });
 });
 
@@ -79,6 +84,10 @@ describe('GET /content/:subject/:level', () => {
     });
 
     expect(second.statusCode).toBe(304);
+    // Same requirement as the manifest's 304: no body, no content headers.
+    expect(second.body).toBe('');
+    expect(second.headers['content-type']).toBeUndefined();
+    expect(second.headers['content-length']).toBeUndefined();
   });
 
   it('is a 404 for a year that is not one', async () => {
