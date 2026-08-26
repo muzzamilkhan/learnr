@@ -178,14 +178,13 @@ on iPad and iPhone simulators.
 **Not started:** template generation, the eleven figure builders, the session and
 speed-run state machines.
 
-**What gates those is step 3, not step 2.** The client's own account of itself
-predates content extraction landing, and it names the pack as the blocker. The
-packs exist and are served - `GET /content/manifest` and
-`GET /content/:subject/:level`, public, 32 paths - so the app has questions to
-fetch. What is missing is the golden corpus, build-order step 3, and it is the
-real gate: without it there is nothing to port templates and figures *against*,
-and the whole argument for a native engine rests on being able to prove the two
-agree. `rng` and `expr` have their vectors; nothing above them does.
+**Step 3 has since landed, so step 4 is unblocked.** `fixtures/digests/` holds a
+hash per template over 100 seeded draws, plus expression, grading and
+profile-folding sets, and `npm run fixtures:emit` writes the readable corpus a
+Swift test asserts field by field against. The client's own account of itself
+predates content extraction and names the pack as its blocker; the packs have
+been served since step 2, at `GET /content/manifest` and
+`GET /content/:subject/:level`.
 
 ### Four traps the port had to reproduce
 
@@ -207,12 +206,18 @@ about the prompt: `renderTemplateString` stringifies every `{...}` hole, and
 marks a correct answer wrong *and* can offer a distractor identical to the
 answer.
 
-**No test in this repo covers a negative half.** `src/lib/expr/expr.test.ts`
-asserts `round(2.5)` is `3` and nothing on the other side of zero; `^` is tested
-only for right-associativity; `&&` is never given a truthy non-boolean. So
-nothing here would have caught a wrong port - which is the gap step 3 closes,
-and the reason that corpus has to be *generated from* the engine rather than
-written by hand against what someone believes it does.
+**That gap is closed.** `scripts/fixtures/expr-traps.ts` now asserts
+`round(-2.5)` is `-2`, `-2 ^ 2` is `-4` and `1 && 2` is `true`, along with `%` on
+negatives and the five functions no shipped template uses, each as a value a
+human wrote down rather than read off the engine. Two of the seventy came out of
+writing the list rather than being known in advance: **`mod()` is not `%`** - it
+is `((a % b) + b) % b`, so it takes the divisor's sign and disagrees with the
+operator on every mixed-sign pair - and **`+` concatenates when either side is a
+string**, where left-associativity makes `1 + 2 + "a"` `"3a"` but `"a" + 1 + 2`
+`"a12"`. It sits inside the golden
+corpus of build-order step 3 - see `## The golden corpus` in `CLAUDE.md` - which
+is what the Swift port of `generate`, the figures and the session machines is
+verified against.
 
 ### What the client relies on holding here
 

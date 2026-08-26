@@ -1943,6 +1943,79 @@ now English has made it a real choice.
 **A parent's profile menu has no stars and no streak.** They don't play, so
 `page.tsx` skips those two reads entirely rather than reading numbers it won't show.
 
+## The golden corpus
+
+The engine here is the **oracle** for the Swift port in `learnr-ios`, and
+`fixtures/` is where that is written down. `npm run fixtures:build` regenerates
+it; `npm run fixtures:emit` writes the full corpus for reading.
+
+**What is committed is a digest, not the corpus.** 505 templates drawn 100 times
+is 33 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
+two spaces, because it exists to be read - two thirds of it figures, where one `clock` drawing is 6.4 KB against
+a `polygon`'s 169 bytes - and 110 MB cannot be reviewed as a diff, which is the
+whole point of regeneration being its own reviewable commit. So
+`fixtures/digests/` holds one twelve-character hash per template (~100 KB) and
+`fixtures/corpus/` is gitignored and rebuilt in about three seconds.
+
+**The seed is contract**: `` `${templateId}:${draw}` ``, draws 0-99, because
+`createRng` hashes the string itself. It differs deliberately from a live
+session's `` `${sessionSeed}:${drawNumber}` `` - a fixture needs a seed stable
+across regeneration and independent of any session.
+
+**The canonical form is not JSON** (`scripts/fixtures/canonical.ts`). Two JSON
+encoders in two languages have to agree about escaping first, and a prompt
+carries the minus sign, times, divide, degree and dollar - exactly where they
+differ. So a case is written out by hand: name and value join with `U+001F`,
+fields with `U+001E`, cases with a newline, and the canonicaliser throws on a
+value containing any of the three. Every value is its JavaScript `String(v)`
+form, which is the rule that earns its keep - `generateQuestion` already keys the
+expected answer and the distractor dedup off `String(value)`, so a port yielding
+`"2.0"` where this says `"2"` marks a correct answer wrong. Hashing that form
+makes the digest *test* it. `vars` are sorted by name, because a Swift dictionary
+has no order to borrow.
+
+**A field left out of the canonical form is invisible forever**, so the
+completeness check is the compiler's: `CanonicalCovers` compares key sets both
+ways against `GeneratedQuestion` and against each arm of `Mark`. It is
+`Mirrored`'s trick from `apps/api/src/schemas/dto.ts` one level up, and it exists
+for the identical reason - optional fields are the ones whose loss is invisible,
+and `choices`, `hint` and `figure` are all optional.
+
+**Regenerating is not the fix for a red build.**
+`scripts/fixtures/digests.test.ts` reddens when the engine's output moves, and
+the whole value of that is lost if regenerating is the reflex. A deliberate
+engine change regenerates the digests **in its own commit, which says why** -
+never in the same commit as the change. This is the one rule here that is
+documentation rather than a test, because a check for it is defeated by a rebase.
+
+**Four sets, and one of them asserts rather than records.**
+`scripts/fixtures/expr-traps.ts` carries seventy expressions whose expected
+values a human wrote down - `round(-2.5)` is `-2`, `-2 ^ 2` is `-4`, `1 && 2` is
+`true`, `mod(-7, 3)` is `2` where `-7 % 3` is `-1`, and `"a" + 1 + 2` is `"a12"`
+where `1 + 2 + "a"` is `"3a"` - and its test asserts them against the engine. Everywhere else the engine
+is the oracle and a fixture proves *agreement*, so a bug here would be reproduced
+in Swift and both sides would stay green. Harvesting cannot reach these: the 505
+shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
+`sqrt` or `isInt`. When that file and the engine disagree, decide which is wrong.
+
+The other three record: the main corpus; the 1,453 expressions content actually
+uses, evaluated against real bound scopes (`q.vars` *is* the scope, so this needs
+no engine instrumentation - and a figure's parameters are expressions too, which
+is why the harvest walks `FigureSpec` rather than naming its fields); and grading
+and profile folding over constructed inputs built to reach each threshold.
+
+Two things the profile set learned the hard way, both worth keeping. **It folds
+through `nextSkill` *and* `buildProfile` because `buildProfile` sorts** by
+`answeredAt` first - so the out-of-order undercount can only ever appear on the
+`nextSkill` path, which is the one the stored row takes in production. And it
+hashes `skillStatus` and `reviewIntervalMs` at two instants, the last answer and
+when review falls due, because **a stored row cannot express `review-due`** -
+status is a function of `now` as well as the row, so without the second instant
+one of the five statuses is unreachable however many scenarios are added.
+
+`fixtures/` is in `changed-apps.ts`'s `IGNORED`: the digests are not in the Next
+bundle and not in the API's Docker context, so a regeneration deploys nothing.
+
 ## Setup
 
 Copy `.env.example` to `.env` and fill in:

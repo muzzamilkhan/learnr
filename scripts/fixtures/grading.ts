@@ -61,8 +61,10 @@ export function responsesFor(question: Question): string[] {
  * the *response*, which is why that list is constructed rather than sampled.
  *
  * `response` and `recorded` go through `JSON.stringify` rather than raw, because
- * a response is deliberately allowed to be empty or to carry padding, and an
- * unquoted empty value is indistinguishable from an absent one.
+ * a response is deliberately allowed to be empty or to carry padding: quoting
+ * escapes any value that would otherwise collide with the canonical form's own
+ * separators and throw from `canonicaliseCase`, and it makes leading and
+ * trailing whitespace visible when reading a raw diff.
  */
 export function gradingSet(templates: readonly QuestionTemplate[]): DigestSet {
   const groups = new Map<string, string>();
