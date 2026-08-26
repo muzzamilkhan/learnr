@@ -21,9 +21,9 @@ import english6 from './english.6.json';
  *
  * The packs are written by `scripts/build-content.ts` from the TypeScript
  * literals under `maths/` and `english/`, which stay the thing an author
- * edits - `packs.test.ts` fails if the two disagree by a byte. Everything
- * downstream reads them from here: `catalog.ts` for the web app, and the
- * API's `/content` routes for a client that cannot import TypeScript.
+ * edits - `scripts/content-packs.test.ts` fails if the two disagree by a byte.
+ * Everything downstream reads them from here: `catalog.ts` for the web app,
+ * and the API's `/content` routes for a client that cannot import TypeScript.
  *
  * **The order is maths K-6 then english K-6**, which is the order
  * `allTemplates` has always had.

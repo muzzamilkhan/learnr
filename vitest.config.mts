@@ -5,7 +5,7 @@ const rootDir = import.meta.dirname;
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'packages/*/test/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'packages/*/test/**/*.test.ts', 'scripts/**/*.test.ts'],
     environment: 'node',
   },
   resolve: {

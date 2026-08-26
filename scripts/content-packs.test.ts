@@ -1,8 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildPacks, CORPUS } from '../../scripts/content-packs';
-import type { ContentManifest, ContentPack } from '../lib/dto';
+import { buildPacks, CORPUS } from './content-packs';
+import type { ContentManifest, ContentPack } from '../src/lib/dto';
 
 const generated = buildPacks(CORPUS);
 const read = <T>(name: string): T => JSON.parse(generated.get(name)!) as T;
@@ -80,7 +80,7 @@ describe('buildPacks', () => {
   });
 });
 
-const packDir = join(import.meta.dirname, 'packs');
+const packDir = join(import.meta.dirname, '..', 'src', 'content', 'packs');
 
 describe('the committed packs', () => {
   it('are exactly the files the generator writes', () => {

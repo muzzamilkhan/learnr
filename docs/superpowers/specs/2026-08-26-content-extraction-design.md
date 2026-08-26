@@ -130,8 +130,14 @@ downloading a template.
 
 **Packs are pretty-printed at two-space indent.** About 1.2 MB committed instead
 of 406 KB, which is nothing, and it buys the thing that matters: the pack diff is
-the reviewable artifact for a content change. The hash is over those exact bytes,
-because they are what is served.
+the reviewable artifact for a content change. The hash is over those exact
+committed bytes, in the generator's own key order - not over what the API
+serves, which a zod response schema re-serializes into the schema's key order.
+The two are not byte-identical (`maths.K.json` is 35,828 bytes on disk and
+21,514 on the wire), so `sha256(body)[:12] == etag` never holds. The ETag is
+still a perfectly good validator regardless - deterministic, changes with
+content, stable without it - because a validator only has to agree with itself
+across requests, not with a hash of the response body.
 
 ## The generator
 

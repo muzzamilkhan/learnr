@@ -10,12 +10,13 @@ third and lives in its own repository.
 ## Commands
 
 ```bash
-npm run dev         # dev server
-npm test            # vitest, run once
-npm run test:watch  # vitest, watch
-npm run typecheck   # tsc --noEmit
-npm run build       # production build
-npm run db:generate # prisma generate, for Auth.js alone - see below
+npm run dev           # dev server
+npm test              # vitest, run once
+npm run test:watch    # vitest, watch
+npm run typecheck     # tsc --noEmit
+npm run build         # production build
+npm run content:build # regenerate src/content/packs/ from the TypeScript templates
+npm run db:generate   # prisma generate, for Auth.js alone - see below
 ```
 
 **There is no `db:migrate` or `db:deploy` here.** `apps/api` owns the schema and
@@ -77,13 +78,19 @@ exists to prevent.
 - **The API's Docker build context is the repository root, not `apps/api`.** The
   symlink points at `../../src`, so a context of `apps/api` alone rebuilds a
   dangling link and nothing resolves.
-- **`tsconfig.json` excludes `packages/core/src`.** Because the symlink resolves
-  to the repository root, `tsc` was walking the same files twice under two path
-  identities - and a test under `src/` that imports from `scripts/` resolves only
-  from the real path, so the mirrored copy failed with `TS2856`/`TS2307`.
-  Excluding the mirror costs no coverage: every one of those files is still
-  typechecked through its real `src/` path, and anything imported is pulled back
-  in regardless - only unimported test copies under the mirror are dropped.
+- **An engine file under `src/lib` or `src/content` may not import from outside
+  `src/`.** Because the symlink resolves to the repository root, `tsc` walks
+  every one of those files twice, once under its real path and once under
+  `packages/core/src/...` - and a relative import that escapes `src/` (to
+  `scripts/`, say) resolves from the real path but not from the mirrored one,
+  so the mirrored copy fails with `TS2307`. That failure is the only place such
+  an import shows up: the API's Docker build copies just `src/lib`,
+  `src/content`, `packages/core` and `apps/api`, so an engine file reaching past
+  `src/` would pass every other local check and only fail at deploy. Leaving
+  the mirror in `tsconfig.json`'s program, rather than excluding it, is what
+  makes that failure show up at desk instead. `scripts/content-packs.ts` is
+  what a content-pack test imports, which is why its test lives beside it at
+  `scripts/content-packs.test.ts` rather than under `src/content/`.
 
 **`apps/api` owns the database.** The schema, the migrations and Prisma live
 there; a deploy runs `db:deploy` as its release command, so a release carries its
@@ -451,7 +458,7 @@ Every template cites the content it practises in `tags` - `AC9M4N02`, `MA2-AR-01
 edit.** `scripts/build-content.ts` serializes them into `src/content/packs/` -
 one pack a subject and year, plus a manifest - and `catalog.ts` reads the packs,
 so `catalog.test.ts` and `leaks.test.ts` run against the artifact rather than
-its source. `src/content/packs.test.ts` regenerates in memory and compares byte
+its source. `scripts/content-packs.test.ts` regenerates in memory and compares byte
 for byte, so editing a year file without running `npm run content:build` is a
 red suite rather than a stale pack. A pack's `version` is a hash of its own
 bytes: nothing to bump, so nothing to forget. **The JSON import may not carry an

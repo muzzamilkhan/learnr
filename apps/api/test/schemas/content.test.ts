@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CONTENT_MANIFEST, PACKS } from '@learnr/core/content/packs';
 import { FIGURE_KINDS } from '@learnr/core/figures/types';
-import '@learnr/core/figures/build';
 import { figureKindModule } from '@learnr/core/figures/registry';
 import {
   choiceSpecSchema,
   contentManifestSchema,
   figureSpecSchema,
   questionTemplateSchema,
+  varSpecSchema,
 } from '../../src/schemas/dto.js';
 
 const templates = PACKS.flatMap((pack) => pack.templates);
@@ -56,6 +56,21 @@ describe('questionTemplateSchema', () => {
       expect(arm, `no schema arm for ${kind}`).toBeDefined();
       expect(Object.keys(arm!.shape).filter((key) => key !== 'kind').sort()).toEqual(declared);
     }
+  });
+
+  /**
+   * `CheckEachArm` iterates the *DTO's* discriminants, so an extra schema arm
+   * under a `kind` the DTO never takes is never visited by it - the schema
+   * could carry a stray thirteenth figure kind or a fifth var kind and the
+   * compile-time check would stay green. Pinning the arm count is what makes
+   * that structurally impossible rather than merely unobserved.
+   */
+  it('has exactly one figure schema arm per figure kind, and no more', () => {
+    expect(figureSpecSchema.options).toHaveLength(FIGURE_KINDS.length);
+  });
+
+  it('has exactly one var schema arm per var kind, and no more', () => {
+    expect(varSpecSchema.options).toHaveLength(4);
   });
 
   /**

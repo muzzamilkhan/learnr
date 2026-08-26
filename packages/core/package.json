@@ -14,7 +14,6 @@
     "./photo/photo": "./src/lib/photo/photo.ts",
     "./figures/types": "./src/lib/figures/types.ts",
     "./figures/registry": "./src/lib/figures/registry.ts",
-    "./figures/build": "./src/lib/figures/build.ts",
     "./templates/types": "./src/lib/templates/types.ts",
     "./session": "./src/lib/session/session.ts",
     "./analytics/profile": "./src/lib/analytics/profile.ts",

@@ -2990,6 +2990,12 @@ paths:
                 additionalProperties: false
   /content/manifest:
     get:
+      parameters:
+        - schema:
+            type: string
+          in: header
+          name: if-none-match
+          required: false
       responses:
         '200':
           description: Default Response
@@ -3061,6 +3067,11 @@ paths:
           in: path
           name: level
           required: true
+        - schema:
+            type: string
+          in: header
+          name: if-none-match
+          required: false
       responses:
         '200':
           description: Default Response

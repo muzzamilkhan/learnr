@@ -10,7 +10,7 @@ everything except signing in.
 
 | | Where | State |
 | --- | --- | --- |
-| API source | `apps/api` (this repo) | 119 tests, typecheck clean |
+| API source | `apps/api` (this repo) | 145 tests, typecheck clean |
 | Shared engine | `packages/core` -> symlink to `src` | `@learnr/core/*` |
 | Contract | `apps/api/contract/openapi.yaml` | generated, 32 paths, fully typed |
 | API deploy | `learnr-api-syd.fly.dev`, Fly, `syd` | one machine, always on |
@@ -52,13 +52,22 @@ What the compiler cannot see is a schema that is too *tight*: `integer` where a
 real value is `0.67` does not strip, it throws, and the endpoint 500s - the
 lesson `serialization.test.ts` exists for, and it still holds. That is the
 round-trip tests' job, and each one guards a different seam:
-`src/content/packs.test.ts` compares *generated* bytes against *committed*
+`scripts/content-packs.test.ts` compares *generated* bytes against *committed*
 bytes and never sees a served response, catching drift between the TypeScript
 literals and the packs; `apps/api/test/schemas/content.test.ts` round-trips
 the templates and the manifest through the schemas; and
 `apps/api/test/routes/content.test.ts` is the one comparing a *served* pack
 against the committed bytes, which is the one this note's "verify by breaking
 the guard" method was run against here too.
+
+Each pack's `ETag` is the hash carried in its own `version` field - a hash of
+the *committed* file's bytes, not of the response body a client actually
+receives. The response schema re-serializes the pack into the schema's own key
+order, which is not byte-identical to the committed file, so `sha256(body)` and
+the ETag will disagree. That is not a bug: an ETag only has to be a stable
+validator - deterministic, changes with content, unchanged without it - and it
+is one. Don't write a client check that hashes the response and compares it
+against the header.
 
 ## What the cutover actually changed
 

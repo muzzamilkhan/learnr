@@ -30,17 +30,26 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
     // ever runs, which is what keeps a 304 genuinely bodyless - and the
     // declaration is what lets that no-argument call typecheck at all,
     // since a code absent from `response` isn't one `reply.code()` accepts.
-    schema: { response: { 200: contentManifestSchema, 304: z.undefined() } },
+    schema: {
+      headers: z.object({ 'if-none-match': z.string().optional() }),
+      response: { 200: contentManifestSchema, 304: z.undefined() },
+    },
   }, async (request, reply) => {
     const etag = `"${CONTENT_MANIFEST.version}"`;
-    if (request.headers['if-none-match'] === etag) return reply.code(304).send();
+    if (request.headers['if-none-match'] === etag) {
+      return reply.header('etag', etag).code(304).send();
+    }
 
-    return reply.header('etag', etag).send(CONTENT_MANIFEST);
+    return reply
+      .header('etag', etag)
+      .header('cache-control', 'public, max-age=0, must-revalidate')
+      .send(CONTENT_MANIFEST);
   });
 
   app.get('/content/:subject/:level', {
     schema: {
       params: z.object({ subject: z.string(), level: z.string() }),
+      headers: z.object({ 'if-none-match': z.string().optional() }),
       response: { 200: contentPackSchema, 304: z.undefined(), 404: errorSchema },
     },
   }, async (request, reply) => {
@@ -53,8 +62,13 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
     if (!pack) return reply.code(404).send({ error: 'No such content' });
 
     const etag = `"${pack.version}"`;
-    if (request.headers['if-none-match'] === etag) return reply.code(304).send();
+    if (request.headers['if-none-match'] === etag) {
+      return reply.header('etag', etag).code(304).send();
+    }
 
-    return reply.header('etag', etag).send(pack);
+    return reply
+      .header('etag', etag)
+      .header('cache-control', 'public, max-age=0, must-revalidate')
+      .send(pack);
   });
 };
