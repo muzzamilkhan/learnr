@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Subagent-driven-development scratch (ledger, briefs, review packages)
 .superpowers/
+
+# the emitted golden corpus - 33 MB, rebuilt in seconds by `npm run fixtures:emit`
+/fixtures/corpus/

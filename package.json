@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "content:build": "tsx scripts/build-content.ts",
     "fixtures:build": "tsx scripts/build-fixtures.ts",
+    "fixtures:emit": "tsx scripts/emit-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate"
