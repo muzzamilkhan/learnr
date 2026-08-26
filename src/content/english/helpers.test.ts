@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluate } from '@/lib/expr';
+import { evaluate } from '../../lib/expr';
 import { wordFrom } from './helpers';
 
 const RHYMES_AT = ['cat', 'hat', 'mat', 'bat'] as const;

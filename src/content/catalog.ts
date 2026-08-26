@@ -1,5 +1,5 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
-import { compareYearLevels, type Stage, type YearLevel } from '@/lib/curriculum';
+import type { QuestionTemplate } from '../lib/templates/types';
+import { compareYearLevels, type Stage, type YearLevel } from '../lib/curriculum';
 import { mathsTemplates } from './maths';
 import { englishTemplates } from './english';
 

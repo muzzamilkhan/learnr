@@ -1,4 +1,4 @@
-import type { Expr, QuestionTemplate } from '@/lib/templates/types';
+import type { Expr, QuestionTemplate } from '../../lib/templates/types';
 import { wordFrom, type WordBank } from './helpers';
 
 /**

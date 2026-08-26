@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { validateTemplates } from '@/lib/templates/validate';
-import { generateQuestion } from '@/lib/templates/generate';
-import { MAX_PROMPT_CHARS } from '@/lib/templates/limits';
-import { splitFractions } from '@/lib/fractions';
-import { createRng } from '@/lib/rng';
-import { isYearLevel, stageForLevel, type Stage } from '@/lib/curriculum';
-import { MAX_NUMBER_LENGTH } from '@/lib/session/answers';
+import { validateTemplates } from '../lib/templates/validate';
+import { generateQuestion } from '../lib/templates/generate';
+import { MAX_PROMPT_CHARS } from '../lib/templates/limits';
+import { splitFractions } from '../lib/fractions';
+import { createRng } from '../lib/rng';
+import { isYearLevel, stageForLevel, type Stage } from '../lib/curriculum';
+import { MAX_NUMBER_LENGTH } from '../lib/session/answers';
 import {
   allTemplates,
   listSubjects,

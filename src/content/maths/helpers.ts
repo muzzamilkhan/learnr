@@ -1,4 +1,4 @@
-import type { Expr } from '@/lib/templates/types';
+import type { Expr } from '../../lib/templates/types';
 
 /**
  * Name of the day `i` steps around the week, where `i` is an expression giving

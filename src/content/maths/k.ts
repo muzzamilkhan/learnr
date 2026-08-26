@@ -1,4 +1,4 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate } from '../../lib/templates/types';
 import { dayName, shapeName, sideCount } from './helpers';
 
 /**

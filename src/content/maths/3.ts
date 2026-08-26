@@ -1,4 +1,4 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate } from '../../lib/templates/types';
 import { columnLetter } from './helpers';
 
 /** Year 3 - NSW Stage 2. Which of Part A or B a concept sits in is a teacher's call, not the content's. */

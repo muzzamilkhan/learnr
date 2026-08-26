@@ -1,4 +1,4 @@
-import type { Expr } from '@/lib/templates/types';
+import type { Expr } from '../../lib/templates/types';
 
 /**
  * A closed list of words a template draws both its answer and its distractors

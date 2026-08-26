@@ -1,4 +1,4 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate } from '../../lib/templates/types';
 import { equalSectors, shadedFills, shapeName, sideCount, solidWord } from './helpers';
 
 /**

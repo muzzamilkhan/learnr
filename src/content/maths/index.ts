@@ -1,4 +1,4 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate } from '../../lib/templates/types';
 import { yearK } from './k';
 import { year1 } from './1';
 import { year2 } from './2';

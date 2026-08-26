@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { allTemplates } from '../catalog';
-import { generateQuestion } from '@/lib/templates/generate';
-import { createRng } from '@/lib/rng';
+import { generateQuestion } from '../../lib/templates/generate';
+import { createRng } from '../../lib/rng';
 
 /**
  * How often a `choice` question can be answered from its buttons alone.

@@ -1,4 +1,4 @@
-import type { QuestionTemplate } from '@/lib/templates/types';
+import type { QuestionTemplate } from '../../lib/templates/types';
 
 /** Year 5 - NSW Stage 3. */
 export const year5: QuestionTemplate[] = [
