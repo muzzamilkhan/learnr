@@ -15,15 +15,14 @@ npm test            # vitest, run once
 npm run test:watch  # vitest, watch
 npm run typecheck   # tsc --noEmit
 npm run build       # production build
-npm run db:migrate  # prisma migrate dev
-npm run db:deploy   # prisma migrate deploy, skipped without a database
-npm run db:studio   # browse the data
+npm run db:generate # prisma generate, for Auth.js alone - see below
 ```
 
-`npm run build` runs `db:deploy` first, so a deploy applies its own migrations.
-Without `DATABASE_URL` (or with the `.env.example` placeholder) that step prints a
-line and succeeds - a build must not insist on Postgres when the app plays fine
-without it.
+**There is no `db:migrate` or `db:deploy` here.** `apps/api` owns the schema and
+the migrations and runs `db:deploy` as its own release command; this package
+generates a client from `prisma/auth.prisma` - the four tables Auth.js needs and
+nothing else - because `PrismaAdapter` wants a live `PrismaClient` in-process and
+cannot speak REST. Everything else goes over the wire through `src/api.ts`.
 
 Those are the **web app's**. The API is a workspace and does not answer to them:
 
@@ -47,7 +46,11 @@ One repository, npm workspaces. The web app is at the root, the API is a
 workspace, and the pure engine is a package both consume.
 
 ```
-/                    the Next.js web app - src/, public/, prisma/
+/                    the Next.js web app - src/, public/
+src/lib/, src/content/   the pure engine, and nothing impure in either
+src/api.ts           the typed client - every read and write, over the wire
+src/auth-db.ts       the one Prisma connection left, for Auth.js alone
+prisma/auth.prisma   the four Auth.js tables, generate only - never migrated
 packages/core/       @learnr/core: the pure engine, shared
 apps/api/            the Fastify REST API - owns the schema and migrations
 apps/api/contract/   openapi.yaml, generated from the route schemas
@@ -67,7 +70,10 @@ exists to prevent.
   tooling and does not exist for a package, so `@/lib/curriculum` inside
   `src/content` resolves here and fails anywhere else. A guard test in
   `packages/core/test/exports.test.ts` walks `src/lib` and `src/content` and fails
-  on any `@/` import. Its exemption list is the five files the API cutover deletes.
+  on any `@/` import. It has **no exemption list** - the five impure files it used
+  to hold are the ones the cutover deleted, so `src/lib` and `src/content` are now
+  exactly the pure engine. The web app's own two impure files, `src/api.ts` and
+  `src/auth-db.ts`, sit outside both rather than being exempted.
 - **The API's Docker build context is the repository root, not `apps/api`.** The
   symlink points at `../../src`, so a context of `apps/api` alone rebuilds a
   dangling link and nothing resolves.
@@ -100,11 +106,40 @@ Vercel runs functions. It never scales to zero - the web app calls it server-sid
 on every render, so a cold start would land in a parent's page load. The name is
 `learnr-api-syd` because `learnr-api` is taken; Fly app names are globally unique.
 
-**The web app does not call the API yet.** It still reads Prisma directly. The
-cutover is the `api-cutover` branch and
-`docs/superpowers/plans/2026-08-26-api-server-extraction.md`, Task 11 - 18 files
-and 28 import sites. Until it lands, everything below describing `src/lib/db.ts`,
-`records.ts`, `accounts.ts`, `sharing.ts` and `speed-records.ts` is still true.
+**The web app calls the API for everything but signing in.** `src/api.ts` is the
+one typed client; the five modules that used to hold Prisma queries -
+`src/lib/{db,records,accounts,sharing,speed-records}.ts` - are gone, along with
+the web app's copy of the schema and its migrations. Where this document below
+names one of them, read it as the same code now living in `apps/api/src/data/`.
+
+**The caller's session cookie is what authorises a request**, forwarded as-is.
+The API resolves it against the very `Session` table Auth.js writes, so who a
+request is for is decided in one place and one sign-in serves both halves. There
+is no API key and no service account: an endpoint a child may not reach answers
+403 to the child, rather than trusting the web app to have asked nicely.
+
+**Null still means "could not read", never "nothing there."** That distinction is
+load-bearing on half these screens - `[]` from `readObservations` renders as
+"your child has never practised" - so a 503, a 4xx and a dead connection all come
+back from `src/api.ts` as null, and an endpoint meaning "nothing there" says `[]`
+with a 200. `family: null` on `GET /speed/records` is the third state that needed
+saying out loud: nobody to rank, which is neither.
+
+**Auth.js is the one thing that could not follow.** `src/auth-db.ts` keeps a
+Prisma client for `PrismaAdapter` alone and nothing else may import it; if a
+second caller appears the fix is an endpoint. `prisma/auth.prisma` is a *subset*
+rather than a copy - Prisma reads only the columns a model declares, so a `User`
+of five fields is a smaller session lookup, and the file may only ever shrink
+towards what the adapter touches. `claimParentRole` is written there a third
+time, beside the API's and the one inside `acceptShareInvite`'s transaction,
+because it runs during the OAuth callback before the cookie the API
+authenticates by exists. All three are the same compare-and-set on `role IS
+NULL`, which is what makes duplicating it safe.
+
+**Dates cross as ISO strings and are revived once**, by `reviveDates`
+(`src/lib/revive.ts`) at the boundary, rather than remembered at each of a dozen
+call sites. The pattern is deliberately strict - a full timestamp with a `T` and
+a zone - so "2026" inside a maths question does not become a `Date`.
 
 ### The iOS app
 
@@ -139,8 +174,8 @@ repo is where that spec lives**, and the iOS README still points at the old
 `learnr-api/` path for it. Its build order, of which the first is done and the
 fourth and fifth are in progress ahead of the second and third:
 
-1. **The API server** - done. Extract the impure files, stand up the endpoints,
-   point the web app at them. Task 11 of the plan is what remains.
+1. **The API server** - done, cutover and all. The impure files are extracted,
+   the endpoints stand up, and the web app reads and writes through them.
 2. **Content extraction** - the 505 templates from TypeScript literals to
    versioned JSON, consumed by the web app first so the format is proven before
    iOS depends on it.
@@ -173,6 +208,12 @@ Nothing sensitive is committed: `.env` has never been in history, and
 the network, the clock or the database - callers pass in `now` and an RNG. This is
 the rule that keeps the app testable; don't break it for convenience.
 
+**It is now true without exception**, which it was not while the five Prisma
+modules lived there. The two impure files left in the web app sit outside
+`src/lib` for that reason - `src/api.ts` talks to the network, `src/auth-db.ts`
+holds a database connection - and `packages/core/test/exports.test.ts` no longer
+carries a list of files to look past.
+
 Everything below is the **web app**, at the repository root. The API's own layout
 is in `apps/api/README.md`.
 
@@ -188,6 +229,8 @@ src/lib/speech/      turning a question into words worth hearing
 src/lib/curriculum.ts school years, NSW stages, labels and ordering
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
+src/lib/dto.ts       the shapes that cross the API boundary, declared once
+src/lib/revive.ts    ISO strings back into Dates, at that boundary
 src/content/         the shipped course content, a year a file + catalog lookups
 src/components/      UI
 src/app/             routes and server actions
@@ -1782,17 +1825,24 @@ now English has made it a real choice.
 
 Copy `.env.example` to `.env` and fill in:
 
-- `DATABASE_URL` - Neon Postgres via the Vercel Marketplace
+- `LEARNR_API_URL` - where the API is. Defaults to `http://localhost:3001`, the
+  port `npm run dev --workspace apps/api` listens on, so a local pair needs no
+  entry. Production points at `https://learnr-api-syd.fly.dev`.
+- `DATABASE_URL` - Neon Postgres via the Vercel Marketplace. **For Auth.js
+  alone** - see `src/auth-db.ts`. Everything else goes through the API.
 - `AUTH_SECRET` - `npx auth secret`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
   `http://localhost:3000/api/auth/callback/google`
 
 Without these the app still runs and plays - auth and recording are skipped
 (`isAuthConfigured`, `isDatabaseConfigured`) so the engines and UI stay workable.
+With the API simply unreachable the same holds on the play path by design: the
+first question is drawn unweighted and nothing is recorded, but the screen opens.
 
 Prisma 7: the connection URL lives in `prisma.config.ts`, not the schema, and the
 client is generated to `src/generated/prisma` (gitignored) and constructed with the
-`@prisma/adapter-pg` driver adapter.
+`@prisma/adapter-pg` driver adapter. There is no `migrations` path in that config,
+deliberately - it generates and never migrates.
 
 **The API has its own `.env`**, at `apps/api/.env`, needing only `DATABASE_URL`
 and `PORT` - Auth.js runs in the web app, so the API needs no `AUTH_*` variable.

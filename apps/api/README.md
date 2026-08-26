@@ -1,7 +1,7 @@
 # learnr-api
 
-The REST API behind LearnR. It owns the database, the schema and the migrations;
-the web app and (later) the iOS app both read and write through it.
+The REST API behind LearnR. It owns the database, the schema and the migrations.
+The web app reads and writes everything through it; the iOS app will.
 
 Part of the `learnr` workspace: it depends on `@learnr/core`, the pure engine
 shared with the web app, so it is built and run from the repository root.
@@ -20,6 +20,34 @@ cannot persist. That is deliberate - see `src/env.ts`.
 | --- | --- |
 | `DATABASE_URL` | Postgres. The `.env.example` placeholder counts as *no database*. |
 | `PORT` | Defaults to 3001. |
+
+## Who calls it, and how it knows who they are
+
+**The caller's Auth.js session cookie is the whole of the authorisation.** There
+is no API key and no service account. Auth.js runs in the web app and writes
+`Session` rows; this server reads the same table (`src/auth/session.ts`), so one
+sign-in serves both halves and who a request is for is decided in one place. The
+web app forwards the cookie as-is (`src/api.ts` there); the iOS client sends the
+same token as a bearer, which is what `POST /auth/redeem` hands it.
+
+That is why the gates are here rather than in a caller. `requireUser` and
+`requireParent` sit in front of every route but three, and every child mutation
+scopes its `where` by the parent resolved from the session - so a child id typed
+into a URL is refused by the query, not by a check somebody remembered to write.
+
+**Three routes are deliberately open**, and each for its own reason:
+
+| | Why |
+| --- | --- |
+| `GET /speed/modes` | Static content. A child has to see what to play before signing in. |
+| `POST /auth/redeem` | The code *is* the credential, spent in the statement that reads it. |
+| `GET /shares/:token` | A share link's point is reaching somebody with no account here; signing in is the acceptance. It is read-only and spends nothing. |
+
+**`null` is a read that failed and `[]` is nothing there**, and the callers draw
+them differently - `[]` from `readObservations` renders as "your child has never
+practised". So a read that broke answers 503 and an empty one answers 200 with
+`[]`. `family: null` on `GET /speed/records` is a third thing again: nobody to
+rank, which is neither.
 
 ## Tests
 
