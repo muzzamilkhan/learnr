@@ -45,7 +45,7 @@ can read is not the debugging tool this exists to be.
 | Of which figures | 22.0 MB |
 | Generation time | 2.3s |
 
-Figures are two thirds of it, and they are not evenly distributed:
+Figures are 22 MB of it, and they are not evenly distributed:
 
 | Figure kind | Avg bytes per drawing |
 | --- | --- |

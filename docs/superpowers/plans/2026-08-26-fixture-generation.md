@@ -1924,7 +1924,7 @@ it; `npm run fixtures:emit` writes the full corpus for reading.
 
 **What is committed is a digest, not the corpus.** 505 templates drawn 100 times
 is 37.7 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
-two spaces, because it exists to be read - two thirds of it figures, where one `clock` drawing is 6.4 KB against
+two spaces, because it exists to be read - and figures are 22 MB of that, where one `clock` drawing is 6.4 KB against
 a `polygon`'s 169 bytes - and 110 MB cannot be reviewed as a diff, which is the
 whole point of regeneration being its own reviewable commit. So
 `fixtures/digests/` holds one twelve-character hash per template (~100 KB) and
