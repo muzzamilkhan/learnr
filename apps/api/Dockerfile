@@ -39,6 +39,9 @@ RUN npm ci --omit=dev --ignore-scripts --workspace apps/api
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/src/generated ./apps/api/src/generated
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+# The release command runs `prisma migrate deploy`, and datasource.url lives in
+# this config - without it Prisma finds the schema but has no connection string.
+COPY --from=build /app/apps/api/prisma.config.ts ./apps/api/prisma.config.ts
 
 WORKDIR /app/apps/api
 EXPOSE 3001

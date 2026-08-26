@@ -6,7 +6,7 @@
 # produces a dangling symlink and a build that cannot resolve the engine.
 #
 # Deploy with `fly deploy` from here.
-app = "learnr-api"
+app = "learnr-api-syd"   # learnr-api was taken globally; Fly app names are unique across all of Fly.io
 primary_region = "syd"   # Neon is in ap-southeast-2; every query is a LAN hop.
 
 [build]
