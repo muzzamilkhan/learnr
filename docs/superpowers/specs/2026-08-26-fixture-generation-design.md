@@ -81,7 +81,7 @@ on demand.
 scripts/fixtures/canonical.ts   the canonical form, and its compile-time guard
 scripts/fixtures/corpus.ts      505 templates x 100 seeded draws
 scripts/fixtures/expr-traps.ts  the hand-authored trap list
-scripts/fixtures/expr.ts        the 1,377 harvested expressions
+scripts/fixtures/expr.ts        the 1,453 harvested expressions
 scripts/fixtures/grading.ts     responses either side of the tolerance
 scripts/fixtures/profile.ts     observation sequences per threshold
 scripts/fixtures/digests.ts     sets in, committed bytes out
@@ -216,13 +216,13 @@ it every failure looks the same.
 
 Two halves, and only one of them is generated.
 
-**Harvested, from real usage.** The content holds 1,377 distinct expression strings
+**Harvested, from real usage.** The content holds 1,453 distinct expression strings
 across `answer`, constraints, variable bounds, `{...}` holes, figure parameters
 and distractors. An expression needs a scope, and this needs **no engine
 instrumentation**: `q.vars` is the bound scope and is already exposed on
 `GeneratedQuestion`. So for each template, draws 0-4 supply five real scopes, and
 each of that template's expression strings is evaluated against them - roughly
-eighteen and a half thousand evaluations over the 1,377 distinct strings, so every one is seen
+twenty thousand evaluations over the 1,453 distinct strings, so every one is seen
 against several real scopes rather than a single lucky binding.
 
 **Hand-authored, for the traps.** Harvesting alone is not enough, and the gap is
