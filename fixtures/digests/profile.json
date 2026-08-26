@@ -1,0 +1,22 @@
+{
+  "version": "517ebdeb8ca7",
+  "set": "profile",
+  "draws": 100,
+  "groups": {
+    "all-wrong": "360b18e6e16a",
+    "below-min-observations": "f663ed4f513d",
+    "days-across-offsets": "2bbec57c0ce8",
+    "developing": "d5bf9fc38a64",
+    "empty": "e3b0c44298fc",
+    "long-run-strength": "ead63572ead8",
+    "out-of-order-days": "98016d961e5e",
+    "review-interval-0": "c1315d1fdd4f",
+    "review-interval-1": "31a0a3a5cd6a",
+    "review-interval-2": "681d362ee944",
+    "review-interval-3": "00b30409895b",
+    "right-then-wrong": "15b39a09a3d4",
+    "secure": "a8db873ab5bd",
+    "struggling": "1a025d5a5f32",
+    "wrong-then-right": "5be66b339a4c"
+  }
+}
