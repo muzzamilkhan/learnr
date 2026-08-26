@@ -65,7 +65,18 @@ async function call(path: string, init: RequestInit = {}): Promise<Response | nu
   try {
     return await fetch(`${BASE}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', cookie: jar.toString(), ...init.headers },
+      headers: {
+        // **Only where there is a body to describe.** Fastify refuses a JSON
+        // content-type with an empty body before any handler runs - a 400,
+        // `FST_ERR_CTP_EMPTY_JSON_BODY` - so declaring it unconditionally
+        // broke every bodyless write here: `claimParent`, `issueLoginCode`,
+        // `acceptShare`, `awardRound` and `endSession`. The null convention
+        // then made that 400 indistinguishable from a failed read, which is
+        // why it reached production silently rather than as an error.
+        ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+        cookie: jar.toString(),
+        ...init.headers,
+      },
       // Every one of these is per-user and most are per-request. There is
       // nothing here Next may hold on to.
       cache: 'no-store',
