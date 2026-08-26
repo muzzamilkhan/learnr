@@ -1,7 +1,6 @@
 import type { QuestionTemplate } from '../lib/templates/types';
 import { compareYearLevels, type Stage, type YearLevel } from '../lib/curriculum';
-import { mathsTemplates } from './maths';
-import { englishTemplates } from './english';
+import { PACKS } from './packs';
 
 /**
  * The in-repo course catalog. Once courses are authored by AI and stored in the
@@ -11,8 +10,12 @@ import { englishTemplates } from './english';
  * Levels and topics are many-to-many: a year offers several topics, and a topic
  * recurs across years at increasing difficulty. Neither owns the other, so the
  * catalog can be walked from either end - `topicsForLevel` and `levelsForTopic`.
+ *
+ * The templates are read from the generated packs in `./packs`, not from the
+ * TypeScript literals that author them - so every test in this directory runs
+ * against the artifact that actually ships.
  */
-export const allTemplates: QuestionTemplate[] = [...mathsTemplates, ...englishTemplates];
+export const allTemplates: QuestionTemplate[] = PACKS.flatMap((pack) => pack.templates);
 
 export interface LevelSummary {
   level: YearLevel;

@@ -25,6 +25,7 @@
     "./speedrun/leaderboard": "./src/lib/speedrun/leaderboard.ts",
     "./speedrun/history": "./src/lib/speedrun/history.ts",
     "./speedrun/summary": "./src/lib/speedrun/summary.ts",
-    "./content/catalog": "./src/content/catalog.ts"
+    "./content/catalog": "./src/content/catalog.ts",
+    "./content/packs": "./src/content/packs/index.ts"
   }
 }
