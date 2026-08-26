@@ -136,8 +136,13 @@ hand-written form that both sides implement in about thirty lines:
 prompt␟What is 7 − 3?␞answer␟4␞answerType␟number␞figure.mark.0␟path|12.5,80|45,80␞…
 ```
 
-- Fields are joined by `␟` (U+001F), records by `␞` (U+001E). Neither can occur
-  in a rendered prompt.
+- Three levels of separator, none of which can occur in a rendered prompt: a
+  field's name and its value join with `␟` (U+001F), the fields of one case join
+  with `␞` (U+001E), and cases join with a newline. The canonicaliser throws on a
+  value containing any of the three, so the assumption is a check rather than a
+  hope.
+- Field order is the order declared here, and `vars` are emitted sorted by name -
+  a Swift dictionary has no insertion order to rely on.
 - Absent optional fields are omitted rather than emitted as empty, and every
   field carries its name, so omission and emptiness are distinguishable.
 - **Every value is its JavaScript `String(v)` form.**
