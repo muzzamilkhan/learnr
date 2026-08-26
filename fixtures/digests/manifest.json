@@ -1,5 +1,5 @@
 {
-  "version": "bcb9a90882d8",
+  "version": "4a893c412b0d",
   "sets": [
     {
       "set": "english.K",
@@ -70,6 +70,11 @@
       "set": "maths.6",
       "groups": 49,
       "version": "7eb94726b43e"
+    },
+    {
+      "set": "expr",
+      "groups": 506,
+      "version": "a2843628b686"
     }
   ]
 }

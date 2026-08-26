@@ -49,6 +49,11 @@ describe('buildDigestFiles', () => {
       expect(body).toContain('\n  "version"');
     }
   });
+
+  it('carries the expression set beside the corpus years', () => {
+    expect([...generated.keys()]).toContain('expr.json');
+    expect(Object.keys(read('expr.json').groups)).toContain('traps');
+  });
 });
 
 const digestDir = join(import.meta.dirname, '..', '..', 'fixtures', 'digests');
