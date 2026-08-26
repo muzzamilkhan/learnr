@@ -75,13 +75,21 @@ digest - one hash per template - and the corpus itself is gitignored and rebuilt
 on demand.
 
 ```
-scripts/fixtures.ts         pure - cases in, canonical bytes out
-scripts/build-fixtures.ts   writes fixtures/digests/  (committed, ~40 KB)
-scripts/emit-fixtures.ts    writes fixtures/corpus/   (gitignored, 33 MB)
-scripts/fixtures.test.ts    the drift guard, beside its script
+scripts/fixtures/canonical.ts   the canonical form, and its compile-time guard
+scripts/fixtures/corpus.ts      505 templates x 100 seeded draws
 scripts/fixtures/expr-traps.ts  the hand-authored trap list
-fixtures/digests/           14 pack-shaped files + 3 small sets + a manifest
+scripts/fixtures/expr.ts        the 725 harvested expressions
+scripts/fixtures/grading.ts     responses either side of the tolerance
+scripts/fixtures/profile.ts     observation sequences per threshold
+scripts/fixtures/digests.ts     sets in, committed bytes out
+scripts/build-fixtures.ts       writes fixtures/digests/  (committed, ~100 KB)
+scripts/emit-fixtures.ts        writes fixtures/corpus/   (gitignored, 33 MB)
+fixtures/digests/               14 pack-shaped files + 3 small sets + a manifest
 ```
+
+A file a set, with its test beside it, rather than one module doing all four:
+each is a different question about the engine, and the drift guard
+(`digests.test.ts`) is the only one that reads what is committed.
 
 Two npm scripts: `fixtures:build` writes the digests, `fixtures:emit` writes the
 corpus and takes an optional template id so a single failure can be read without
@@ -239,8 +247,14 @@ Minimum coverage for the trap list:
 | `1 && 2` | `true` | `2`, if `&&` returns the operand rather than a boolean |
 | `{x / 2}` with `x = 4` | `"2"` | `"2.0"` |
 
-plus `%` on negatives, `.5` rounding on both sides of zero, and the five
-functions content never exercises.
+plus `.5` rounding on both sides of zero and the five functions content never
+exercises - and one trap found while writing this list rather than known in
+advance: **`mod()` is not `%`.** It is written `((a % b) + b) % b`, so it takes
+the *divisor's* sign where the operator takes the dividend's, and the two
+disagree on every mixed-sign pair: `-7 % 3` is `-1` and `mod(-7, 3)` is `2`. A
+port implementing `mod` as `%` is wrong wherever content uses it, and content
+uses it. That it surfaced from writing sixty lines by hand is the argument for
+the hand-authored half.
 
 ### 3. Grading
 
