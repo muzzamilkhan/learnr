@@ -13,6 +13,7 @@ import { childRoutes } from './routes/children.js';
 import { reportRoutes } from './routes/reports.js';
 import { shareRoutes } from './routes/shares.js';
 import { speedRoutes } from './routes/speed.js';
+import { playRoutes } from './routes/play.js';
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -43,6 +44,7 @@ export function buildServer(): FastifyInstance {
   app.register(reportRoutes);
   app.register(shareRoutes);
   app.register(speedRoutes);
+  app.register(playRoutes);
 
   app.get('/openapi.json', async () => app.swagger());
 

@@ -8,6 +8,7 @@ import {
   dismissSpeedRecords,
   readFamilyRecords,
   readSpeedAttempts,
+  readSpeedSummaries,
   readUnseenRecords,
   submitSpeedRun,
 } from '../data/speed-records.js';
@@ -55,6 +56,16 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     return reply.send({ attempts, family });
+  });
+
+  /** One line per mode this player has run - the cabinet's table. */
+  app.get('/speed/summaries', {
+    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+  }, async (request, reply) => {
+    const userId = requireUser(request);
+    const summaries = await readSpeedSummaries(userId);
+    if (summaries === null) return reply.code(503).send({ error: 'Could not read the runs' });
+    return reply.send(summaries);
   });
 
   app.get('/speed/unseen', {

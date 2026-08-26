@@ -8,6 +8,7 @@ import { codeExpiry } from '@learnr/core/login-code';
 import { requireParent } from '../auth/plugin.js';
 import { childInputSchema, loginCodeSchema } from '../schemas/account.js';
 import { errorSchema } from '../schemas/common.js';
+import { readViewableChildren } from '../data/sharing.js';
 import {
   createChild,
   issueLoginCode,
@@ -54,6 +55,27 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
 
     // null is a failed read, [] is a parent with no children. They must not
     // look the same to the screen that renders them.
+    if (children === null) return reply.code(503).send({ error: 'Could not read the children' });
+
+    return reply.send(children);
+  });
+
+  /**
+   * Own children *plus* the ones shared with this parent. Every parent screen
+   * resolves `?child=` against this list, so a child not in it is not reachable
+   * by typing its id - there is no separate ownership check to drift out of
+   * step with the query that produced the list.
+   *
+   * Deliberately not folded into GET /children, which is the owned list the
+   * dashboard's edit controls act on. Serving the owned list here would quietly
+   * drop a shared child from every screen that reads it.
+   */
+  app.get('/children/viewable', {
+    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+  }, async (request, reply) => {
+    const parentId = await requireParent(request);
+    const children = await readViewableChildren(parentId);
+
     if (children === null) return reply.code(503).send({ error: 'Could not read the children' });
 
     return reply.send(children);

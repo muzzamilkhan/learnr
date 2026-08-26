@@ -51,6 +51,21 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /me/claim-parent:
+    post:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  claimed:
+                    type: boolean
+                required:
+                  - claimed
+                additionalProperties: false
   /me:
     get:
       responses:
@@ -423,6 +438,28 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /children/viewable:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
   /children/{id}:
     patch:
       requestBody:
@@ -737,6 +774,32 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /shares/{token}:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: token
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
   /shares/{id}:
     delete:
       parameters:
@@ -909,6 +972,28 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /speed/summaries:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
   /speed/unseen:
     get:
       responses:
@@ -942,3 +1027,76 @@ paths:
       responses:
         '204':
           description: Default Response
+  /play/state:
+    get:
+      parameters:
+        - schema:
+            default: maths
+            type: string
+            minLength: 1
+          in: query
+          name: subject
+          required: false
+        - schema:
+            type: string
+            enum:
+              - '1'
+              - '2'
+              - '3'
+              - '4'
+              - '5'
+              - '6'
+              - K
+          in: query
+          name: level
+          required: true
+        - schema:
+            default: 5
+            type: integer
+            minimum: 1
+            maximum: 50
+          in: query
+          name: recentTopics
+          required: false
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+  /me/level:
+    put:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  type: string
+                  enum:
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - K
+              required:
+                - level
+      responses:
+        '204':
+          description: Default Response
+        '400':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false

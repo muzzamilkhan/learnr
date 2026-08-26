@@ -22,9 +22,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import { localDay } from '@learnr/core/day';
 import type { Attempt } from '@learnr/core/session';
-import type { Sitting } from '@learnr/core/dto';
+import type { PlayerState, Sitting } from '@learnr/core/dto';
 
-export type { Sitting };
+export type { PlayerState, Sitting };
 
 /**
  * Recording is fire-and-forget and best effort: a child answering questions must
@@ -371,34 +371,6 @@ export async function awardRoundStars(
     console.error('Failed to award stars', error);
     return null;
   }
-}
-
-/**
- * Everything the two playing screens read off the child's own row, in one query.
- *
- * The level they last chose, the run of days, the stars and the daily target all
- * live on `User`, and both `/` and `/play` want all four before they can render.
- * Asked for one function at a time that is four round trips to the same row, and
- * the target's two arrived *after* an existing `Promise.all` they had no reason
- * to wait behind - a waterfall in front of the first question a child sees.
- *
- * One column now rather than a sum over the child's sittings, for the stars: the
- * total is banked as it is earned and never recounted, because a target is
- * mutable and a recount of a past day against today's target would take stars
- * off a child who earned them. See the daily targets spec.
- *
- * The single-column readers stay for the two callers that genuinely want one
- * thing: `readSelectedLevel` for the redirect that runs before anything else on
- * `/play`, and `readPlayStreak` inside the streak fold.
- */
-export interface PlayerState {
-  /** As stored - the caller resolves it against content. */
-  selectedLevel: string | null;
-  streak: PlayStreak;
-  stars: number;
-  target: DailyTarget | null;
-  /** The last local day the target's stars were banked. */
-  targetDay: number | null;
 }
 
 const noPlayerState = (): PlayerState => ({

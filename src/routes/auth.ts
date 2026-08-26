@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireUser } from '../auth/plugin.js';
-import { readAccount, redeemLoginCode } from '../data/accounts.js';
+import { claimParentRole, readAccount, redeemLoginCode } from '../data/accounts.js';
 import { errorSchema } from '../schemas/common.js';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
@@ -34,6 +34,19 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       childId: redeemed.userId,
       expiresAt: redeemed.expires.toISOString(),
     });
+  });
+
+  /**
+   * A Google sign-in is a grown-up by definition - the only way to become a
+   * child is a parent creating the profile. The write is a compare-and-set on
+   * `role IS NULL`, so a role already set is never overwritten and a managed
+   * child can never be promoted by a stray sign-in.
+   */
+  app.post('/me/claim-parent', {
+    schema: { response: { 200: z.object({ claimed: z.boolean() }) } },
+  }, async (request, reply) => {
+    const userId = requireUser(request);
+    return reply.send({ claimed: await claimParentRole(userId) });
   });
 
   app.get('/me', {

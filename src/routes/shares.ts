@@ -10,6 +10,7 @@ import {
   listPendingInvites,
   listSharedViewers,
   createShareInvite,
+  readShareInvite,
   revokeShare,
 } from '../data/sharing.js';
 
@@ -50,6 +51,23 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
     const invite = await createShareInvite(parentId, request.body.childIds);
     if (!invite) return reply.code(400).send({ error: 'Could not create the link' });
     return reply.code(201).send({ token: invite.token, expiresAt: invite.expiresAt.toISOString() });
+  });
+
+  /**
+   * What a link is offering, for the page whose whole job is to say "accept
+   * this?". Read-only and it does not spend the link - following your own link
+   * to check it must not burn it.
+   */
+  app.get('/shares/:token', {
+    schema: {
+      params: z.object({ token: z.string() }),
+      response: { 200: z.unknown(), 404: errorSchema },
+    },
+  }, async (request, reply) => {
+    requireUser(request);
+    const invite = await readShareInvite(request.params.token);
+    if (!invite) return reply.code(404).send({ error: 'No such link' });
+    return reply.send(invite);
   });
 
   app.delete('/shares/:id', {
