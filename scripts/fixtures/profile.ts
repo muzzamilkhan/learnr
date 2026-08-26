@@ -1,7 +1,9 @@
 import {
   buildProfile,
   nextSkill,
+  reviewIntervalMs,
   REVIEW_INTERVALS_MS,
+  skillStatus,
   type Observation,
   type TopicSkill,
 } from '../../src/lib/analytics/profile';
@@ -74,14 +76,20 @@ export const SCENARIOS: readonly Scenario[] = [
   { name: 'long-run-strength', observations: run(300, (i) => i % 4 !== 0) },
   {
     name: 'days-across-offsets',
-    // One instant is a different local day either side of the dateline, and a
-    // missing offset means UTC rather than the last one seen.
+    // **These instants are chosen so the offset actually decides the day.** At
+    // 15h UTC, Sydney is already on the next day while UTC and California are
+    // not - the day is the child's, not the server's, and that is the whole
+    // claim. At 44h a missing offset lands a day earlier than Sydney's, so
+    // `undefined` is provably UTC rather than the last offset seen.
+    //
+    // An earlier version used 13h and 37h, where every offset resolved to the
+    // same local day and the scenario proved nothing while claiming to.
     observations: [
-      answer({ answeredAt: EPOCH + 13 * HOUR, offsetMinutes: SYDNEY }),
-      answer({ answeredAt: EPOCH + 13 * HOUR, offsetMinutes: 0 }),
-      answer({ answeredAt: EPOCH + 13 * HOUR, offsetMinutes: -480 }),
-      answer({ answeredAt: EPOCH + 37 * HOUR, offsetMinutes: SYDNEY }),
-      answer({ answeredAt: EPOCH + 37 * HOUR, offsetMinutes: undefined }),
+      answer({ answeredAt: EPOCH + 15 * HOUR, offsetMinutes: SYDNEY }),
+      answer({ answeredAt: EPOCH + 15 * HOUR, offsetMinutes: 0 }),
+      answer({ answeredAt: EPOCH + 15 * HOUR, offsetMinutes: -480 }),
+      answer({ answeredAt: EPOCH + 44 * HOUR, offsetMinutes: SYDNEY }),
+      answer({ answeredAt: EPOCH + 44 * HOUR, offsetMinutes: undefined }),
     ],
   },
   {
@@ -121,10 +129,37 @@ const canonicalSkill = (skill: TopicSkill): string =>
   ]);
 
 /**
+ * The derived reads. The stored row does not contain them and a port must
+ * reproduce them anyway: `skillStatus` is what the selector keys off entirely,
+ * and `reviewIntervalMs` decides when a mastered topic comes back.
+ *
+ * Taken at two instants, because status is a function of `now` as well as of
+ * the row. Without the second, **`review-due` is unreachable** - every scenario
+ * stops at `secure` and one of the five statuses goes uncovered no matter how
+ * many scenarios are added.
+ */
+const canonicalStatus = (skill: TopicSkill): string[] => {
+  const interval = reviewIntervalMs(skill);
+  return [
+    ['end', skill.lastAnsweredAt],
+    ['due', skill.lastAnsweredAt + interval],
+  ].map(([at, now]) =>
+    canonicaliseCase([
+      ['at', String(at)],
+      ['reviewIntervalMs', String(interval)],
+      ['status', skillStatus(skill, Number(now))],
+    ]),
+  );
+};
+
+/**
  * Each scenario folded twice: once through `nextSkill` a step at a time - so an
  * intermediate state that diverges names the observation it diverged on - and
  * once through `buildProfile`, which is the same arithmetic the stored row goes
- * through.
+ * through. Both matter: `buildProfile` **sorts** by `answeredAt` before folding,
+ * so the out-of-order undercount `nextSkill` produces can only show up on the
+ * step-at-a-time path - folding only through `buildProfile` would make
+ * `out-of-order-days` pin nothing.
  */
 export function profileSet(): DigestSet {
   const groups = new Map<string, string>();
@@ -137,6 +172,7 @@ export function profileSet(): DigestSet {
       cases.push(canonicalSkill(skill));
     }
     for (const built of buildProfile(observations).skills) cases.push(canonicalSkill(built));
+    if (skill) cases.push(...canonicalStatus(skill));
     groups.set(name, digest(cases));
   }
 

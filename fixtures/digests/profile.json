@@ -1,22 +1,22 @@
 {
-  "version": "517ebdeb8ca7",
+  "version": "150b210406db",
   "set": "profile",
   "draws": 100,
   "groups": {
-    "all-wrong": "360b18e6e16a",
-    "below-min-observations": "f663ed4f513d",
-    "days-across-offsets": "2bbec57c0ce8",
-    "developing": "d5bf9fc38a64",
+    "all-wrong": "6c789d7afd31",
+    "below-min-observations": "59d07b3a92e4",
+    "days-across-offsets": "7392f5032111",
+    "developing": "5b88b927f79a",
     "empty": "e3b0c44298fc",
-    "long-run-strength": "ead63572ead8",
-    "out-of-order-days": "98016d961e5e",
-    "review-interval-0": "c1315d1fdd4f",
-    "review-interval-1": "31a0a3a5cd6a",
-    "review-interval-2": "681d362ee944",
-    "review-interval-3": "00b30409895b",
-    "right-then-wrong": "15b39a09a3d4",
-    "secure": "a8db873ab5bd",
-    "struggling": "1a025d5a5f32",
-    "wrong-then-right": "5be66b339a4c"
+    "long-run-strength": "5d120d291c0c",
+    "out-of-order-days": "384030e791a2",
+    "review-interval-0": "7f0b495d587b",
+    "review-interval-1": "aa635adb20c7",
+    "review-interval-2": "510ac87618d5",
+    "review-interval-3": "a116a0d977fe",
+    "right-then-wrong": "f9372dbcf0ef",
+    "secure": "7f0f582d0e04",
+    "struggling": "b9c98b3168bf",
+    "wrong-then-right": "3ba1b88d67f5"
   }
 }
