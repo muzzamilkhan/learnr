@@ -81,6 +81,14 @@ export interface PlayerState {
   targetDay: number | null;
 }
 
+/** What a recorded answer hands back to the play screen. Rewards only - never play. */
+export interface AttemptResult {
+  /** Days in a row including today. */
+  streak: number;
+  /** Whether this was the first answer of its day, and so worth showing. */
+  streakAdvanced: boolean;
+}
+
 export interface Sitting {
   id: string;
   startedAt: number;

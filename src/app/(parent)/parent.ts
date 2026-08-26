@@ -1,9 +1,10 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import type { Session } from 'next-auth';
-import { auth, isAuthConfigured } from '@/auth';
-import { readAccount, type Account, type ChildProfile } from '@/lib/accounts';
-import { readViewableChildren, type ViewableChild } from '@/lib/sharing';
+import { api } from '@/api';
+import type { ChildProfile, ViewableChild } from '@/lib/dto';
+import { readViewer } from '@/app/viewer';
+
+export { readViewer, type Viewer } from '@/app/viewer';
 
 export interface ParentContext {
   userId: string;
@@ -21,38 +22,16 @@ export interface ParentContext {
   profiles: ChildProfile[] | null;
 }
 
-export interface Viewer {
-  session: Session | null;
-  userId: string | undefined;
-  account: Account | null;
-}
-
-/**
- * Who is asking, without deciding anything about it.
- *
- * `readParent` below is a gate - it redirects anyone who is not a parent - and
- * that is the right shape for a screen only a parent has any business on. The
- * unified `/speed` is not one of those: it serves a parent and sends a child on
- * to their own speed screen, so it has to *ask* the role rather than be bounced
- * on it. Both go through here and both are `cache`d, so a parent landing on
- * `/speed` reads their account once and not once per caller.
- */
-export const readViewer = cache(async (): Promise<Viewer> => {
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
-  return { session, userId, account: userId ? await readAccount(userId) : null };
-});
-
 /**
  * Who is asking, and who they may look at.
  *
  * The layout and the page under it both need this, and both run in the same
  * request, so it is read once and shared: `cache` de-duplicates within a request
- * without caching anything across them. It lives here rather than in
- * `src/lib/accounts.ts` because `cache` is React's, and nothing in `src/lib`
- * touches React.
+ * without caching anything across them - and the account read underneath it is
+ * `cache`d too, in `src/app/viewer.ts`, so a parent landing on `/speed` reads it
+ * once and not once per caller.
  *
- * The two lists come from one read rather than two queries for the same rows:
+ * The two lists come from one read rather than two calls for the same rows:
  * owned children are the `access: 'owner'` half of the viewable list, so the two
  * cannot disagree about what this parent owns.
  *
@@ -69,7 +48,7 @@ export const readParent = cache(async (): Promise<ParentContext> => {
   // heals rather than loops.
   if (account?.role !== 'parent') redirect('/');
 
-  const viewable = await readViewableChildren(userId);
+  const viewable = await api.viewableChildren();
 
   return {
     userId,

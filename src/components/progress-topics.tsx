@@ -13,7 +13,7 @@ import {
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { localDay } from '@/lib/day';
 import { REPORT_LABEL_SIZE, REPORT_STROKE_PX } from '@/lib/figures/labels';
-import type { Sitting } from '@/lib/records';
+import type { Sitting } from '@/lib/dto';
 import { createRng } from '@/lib/rng';
 import { generateQuestion } from '@/lib/templates/generate';
 import { Diagram } from './diagram';

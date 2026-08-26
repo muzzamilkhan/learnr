@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { submitRunAction } from '@/app/speed/actions';
 import { appendNumeric } from '@/lib/session/answers';
-import type { SpeedOutcome } from '@/lib/speed-records';
+import type { SpeedOutcome } from '@/lib/dto';
 import { modeKey, type Mode } from '@/lib/speedrun/modes';
 import {
   answerRun,

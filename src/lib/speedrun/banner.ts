@@ -1,4 +1,4 @@
-import type { ChildRecord } from '../speed-records';
+import type { ChildRecord } from '../dto';
 import { operationNoun, parseMode, type Mode } from './modes';
 
 /**

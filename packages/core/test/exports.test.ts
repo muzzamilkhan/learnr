@@ -33,18 +33,20 @@ describe('@learnr/core', () => {
 });
 
 // A `@/...` import resolves only under learnr's own alias, so it is invisible
-// here and fatal in any repo that consumes this package. The five impure files
-// are exempt because the API extraction deletes them; the list should shrink to
-// nothing, never grow.
+// here and fatal in any repo that consumes this package.
+//
+// **The exemption list is gone, and that is the point.** It held the five impure
+// modules the API extraction was going to delete, and it did: `src/lib` and
+// `src/content` are now exactly the pure engine, with nothing in either that
+// touches React, the network, the clock or the database. The web app's own two
+// impure files - `src/api.ts` and `src/auth-db.ts` - sit outside both, which is
+// why they need no exemption rather than having been given one.
 describe('the package is self-contained', () => {
-  const IMPURE = ['lib/db.ts', 'lib/accounts.ts', 'lib/records.ts', 'lib/sharing.ts', 'lib/speed-records.ts'];
-
   it('reaches for no aliased import', () => {
     const root = resolve(import.meta.dirname, '../../../src');
     const scanned = readdirSync(root, { recursive: true, encoding: 'utf8' })
       .filter((entry) => entry.endsWith('.ts'))
-      .filter((entry) => entry.startsWith('lib/') || entry.startsWith('content/'))
-      .filter((entry) => !IMPURE.includes(entry));
+      .filter((entry) => entry.startsWith('lib/') || entry.startsWith('content/'));
 
     const offenders = scanned.filter((entry) =>
       readFileSync(join(root, entry), 'utf8').includes("from '@/"),

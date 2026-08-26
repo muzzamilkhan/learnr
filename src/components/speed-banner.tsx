@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { dismissRecordsAction } from '@/app/speed/actions';
-import type { ChildRecord } from '@/lib/speed-records';
+import type { ChildRecord } from '@/lib/dto';
 import { recordBanners } from '@/lib/speedrun/banner';
 import { StarIcon } from './star-icon';
 

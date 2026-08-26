@@ -22,9 +22,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import { localDay } from '@learnr/core/day';
 import type { Attempt } from '@learnr/core/session';
-import type { PlayerState, Sitting } from '@learnr/core/dto';
+import type { AttemptResult, PlayerState, Sitting } from '@learnr/core/dto';
 
-export type { PlayerState, Sitting };
+export type { AttemptResult, PlayerState, Sitting };
 
 /**
  * Recording is fire-and-forget and best effort: a child answering questions must
@@ -178,14 +178,6 @@ async function updateTopicSkill(userId: string, attempt: Attempt): Promise<void>
   }
 
   throw new Error(`Gave up folding an answer into ${attempt.topic} after ${WRITE_ATTEMPTS} tries`);
-}
-
-/** What a recorded answer hands back to the play screen. Rewards only - never play. */
-export interface AttemptResult {
-  /** Days in a row including today. */
-  streak: number;
-  /** Whether this was the first answer of its day, and so worth showing. */
-  streakAdvanced: boolean;
 }
 
 export async function recordAttempt(

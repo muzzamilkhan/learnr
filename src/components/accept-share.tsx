@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { acceptShareInviteAction } from '@/app/actions';
 import { nameList } from '@/lib/format';
-import type { AcceptResult } from '@/lib/sharing';
+import type { AcceptResult } from '@/lib/dto';
 
 /**
  * Taking a share link, once the person holding it is signed in.

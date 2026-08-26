@@ -1,7 +1,7 @@
 import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/report';
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
-import type { Sitting } from '@/lib/records';
+import type { Sitting } from '@/lib/dto';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import type { SummaryRun } from '@/lib/speedrun/summary';

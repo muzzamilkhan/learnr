@@ -2,8 +2,7 @@ import { listLevels } from '@/content/catalog';
 import { ParentDashboard, type ChildRow } from '@/components/parent-dashboard';
 import { SharedChildren, type SharedChildRow } from '@/components/shared-children';
 import { SharingPanel, type InviteRow } from '@/components/sharing-panel';
-import { listPendingInvites, listSharedViewers, type PendingInvite } from '@/lib/sharing';
-import type { SharedViewer } from '@/lib/children';
+import { api } from '@/api';
 import { readParent } from '../parent';
 
 // Per-parent, so it must never be prerendered and shared.
@@ -23,7 +22,7 @@ export const dynamic = 'force-dynamic';
  * report replaces only what is below them.
  */
 export default async function ChildrenPage() {
-  const { userId, profiles, viewable } = await readParent();
+  const { profiles, viewable } = await readParent();
 
   if (profiles === null || viewable === null) {
     return (
@@ -56,10 +55,11 @@ export default async function ChildrenPage() {
     }));
 
   // Only fetched for a parent with children of their own: with nobody to share
-  // there is nothing either read could return, and the panel isn't drawn.
-  const [invites, viewers]: [PendingInvite[] | null, SharedViewer[] | null] = rows.length
-    ? await Promise.all([listPendingInvites(userId), listSharedViewers(userId)])
-    : [[], []];
+  // there is nothing either half could return, and the panel isn't drawn. The
+  // two arrive together because one screen wants both, and a failed read makes
+  // them both null - which the panel already draws as "couldn't load", where two
+  // empty lists would have said "you have shared nothing".
+  const sharing = rows.length ? await api.shares() : { invites: [], viewers: [] };
 
   return (
     <>
@@ -74,14 +74,14 @@ export default async function ChildrenPage() {
             // Dates cross to the client as ISO strings, the way a login code's
             // expiry already does.
             invites={
-              invites?.map<InviteRow>((invite) => ({
+              sharing?.invites.map<InviteRow>((invite) => ({
                 id: invite.id,
                 token: invite.token,
                 childIds: invite.childIds,
                 expiresAt: invite.expiresAt.toISOString(),
               })) ?? null
             }
-            viewers={viewers}
+            viewers={sharing?.viewers ?? null}
           />
         </div>
       ) : null}

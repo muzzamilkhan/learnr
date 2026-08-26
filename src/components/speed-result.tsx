@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect } from 'react';
 import { ordinal } from '@/lib/format';
-import type { SpeedOutcome } from '@/lib/speed-records';
+import type { SpeedOutcome } from '@/lib/dto';
 import type { StandingChange } from '@/lib/speedrun/leaderboard';
 import { modeLabel, operationGlyph, operationLabel } from '@/lib/speedrun/modes';
 import { resultTone } from '@/lib/speedrun/records';

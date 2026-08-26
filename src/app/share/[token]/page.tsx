@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { auth, isAuthConfigured } from '@/auth';
+import { api } from '@/api';
+import { readViewer } from '@/app/viewer';
 import { AcceptShare } from '@/components/accept-share';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
 import { ProfileFace } from '@/components/profile-face';
 import { LogoMark } from '@/components/logo';
-import { readAccount } from '@/lib/accounts';
 import { yearLabel, parseYearLevel } from '@/lib/curriculum';
 import { nameList } from '@/lib/format';
-import { readShareInvite, type InviteDetails } from '@/lib/sharing';
+import type { InviteDetails } from '@/lib/dto';
 import { sharePath } from '@/lib/share-link';
 
 // Per-invite and per-visitor, and it changes the moment it is accepted.
@@ -36,7 +36,9 @@ export default async function SharePage({
   const { token } = await params;
   const { go } = await searchParams;
 
-  const invite = await readShareInvite(token);
+  // The one read on this page that needs no session at all, and has to: the
+  // link's whole point is that it reaches somebody with no account here yet.
+  const invite = await api.readShare(token);
   if (!invite || !invite.live) {
     return (
       <Frame heading="This link doesn’t work">
@@ -54,9 +56,7 @@ export default async function SharePage({
     );
   }
 
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
-  const account = userId ? await readAccount(userId) : null;
+  const { userId, account } = await readViewer();
 
   const names = invite.children.map((child) => child.name);
   const who = invite.ownerName ?? 'A parent';

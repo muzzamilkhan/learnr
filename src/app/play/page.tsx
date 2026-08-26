@@ -1,24 +1,15 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
+import { api } from '@/api';
+import { readViewer } from '@/app/viewer';
 import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
 import { SignOutButton } from '@/components/auth-buttons';
 import { emptyProfile } from '@/lib/analytics/profile';
 import { noStreak } from '@/lib/rewards/streak';
-import { readAccount } from '@/lib/accounts';
-import {
-  TARGET_WINDOW_MS,
-  readLearnerProfile,
-  readPlayerState,
-  readSelectedLevel,
-  readRecentAnswers,
-  readRecentTopics,
-} from '@/lib/records';
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
-import { requestNow } from '@/app/now';
 
 export default async function PlayPage({
   searchParams,
@@ -27,20 +18,29 @@ export default async function PlayPage({
 }) {
   const { subject = 'maths', level: levelParam = 'K' } = await searchParams;
 
-  const session = isAuthConfigured ? await auth() : null;
-  const userId = session?.user?.id;
-  const account = userId ? await readAccount(userId) : null;
+  const { session, userId, account } = await readViewer();
+  const level = parseYearLevel(levelParam);
+
+  // What the child has shown before, so the first question of this sitting is
+  // already weighted by it - together with the run of days, the stars and the
+  // goal, which all come off the child's own row. Five reads on one screen was
+  // five round trips before the first question rendered, so it is one call.
+  //
+  // The level is passed as it parsed rather than as the URL wrote it, and
+  // omitted when it is not a school year: the endpoint would refuse a made-up
+  // year, and this is the very read that decides whether to correct it.
+  const state = userId ? await api.playState(subject, level, RECENT_MEMORY) : null;
+  const player = state?.player ?? null;
 
   // A managed child's year is the parent's decision, so it is enforced here and
   // not only hidden in the UI - the level is a query parameter, and hiding the
   // dropdown would leave a typed URL as a way straight past it.
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
-  const managedLevel = isManagedChild ? await readSelectedLevel(account.id) : null;
+  const managedLevel = isManagedChild ? (player?.selectedLevel ?? null) : null;
   if (managedLevel && managedLevel !== levelParam) {
     redirect(`/play?subject=${subject}&level=${managedLevel}`);
   }
 
-  const level = parseYearLevel(levelParam);
   const templates = level ? templatesFor(subject, level) : [];
 
   if (!level || templates.length === 0) {
@@ -62,28 +62,16 @@ export default async function PlayPage({
     );
   }
 
-  // What the child has shown before, so the first question of this sitting is
-  // already weighted by it. Signed out there is no history, and an empty profile
-  // is exactly what draws questions at random. The run of days, the stars and the
-  // goal all come off the child's own row, so they are one read rather than four.
-  const [profile, recentTopics, player] = userId
-    ? await Promise.all([
-        readLearnerProfile(userId, subject),
-        readRecentTopics(userId, subject, level, RECENT_MEMORY),
-        readPlayerState(userId),
-      ])
-    : [emptyProfile(), [], null];
-
+  // Signed out there is no history, and an empty profile is exactly what draws
+  // questions at random - so is a read that failed, which is the right trade on
+  // the play path: an unweighted first question, never a screen that will not
+  // open.
+  //
   // The server does not know what day it is where the child is, so it hands over
-  // a window of answers and the device decides which of them are today's. The
-  // one read that has to wait for another, since there is no point fetching a
-  // window of answers for a child with no goal to measure them against. A failed
-  // read is best-effort here, as everything on the play path is: the bar starts
-  // empty and the next question's read repairs it.
-  const targetAnswers =
-    player?.target && userId
-      ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
-      : [];
+  // a window of answers and the device decides which of them are today's.
+  const profile = state?.profile ?? emptyProfile();
+  const recentTopics = state?.recentTopics ?? [];
+  const targetAnswers = state?.targetAnswers ?? [];
 
   // Seeded here rather than in the client so the first question is server
   // rendered and the child never sees an empty screen. The seed and the profile

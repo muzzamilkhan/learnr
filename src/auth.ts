@@ -1,8 +1,7 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma, isDatabaseConfigured } from '@/lib/db';
-import { claimParentRole } from '@/lib/accounts';
+import { prisma, isDatabaseConfigured, claimParentRole } from '@/auth-db';
 
 /**
  * Google is the only NextAuth provider. The other way in - a child redeeming a
@@ -10,7 +9,7 @@ import { claimParentRole } from '@/lib/accounts';
  * to combine a Credentials provider with database sessions
  * (`UnsupportedStrategy`), and moving the whole app to JWT sessions to get around
  * that would cost server-side session state for no gain. Instead
- * `redeemLoginCode` in `src/lib/accounts.ts` writes a `Session` row and sets the
+ * `POST /auth/redeem` writes a `Session` row and `redeemLoginCodeAction` sets the
  * cookie by hand. `auth()` doesn't care how a valid session came to exist.
  */
 
@@ -61,6 +60,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * accounts that predate the column, which a create-time hook never would.
      * `claimParentRole` is a compare-and-set, so every sign-in after the first
      * writes nothing.
+     *
+     * The one caller of it that cannot go through the API: this runs during the
+     * OAuth callback, before the session cookie the API authenticates by exists.
+     * `/` calls `POST /me/claim-parent` for the healing case, where there is
+     * one.
      */
     async signIn({ user }) {
       if (user.id) await claimParentRole(user.id);

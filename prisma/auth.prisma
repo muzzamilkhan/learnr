@@ -1,0 +1,84 @@
+// The four tables Auth.js needs, and nothing else.
+//
+// **This is not the schema.** `apps/api/prisma/schema.prisma` is - it owns every
+// table, every migration, and the `db:deploy` a release runs. Nothing here is
+// ever migrated: there is no `migrations` path in `prisma.config.ts` and no
+// `db:migrate` script left in this package, so the only thing this file does is
+// let `prisma generate` produce a client for `@auth/prisma-adapter`, which needs
+// a live `PrismaClient` in-process and cannot speak REST.
+//
+// It is deliberately a **subset** rather than a copy. Prisma selects the columns
+// a model declares, so a `User` with four fields reads four columns off a table
+// that has twenty - which is not a drift risk but a smaller session lookup, and
+// exactly what `ChildPhoto` was moved to its own table to achieve. What it does
+// mean is that this file may only ever shrink towards what Auth.js touches. A
+// column the adapter does not read has no business being restated here, where a
+// second declaration would be free to disagree with the one that owns it.
+//
+// The models themselves are Auth.js's, not this app's: their shape is fixed by
+// `@auth/prisma-adapter` and does not move.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  /// Read by nothing here. It is declared because `claimParentRole` in
+  /// `src/auth-db.ts` writes it during the OAuth callback, before the session
+  /// cookie the API authenticates by exists - the one write on this side that
+  /// cannot go over the wire.
+  role String?
+
+  accounts Account[]
+  sessions Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { recordBanners } from './banner';
-import type { ChildRecord } from '../speed-records';
+import type { ChildRecord } from '../dto';
 
 function record(overrides: Partial<ChildRecord> = {}): ChildRecord {
   return {

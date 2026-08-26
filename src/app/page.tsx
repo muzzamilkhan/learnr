@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { auth, isAuthConfigured } from '@/auth';
+import { isAuthConfigured } from '@/auth';
+import { api } from '@/api';
+import { readViewer } from './viewer';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
 import { BoltIcon } from '@/components/bolt-icon';
@@ -14,12 +16,8 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
-import { claimParentRole, readAccount } from '@/lib/accounts';
-import { readViewableChildren } from '@/lib/sharing';
-import { readPlayerState, readRecentAnswers, TARGET_WINDOW_MS } from '@/lib/records';
 import { resolveInitialLevel } from '@/lib/curriculum';
 import { CHILD_DEFAULT_TAB, SPEED_SECTION } from '@/lib/speedrun/tabs';
-import { requestNow } from './now';
 
 // The screen is per-child: it opens on the level that child last chose, so it
 // must never be prerendered and shared.
@@ -91,16 +89,13 @@ export default async function HomePage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const scoreTab = (await searchParams).tab;
-  const session = isAuthConfigured ? await auth() : null;
+  const { session, userId, account } = await readViewer();
   const subjects = listSubjects();
   const levels = listLevels();
 
   // Signed out, this is the app's public face: what it is, what it covers, and
   // the two ways in. See `Landing`.
   if (isAuthConfigured && !session?.user) return <Landing />;
-
-  const userId = session?.user?.id;
-  const account = userId ? await readAccount(userId) : null;
 
   // A signed-in account with no role is a grown-up who has not been told so yet:
   // the role is claimed at sign-in, and a session does not expire, so an account
@@ -109,22 +104,21 @@ export default async function HomePage({
   // because there is no question left - see `claimParentRole`. The write is a
   // compare-and-set and this is the only page that can see the gap, so it costs a
   // no-op statement once per such account and nothing at all afterwards.
-  if (userId && account?.role === null) await claimParentRole(userId);
+  if (userId && account?.role === null) await api.claimParent();
   const isParent = account !== null && account.role !== 'child';
 
   // A parent doesn't play, so there is no level to reopen on, no run of days, no
   // stars and no goal - reading them would only put numbers on their screen that
   // are counting nothing. For a child it is one read: all four live on their own
   // row, and asking for them a function at a time was four round trips to it.
-  const player = userId && !isParent ? await readPlayerState(userId) : null;
-
-  // Only worth fetching once there is a goal to measure them against, which is
-  // why this one waits. A failed read is best-effort here - an empty bar on the
-  // child's own screen, not a claim made to a parent.
-  const targetAnswers =
-    player?.target && userId
-      ? ((await readRecentAnswers(userId, requestNow() - TARGET_WINDOW_MS)) ?? [])
-      : [];
+  //
+  // The window of answers the goal bar folds comes back with them, fetched by
+  // the endpoint only when there is a goal to measure them against - the page
+  // used to make that call itself and would otherwise pay a round trip for an
+  // answer it throws away.
+  const play = userId && !isParent ? await api.player() : null;
+  const player = play?.player ?? null;
+  const targetAnswers = play?.targetAnswers ?? [];
 
   const initialLevel = resolveInitialLevel(player?.selectedLevel ?? null, levels);
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
@@ -139,7 +133,7 @@ export default async function HomePage({
     // invited to watch someone else's child has a report to land on, and telling
     // them to add a child of their own would be answering a question they
     // haven't asked.
-    const profiles = await readViewableChildren(userId);
+    const profiles = await api.viewableChildren();
     const menu = (
       <ProfileMenu
         name={session?.user?.name ?? null}
@@ -282,7 +276,7 @@ export default async function HomePage({
           tabPath="/"
           runPath="/speed"
           hash={SPEED_SECTION}
-          userId={userId}
+          signedIn={Boolean(userId)}
         />
 
         <h3 className="mt-8 mb-4 text-2xl font-bold tracking-tight">Start a run</h3>

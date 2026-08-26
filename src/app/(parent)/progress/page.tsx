@@ -4,13 +4,7 @@ import { ProgressReport } from '@/components/progress-report';
 import { SpeedBanner } from '@/components/speed-banner';
 import { resolveChild } from '@/lib/children';
 import { compareSubjects } from '@/lib/curriculum';
-import {
-  readAnsweredQuestions,
-  readObservations,
-  readRecentAnswers,
-  readSittings,
-} from '@/lib/records';
-import { readSpeedSummaries, readUnseenRecords } from '@/lib/speed-records';
+import { api } from '@/api';
 import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
@@ -31,7 +25,7 @@ export default async function ProgressPage({
   searchParams: Promise<{ child?: string; subject?: string }>;
 }) {
   const { child: childParam, subject: subjectParam } = await searchParams;
-  const { userId, viewable } = await readParent();
+  const { viewable } = await readParent();
 
   // Scoped to this parent's children, never to the one `?child=` names, so it
   // shows regardless of which child's report is currently open - and never to
@@ -42,7 +36,7 @@ export default async function ProgressPage({
   // this screen's to do. Best-effort like the play path's own `readRecentAnswers`
   // fallback: a missed celebration costs nothing a parent would notice was
   // missing, unlike the report below it.
-  const unseenRecords = await readUnseenRecords(userId);
+  const unseenRecords = await api.unseenRecords();
   const banner = <SpeedBanner records={unseenRecords ?? []} />;
 
   if (viewable === null) {
@@ -97,19 +91,22 @@ export default async function ProgressPage({
 
   const now = requestNow();
 
-  const [observations, sittings, answered, targetAnswers, speedRuns] = await Promise.all([
-    readObservations(child.id, subject),
-    readSittings(child.id, subject),
-    readAnsweredQuestions(child.id, subject),
-    readRecentAnswers(child.id, now - CALENDAR_WINDOW_MS),
-    // The resolved child's own runs, not the parent's - so the well and the
-    // heading above it can never disagree about who is on screen, and so the
-    // numbers here survive a banner about this same child being dismissed.
-    // Only asked for on the subject that shows them: every mode is arithmetic,
-    // so an English report draws no speed run well and would be paying for a
-    // query nothing renders.
-    subject === SPEED_RUN_SUBJECT ? readSpeedSummaries(child.id) : Promise.resolve(null),
-  ]);
+  // Five reads, one call. The endpoint answers with the raw history rather than
+  // the report it could compute, because every chart below folds the
+  // observations itself - and `/progress/lab` exists precisely to try foldings
+  // that are not on this screen yet.
+  //
+  // `speedRuns` is asked for only on the subject that shows them: every mode is
+  // arithmetic, so an English report draws no speed run well and would be paying
+  // for a query nothing renders. They are the resolved child's own runs, not the
+  // parent's - so the well and the heading above it can never disagree about who
+  // is on screen, and the numbers survive a banner about this same child being
+  // dismissed.
+  const record = await api.childRecord(child.id, {
+    subject,
+    windowMs: CALENDAR_WINDOW_MS,
+    speedRuns: subject === SPEED_RUN_SUBJECT,
+  });
 
   return (
     <>
@@ -125,12 +122,12 @@ export default async function ProgressPage({
         profiles={viewable.map(({ id, name, sharedBy }) => ({ id, name, sharedBy }))}
         subjects={subjects}
         subject={subject}
-        observations={observations}
-        sittings={sittings}
-        answered={answered}
-        targetAnswers={targetAnswers}
+        observations={record?.observations ?? null}
+        sittings={record?.sittings ?? null}
+        answered={record?.answers ?? null}
+        targetAnswers={record?.recentAnswers ?? null}
         target={child.target}
-        speedRuns={speedRuns}
+        speedRuns={record?.speedRuns ?? null}
         now={now}
       />
     </>

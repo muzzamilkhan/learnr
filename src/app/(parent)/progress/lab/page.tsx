@@ -3,7 +3,7 @@ import { listSubjects } from '@/content/catalog';
 import { ChildPicker } from '@/components/child-picker';
 import { ProgressLab } from '@/components/progress-lab';
 import { resolveChild } from '@/lib/children';
-import { readAnsweredQuestions, readObservations } from '@/lib/records';
+import { api } from '@/api';
 import { readParent } from '../../parent';
 
 // Per-parent and per-child, so it must never be prerendered and shared.
@@ -58,17 +58,23 @@ export default async function ProgressLabPage({
   const subjects = listSubjects().map((summary) => summary.subject);
   const subject = subjects.find((option) => option === subjectParam) ?? subjects[0] ?? 'maths';
 
-  const [observations, answered] = await Promise.all([
-    readObservations(child.id, subject),
-    readAnsweredQuestions(child.id, subject, LAB_ANSWERS_PER_TOPIC),
-  ]);
+  // The same read the report makes, asking for far more answers per topic. It
+  // costs a `sittings` array this screen ignores and no extra query - the
+  // endpoint is one call either way, and a second endpoint differing by one
+  // field is a shape to keep in step for nothing.
+  const record = await api.childRecord(child.id, {
+    subject,
+    perTopic: LAB_ANSWERS_PER_TOPIC,
+  });
 
   // `null` is a failed read and `[]` is a child who has not played - the same
   // distinction the report makes, and it matters more here: every section below
   // would otherwise render a database hiccup as "no mistakes found".
-  if (observations === null || answered === null) {
+  if (!record || record.answers === null) {
     return <Note>Couldn&rsquo;t read {child.name}&rsquo;s history just now.</Note>;
   }
+
+  const { observations, answers: answered } = record;
 
   return (
     <div className="space-y-4">
