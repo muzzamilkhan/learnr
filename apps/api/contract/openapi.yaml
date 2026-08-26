@@ -73,7 +73,56 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  role:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - parent
+                          - child
+                      - type: 'null'
+                  parentId:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  name:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  avatar:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - fox
+                          - bear
+                          - cat
+                          - owl
+                          - frog
+                          - whale
+                          - rabbit
+                          - panda
+                      - type: 'null'
+                  image:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  photo:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                required:
+                  - id
+                  - role
+                  - parentId
+                  - name
+                  - avatar
+                  - image
+                  - photo
+                additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -351,7 +400,69 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    avatar:
+                      type: string
+                      enum:
+                        - fox
+                        - bear
+                        - cat
+                        - owl
+                        - frog
+                        - whale
+                        - rabbit
+                        - panda
+                    photo:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    level:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    target:
+                      anyOf:
+                        - type: object
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - questions
+                                - minutes
+                            value:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                          required:
+                            - kind
+                            - value
+                          additionalProperties: false
+                        - type: 'null'
+                    code:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    codeExpiresAt:
+                      anyOf:
+                        - type: string
+                          format: date-time
+                        - type: 'null'
+                  required:
+                    - id
+                    - name
+                    - avatar
+                    - photo
+                    - level
+                    - target
+                    - code
+                    - codeExpiresAt
+                  additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -447,7 +558,80 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    avatar:
+                      type: string
+                      enum:
+                        - fox
+                        - bear
+                        - cat
+                        - owl
+                        - frog
+                        - whale
+                        - rabbit
+                        - panda
+                    photo:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    level:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    target:
+                      anyOf:
+                        - type: object
+                          properties:
+                            kind:
+                              type: string
+                              enum:
+                                - questions
+                                - minutes
+                            value:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                          required:
+                            - kind
+                            - value
+                          additionalProperties: false
+                        - type: 'null'
+                    code:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                    codeExpiresAt:
+                      anyOf:
+                        - type: string
+                          format: date-time
+                        - type: 'null'
+                    access:
+                      type: string
+                      enum:
+                        - owner
+                        - viewer
+                    sharedBy:
+                      anyOf:
+                        - type: string
+                        - type: 'null'
+                  required:
+                    - id
+                    - name
+                    - avatar
+                    - photo
+                    - level
+                    - target
+                    - code
+                    - codeExpiresAt
+                    - access
+                    - sharedBy
+                  additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -620,7 +804,632 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  headline:
+                    type: object
+                    properties:
+                      minutes:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      questions:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      accuracy:
+                        anyOf:
+                          - type: number
+                          - type: 'null'
+                      minutesDelta:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      questionsDelta:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      accuracyDelta:
+                        anyOf:
+                          - type: number
+                          - type: 'null'
+                    required:
+                      - minutes
+                      - questions
+                      - accuracy
+                      - minutesDelta
+                      - questionsDelta
+                      - accuracyDelta
+                    additionalProperties: false
+                  topics:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        status:
+                          type: string
+                          enum:
+                            - new
+                            - struggling
+                            - developing
+                            - secure
+                            - review-due
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        accuracy:
+                          type: number
+                        strength:
+                          type: number
+                        streak:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correctDays:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        averageTimeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        lastAnsweredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        reviewDueAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        trend:
+                          type: string
+                          enum:
+                            - improving
+                            - steady
+                            - slipping
+                            - unknown
+                      required:
+                        - topic
+                        - level
+                        - status
+                        - attempts
+                        - correct
+                        - accuracy
+                        - strength
+                        - streak
+                        - correctDays
+                        - averageTimeMs
+                        - lastAnsweredAt
+                        - reviewDueAt
+                        - trend
+                      additionalProperties: false
+                  problems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        status:
+                          type: string
+                          enum:
+                            - new
+                            - struggling
+                            - developing
+                            - secure
+                            - review-due
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        accuracy:
+                          type: number
+                        strength:
+                          type: number
+                        streak:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correctDays:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        averageTimeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        lastAnsweredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        reviewDueAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        trend:
+                          type: string
+                          enum:
+                            - improving
+                            - steady
+                            - slipping
+                            - unknown
+                      required:
+                        - topic
+                        - level
+                        - status
+                        - attempts
+                        - correct
+                        - accuracy
+                        - strength
+                        - streak
+                        - correctDays
+                        - averageTimeMs
+                        - lastAnsweredAt
+                        - reviewDueAt
+                        - trend
+                      additionalProperties: false
+                  due:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        status:
+                          type: string
+                          enum:
+                            - new
+                            - struggling
+                            - developing
+                            - secure
+                            - review-due
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        accuracy:
+                          type: number
+                        strength:
+                          type: number
+                        streak:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correctDays:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        averageTimeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        lastAnsweredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        reviewDueAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        trend:
+                          type: string
+                          enum:
+                            - improving
+                            - steady
+                            - slipping
+                            - unknown
+                      required:
+                        - topic
+                        - level
+                        - status
+                        - attempts
+                        - correct
+                        - accuracy
+                        - strength
+                        - streak
+                        - correctDays
+                        - averageTimeMs
+                        - lastAnsweredAt
+                        - reviewDueAt
+                        - trend
+                      additionalProperties: false
+                  strengths:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        status:
+                          type: string
+                          enum:
+                            - new
+                            - struggling
+                            - developing
+                            - secure
+                            - review-due
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        accuracy:
+                          type: number
+                        strength:
+                          type: number
+                        streak:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correctDays:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        averageTimeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        lastAnsweredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        reviewDueAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        trend:
+                          type: string
+                          enum:
+                            - improving
+                            - steady
+                            - slipping
+                            - unknown
+                      required:
+                        - topic
+                        - level
+                        - status
+                        - attempts
+                        - correct
+                        - accuracy
+                        - strength
+                        - streak
+                        - correctDays
+                        - averageTimeMs
+                        - lastAnsweredAt
+                        - reviewDueAt
+                        - trend
+                      additionalProperties: false
+                  progress:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        start:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        unit:
+                          type: string
+                          enum:
+                            - day
+                            - week
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        accuracy:
+                          anyOf:
+                            - type: number
+                            - type: 'null'
+                      required:
+                        - start
+                        - unit
+                        - attempts
+                        - correct
+                        - accuracy
+                      additionalProperties: false
+                  clusters:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kind:
+                          type: string
+                          enum:
+                            - copied
+                            - power-of-ten
+                            - sign-dropped
+                            - added-not-multiplied
+                            - clock-format
+                        count:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        topics:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              topic:
+                                type: string
+                              level:
+                                type: string
+                                enum:
+                                  - '1'
+                                  - '2'
+                                  - '3'
+                                  - '4'
+                                  - '5'
+                                  - '6'
+                                  - K
+                            required:
+                              - topic
+                              - level
+                            additionalProperties: false
+                        examples:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              topic:
+                                type: string
+                              level:
+                                type: string
+                                enum:
+                                  - '1'
+                                  - '2'
+                                  - '3'
+                                  - '4'
+                                  - '5'
+                                  - '6'
+                                  - K
+                              prompt:
+                                type: string
+                              expected:
+                                type: string
+                              response:
+                                type: string
+                              correct:
+                                type: boolean
+                              answeredAt:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              figure:
+                                type: object
+                                properties:
+                                  width:
+                                    type: number
+                                  height:
+                                    type: number
+                                  marks:
+                                    readOnly: true
+                                    maxItems: 200
+                                    type: array
+                                    items:
+                                      oneOf:
+                                        - type: object
+                                          properties:
+                                            kind:
+                                              type: string
+                                              enum:
+                                                - path
+                                            points:
+                                              readOnly: true
+                                              type: array
+                                              items:
+                                                readOnly: true
+                                                type: array
+                                                prefixItems:
+                                                  - type: number
+                                                  - type: number
+                                            closed:
+                                              type: boolean
+                                            fill:
+                                              type: boolean
+                                            dashed:
+                                              type: boolean
+                                          required:
+                                            - kind
+                                            - points
+                                            - closed
+                                            - fill
+                                            - dashed
+                                          additionalProperties: false
+                                        - type: object
+                                          properties:
+                                            kind:
+                                              type: string
+                                              enum:
+                                                - arc
+                                            at:
+                                              readOnly: true
+                                              type: array
+                                              prefixItems:
+                                                - type: number
+                                                - type: number
+                                            radius:
+                                              type: number
+                                            from:
+                                              type: number
+                                            to:
+                                              type: number
+                                          required:
+                                            - kind
+                                            - at
+                                            - radius
+                                            - from
+                                            - to
+                                          additionalProperties: false
+                                        - type: object
+                                          properties:
+                                            kind:
+                                              type: string
+                                              enum:
+                                                - dot
+                                            at:
+                                              readOnly: true
+                                              type: array
+                                              prefixItems:
+                                                - type: number
+                                                - type: number
+                                          required:
+                                            - kind
+                                            - at
+                                          additionalProperties: false
+                                        - type: object
+                                          properties:
+                                            kind:
+                                              type: string
+                                              enum:
+                                                - label
+                                            at:
+                                              readOnly: true
+                                              type: array
+                                              prefixItems:
+                                                - type: number
+                                                - type: number
+                                            text:
+                                              type: string
+                                          required:
+                                            - kind
+                                            - at
+                                            - text
+                                          additionalProperties: false
+                                required:
+                                  - width
+                                  - height
+                                  - marks
+                                additionalProperties: false
+                            required:
+                              - topic
+                              - level
+                              - prompt
+                              - expected
+                              - response
+                              - correct
+                              - answeredAt
+                            additionalProperties: false
+                      required:
+                        - kind
+                        - count
+                        - topics
+                        - examples
+                      additionalProperties: false
+                  sittings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        startedAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        timeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                      required:
+                        - id
+                        - startedAt
+                        - level
+                        - attempts
+                        - correct
+                        - timeMs
+                      additionalProperties: false
+                required:
+                  - headline
+                  - topics
+                  - problems
+                  - due
+                  - strengths
+                  - progress
+                  - clusters
+                  - sittings
+                additionalProperties: false
         '404':
           description: Default Response
           content:
@@ -689,7 +1498,283 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  observations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        correct:
+                          type: boolean
+                        templateId:
+                          type: string
+                        timeTakenMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        answeredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        offsetMinutes:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                      required:
+                        - topic
+                        - level
+                        - correct
+                        - timeTakenMs
+                        - answeredAt
+                      additionalProperties: false
+                  sittings:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        startedAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        attempts:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        timeMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                      required:
+                        - id
+                        - startedAt
+                        - level
+                        - attempts
+                        - correct
+                        - timeMs
+                      additionalProperties: false
+                  answers:
+                    anyOf:
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            topic:
+                              type: string
+                            level:
+                              type: string
+                              enum:
+                                - '1'
+                                - '2'
+                                - '3'
+                                - '4'
+                                - '5'
+                                - '6'
+                                - K
+                            prompt:
+                              type: string
+                            expected:
+                              type: string
+                            response:
+                              type: string
+                            correct:
+                              type: boolean
+                            answeredAt:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            figure:
+                              type: object
+                              properties:
+                                width:
+                                  type: number
+                                height:
+                                  type: number
+                                marks:
+                                  readOnly: true
+                                  maxItems: 200
+                                  type: array
+                                  items:
+                                    oneOf:
+                                      - type: object
+                                        properties:
+                                          kind:
+                                            type: string
+                                            enum:
+                                              - path
+                                          points:
+                                            readOnly: true
+                                            type: array
+                                            items:
+                                              readOnly: true
+                                              type: array
+                                              prefixItems:
+                                                - type: number
+                                                - type: number
+                                          closed:
+                                            type: boolean
+                                          fill:
+                                            type: boolean
+                                          dashed:
+                                            type: boolean
+                                        required:
+                                          - kind
+                                          - points
+                                          - closed
+                                          - fill
+                                          - dashed
+                                        additionalProperties: false
+                                      - type: object
+                                        properties:
+                                          kind:
+                                            type: string
+                                            enum:
+                                              - arc
+                                          at:
+                                            readOnly: true
+                                            type: array
+                                            prefixItems:
+                                              - type: number
+                                              - type: number
+                                          radius:
+                                            type: number
+                                          from:
+                                            type: number
+                                          to:
+                                            type: number
+                                        required:
+                                          - kind
+                                          - at
+                                          - radius
+                                          - from
+                                          - to
+                                        additionalProperties: false
+                                      - type: object
+                                        properties:
+                                          kind:
+                                            type: string
+                                            enum:
+                                              - dot
+                                          at:
+                                            readOnly: true
+                                            type: array
+                                            prefixItems:
+                                              - type: number
+                                              - type: number
+                                        required:
+                                          - kind
+                                          - at
+                                        additionalProperties: false
+                                      - type: object
+                                        properties:
+                                          kind:
+                                            type: string
+                                            enum:
+                                              - label
+                                          at:
+                                            readOnly: true
+                                            type: array
+                                            prefixItems:
+                                              - type: number
+                                              - type: number
+                                          text:
+                                            type: string
+                                        required:
+                                          - kind
+                                          - at
+                                          - text
+                                        additionalProperties: false
+                              required:
+                                - width
+                                - height
+                                - marks
+                              additionalProperties: false
+                          required:
+                            - topic
+                            - level
+                            - prompt
+                            - expected
+                            - response
+                            - correct
+                            - answeredAt
+                          additionalProperties: false
+                      - type: 'null'
+                  recentAnswers:
+                    anyOf:
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            answeredAt:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            timeTakenMs:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                          required:
+                            - answeredAt
+                            - timeTakenMs
+                          additionalProperties: false
+                      - type: 'null'
+                  speedRuns:
+                    anyOf:
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            mode:
+                              type: string
+                            correct:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            playedAt:
+                              type: string
+                              format: date-time
+                          required:
+                            - mode
+                            - correct
+                            - playedAt
+                          additionalProperties: false
+                      - type: 'null'
+                required:
+                  - observations
+                  - sittings
+                  - answers
+                  - recentAnswers
+                  - speedRuns
+                additionalProperties: false
         '404':
           description: Default Response
           content:
@@ -743,7 +1828,148 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  type: object
+                  properties:
+                    topic:
+                      type: string
+                    level:
+                      type: string
+                      enum:
+                        - '1'
+                        - '2'
+                        - '3'
+                        - '4'
+                        - '5'
+                        - '6'
+                        - K
+                    prompt:
+                      type: string
+                    expected:
+                      type: string
+                    response:
+                      type: string
+                    correct:
+                      type: boolean
+                    answeredAt:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    figure:
+                      type: object
+                      properties:
+                        width:
+                          type: number
+                        height:
+                          type: number
+                        marks:
+                          readOnly: true
+                          maxItems: 200
+                          type: array
+                          items:
+                            oneOf:
+                              - type: object
+                                properties:
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - path
+                                  points:
+                                    readOnly: true
+                                    type: array
+                                    items:
+                                      readOnly: true
+                                      type: array
+                                      prefixItems:
+                                        - type: number
+                                        - type: number
+                                  closed:
+                                    type: boolean
+                                  fill:
+                                    type: boolean
+                                  dashed:
+                                    type: boolean
+                                required:
+                                  - kind
+                                  - points
+                                  - closed
+                                  - fill
+                                  - dashed
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - arc
+                                  at:
+                                    readOnly: true
+                                    type: array
+                                    prefixItems:
+                                      - type: number
+                                      - type: number
+                                  radius:
+                                    type: number
+                                  from:
+                                    type: number
+                                  to:
+                                    type: number
+                                required:
+                                  - kind
+                                  - at
+                                  - radius
+                                  - from
+                                  - to
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - dot
+                                  at:
+                                    readOnly: true
+                                    type: array
+                                    prefixItems:
+                                      - type: number
+                                      - type: number
+                                required:
+                                  - kind
+                                  - at
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - label
+                                  at:
+                                    readOnly: true
+                                    type: array
+                                    prefixItems:
+                                      - type: number
+                                      - type: number
+                                  text:
+                                    type: string
+                                required:
+                                  - kind
+                                  - at
+                                  - text
+                                additionalProperties: false
+                      required:
+                        - width
+                        - height
+                        - marks
+                      additionalProperties: false
+                  required:
+                    - topic
+                    - level
+                    - prompt
+                    - expected
+                    - response
+                    - correct
+                    - answeredAt
+                  additionalProperties: false
         '404':
           description: Default Response
           content:
@@ -780,10 +2006,69 @@ paths:
                 properties:
                   invites:
                     type: array
-                    items: {}
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        token:
+                          type: string
+                        childIds:
+                          type: array
+                          items:
+                            type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                        expiresAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - id
+                        - token
+                        - childIds
+                        - createdAt
+                        - expiresAt
+                      additionalProperties: false
                   viewers:
                     type: array
-                    items: {}
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          anyOf:
+                            - type: string
+                            - type: 'null'
+                        email:
+                          anyOf:
+                            - type: string
+                            - type: 'null'
+                        image:
+                          anyOf:
+                            - type: string
+                            - type: 'null'
+                        children:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                              name:
+                                type: string
+                            required:
+                              - id
+                              - name
+                            additionalProperties: false
+                      required:
+                        - id
+                        - name
+                        - email
+                        - image
+                        - children
+                      additionalProperties: false
                 required:
                   - invites
                   - viewers
@@ -856,7 +2141,62 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  ownerId:
+                    type: string
+                  ownerName:
+                    anyOf:
+                      - type: string
+                      - type: 'null'
+                  children:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        avatar:
+                          type: string
+                          enum:
+                            - fox
+                            - bear
+                            - cat
+                            - owl
+                            - frog
+                            - whale
+                            - rabbit
+                            - panda
+                        photo:
+                          anyOf:
+                            - type: string
+                            - type: 'null'
+                        level:
+                          anyOf:
+                            - type: string
+                            - type: 'null'
+                      required:
+                        - id
+                        - name
+                        - avatar
+                        - photo
+                        - level
+                      additionalProperties: false
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  live:
+                    type: boolean
+                required:
+                  - ownerId
+                  - ownerName
+                  - children
+                  - expiresAt
+                  - live
+                additionalProperties: false
         '404':
           description: Default Response
           content:
@@ -905,7 +2245,38 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - true
+                      children:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                    required:
+                      - ok
+                      - children
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      ok:
+                        type: boolean
+                        enum:
+                          - false
+                      reason:
+                        type: string
+                        enum:
+                          - unavailable
+                          - own-link
+                          - error
+                    required:
+                      - ok
+                      - reason
+                    additionalProperties: false
   /shares/viewers/{viewerId}:
     delete:
       parameters:
@@ -966,7 +2337,54 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  anyOf:
+                    - type: object
+                      properties:
+                        key:
+                          type: string
+                        op:
+                          type: string
+                          enum:
+                            - add
+                            - subtract
+                            - divide
+                            - mixed
+                        difficulty:
+                          type: string
+                          enum:
+                            - easy
+                            - moderate
+                            - hard
+                      required:
+                        - key
+                        - op
+                        - difficulty
+                      additionalProperties: false
+                    - type: object
+                      properties:
+                        key:
+                          type: string
+                        op:
+                          type: string
+                          enum:
+                            - multiply
+                        tables:
+                          anyOf:
+                            - type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            - type: string
+                              enum:
+                                - 2-5
+                                - 6-9
+                                - 11-12
+                                - all
+                      required:
+                        - key
+                        - op
+                        - tables
+                      additionalProperties: false
   /speed/runs:
     post:
       requestBody:
@@ -996,7 +2414,51 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  previousBest:
+                    anyOf:
+                      - type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      - type: 'null'
+                  best:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  isRecord:
+                    type: boolean
+                  standing:
+                    anyOf:
+                      - type: object
+                        properties:
+                          place:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          previousPlace:
+                            anyOf:
+                              - type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              - type: 'null'
+                          rivals:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                        required:
+                          - place
+                          - previousPlace
+                          - rivals
+                        additionalProperties: false
+                      - type: 'null'
+                required:
+                  - previousBest
+                  - best
+                  - isRecord
+                  - standing
+                additionalProperties: false
         '400':
           description: Default Response
           content:
@@ -1028,7 +2490,80 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  attempts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        mode:
+                          type: string
+                        correct:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        playedAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - mode
+                        - correct
+                        - playedAt
+                      additionalProperties: false
+                  family:
+                    anyOf:
+                      - type: array
+                        items:
+                          type: object
+                          properties:
+                            playerId:
+                              type: string
+                            playerName:
+                              type: string
+                            playerPhoto:
+                              anyOf:
+                                - type: string
+                                - type: 'null'
+                            playerAvatar:
+                              anyOf:
+                                - type: string
+                                  enum:
+                                    - fox
+                                    - bear
+                                    - cat
+                                    - owl
+                                    - frog
+                                    - whale
+                                    - rabbit
+                                    - panda
+                                - type: 'null'
+                            playerImage:
+                              anyOf:
+                                - type: string
+                                - type: 'null'
+                            mode:
+                              type: string
+                            best:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            achievedAt:
+                              type: string
+                              format: date-time
+                          required:
+                            - playerId
+                            - playerName
+                            - mode
+                            - best
+                            - achievedAt
+                          additionalProperties: false
+                      - type: 'null'
+                required:
+                  - attempts
+                  - family
+                additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -1050,7 +2585,23 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  type: object
+                  properties:
+                    mode:
+                      type: string
+                    correct:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    playedAt:
+                      type: string
+                      format: date-time
+                  required:
+                    - mode
+                    - correct
+                    - playedAt
+                  additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -1072,7 +2623,29 @@ paths:
             application/json:
               schema:
                 type: array
-                items: {}
+                items:
+                  type: object
+                  properties:
+                    childId:
+                      type: string
+                    childName:
+                      type: string
+                    mode:
+                      type: string
+                    best:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    achievedAt:
+                      type: string
+                      format: date-time
+                  required:
+                    - childId
+                    - childName
+                    - mode
+                    - best
+                    - achievedAt
+                  additionalProperties: false
         '503':
           description: Default Response
           content:
@@ -1103,7 +2676,89 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  player:
+                    type: object
+                    properties:
+                      selectedLevel:
+                        anyOf:
+                          - type: string
+                          - type: 'null'
+                      streak:
+                        type: object
+                        properties:
+                          days:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          lastDay:
+                            anyOf:
+                              - type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              - type: 'null'
+                        required:
+                          - days
+                          - lastDay
+                        additionalProperties: false
+                      stars:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      target:
+                        anyOf:
+                          - type: object
+                            properties:
+                              kind:
+                                type: string
+                                enum:
+                                  - questions
+                                  - minutes
+                              value:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                            required:
+                              - kind
+                              - value
+                            additionalProperties: false
+                          - type: 'null'
+                      targetDay:
+                        anyOf:
+                          - type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          - type: 'null'
+                    required:
+                      - selectedLevel
+                      - streak
+                      - stars
+                      - target
+                      - targetDay
+                    additionalProperties: false
+                  targetAnswers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        answeredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        timeTakenMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                      required:
+                        - answeredAt
+                        - timeTakenMs
+                      additionalProperties: false
+                required:
+                  - player
+                  - targetAnswers
+                additionalProperties: false
   /play/state:
     get:
       parameters:
@@ -1140,7 +2795,163 @@ paths:
           description: Default Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: object
+                properties:
+                  player:
+                    type: object
+                    properties:
+                      selectedLevel:
+                        anyOf:
+                          - type: string
+                          - type: 'null'
+                      streak:
+                        type: object
+                        properties:
+                          days:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          lastDay:
+                            anyOf:
+                              - type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              - type: 'null'
+                        required:
+                          - days
+                          - lastDay
+                        additionalProperties: false
+                      stars:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      target:
+                        anyOf:
+                          - type: object
+                            properties:
+                              kind:
+                                type: string
+                                enum:
+                                  - questions
+                                  - minutes
+                              value:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                            required:
+                              - kind
+                              - value
+                            additionalProperties: false
+                          - type: 'null'
+                      targetDay:
+                        anyOf:
+                          - type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          - type: 'null'
+                    required:
+                      - selectedLevel
+                      - streak
+                      - stars
+                      - target
+                      - targetDay
+                    additionalProperties: false
+                  targetAnswers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        answeredAt:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        timeTakenMs:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                      required:
+                        - answeredAt
+                        - timeTakenMs
+                      additionalProperties: false
+                  profile:
+                    type: object
+                    properties:
+                      skills:
+                        readOnly: true
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            topic:
+                              type: string
+                            level:
+                              type: string
+                              enum:
+                                - '1'
+                                - '2'
+                                - '3'
+                                - '4'
+                                - '5'
+                                - '6'
+                                - K
+                            attempts:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            correct:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            strength:
+                              type: number
+                            streak:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            correctDays:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            lastCorrectDay:
+                              anyOf:
+                                - type: integer
+                                  minimum: -9007199254740991
+                                  maximum: 9007199254740991
+                                - type: 'null'
+                            totalTimeMs:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            lastAnsweredAt:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                          required:
+                            - topic
+                            - level
+                            - attempts
+                            - correct
+                            - strength
+                            - streak
+                            - correctDays
+                            - lastCorrectDay
+                            - totalTimeMs
+                            - lastAnsweredAt
+                          additionalProperties: false
+                    required:
+                      - skills
+                    additionalProperties: false
+                  recentTopics:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - player
+                  - targetAnswers
+                  - profile
+                  - recentTopics
+                additionalProperties: false
   /me/level:
     put:
       requestBody:

@@ -210,11 +210,36 @@ fourth and fifth are in progress ahead of the second and third:
 5. **The iOS app** - UI, sync queue, offline store. The shell and the sync queue
    exist.
 
-**A known gap the iOS client is waiting on:** several endpoints still declare an
-untyped success response (`z.unknown()`), `/me` among them, so some of the Swift
-models are transcribed by hand rather than generated. Writing real response
-schemas would let them be generated and would improve the contract for every
-client.
+**Every response is typed now**, so the Swift models can be generated rather
+than transcribed. Sixteen declarations used to be `z.unknown()`, `/me` among
+them, and the contract said little more than "a 200 happens".
+
+**A response schema is a serializer, not a description**, which is the thing to
+know before editing one. Fastify runs the value through it on the way out and a
+zod object strips what it does not declare - so a field left out does not fail,
+it silently vanishes from the response. Leave `figure` off an answered question
+and every diagram disappears from a parent's report, with nothing to see.
+
+So the schemas (`apps/api/src/schemas/dto.ts`) are held against the DTOs by the
+compiler, in `Mirrored` at the foot of that file. It compares **key sets**, both
+ways, rather than assignability - because an object missing an *optional* field
+is still assignable to one that has it, and optional fields are precisely the
+ones whose loss is invisible. The check is shallow and that is sound because it
+is total: every nested shape is built from a schema with its own entry. `Mark`
+and `Mode` are unions, where `keyof` sees only the common keys, so those two are
+held to exactness both ways instead.
+
+What the compiler cannot catch is a schema that is too *tight*: `integer` where
+a ratio is 0.67 does not strip, it throws, and the endpoint 500s. That needs real
+data awkward enough to reach it, which is
+`apps/api/test/routes/serialization.test.ts` - all four mark kinds, a photo, a
+live code, an optional avatar, a shared child, both arms of the mode union, and
+answers that are neither all right nor all wrong. Every guard there was checked
+by breaking the schema it covers and watching the right thing go red.
+
+`Date` stays a `Date`: `z.date()` accepts one and serializes it to an ISO 8601
+string, which the contract documents as `format: date-time` - so a client
+generates a date-typed model rather than a string it has to remember to parse.
 
 ### Repository visibility
 

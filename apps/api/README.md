@@ -94,6 +94,25 @@ have drifted. Note that `@fastify/swagger` only sees routes inside registered
 plugins - `/health` and `/openapi.json` are declared on the root instance and so
 are absent, which is correct for both.
 
+**Every response has a real schema**, so a client can generate its models from
+the contract rather than transcribing them. They live in `src/schemas/dto.ts`,
+and two things about them are worth knowing before you edit one:
+
+- **A response schema is a serializer.** Fastify runs the value through it and a
+  zod object strips what it does not declare, so a field left out does not fail -
+  it silently vanishes. `Mirrored`, at the foot of that file, is the compiler
+  holding every schema against the DTO it describes. It compares key sets both
+  ways rather than assignability, because an object missing an *optional* field
+  is still assignable to one that has it - and those are the fields whose loss is
+  invisible.
+- **The compiler cannot see a schema that is too tight.** `integer` where a ratio
+  is 0.67 throws rather than strips, and the endpoint 500s. That is what
+  `test/routes/serialization.test.ts` is for: it sends the awkward shapes on
+  purpose, and every guard in it was checked by breaking the schema it covers.
+
+A `Date` stays a `Date` (`z.date()`), serialized to an ISO 8601 string and
+documented as `format: date-time`.
+
 ## Building and deploying
 
 `npm run build` bundles with esbuild rather than emitting with `tsc`. It has to:

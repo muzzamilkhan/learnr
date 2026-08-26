@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireUser } from '../auth/plugin.js';
 import { claimParentRole, readAccount, redeemLoginCode } from '../data/accounts.js';
 import { errorSchema } from '../schemas/common.js';
+import { accountSchema } from '../schemas/dto.js';
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
@@ -50,7 +51,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   app.get('/me', {
-    schema: { response: { 200: z.unknown(), 503: errorSchema } },
+    schema: { response: { 200: accountSchema, 503: errorSchema } },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const account = await readAccount(userId);

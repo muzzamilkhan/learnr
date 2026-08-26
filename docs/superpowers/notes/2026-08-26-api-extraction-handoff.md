@@ -12,7 +12,7 @@ everything except signing in.
 | --- | --- | --- |
 | API source | `apps/api` (this repo) | 119 tests, typecheck clean |
 | Shared engine | `packages/core` -> symlink to `src` | `@learnr/core/*` |
-| Contract | `apps/api/contract/openapi.yaml` | generated, 30 paths |
+| Contract | `apps/api/contract/openapi.yaml` | generated, 30 paths, fully typed |
 | API deploy | `learnr-api-syd.fly.dev`, Fly, `syd` | one machine, always on |
 | Web deploy | `learnr.muzza.tech`, Vercel, `syd1` | reads the API |
 
@@ -84,6 +84,37 @@ before the session cookie the API authenticates by exists, so it is the one
 caller that cannot go over the wire. Safe to duplicate only because all three are
 the same compare-and-set on `role IS NULL`.
 
+## The contract is fully typed
+
+The gap the iOS client was waiting on is closed: sixteen `z.unknown()` responses
+are real schemas (`apps/api/src/schemas/dto.ts`), so the Swift models can be
+generated rather than transcribed by hand.
+
+Two findings from doing it, both worth keeping:
+
+1. **A response schema is a serializer.** Fastify runs the value through it and a
+   zod object strips what it does not declare, so a field left out of a schema
+   does not fail loudly - it vanishes from the response and the client parses a
+   smaller object perfectly happily.
+2. **`satisfies z.ZodType<T>` does not catch that**, which is the trap. An object
+   missing an *optional* field is still assignable to one that has it, so
+   deleting `figure` from `answeredQuestionSchema` compiled clean - and would
+   have emptied every diagram out of a parent's report. Optional fields are
+   exactly the ones whose loss is invisible. The check had to be on the **key
+   sets**, both ways: `Mirrored`, at the foot of that file.
+
+Both were found by breaking the guard and watching it *not* fire, which is the
+only way either would have shown up. The same method proved the rest: deleting
+`figure`, `templateId` and `playerAvatar` each now names the field, and
+over-tightening `strength` to `.int()` reddens
+`test/routes/serialization.test.ts`.
+
+That test file exists because the compiler cannot see a schema that is too
+*tight*: `integer` where a ratio is 0.67 throws rather than strips. It needs real
+data awkward enough to reach the case - and the first version of it passed
+against a wrong schema, because answering all-right or all-wrong makes every
+ratio 0 or 1, which *is* an integer.
+
 ## Rulings that still bind
 
 1. **`fastify-type-provider-zod` must be v6+.** Only v6 accepts zod 4.
@@ -114,6 +145,10 @@ the same compare-and-set on `role IS NULL`.
    and plain `node` does not. `tsc --noEmit` still typechecks.
 10. **`null` is a failed read and `[]` is nothing there**, on both sides. A 503,
     a 4xx and a dead connection all come back from `src/api.ts` as null.
+11. **A response schema strips what it does not declare.** Add a field to a DTO
+    and it must be added to its schema in `apps/api/src/schemas/dto.ts` or it
+    will not reach any client. `Mirrored` makes that a compile error rather than
+    something to remember.
 
 ## How it was verified
 

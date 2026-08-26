@@ -3,6 +3,13 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireParent, requireUser } from '../auth/plugin.js';
 import { errorSchema } from '../schemas/common.js';
+import {
+  childRecordSchema,
+  modeListingSchema,
+  speedOutcomeSchema,
+  speedRecordsSchema,
+  summaryRunSchema,
+} from '../schemas/dto.js';
 import { MODES, modeKey, parseMode } from '@learnr/core/speedrun/modes';
 import { householdId } from '@learnr/core/children';
 import { readAccount } from '../data/accounts.js';
@@ -21,7 +28,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   app.get('/speed/modes', {
-    schema: { response: { 200: z.array(z.unknown()) } },
+    schema: { response: { 200: z.array(modeListingSchema) } },
   }, async () => MODES.map((mode) => ({ key: modeKey(mode), ...mode })));
 
   app.post('/speed/runs', {
@@ -31,7 +38,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
         mode: z.string().min(1),
         correct: z.number().int().min(0).max(MAX_SCORE),
       }),
-      response: { 200: z.unknown(), 400: errorSchema, 503: errorSchema },
+      response: { 200: speedOutcomeSchema, 400: errorSchema, 503: errorSchema },
     },
   }, async (request, reply) => {
     const userId = requireUser(request);
@@ -61,7 +68,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
    * moment".
    */
   app.get('/speed/records', {
-    schema: { response: { 200: z.unknown(), 503: errorSchema } },
+    schema: { response: { 200: speedRecordsSchema, 503: errorSchema } },
   }, async (request, reply) => {
     const userId = requireUser(request);
 
@@ -82,7 +89,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** One line per mode this player has run - the cabinet's table. */
   app.get('/speed/summaries', {
-    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+    schema: { response: { 200: z.array(summaryRunSchema), 503: errorSchema } },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const summaries = await readSpeedSummaries(userId);
@@ -91,7 +98,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   app.get('/speed/unseen', {
-    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+    schema: { response: { 200: z.array(childRecordSchema), 503: errorSchema } },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const records = await readUnseenRecords(parentId);

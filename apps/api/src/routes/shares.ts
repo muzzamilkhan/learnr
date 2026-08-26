@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireParent, requireUser } from '../auth/plugin.js';
 import { errorSchema } from '../schemas/common.js';
+import { acceptResultSchema, inviteDetailsSchema, sharesSchema } from '../schemas/dto.js';
 import {
   acceptShareInvite,
   cancelShareInvite,
@@ -20,7 +21,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
   app.get('/shares', {
     schema: {
       response: {
-        200: z.object({ invites: z.array(z.unknown()), viewers: z.array(z.unknown()) }),
+        200: sharesSchema,
         503: errorSchema,
       },
     },
@@ -73,7 +74,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
   app.get('/shares/:token', {
     schema: {
       params: z.object({ token: z.string() }),
-      response: { 200: z.unknown(), 404: errorSchema },
+      response: { 200: inviteDetailsSchema, 404: errorSchema },
     },
   }, async (request, reply) => {
     const invite = await readShareInvite(request.params.token);
@@ -98,7 +99,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
    * exceptions to ownership-as-where: the caller need only be signed in.
    */
   app.post('/shares/:token/accept', {
-    schema: { params: z.object({ token: z.string() }), response: { 200: z.unknown() } },
+    schema: { params: z.object({ token: z.string() }), response: { 200: acceptResultSchema } },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const result = await acceptShareInvite(request.params.token, userId);

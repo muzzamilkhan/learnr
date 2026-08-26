@@ -3,6 +3,11 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireParent } from '../auth/plugin.js';
 import { errorSchema } from '../schemas/common.js';
+import {
+  answeredQuestionSchema,
+  childHistorySchema,
+  reportSchema,
+} from '../schemas/dto.js';
 import { readViewableChildren } from '../data/sharing.js';
 import {
   readAnsweredQuestions,
@@ -43,7 +48,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
     schema: {
       params: z.object({ id: z.string() }),
       querystring: z.object({ subject: z.string().default('maths') }),
-      response: { 200: z.unknown(), 404: errorSchema, 503: errorSchema },
+      response: { 200: reportSchema, 404: errorSchema, 503: errorSchema },
     },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
@@ -114,7 +119,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
         // nothing renders.
         speedRuns: z.enum(['true', 'false']).default('false'),
       }),
-      response: { 200: z.unknown(), 404: errorSchema, 503: errorSchema },
+      response: { 200: childHistorySchema, 404: errorSchema, 503: errorSchema },
     },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
@@ -150,7 +155,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
         // `limit` here would quietly change what the parent screen asks for.
         perTopic: z.coerce.number().int().min(1).max(50).default(3),
       }),
-      response: { 200: z.array(z.unknown()), 404: errorSchema, 503: errorSchema },
+      response: { 200: z.array(answeredQuestionSchema), 404: errorSchema, 503: errorSchema },
     },
   }, async (request, reply) => {
     const parentId = await requireParent(request);

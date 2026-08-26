@@ -3,6 +3,8 @@ import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { requireUser } from '../auth/plugin.js';
 import { errorSchema, yearLevelSchema } from '../schemas/common.js';
+import type { TargetAnswer } from '@learnr/core/rewards/target';
+import { playStateSchema, playerReadSchema } from '../schemas/dto.js';
 import {
   TARGET_WINDOW_MS,
   readLearnerProfile,
@@ -21,10 +23,7 @@ import {
  * no timezone. A failed read costs an empty bar and never the screen, so it
  * falls back to nothing rather than propagating null.
  */
-async function targetAnswersFor(
-  userId: string,
-  target: unknown,
-): Promise<Awaited<ReturnType<typeof readRecentAnswers>>> {
+async function targetAnswersFor(userId: string, target: unknown): Promise<TargetAnswer[]> {
   if (!target) return [];
   return (await readRecentAnswers(userId, Date.now() - TARGET_WINDOW_MS)) ?? [];
 }
@@ -42,7 +41,7 @@ export const playRoutes: FastifyPluginAsync = async (fastify) => {
    * renders; this is the same shape minus what the play screen alone needs.
    */
   app.get('/me/player', {
-    schema: { response: { 200: z.unknown() } },
+    schema: { response: { 200: playerReadSchema } },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const player = await readPlayerState(userId);
@@ -76,7 +75,7 @@ export const playRoutes: FastifyPluginAsync = async (fastify) => {
         level: yearLevelSchema.optional(),
         recentTopics: z.coerce.number().int().min(1).max(50).default(5),
       }),
-      response: { 200: z.unknown() },
+      response: { 200: playStateSchema },
     },
   }, async (request, reply) => {
     const userId = requireUser(request);

@@ -8,6 +8,7 @@ import { codeExpiry } from '@learnr/core/login-code';
 import { requireParent } from '../auth/plugin.js';
 import { childInputSchema, loginCodeSchema } from '../schemas/account.js';
 import { errorSchema } from '../schemas/common.js';
+import { childProfileSchema, viewableChildSchema } from '../schemas/dto.js';
 import { readViewableChildren } from '../data/sharing.js';
 import {
   createChild,
@@ -48,7 +49,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   app.get('/children', {
-    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+    schema: { response: { 200: z.array(childProfileSchema), 503: errorSchema } },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const children = await listChildren(parentId);
@@ -71,7 +72,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
    * drop a shared child from every screen that reads it.
    */
   app.get('/children/viewable', {
-    schema: { response: { 200: z.array(z.unknown()), 503: errorSchema } },
+    schema: { response: { 200: z.array(viewableChildSchema), 503: errorSchema } },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const children = await readViewableChildren(parentId);
