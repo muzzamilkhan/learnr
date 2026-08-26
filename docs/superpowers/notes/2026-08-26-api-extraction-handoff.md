@@ -129,12 +129,19 @@ leaderboard; a login code issued, redeemed once and refused the second time; a
 share link read **signed out**, accepted, and accepted again idempotently; and
 every screen with the API killed, where the play path still draws questions.
 
-**One thing that surfaced and was left alone.** With the API unreachable, a
-signed-in parent falls through to the child's home screen, because
-`account === null` is both "signed out" and "could not read". That is
-pre-existing - `readAccount` returning null did the same - but the API being down
-is a more reachable failure than the database being down was. Worth fixing; not
-part of this cutover.
+**One thing that surfaced and was then fixed.** With the API unreachable, a
+signed-in parent fell through to the child's home screen, because
+`account === null` was both "signed out" and "could not read". Pre-existing -
+`readAccount` returning null did the same - but harmless only while a failed read
+meant the whole app was down, which stopped being true here.
+
+`viewerKind` (`src/lib/viewer.ts`) splits the null four ways and the three
+screens that gate on a role branch on it: `/` says "Can't load your account",
+`readParent` returns `viewable: null` instead of redirecting so the URL survives
+a reload, and `/speed` stops sending a reader it cannot identify to the child's
+section. Checked the same way, with the API killed and then brought back: it
+heals on the next request with no sign-out. `/play` still draws questions, which
+is the one path that must degrade rather than stop.
 
 ## Production notes
 

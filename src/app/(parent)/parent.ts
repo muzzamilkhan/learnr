@@ -40,21 +40,35 @@ export interface ParentContext {
  * is a frame, not a gate.
  */
 export const readParent = cache(async (): Promise<ParentContext> => {
-  const { session, userId, account } = await readViewer();
+  const { session, userId, kind } = await readViewer();
   if (!userId) redirect('/');
 
-  // A child must not reach these screens, and neither must an account whose role
-  // has not been claimed yet - `/` claims it and sends them back, so the bounce
-  // heals rather than loops.
-  if (account?.role !== 'parent') redirect('/');
-
-  const viewable = await api.viewableChildren();
-
-  return {
+  const context = (viewable: ViewableChild[] | null): ParentContext => ({
     userId,
     name: session?.user?.name ?? null,
     image: session?.user?.image ?? null,
     viewable,
     profiles: viewable?.filter((child) => child.access === 'owner') ?? null,
-  };
+  });
+
+  /*
+    An account that could not be read is **not** redirected, and that is the
+    change worth naming. It used to fall into the check below and be bounced to
+    `/` as though it were a child - which cost the URL, so a reload after the
+    blip landed somewhere else instead of retrying the screen the parent was on.
+
+    It returns nulls instead, which every page here already draws as
+    "couldn't load your children just now" - the same shape a failed
+    `viewableChildren` produces. There is nothing new for a page to handle and
+    nothing to leak: with the API unreachable no read on these screens can
+    return anything either.
+  */
+  if (kind === 'unreadable') return context(null);
+
+  // A child must not reach these screens, and neither must an account whose role
+  // has not been claimed yet - `/` claims it and sends them back, so the bounce
+  // heals rather than loops.
+  if (kind !== 'parent') redirect('/');
+
+  return context(await api.viewableChildren());
 });

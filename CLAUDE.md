@@ -125,6 +125,29 @@ back from `src/api.ts` as null, and an endpoint meaning "nothing there" says `[]
 with a 200. `family: null` on `GET /speed/records` is the third state that needed
 saying out loud: nobody to rank, which is neither.
 
+**Who is asking has four answers, not two** (`viewerKind`, `src/lib/viewer.ts`).
+A null account means *signed out* or *the read failed*, and every screen used to
+read both as "not a parent". That was harmless while the database was
+in-process - a failed read meant the whole app was down - and is not now: the API
+can be unreachable while the web app renders perfectly well, and a grown-up would
+land on the child's home screen, level picker and all. So `readViewer` returns a
+`kind`, and the three screens that gate on a role branch on it:
+
+- `/` says **"Can't load your account"** rather than picking a branch. Nothing on
+  that screen can be answered without the account, so there is nothing to
+  degrade to.
+- `readParent` returns `viewable: null` instead of redirecting, which every
+  parent screen already draws as "couldn't load your children". Keeping the URL
+  is the point: a reload after the blip retries the screen they were on.
+- `/speed` stops redirecting a reader it cannot identify to the *child's* speed
+  section.
+
+**The play screen is the deliberate exception and still plays.** An unweighted
+first question beats no question, nothing is recorded, and the child never learns
+there was an outage. `unclaimed` is a fourth answer for its own reason: `/`
+claims the role and every other screen bounces there, so the bounce heals rather
+than loops - which only works while it is distinguishable from `parent`.
+
 **Auth.js is the one thing that could not follow.** `src/auth-db.ts` keeps a
 Prisma client for `PrismaAdapter` alone and nothing else may import it; if a
 second caller appears the fix is an endpoint. `prisma/auth.prisma` is a *subset*
@@ -231,6 +254,7 @@ src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
 src/lib/dto.ts       the shapes that cross the API boundary, declared once
 src/lib/revive.ts    ISO strings back into Dates, at that boundary
+src/lib/viewer.ts    what a signed-in-but-unreadable account means, and the rest
 src/content/         the shipped course content, a year a file + catalog lookups
 src/components/      UI
 src/app/             routes and server actions

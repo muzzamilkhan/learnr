@@ -48,8 +48,15 @@ export default async function SpeedScreen({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const { account } = await readViewer();
-  if (account?.role !== 'parent') redirect(CHILD_SPEED_HREF);
+  const { kind } = await readViewer();
+
+  // An account that could not be read is not sent anywhere. It used to fall
+  // into the check below and be redirected to the child's speed section, which
+  // is a guess about who this is made from a read that failed - and the guess
+  // was wrong for the one reader `/speed` exists to serve. It falls through to
+  // `readParent`, which returns nulls for the same case, so the screen draws
+  // itself and says it could not load rather than bouncing somewhere else.
+  if (kind !== 'unreadable' && kind !== 'parent') redirect(CHILD_SPEED_HREF);
 
   const tab = (await searchParams).tab;
   // Past the role check, so this cannot redirect: it re-reads nothing, being

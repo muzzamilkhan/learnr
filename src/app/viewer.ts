@@ -2,12 +2,19 @@ import { cache } from 'react';
 import type { Session } from 'next-auth';
 import { auth, isAuthConfigured } from '@/auth';
 import { api } from '@/api';
+import { viewerKind, type ViewerKind } from '@/lib/viewer';
 import type { Account } from '@/lib/dto';
 
 export interface Viewer {
   session: Session | null;
   userId: string | undefined;
   account: Account | null;
+  /**
+   * What the two above *mean* - see `viewerKind`. Branch on this rather than on
+   * `account?.role`, which cannot tell a visitor from a parent whose account
+   * could not be read.
+   */
+  kind: ViewerKind;
 }
 
 /**
@@ -30,12 +37,16 @@ export interface Viewer {
  * business on. `/` and `/speed` serve two kinds of reader and have to *ask* the
  * role rather than be bounced on it, so they come through here.
  *
- * `account` is null for a visitor who is signed out *and* for a read that
- * failed: every caller has a signed-out branch already, and none of them can do
- * anything useful with an account they could not read.
+ * **`account` is null for two different things**, which is why `kind` is here.
+ * A visitor who is signed out and a parent whose account could not be read both
+ * arrive as null, and while the database was in-process that was one event -
+ * a failed read meant the whole app was down. With the record behind an API it
+ * is two, and telling them apart is `viewerKind`'s whole job.
  */
 export const readViewer = cache(async (): Promise<Viewer> => {
   const session = isAuthConfigured ? await auth() : null;
   const userId = session?.user?.id;
-  return { session, userId, account: userId ? await api.me() : null };
+  const account = userId ? await api.me() : null;
+
+  return { session, userId, account, kind: viewerKind(userId, account) };
 });

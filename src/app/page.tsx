@@ -83,19 +83,65 @@ function CurriculumLink() {
   );
 }
 
+/**
+ * Signed in, and we could not find out who they are.
+ *
+ * Deliberately not the child's frame and not the parent's: which of those this
+ * screen should be is the very thing that could not be read, so it wears
+ * neither. A sign-out is offered because it is the one action that still works
+ * without the API - the cookie is this app's to clear - and because a person who
+ * cannot get in wants a way out.
+ */
+function CouldNotLoad() {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-6 px-8 text-center">
+      <LogoMark size="lg" />
+      <h1 className="text-4xl font-semibold">Can&rsquo;t load your account</h1>
+      <p className="text-xl text-(--color-ink-soft)">
+        Something is down at our end - nothing has been lost. Try again in a moment.
+      </p>
+      <Link
+        href="/"
+        className="no-select rounded-2xl bg-(--color-brand) px-8 py-4 text-xl font-semibold text-white transition active:scale-[0.98]"
+      >
+        Try again
+      </Link>
+      <div className="text-base text-(--color-ink-soft)">
+        <SignOutButton />
+      </div>
+    </main>
+  );
+}
+
 export default async function HomePage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
   const scoreTab = (await searchParams).tab;
-  const { session, userId, account } = await readViewer();
+  const { session, userId, account, kind } = await readViewer();
   const subjects = listSubjects();
   const levels = listLevels();
 
   // Signed out, this is the app's public face: what it is, what it covers, and
   // the two ways in. See `Landing`.
   if (isAuthConfigured && !session?.user) return <Landing />;
+
+  /*
+    Signed in, and their account did not come back. This is not "not a parent" -
+    it is not knowing - and the two used to be one branch, because a null
+    account meant a database that was down and so an app that was down with it.
+    The record lives behind an API now, which can be unreachable while this page
+    renders perfectly well, and reading that as "not a parent" put a grown-up on
+    the child's home screen: a level picker, a row of subject cards and their own
+    name on top of it.
+
+    So it says so instead. Nothing below this line can be answered without the
+    account - which branch this screen is, which level to reopen on, whose face
+    the menu draws - so there is nothing to degrade to, unlike the play screen
+    where an unweighted first question is better than no question.
+  */
+  if (kind === 'unreadable') return <CouldNotLoad />;
 
   // A signed-in account with no role is a grown-up who has not been told so yet:
   // the role is claimed at sign-in, and a session does not expire, so an account
@@ -104,8 +150,11 @@ export default async function HomePage({
   // because there is no question left - see `claimParentRole`. The write is a
   // compare-and-set and this is the only page that can see the gap, so it costs a
   // no-op statement once per such account and nothing at all afterwards.
-  if (userId && account?.role === null) await api.claimParent();
-  const isParent = account !== null && account.role !== 'child';
+  if (kind === 'unclaimed') await api.claimParent();
+
+  // Past the branch above, so `unreadable` is not one of the answers left: a
+  // grown-up is one whose role is claimed as `parent` or is about to be.
+  const isParent = kind !== 'child';
 
   // A parent doesn't play, so there is no level to reopen on, no run of days, no
   // stars and no goal - reading them would only put numbers on their screen that
