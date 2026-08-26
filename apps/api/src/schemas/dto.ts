@@ -7,6 +7,10 @@ import type {
   AcceptResult,
   ChildProfile,
   ChildRecord,
+  ContentManifest,
+  ContentManifestLevel,
+  ContentManifestSubject,
+  ContentPack,
   InviteDetails,
   PendingInvite,
   PlayerState,
@@ -22,7 +26,8 @@ import type {
   TopicReport,
 } from '@learnr/core/analytics/report';
 import type { ErrorCluster } from '@learnr/core/analytics/errors';
-import type { Figure, Mark } from '@learnr/core/figures/types';
+import type { Figure, FigureSpec, Mark } from '@learnr/core/figures/types';
+import type { ChoiceSpec, QuestionTemplate, VarSpec } from '@learnr/core/templates/types';
 import type { SharedViewer } from '@learnr/core/children';
 import type { DailyTarget, TargetAnswer } from '@learnr/core/rewards/target';
 import type { PlayStreak } from '@learnr/core/rewards/streak';
@@ -460,6 +465,136 @@ export const childHistorySchema = z.object({
   speedRuns: z.array(summaryRunSchema).nullable(),
 });
 
+/* Content packs ------------------------------------------------------------ */
+
+/**
+ * Everything a content pack carries.
+ *
+ * A template is authored data and every numeric field in it is an *expression
+ * string*, not a number - `max: 'x - 1'` is the point of the format - so
+ * `exprSchema` is `z.string()` throughout and tightening any of it to a number
+ * would 500 the endpoint on perfectly good content.
+ */
+const exprSchema = z.string();
+
+export const varSpecSchema = z.discriminatedUnion('kind', [
+  z.object({
+    name: z.string(), kind: z.literal('int'),
+    min: exprSchema, max: exprSchema, step: z.number().optional(),
+  }),
+  z.object({
+    name: z.string(), kind: z.literal('number'),
+    min: exprSchema, max: exprSchema, decimals: z.number().optional(),
+  }),
+  z.object({
+    name: z.string(), kind: z.literal('pick'),
+    from: z.array(z.union([z.string(), z.number()])).readonly(),
+    weights: z.array(z.number()).readonly().optional(),
+  }),
+  z.object({ name: z.string(), kind: z.literal('expr'), expr: exprSchema }),
+]);
+
+export const choiceSpecSchema = z.object({
+  count: z.number(),
+  distractors: z.array(exprSchema).readonly().optional(),
+  jitter: z.object({ min: exprSchema, max: exprSchema }).optional(),
+  rankIsTheQuestion: z.boolean().optional(),
+  propertyIsTheQuestion: z.boolean().optional(),
+});
+
+export const figureSpecSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('polygon'), shape: exprSchema,
+    rotation: exprSchema.optional(), mirror: exprSchema.optional(),
+    rightAngles: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('angle'), degrees: exprSchema,
+    rotation: exprSchema.optional(), armLength: exprSchema.optional(),
+    arc: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('bar'), values: exprSchema,
+    labels: exprSchema.optional(), style: exprSchema.optional(),
+    scale: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('pictograph'), counts: exprSchema,
+    labels: exprSchema.optional(), key: exprSchema.optional(),
+    halves: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('spinner'), sectors: exprSchema,
+    fills: exprSchema.optional(), rotation: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('solid'), solid: exprSchema,
+    view: exprSchema.optional(), rotation: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('number-line'), at: exprSchema,
+    from: exprSchema.optional(), to: exprSchema.optional(),
+    step: exprSchema.optional(), minorTicks: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('clock'), hour: exprSchema, minute: exprSchema,
+    numerals: exprSchema.optional(), minuteTicks: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('array'), rows: exprSchema, columns: exprSchema,
+    orientation: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('fraction-shape'), numerator: exprSchema, denominator: exprSchema,
+    shape: exprSchema.optional(), rotation: exprSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal('grid'), at: exprSchema,
+    columns: exprSchema.optional(), rows: exprSchema.optional(),
+    axisLabels: exprSchema.optional(), onLines: exprSchema.optional(),
+  }),
+]);
+
+export const questionTemplateSchema = z.object({
+  id: z.string(),
+  subject: z.string(),
+  topic: z.string(),
+  level: yearLevelSchema,
+  tags: z.array(z.string()).readonly().optional(),
+  prompt: z.string(),
+  vars: z.array(varSpecSchema).readonly(),
+  constraints: z.array(exprSchema).readonly().optional(),
+  answer: exprSchema,
+  answerType: z.enum(['number', 'text', 'choice', 'boolean']).optional(),
+  choices: choiceSpecSchema.optional(),
+  hint: z.string().optional(),
+  figure: figureSpecSchema.optional(),
+});
+
+export const contentPackSchema = z.object({
+  version: z.string(),
+  subject: z.string(),
+  level: yearLevelSchema,
+  templates: z.array(questionTemplateSchema),
+});
+
+export const contentManifestLevelSchema = z.object({
+  level: yearLevelSchema,
+  topics: z.array(z.string()),
+  templateCount: z.number().int(),
+  etag: z.string(),
+});
+
+export const contentManifestSubjectSchema = z.object({
+  subject: z.string(),
+  levels: z.array(contentManifestLevelSchema),
+});
+
+export const contentManifestSchema = z.object({
+  version: z.string(),
+  subjects: z.array(contentManifestSubjectSchema),
+});
+
 /* The guard -------------------------------------------------------------- */
 
 /**
@@ -505,6 +640,12 @@ export type Mirrored = {
   summaryRun: Assert<Mirrors<typeof summaryRunSchema, SummaryRun>>;
   familyRecord: Assert<Mirrors<typeof familyRecordSchema, FamilyRecord>>;
   childRecord: Assert<Mirrors<typeof childRecordSchema, ChildRecord>>;
+  questionTemplate: Assert<Mirrors<typeof questionTemplateSchema, QuestionTemplate>>;
+  choiceSpec: Assert<Mirrors<typeof choiceSpecSchema, ChoiceSpec>>;
+  contentPack: Assert<Mirrors<typeof contentPackSchema, ContentPack>>;
+  contentManifest: Assert<Mirrors<typeof contentManifestSchema, ContentManifest>>;
+  contentManifestSubject: Assert<Mirrors<typeof contentManifestSubjectSchema, ContentManifestSubject>>;
+  contentManifestLevel: Assert<Mirrors<typeof contentManifestLevelSchema, ContentManifestLevel>>;
 };
 
 /**
@@ -535,6 +676,8 @@ export type MirroredUnions = {
   mark: Assert<Both<z.infer<typeof markSchema>, Mark>>;
   mode: Assert<Both<z.infer<typeof modeSchema>, Mode>>;
   modeListing: Assert<Both<z.infer<typeof modeListingSchema>, Mode & { key: string }>>;
+  varSpec: Assert<Both<z.infer<typeof varSpecSchema>, VarSpec>>;
+  figureSpec: Assert<Both<z.infer<typeof figureSpecSchema>, FigureSpec>>;
 };
 
 type Both<A, B> = [A] extends [B] ? ([B] extends [A] ? true : { notExactly: B }) : { notExactly: B };
