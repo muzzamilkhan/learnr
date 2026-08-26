@@ -1,0 +1,390 @@
+// LearnR data model.
+//
+// Two halves: the Auth.js tables (User/Account/Session), and the learning record
+// (LearningSession/Attempt/TopicSkill). Attempts are the history - every answer,
+// as given. TopicSkill is that history folded forward into what the child can do
+// now: the reinforcement selector reads it to decide what to ask next, and the
+// parents' report is written from it. It is a cache of the attempts, never a
+// second truth - `buildProfile` over the Attempt rows reproduces it exactly.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  /// The year the home screen reopens on. Australian school year: "K" or "1" through "6".
+  selectedLevel String?
+
+  /// Chosen once at first sign-in and then permanent: "parent" or "child". Null
+  /// means the choice hasn't been made yet, which is what routes to the chooser -
+  /// including for every account that already existed before this column did.
+  role String?
+
+  /// Set only on a child profile a parent created. Null on every account that
+  /// signed in with Google itself, parent or child. This is what tells the home
+  /// screen the level is the parent's to set, not the child's.
+  parentId String?
+  parent   User?   @relation("ChildProfiles", fields: [parentId], references: [id], onDelete: Cascade)
+  children User[]  @relation("ChildProfiles")
+
+  /// Preset icon id, e.g. "fox". A managed child has no Google account and so no
+  /// `image`; this is what stands in for one.
+  avatar String?
+
+  /// The code a parent hands to a child, and when it stops working. Both null when
+  /// there is no live code - redeeming clears them, so a code is spent at use
+  /// rather than left to run down its hour. Only ever set on a managed child.
+  loginCode          String?   @unique
+  loginCodeExpiresAt DateTime?
+
+  /// Days in a row with at least one answer on them. Reward only - nothing about
+  /// what to ask next reads it.
+  playStreak    Int  @default(0)
+  /// The last local day counted towards the streak, as a day number rather than a
+  /// timestamp: the streak is counted in the child's days, and a timestamp would
+  /// need the offset re-applied at every read to mean anything. Null until they play.
+  playStreakDay Int?
+
+  /// The daily target a parent set on this child: "questions" or "minutes", and
+  /// how many. Both null when there is no target, which is where every child
+  /// starts - a target is optional and is a thing a parent chooses.
+  targetKind  String?
+  targetValue Int?
+
+  /// The last local day the target's stars were banked, as a day number rather
+  /// than a timestamp - a day here is the child's, and a timestamp would need
+  /// the offset re-applied at every read. Null until they first hit a target.
+  /// This column is the compare-and-set that makes the award happen once a day
+  /// however many times it is asked for.
+  targetDay Int?
+
+  /// Every star this child has, from finished rounds and from days they hit
+  /// their target. Only ever incremented, never recounted: a target is mutable,
+  /// so recounting a past day against today's setting would take stars off a
+  /// child who earned them. What replaces the old recount's safety is a guard
+  /// per event - `LearningSession.roundsBanked` for a round, `targetDay` above
+  /// for a day - so an award can still only ever be paid once.
+  stars Int @default(0)
+
+  /// The photograph a parent cropped for this child, if they set one. A row of
+  /// its own rather than a column, because the Auth.js adapter reads whole `User`
+  /// rows on every authenticated request and a photo has no business riding
+  /// along with a session lookup. The preset `avatar` above is still what stands
+  /// in when there is no photo - it is the fallback, not the thing replaced.
+  photo ChildPhoto?
+
+  accounts         Account[]
+  sessions         Session[]
+  learningSessions LearningSession[]
+  topicSkills      TopicSkill[]
+  speedRecords     SpeedRecord[]
+  speedAttempts    SpeedAttempt[]
+
+  /// Sharing, from all four sides: invites this parent has sent, an invite they
+  /// accepted, grants over this child, and grants to this viewer. Ownership is
+  /// still `parentId` alone - none of these ever make someone a parent.
+  invitesSent     ShareInvite[] @relation("InvitesSent")
+  invitesAccepted ShareInvite[] @relation("InvitesAccepted")
+  sharedOut       ChildShare[]  @relation("SharedChild")
+  sharedIn        ChildShare[]  @relation("ChildViewer")
+
+  /// The parent dashboard's only read: this parent's children.
+  @@index([parentId])
+}
+
+/// One child's cropped profile picture, as a square WebP data URL.
+///
+/// The bytes never leave the browser as a file: the cropper decodes whatever
+/// picture was chosen, draws the circle's square into a 256px canvas and encodes
+/// that, so what is stored is about 20KB whatever the camera produced. `parsePhoto`
+/// is the boundary - nothing but a `data:image/webp;base64,` string under
+/// `MAX_PHOTO_BYTES` is ever written, so this column can never become a way to
+/// make the app fetch a URL somebody else chose.
+model ChildPhoto {
+  childId   String   @id
+  child     User     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  dataUrl   String
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/// One sitting: a child picks a subject + level and answers until they stop.
+/// There is no end condition, so `endedAt` is set on an explicit finish only.
+model LearningSession {
+  id           String    @id @default(cuid())
+  userId       String
+  subject      String
+  /// Australian school year: "K" or "1" through "6".
+  level        String
+  /// RNG seed, so a session's exact question sequence can be replayed.
+  seed         String
+  startedAt    DateTime  @default(now())
+  endedAt      DateTime?
+  /// How many closed rounds of this sitting have been paid for. The guard that
+  /// lets `User.stars` be incremented rather than recounted: banking reads this
+  /// under a row lock, pays for the rounds past it, and moves it up. It is a
+  /// count of events, not a cache of anything.
+  roundsBanked Int       @default(0)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  @@index([userId, startedAt])
+  /// History is always read for one child and one subject, so this is the side the
+  /// planner should drive from: narrow to their sessions here, then walk the
+  /// attempts of each in `answeredAt` order. Attempt carries no userId of its own.
+  @@index([userId, subject, level])
+}
+
+/// What a child can do on one topic at one year level, folded forward from their
+/// attempts one answer at a time. Read at the start of a session to weight the
+/// questions, and by the parents' report.
+model TopicSkill {
+  id      String @id @default(cuid())
+  userId  String
+  subject String
+  /// What the questions practise, e.g. "counting numbers".
+  topic   String
+  /// Australian school year: "K" or "1" through "6".
+  level   String
+
+  attempts       Int   @default(0)
+  correct        Int   @default(0)
+  /// Recency-weighted accuracy in [0, 1] - what the child can do now, not on average.
+  strength       Float @default(0)
+  /// Correct answers in a row. A run, not a single right answer, is what mastery looks like.
+  streak         Int   @default(0)
+  /// Distinct local days with at least one right answer. A run inside one sitting is
+  /// short-term memory; the same topic known again a day later is what mastery is.
+  correctDays    Int   @default(0)
+  /// The last day counted towards `correctDays`, so folding forward can tell a new day apart.
+  lastCorrectDay Int?
+
+  totalTimeMs    Int      @default(0)
+  lastAnsweredAt DateTime
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One row per child, subject, topic and year - and the lookup the session start does.
+  @@unique([userId, subject, topic, level])
+}
+
+/// One answered question, as it was answered. The history everything else is
+/// derived from, and the only row a replay or a rebuild needs.
+model Attempt {
+  /// Client-supplied, so a retried offline flush writes each answer exactly
+  /// once. A server default would make every replay a new row, and the child's
+  /// TopicSkill would count their answers twice.
+  id                String   @id
+  learningSessionId String
+  templateId        String
+  subject           String
+  /// What the question practises, e.g. "counting numbers". Shared across years.
+  topic             String
+  /// Australian school year: "K" or "1" through "6".
+  level             String
+  prompt            String
+  expected          String
+  response          String
+  correct           Boolean
+  /// Capped by the session engine - an abandoned question is not a measurement.
+  timeTakenMs       Int
+  answeredAt        DateTime @default(now())
+  /// Minutes east of UTC when it was answered. Stored so rebuilding a profile from
+  /// history puts each answer on the same day the live fold did.
+  offsetMinutes     Int      @default(0)
+  /// The resolved figure the child actually saw, for a question with one - not
+  /// the template's parameters, so a template edited next month cannot change
+  /// what a parent is shown about last week. `null` for the ordinary question
+  /// with nothing to draw; read back through `parseFigure`, which trusts no
+  /// stored row further than it can validate.
+  figure            Json?
+
+  learningSession LearningSession @relation(fields: [learningSessionId], references: [id], onDelete: Cascade)
+
+  /// "This session's answers, newest first" - the shape both history reads take once
+  /// the planner has narrowed to a child's sessions. Covers the plain FK lookup too.
+  @@index([learningSessionId, answeredAt])
+}
+
+/// The best a player has done at one speed-run mode.
+///
+/// Only the best is kept: a run that does not beat it leaves no trace, so there
+/// is no history of every run and no graph of improvement over time. That is the
+/// cost of one row per mode, and it is written down here rather than discovered
+/// later.
+///
+/// This is the one award in the app that needs no row lock. `User.stars` is
+/// incremented, so a repeated or raced call would pay twice - hence
+/// `roundsBanked` under `SELECT ... FOR UPDATE` and the compare-and-set on
+/// `targetDay`. A record is a *maximum*, and a maximum is idempotent: two runs
+/// landing at once produce the same row whichever order they arrive in.
+model SpeedRecord {
+  id     String @id @default(cuid())
+  userId String
+  /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
+  mode   String
+
+  /// Most correct answers in a single run of this mode.
+  best Int
+
+  achievedAt DateTime @default(now())
+
+  /// Whether this player's parent has seen the banner for it. True on creation,
+  /// because a first run is not a record and announces nothing; set false only
+  /// when a previous best is genuinely beaten.
+  seen Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mode])
+  /// Redundant against the unique constraint above, which already indexes
+  /// `userId` as its leading column - not worth a migration to drop. It does
+  /// not serve `readUnseenRecords`: that filters on `seen` and `user.parentId`
+  /// with no `userId` in the WHERE at all, so a parent's banner scans on
+  /// those, never on this.
+  @@index([userId])
+}
+
+/// One finished speed run, kept whether or not it beat anything.
+///
+/// `SpeedRecord` above is the maximum and stays the maximum - it is what the
+/// leaderboard ranks, what the banner announces and what the guarded update
+/// makes idempotent. This is the history behind it, and it exists because a
+/// single best cannot say whether a score was a fluke or a floor: the cabinet
+/// shows a player their top five runs at a mode, and there is nothing to show
+/// unless every run is written down.
+///
+/// It needs no lock and no guard of any kind: an insert is not a maximum and
+/// not a counter, so a retry writes a second row rather than paying twice, and
+/// two runs landing at once are simply two runs.
+model SpeedAttempt {
+  id     String @id @default(cuid())
+  userId String
+  /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
+  mode   String
+
+  /// How many were got right, which is how many were answered: a speed run only
+  /// moves on a correct answer, so the two were always going to be one number.
+  correct Int
+
+  playedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// What the cabinet reads: one player's runs at one mode, best first. The
+  /// ranking is done in the database (`readSpeedAttempts`), so the index is
+  /// the ordering the window function uses.
+  @@index([userId, mode, correct(sort: Desc), playedAt])
+}
+
+/// A link one parent sends another grown-up so they can watch a child's progress.
+///
+/// The link is the short-lived half of sharing and the grant below is the lasting
+/// half - the same split as a child's login code and the session it buys. An
+/// invite is good for a week and is spent at acceptance (`acceptedAt`), so one
+/// link admits exactly one person however many times it is forwarded.
+///
+/// `childIds` is a plain array rather than a join table because it is a *record
+/// of what was offered*, not a live set: it is written once and read once, at
+/// acceptance, and every id in it is checked against the issuer's children then.
+/// A child removed in the meantime simply isn't granted - which is why the array
+/// having no foreign keys is the honest shape rather than a missing constraint.
+model ShareInvite {
+  id       String   @id @default(cuid())
+  /// What the URL carries. Long and unguessable, since nobody types it.
+  token    String   @unique
+  ownerId  String
+  /// The children this link offers, as chosen when it was created.
+  childIds String[]
+
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  /// When it was spent, and by whom. Null on a link nobody has opened yet - and
+  /// the column the accepting statement matches on, so two taps cannot both win.
+  acceptedAt   DateTime?
+  acceptedById String?
+
+  owner      User  @relation("InvitesSent", fields: [ownerId], references: [id], onDelete: Cascade)
+  acceptedBy User? @relation("InvitesAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+
+  /// "The links I have sent", newest first - the sharing panel's only read.
+  @@index([ownerId, createdAt])
+}
+
+/// One grown-up may read one child's progress. The standing grant an accepted
+/// invite leaves behind, and the row revoking deletes.
+///
+/// It carries no `ownerId`: who owns the child is `User.parentId`, and copying it
+/// here would be a second truth to keep in step. Scoping a revoke to the parent
+/// asking is a filter through the child (`child: { parentId }`), which cannot
+/// drift from ownership because it *is* ownership.
+///
+/// A grant is read-only by construction rather than by a flag: nothing in
+/// `accounts.ts` matches on anything but `parentId`, so no query that edits a
+/// child can be reached through one of these rows.
+model ChildShare {
+  id       String @id @default(cuid())
+  childId  String
+  viewerId String
+
+  createdAt DateTime @default(now())
+
+  child  User @relation("SharedChild", fields: [childId], references: [id], onDelete: Cascade)
+  viewer User @relation("ChildViewer", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  /// Sharing the same child with the same person twice is one grant.
+  @@unique([childId, viewerId])
+  /// "The children shared with me", which every screen a viewer sees starts from.
+  @@index([viewerId])
+}
