@@ -645,6 +645,75 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /children/{id}/record:
+    get:
+      parameters:
+        - schema:
+            default: maths
+            type: string
+          in: query
+          name: subject
+          required: false
+        - schema:
+            default: 3
+            type: integer
+            minimum: 1
+            maximum: 50
+          in: query
+          name: perTopic
+          required: false
+        - schema:
+            default: 2505600000
+            type: integer
+            minimum: 1
+            maximum: 2505600000
+          in: query
+          name: windowMs
+          required: false
+        - schema:
+            default: 'false'
+            type: string
+            enum:
+              - 'true'
+              - 'false'
+          in: query
+          name: speedRuns
+          required: false
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
   /children/{id}/answers:
     get:
       parameters:
@@ -1027,6 +1096,14 @@ paths:
       responses:
         '204':
           description: Default Response
+  /me/player:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
   /play/state:
     get:
       parameters:
@@ -1049,7 +1126,7 @@ paths:
               - K
           in: query
           name: level
-          required: true
+          required: false
         - schema:
             default: 5
             type: integer

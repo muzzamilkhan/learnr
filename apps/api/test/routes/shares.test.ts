@@ -115,3 +115,37 @@ describe('a share, end to end over the wire', () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+/**
+ * The page behind a link is public, and has to be: the whole point of the link
+ * is that it reaches somebody who has no account here yet. They see who is
+ * offering and which children, decide, and *then* sign in - so this read cannot
+ * be behind the session that following the link is meant to produce.
+ *
+ * It stays read-only either way. Following your own link to check it must not
+ * spend it, which is what keeps this safe to serve to anybody holding a token.
+ */
+describe('GET /shares/:token, signed out', () => {
+  it('describes what a link is offering, with no session at all', async () => {
+    const owner = await makeParent({ name: 'Sam' });
+    const childId = await makeChild(owner, { name: 'Shared' });
+
+    const created = await app.inject({
+      method: 'POST', url: '/shares', headers: as(await signIn(owner)),
+      payload: { childIds: [childId] },
+    });
+    const { token } = created.json();
+
+    const response = await app.inject({ method: 'GET', url: `/shares/${token}` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ live: true, ownerName: 'Sam' });
+    expect(response.json().children[0]).toMatchObject({ name: 'Shared' });
+  });
+
+  it('still answers 404 for a token that is not a link', async () => {
+    const response = await app.inject({ method: 'GET', url: '/shares/not-a-token' });
+
+    expect(response.statusCode).toBe(404);
+  });
+});

@@ -172,3 +172,82 @@ describe('POST /me/claim-parent', () => {
     expect(stored?.role).toBe('child');
   });
 });
+
+/**
+ * The home screen wants the four numbers off the child's own row and the window
+ * of answers the goal bar folds - and it has no subject or year to ask about,
+ * because picking one is what that screen is for. So it is `/play/state` minus
+ * the two reads that need a course, rather than a level invented to satisfy an
+ * endpoint.
+ */
+describe('GET /me/player', () => {
+  it('refuses a caller who is not signed in', async () => {
+    const response = await app.inject({ method: 'GET', url: '/me/player' });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('answers with the level, streak, stars and goal', async () => {
+    const childId = await makeChild(await makeParent(), { level: '4' });
+
+    const response = await app.inject({
+      method: 'GET', url: '/me/player', headers: as(await signIn(childId)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.player.selectedLevel).toBe('4');
+    expect(body.player.stars).toBe(0);
+    expect(body.player.target).toBeNull();
+    expect(body.targetAnswers).toEqual([]);
+  });
+
+  it('carries a window of answers only for a child with a target', async () => {
+    const childId = await makeChild(await makeParent());
+    await play(childId, 3);
+    const token = await signIn(childId);
+
+    expect((await app.inject({ method: 'GET', url: '/me/player', headers: as(token) }))
+      .json().targetAnswers).toEqual([]);
+
+    await testPrisma().user.update({
+      where: { id: childId },
+      data: { targetKind: 'questions', targetValue: 10 },
+    });
+
+    expect((await app.inject({ method: 'GET', url: '/me/player', headers: as(token) }))
+      .json().targetAnswers).toHaveLength(3);
+  });
+});
+
+/**
+ * The play screen has to know the year the parent fixed before it can tell
+ * whether the one in the URL is allowed - and the URL's year may be nonsense,
+ * which is exactly the case that has to redirect rather than fail. So the level
+ * is optional: without one there is no course to draw recent topics from, and
+ * `player.selectedLevel` is the answer the caller came for.
+ */
+describe('GET /play/state, with no level', () => {
+  it('still answers with the player state, and no recent topics', async () => {
+    const childId = await makeChild(await makeParent(), { level: '2' });
+    await play(childId, 3);
+
+    const response = await app.inject({
+      method: 'GET', url: '/play/state?subject=maths', headers: as(await signIn(childId)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().player.selectedLevel).toBe('2');
+    expect(response.json().recentTopics).toEqual([]);
+  });
+
+  // A year that is not a year must not 400 the read that would have redirected.
+  it('is not refused for a level the URL made up', async () => {
+    const childId = await makeChild(await makeParent(), { level: '2' });
+
+    const response = await app.inject({
+      method: 'GET', url: '/play/state?subject=maths', headers: as(await signIn(childId)),
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+});

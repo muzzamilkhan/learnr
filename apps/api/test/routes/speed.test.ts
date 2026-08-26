@@ -123,3 +123,51 @@ describe('GET /speed/unseen', () => {
     expect(response.json()).toEqual([]);
   });
 });
+
+/**
+ * A leaderboard ranks a *household*, and who that is depends on who is asking:
+ * a parent's household is their own id, a child's is their parent's. Ranking a
+ * child against `userId` would have put them on a board of one - a family of
+ * one is not a family, and the screen says so rather than drawing it.
+ */
+describe('GET /speed/records, whose family', () => {
+  it('ranks a child against the rest of their household', async () => {
+    const parentId = await makeParent({ name: 'Grown-up' });
+    const childId = await makeChild(parentId, { name: 'Ada' });
+    const sibling = await makeChild(parentId, { name: 'Bo' });
+
+    for (const [userId, correct] of [[childId, 12], [sibling, 20], [parentId, 30]] as const) {
+      await app.inject({
+        method: 'POST', url: '/speed/runs', headers: as(await signIn(userId)),
+        payload: { id: randomUUID(), mode: 'multiply.7', correct },
+      });
+    }
+
+    const response = await app.inject({
+      method: 'GET', url: '/speed/records', headers: as(await signIn(childId)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    const family = response.json().family;
+    expect(family).toHaveLength(3);
+    expect(family.map((row: { playerName: string }) => row.playerName).sort())
+      .toEqual(['Ada', 'Bo', 'Grown-up']);
+  });
+
+  /**
+   * A child on their own Google account belongs to no household. That is not a
+   * failed read and not an empty board - it is nobody to rank - so it is null
+   * beside a 200, and the 503 stays reserved for a read that actually broke.
+   */
+  it('answers null for a player who has no household', async () => {
+    const orphan = await testPrisma().user.create({ data: { name: 'Alone', role: 'child' } });
+
+    const response = await app.inject({
+      method: 'GET', url: '/speed/records', headers: as(await signIn(orphan.id)),
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().family).toBeNull();
+    expect(response.json().attempts).toEqual([]);
+  });
+});
