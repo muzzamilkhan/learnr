@@ -6,6 +6,14 @@ import { mergeViewable, groupViewers, type ChildAccess, type SharedViewer } from
 import { generateShareToken, inviteExpiry, normaliseToken } from '@learnr/core/share-link';
 import { parseTarget } from '@learnr/core/rewards/target';
 import { parsePhoto } from '@learnr/core/photo/photo';
+import type {
+  AcceptResult,
+  InviteDetails,
+  PendingInvite,
+  ViewableChild,
+} from '@learnr/core/dto';
+
+export type { AcceptResult, InviteDetails, PendingInvite, ViewableChild };
 
 /**
  * Sharing a child with a second grown-up: a separated parent, a grandparent, a
@@ -24,13 +32,6 @@ import { parsePhoto } from '@learnr/core/photo/photo';
  * to keep them safe is to leave them scoped by ownership rather than to add a
  * permission flag anyone could forget to consult.
  */
-
-/** A child someone may look at, and on what footing. */
-export interface ViewableChild extends ChildProfile {
-  access: ChildAccess;
-  /** The name of the parent who shared them, on a shared child only. */
-  sharedBy: string | null;
-}
 
 /**
  * Every child this person may look at: their own, then the ones shared with them.
@@ -107,15 +108,6 @@ async function listSharedWithMe(
     console.error('Failed to list shared children', error);
     return null;
   }
-}
-
-/** A link that has been created and not yet opened. */
-export interface PendingInvite {
-  id: string;
-  token: string;
-  childIds: string[];
-  createdAt: Date;
-  expiresAt: Date;
 }
 
 /**
@@ -212,23 +204,6 @@ export async function createShareInvite(
   }
 }
 
-/** A link, as the page behind it describes itself to whoever opened it. */
-export interface InviteDetails {
-  /** Who is offering, for a page whose whole job is to say "accept this?". */
-  ownerId: string;
-  ownerName: string | null;
-  children: {
-    id: string;
-    name: string;
-    avatar: Avatar;
-    photo: string | null;
-    level: string | null;
-  }[];
-  expiresAt: Date;
-  /** False once it has been accepted or has run out of its week. */
-  live: boolean;
-}
-
 /**
  * What a link offers, for the page that shows it before anyone signs in.
  *
@@ -289,15 +264,6 @@ export async function readShareInvite(
     return null;
   }
 }
-
-/**
- * What became of an acceptance. A reason rather than a bare false, because the
- * person reading it has just followed a link and needs to know whether to ask for
- * another one.
- */
-export type AcceptResult =
-  | { ok: true; children: number }
-  | { ok: false; reason: 'unavailable' | 'own-link' | 'error' };
 
 /**
  * Take a link: spend it, and leave the grants behind.

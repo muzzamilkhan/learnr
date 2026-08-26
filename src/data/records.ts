@@ -22,6 +22,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import { localDay } from '@learnr/core/day';
 import type { Attempt } from '@learnr/core/session';
+import type { Sitting } from '@learnr/core/dto';
+
+export type { Sitting };
 
 /**
  * Recording is fire-and-forget and best effort: a child answering questions must
@@ -784,17 +787,6 @@ export async function readAnsweredQuestions(
 
 /** How many sittings the report lists. Enough to show a pattern, few enough to read. */
 const SITTING_LIMIT = 8;
-
-/** One sitting as the parents' report lists it. */
-export interface Sitting {
-  id: string;
-  startedAt: number;
-  level: YearLevel;
-  attempts: number;
-  correct: number;
-  /** Summed time on this sitting's questions, each already capped when it was recorded. */
-  timeMs: number;
-}
 
 /**
  * The child's last few sittings. A weekly total cannot tell five real sessions

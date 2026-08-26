@@ -8,36 +8,9 @@ import { extendHouseholdWithShares, householdId } from '@learnr/core/children';
 import { standingChange, type FamilyRecord, type StandingChange } from '@learnr/core/speedrun/leaderboard';
 import { HISTORY_RUNS, type SpeedAttempt } from '@learnr/core/speedrun/history';
 import type { SummaryRun } from '@learnr/core/speedrun/summary';
+import type { ChildRecord, SpeedOutcome } from '@learnr/core/dto';
 
-/**
- * The Prisma side of speed runs, beside `records.ts` and `accounts.ts` rather
- * than inside `src/lib/speedrun/`, which stays pure.
- *
- * Null means "could not read", never "nothing there" - the distinction
- * `readObservations` and `readSittings` already draw. A failed read rendered as
- * an empty cabinet tells a child they have never played.
- */
-
-export interface SpeedOutcome {
-  previousBest: number | null;
-  best: number;
-  isRecord: boolean;
-  /**
-   * The move this run made on the family board, or null when it made none -
-   * nobody else runs this mode, the place did not change, or the household
-   * could not be read. `standingChange` decides which, and the result screen
-   * says nothing at all when this is null.
-   */
-  standing: StandingChange | null;
-}
-
-export interface ChildRecord {
-  childId: string;
-  childName: string;
-  mode: string;
-  best: number;
-  achievedAt: Date;
-}
+export type { ChildRecord, SpeedOutcome };
 
 /**
  * One player's best runs at each mode - up to `HISTORY_RUNS` of them, ranked in

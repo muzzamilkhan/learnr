@@ -5,43 +5,14 @@ import { codeExpiry, generateLoginCode, normaliseCode } from '@learnr/core/login
 import type { YearLevel } from '@learnr/core/curriculum';
 import { parseTarget, type DailyTarget } from '@learnr/core/rewards/target';
 import { parsePhoto } from '@learnr/core/photo/photo';
+import type { Account, ChildProfile, Role } from '@learnr/core/dto';
 
-/**
- * Accounts: who a signed-in user is, the child profiles a parent manages, and the
- * code path a child signs in by.
- *
- * Follows `records.ts`: Prisma lives here rather than in the pure libraries, every
- * write that touches a child is ownership-checked against the parent asking for it,
- * and reads degrade to a sensible empty rather than throwing into a page render.
- *
- * Unlike `records.ts` these are *not* best-effort. Recording an answer can fail
- * silently because the child keeps playing either way; a login that silently fails
- * is a child locked out, and a "remove child" that silently fails is a parent lied
- * to. So the mutations report whether they worked.
- */
-
-export type Role = 'parent' | 'child';
+// Declared once, in the package both apps depend on. Re-exported so every
+// caller of this module keeps importing them from where it always did.
+export type { Account, ChildProfile, Role };
 
 export function parseRole(value: string | null | undefined): Role | null {
   return value === 'parent' || value === 'child' ? value : null;
-}
-
-/** Who the signed-in user is, as every branch of the home screen needs it. */
-export interface Account {
-  id: string;
-  role: Role | null;
-  /** Set only on a child profile a parent created - the flag that fixes the level. */
-  parentId: string | null;
-  name: string | null;
-  avatar: Avatar | null;
-  image: string | null;
-  /**
-   * The photograph their parent cropped, if there is one. Parsed rather than
-   * handed over as stored: the column is only ever written through `parsePhoto`,
-   * and reading it back through the same boundary is what makes that a property
-   * of the app rather than of the one action that happens to write it.
-   */
-  photo: string | null;
 }
 
 export async function readAccount(userId: string): Promise<Account | null> {
@@ -102,22 +73,6 @@ export async function claimParentRole(userId: string): Promise<boolean> {
     console.error('Failed to claim the parent role', error);
     return false;
   }
-}
-
-/** A child profile as the parent dashboard lists it. */
-export interface ChildProfile {
-  id: string;
-  name: string;
-  avatar: Avatar;
-  /** The photograph, when their parent has set one - it wins over the avatar everywhere a face is drawn. */
-  photo: string | null;
-  /** Set by the parent at creation and only ever changed by them. */
-  level: string | null;
-  /** The daily target the parent set, or null for the child who has none. */
-  target: DailyTarget | null;
-  /** The live code, if one has been generated and not yet used or expired. */
-  code: string | null;
-  codeExpiresAt: Date | null;
 }
 
 /**
