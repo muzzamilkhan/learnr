@@ -29,6 +29,10 @@ primary_region = "syd"   # Neon is in ap-southeast-2; every query is a LAN hop.
   # Never scale to zero. The web app calls this server-side on every page
   # render, so a cold start would land directly in a parent's page load.
   auto_stop_machines = "off"
+  # One machine, deliberately. Fly adds a second for high availability unless
+  # told otherwise, which doubles the bill for a hobby project that does not
+  # need zero-downtime deploys. Deploy with `fly deploy --ha=false` to stop it
+  # coming back; a brief blip during a deploy is an acceptable trade here.
   min_machines_running = 1
 
   [[http_service.checks]]
