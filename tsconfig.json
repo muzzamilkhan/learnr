@@ -16,7 +16,8 @@
   "include": [
     "src/**/*.ts",
     "test/**/*.ts",
-    "prisma.config.ts"
+    "prisma.config.ts",
+    "scripts/**/*.ts"
   ],
   "exclude": [
     "node_modules",

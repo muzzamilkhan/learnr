@@ -1,5 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import fastifySwagger from '@fastify/swagger';
 import {
+  jsonSchemaTransform,
   serializerCompiler,
   validatorCompiler,
   type ZodTypeProvider,
@@ -24,6 +26,16 @@ export function buildServer(): FastifyInstance {
     reply.code(status).send({ error: error.message });
   });
 
+  // The contract is generated from the zod schemas the routes already validate
+  // against, so a route and its documented shape cannot disagree.
+  app.register(fastifySwagger, {
+    openapi: {
+      openapi: '3.1.0',
+      info: { title: 'LearnR API', version: '0.1.0' },
+    },
+    transform: jsonSchemaTransform,
+  });
+
   app.register(authPlugin);
   app.register(authRoutes);
   app.register(sessionRoutes);
@@ -31,6 +43,8 @@ export function buildServer(): FastifyInstance {
   app.register(reportRoutes);
   app.register(shareRoutes);
   app.register(speedRoutes);
+
+  app.get('/openapi.json', async () => app.swagger());
 
   app.get('/health', async () => ({ ok: true }));
 

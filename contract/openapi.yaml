@@ -1,0 +1,944 @@
+openapi: 3.1.0
+info:
+  title: LearnR API
+  version: 0.1.0
+components:
+  schemas: {}
+paths:
+  /auth/redeem:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 16
+              required:
+                - code
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  childId:
+                    type: string
+                  expiresAt:
+                    type: string
+                required:
+                  - token
+                  - childId
+                  - expiresAt
+                additionalProperties: false
+        '401':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /me:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /sessions:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                subject:
+                  type: string
+                  minLength: 1
+                level:
+                  type: string
+                  enum:
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - K
+                seed:
+                  type: string
+                  minLength: 1
+              required:
+                - id
+                - subject
+                - level
+                - seed
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                required:
+                  - id
+                additionalProperties: false
+        '201':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                required:
+                  - id
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /sessions/{id}/attempts:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attempts:
+                  minItems: 1
+                  maxItems: 200
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                        pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                      templateId:
+                        type: string
+                        minLength: 1
+                      subject:
+                        type: string
+                        minLength: 1
+                      topic:
+                        type: string
+                        minLength: 1
+                      level:
+                        type: string
+                        enum:
+                          - '1'
+                          - '2'
+                          - '3'
+                          - '4'
+                          - '5'
+                          - '6'
+                          - K
+                      prompt:
+                        type: string
+                      expected:
+                        type: string
+                      response:
+                        type: string
+                      correct:
+                        type: boolean
+                      timeTakenMs:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      answeredAt:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      offsetMinutes:
+                        type: integer
+                        minimum: -840
+                        maximum: 840
+                      figure: {}
+                    required:
+                      - id
+                      - templateId
+                      - subject
+                      - topic
+                      - level
+                      - prompt
+                      - expected
+                      - response
+                      - correct
+                      - timeTakenMs
+                      - answeredAt
+                      - offsetMinutes
+              required:
+                - attempts
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  streak:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  streakAdvanced:
+                    type: boolean
+                required:
+                  - streak
+                  - streakAdvanced
+                additionalProperties: false
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /sessions/{id}/award-round:
+    post:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stars:
+                    anyOf:
+                      - type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      - type: 'null'
+                required:
+                  - stars
+                additionalProperties: false
+  /sessions/{id}/award-target:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                offsetMinutes:
+                  type: integer
+                  minimum: -840
+                  maximum: 840
+              required:
+                - offsetMinutes
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  awarded:
+                    type: boolean
+                required:
+                  - awarded
+                additionalProperties: false
+  /sessions/{id}/end:
+    post:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '204':
+          description: Default Response
+  /children:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                avatar:
+                  type: string
+                  minLength: 1
+                level:
+                  type: string
+                  enum:
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - K
+                targetKind:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - questions
+                        - minutes
+                    - type: 'null'
+                targetValue:
+                  anyOf:
+                    - type: integer
+                      exclusiveMinimum: 0
+                      maximum: 9007199254740991
+                    - type: 'null'
+                photo:
+                  anyOf:
+                    - type: string
+                    - type: 'null'
+              required:
+                - name
+                - avatar
+                - level
+                - targetKind
+                - targetValue
+                - photo
+      responses:
+        '201':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                required:
+                  - id
+                additionalProperties: false
+        '400':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /children/{id}:
+    patch:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                avatar:
+                  type: string
+                  minLength: 1
+                level:
+                  type: string
+                  enum:
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - K
+                targetKind:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - questions
+                        - minutes
+                    - type: 'null'
+                targetValue:
+                  anyOf:
+                    - type: integer
+                      exclusiveMinimum: 0
+                      maximum: 9007199254740991
+                    - type: 'null'
+                photo:
+                  anyOf:
+                    - type: string
+                    - type: 'null'
+              required:
+                - name
+                - avatar
+                - level
+                - targetKind
+                - targetValue
+                - photo
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '204':
+          description: Default Response
+        '400':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+    delete:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '204':
+          description: Default Response
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /children/{id}/login-code:
+    post:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  expiresAt:
+                    type: string
+                required:
+                  - code
+                  - expiresAt
+                additionalProperties: false
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /children/{id}/report:
+    get:
+      parameters:
+        - schema:
+            default: maths
+            type: string
+          in: query
+          name: subject
+          required: false
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /children/{id}/answers:
+    get:
+      parameters:
+        - schema:
+            default: maths
+            type: string
+          in: query
+          name: subject
+          required: false
+        - schema:
+            default: 3
+            type: integer
+            minimum: 1
+            maximum: 50
+          in: query
+          name: perTopic
+          required: false
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /shares:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  invites:
+                    type: array
+                    items: {}
+                  viewers:
+                    type: array
+                    items: {}
+                required:
+                  - invites
+                  - viewers
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                childIds:
+                  minItems: 1
+                  type: array
+                  items:
+                    type: string
+              required:
+                - childIds
+      responses:
+        '201':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  expiresAt:
+                    type: string
+                required:
+                  - token
+                  - expiresAt
+                additionalProperties: false
+        '400':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /shares/{id}:
+    delete:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: id
+          required: true
+      responses:
+        '204':
+          description: Default Response
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /shares/{token}/accept:
+    post:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: token
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+  /shares/viewers/{viewerId}:
+    delete:
+      parameters:
+        - schema:
+            type: string
+          in: query
+          name: childId
+          required: false
+        - schema:
+            type: string
+          in: path
+          name: viewerId
+          required: true
+      responses:
+        '204':
+          description: Default Response
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /shares/mine/{childId}:
+    delete:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: childId
+          required: true
+      responses:
+        '204':
+          description: Default Response
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /speed/modes:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+  /speed/runs:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                  pattern: ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$
+                mode:
+                  type: string
+                  minLength: 1
+                correct:
+                  type: integer
+                  minimum: 0
+                  maximum: 10000
+              required:
+                - id
+                - mode
+                - correct
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '400':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /speed/records:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /speed/unseen:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+        '503':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
+  /speed/unseen/{childId}:
+    delete:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: childId
+          required: true
+      responses:
+        '204':
+          description: Default Response

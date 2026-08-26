@@ -13,7 +13,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "contract": "tsx scripts/openapi.ts"
   },
   "dependencies": {
     "@fastify/swagger": "^9.8.1",
@@ -28,8 +29,10 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.28.0",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^24",
     "dotenv": "^17.4.2",
+    "js-yaml": "^5.4.0",
     "prisma": "^7.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5",
