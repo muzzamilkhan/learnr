@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MIN_OBSERVATIONS } from '../../src/lib/analytics/profile';
+import { localDay } from '../../src/lib/day';
 import { profileSet, SCENARIOS } from './profile';
 
 describe('SCENARIOS', () => {
@@ -47,8 +48,16 @@ describe('profileSet', () => {
     expect([...profileSet().groups]).toEqual([...profileSet().groups]);
   });
 
-  it('distinguishes the day scenarios, which is the trap it exists for', () => {
-    const groups = profileSet().groups;
-    expect(groups.get('days-across-offsets')).not.toBe(groups.get('out-of-order-days'));
+  it("'days-across-offsets' actually spans three local days, which is the trap it exists for", () => {
+    // Two different inputs hash differently almost by construction, so
+    // comparing digests against 'out-of-order-days' would pass an
+    // implementation that ignores offsetMinutes entirely. The real claim is
+    // that the offset decides the day: five observations, three of them at
+    // the same UTC instant, land on three distinct local days.
+    const scenario = SCENARIOS.find((s) => s.name === 'days-across-offsets')!;
+    const days = new Set(
+      scenario.observations.map((o) => localDay(o.answeredAt, o.offsetMinutes)),
+    );
+    expect(days.size).toBe(3);
   });
 });
