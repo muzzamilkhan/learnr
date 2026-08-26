@@ -144,7 +144,7 @@ where encoders differ on when to escape non-ASCII. So a case canonicalizes to a
 hand-written form that both sides implement in about thirty lines:
 
 ```
-prompt␟What is 7 − 3?␞answer␟4␞answerType␟number␞figure.mark.0␟path|12.5,80|45,80␞…
+prompt␟What is 7 − 3?␞answer␟4␞answerType␟number␞figure.mark.0␟path|12.5,80 45,80|true|false|false␞…
 ```
 
 - Three levels of separator, none of which can occur in a rendered prompt: a
@@ -160,8 +160,12 @@ prompt␟What is 7 − 3?␞answer␟4␞answerType␟number␞figure.mark.0␟p
 
 A figure flattens rather than nesting: `width` and `height`, then one field per
 mark in emitted order, named `figure.mark.<i>`. A mark's own value is its kind
-followed by its fields joined by `|`, in the order the `Mark` type declares them,
-with points as `x,y`. Four kinds and no more - `path`, `arc`, `dot`, `label` -
+followed by its fields, in the order the `Mark` type declares them, joined by
+`|`: a list of points (a `path`'s) is itself space-joined within that one `|`
+field, and a point is `x,y`. So a `path` reads
+`path|12.5,80 45,80|true|false|false` - points, then `closed`, `fill` and
+`dashed` as three further fields. Four kinds and no more - `path`, `arc`, `dot`,
+`label` -
 which is the same closed set that lets `diagram.tsx` stay a dumb renderer. A
 fifth kind would be a decision that had escaped `lib`, and it would break this
 form loudly rather than quietly.
@@ -290,7 +294,7 @@ reviewed lines.
 
 ### The drift guard
 
-`scripts/fixtures.test.ts` regenerates the digests in memory and compares byte
+`scripts/fixtures/digests.test.ts` regenerates the digests in memory and compares byte
 for byte against what is committed - `content-packs.test.ts`'s shape. About 2.3
 seconds inside `npm test`.
 
