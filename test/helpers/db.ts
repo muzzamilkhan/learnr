@@ -1,5 +1,6 @@
 import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { prisma as appPrisma } from '../../src/db.js';
 
 /**
  * The container itself is started once per run by global-setup.ts, which also
@@ -42,4 +43,22 @@ export async function truncateAll(): Promise<void> {
 
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(', ');
   await db.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
+}
+
+/**
+ * Open several connections before a test that means to race.
+ *
+ * Prisma's pool is lazy, and the data modules run their guards inside
+ * interactive transactions - one connection each. On a cold pool the first
+ * eight concurrent callers simply queue, so they never overlap and a
+ * concurrency test passes against code whose lock has been deleted. Measured:
+ * the first race in a fresh process banks a round once either way; the second,
+ * on a warm pool, banks it eight times without the lock.
+ *
+ * This warms the pool the data modules actually use - the singleton in
+ * src/db.ts - not the test's own client.
+ */
+export async function warmPool(size = 8): Promise<void> {
+  if (!appPrisma) throw new Error('src/db.ts has no client: is DATABASE_URL set?');
+  await Promise.all(Array.from({ length: size }, () => appPrisma!.$queryRaw`SELECT 1`));
 }
