@@ -26,6 +26,12 @@ describe('changedApps', () => {
     ).toEqual(neither);
   });
 
+  it('deploys neither half for the fixture digests, which ship nowhere', () => {
+    expect(changedApps(['fixtures/digests/maths.3.json', 'fixtures/digests/manifest.json'])).toEqual(
+      neither,
+    );
+  });
+
   it('deploys the API alone for the API workspace and its deployment', () => {
     expect(changedApps(['apps/api/src/routes/speed.ts'])).toEqual({ api: true, web: false });
     expect(changedApps(['apps/api/contract/openapi.yaml'])).toEqual({ api: true, web: false });

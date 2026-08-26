@@ -16,8 +16,13 @@ export type ChangedApps = { api: boolean; web: boolean };
 
 const both: ChangedApps = { api: true, web: true };
 
-/** Prose. It ships nowhere, so it moves nothing. */
-const IGNORED = [/\.md$/, /^docs\//, /^\.claude\//, /^\.superpowers\//];
+/**
+ * Prose, and the fixture digests. Neither ships anywhere - the digests are not
+ * in the Next bundle and not in the API's Docker context, which copies only
+ * `src/lib`, `src/content`, `packages/core` and `apps/api` - so a regeneration
+ * commit must not roll production for a test artifact.
+ */
+const IGNORED = [/\.md$/, /^docs\//, /^\.claude\//, /^\.superpowers\//, /^fixtures\//];
 
 /** The API workspace and the things that put its image on Fly. */
 const API_ONLY = ['apps/api/', 'fly.toml', '.dockerignore'];
