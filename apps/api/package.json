@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
-    "build": "tsc",
+    "build": "tsx scripts/bundle.ts",
     "start": "node --env-file-if-exists=.env dist/main.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@fastify/swagger": "^9.8.1",
-    "@learnr/core": "file:../learnr/packages/core",
+    "@learnr/core": "*",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "fastify": "^5.12.1",
@@ -32,6 +32,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^24",
     "dotenv": "^17.4.2",
+    "esbuild": "^0.28.2",
     "js-yaml": "^5.4.0",
     "prisma": "^7.10.0",
     "tsx": "^4.19.2",

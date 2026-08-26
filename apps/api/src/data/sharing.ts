@@ -1,8 +1,8 @@
 import { randomInt } from 'node:crypto';
 import { prisma } from '../db.js';
-import { parseAvatar, type Avatar } from '@learnr/core/avatars';
-import { listChildren, type ChildProfile } from './accounts.js';
-import { mergeViewable, groupViewers, type ChildAccess, type SharedViewer } from '@learnr/core/children';
+import { parseAvatar } from '@learnr/core/avatars';
+import { listChildren } from './accounts.js';
+import { mergeViewable, groupViewers, type SharedViewer } from '@learnr/core/children';
 import { generateShareToken, inviteExpiry, normaliseToken } from '@learnr/core/share-link';
 import { parseTarget } from '@learnr/core/rewards/target';
 import { parsePhoto } from '@learnr/core/photo/photo';

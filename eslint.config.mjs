@@ -15,6 +15,10 @@ const eslintConfig = defineConfig([
     // Agent worktrees: a whole second checkout of this repo lives under here, so
     // without it `eslint .` reports another branch's code as this one's.
     ".claude/**",
+    // Build output. apps/api/dist is an esbuild bundle plus the generated
+    // Prisma client - thousands of lines nobody wrote and nobody should lint.
+    "**/dist/**",
+    "**/src/generated/**",
   ]),
 ]);
 
