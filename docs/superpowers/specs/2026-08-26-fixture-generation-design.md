@@ -108,8 +108,7 @@ change to Year 4 moves exactly one digest file, so the diff names the year.
 
 ## How the two engines verify
 
-Three checks, at two different grains, because a digest is a gate and not a
-diagnosis.
+Three checks, at three grains, because a digest is a gate and not a diagnosis.
 
 | Where | What | Grain |
 | --- | --- | --- |
@@ -142,6 +141,14 @@ prompt␟What is 7 − 3?␞answer␟4␞answerType␟number␞figure.mark.0␟p
 - Absent optional fields are omitted rather than emitted as empty, and every
   field carries its name, so omission and emptiness are distinguishable.
 - **Every value is its JavaScript `String(v)` form.**
+
+A figure flattens rather than nesting: `width` and `height`, then one field per
+mark in emitted order, named `figure.mark.<i>`. A mark's own value is its kind
+followed by its fields joined by `|`, in the order the `Mark` type declares them,
+with points as `x,y`. Four kinds and no more - `path`, `arc`, `dot`, `label` -
+which is the same closed set that lets `diagram.tsx` stay a dumb renderer. A
+fifth kind would be a decision that had escaped `lib`, and it would break this
+form loudly rather than quietly.
 
 That last rule is the one that earns its keep. Swift already has to implement
 JavaScript number-to-string for `renderTemplateString`, because
@@ -198,8 +205,9 @@ across `answer`, constraints, variable bounds, `{...}` holes, figure parameters
 and distractors. An expression needs a scope, and this needs **no engine
 instrumentation**: `q.vars` is the bound scope and is already exposed on
 `GeneratedQuestion`. So for each template, draws 0-4 supply five real scopes, and
-each of that template's expression strings is evaluated against them. About 3,600
-cases of genuine usage.
+each of that template's expression strings is evaluated against them - roughly
+ten thousand evaluations over the 725 distinct strings, so every one is seen
+against several real scopes rather than a single lucky binding.
 
 **Hand-authored, for the traps.** Harvesting alone is not enough, and the gap is
 measurable: the content uses **`^` not once**, and never uses `ceil`, `trunc`,
@@ -231,7 +239,8 @@ functions content never exercises.
 
 ### 3. Grading
 
-`gradeAnswer(question, response)` over corpus questions crossed with a
+`gradeAnswer(question, response)` over **draw 0 of every template** - 505
+questions, one per template, covering all four answer types - crossed with a
 constructed response list: the exact answer, surrounding whitespace, wrong case,
 all eight boolean synonyms (`true`/`yes`/`t`/`y`, `false`/`no`/`f`/`n`), the
 empty string, non-numeric junk, and near-misses straddling the tolerance at
@@ -241,7 +250,10 @@ the rest is the surrounding shape.
 ### 4. Profile folding
 
 Seeded observation sequences through `nextSkill` and `buildProfile`, with `now`
-pinned since it is injected. Targets the two named traps: float accumulation in
+pinned since it is injected. Sequences are built to reach each threshold rather
+than sampled at random: one that stops short of `MIN_OBSERVATIONS`, one at each
+boundary of `skillStatus`, one long enough for `strength` to accumulate over a
+few hundred observations, and one per `REVIEW_INTERVALS_MS` step. Targets the two named traps: float accumulation in
 the recency-weighted `strength` over long runs, and `correctDays` across
 `offsetMinutes` boundaries - including the rule that a day is only counted when
 it is later than the last counted one, which undercounts on out-of-order arrival.
