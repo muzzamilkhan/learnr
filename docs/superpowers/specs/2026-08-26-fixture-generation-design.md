@@ -31,7 +31,7 @@ the packs landed with step 2 and are served at `GET /content/manifest` and
 
 ## What it costs, measured
 
-The iOS port spec estimated "a few megabytes". It is 33 MB compact, and
+The iOS port spec estimated "a few megabytes". It is 37.7 MB compact, and
 ~110 MB as the emitter writes it - indented two spaces, because a corpus nobody
 can read is not the debugging tool this exists to be.
 
@@ -40,7 +40,7 @@ can read is not the debugging tool this exists to be.
 | Templates | 505 |
 | Draws each | 100 |
 | Cases | 50,500 |
-| JSON, compact | 32.9 MB |
+| JSON, compact | 37.7 MB |
 | JSON, as emitted (2-space indent) | ~110 MB |
 | Of which figures | 22.0 MB |
 | Generation time | 2.3s |

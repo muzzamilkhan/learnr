@@ -1923,7 +1923,7 @@ The engine here is the **oracle** for the Swift port in `learnr-ios`, and
 it; `npm run fixtures:emit` writes the full corpus for reading.
 
 **What is committed is a digest, not the corpus.** 505 templates drawn 100 times
-is 33 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
+is 37.7 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
 two spaces, because it exists to be read - two thirds of it figures, where one `clock` drawing is 6.4 KB against
 a `polygon`'s 169 bytes - and 110 MB cannot be reviewed as a diff, which is the
 whole point of regeneration being its own reviewable commit. So
