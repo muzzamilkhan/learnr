@@ -20,6 +20,7 @@ import type { Avatar } from './avatars';
 import type { ChildAccess } from './children';
 import type { YearLevel } from './curriculum';
 import type { DailyTarget } from './rewards/target';
+import type { PlayStreak } from './rewards/streak';
 import type { StandingChange } from './speedrun/leaderboard';
 
 export type Role = 'parent' | 'child';
@@ -63,6 +64,21 @@ export interface ViewableChild extends ChildProfile {
   access: ChildAccess;
   /** The name of the parent who shared them, on a shared child only. */
   sharedBy: string | null;
+}
+
+/**
+ * Everything the play screen reads off the child's own row: the run of days, the
+ * stars, the goal and the level they last chose. One read rather than four,
+ * which is why it is a shape rather than four calls.
+ */
+export interface PlayerState {
+  /** As stored - the caller resolves it against content. */
+  selectedLevel: string | null;
+  streak: PlayStreak;
+  stars: number;
+  target: DailyTarget | null;
+  /** The last local day the target's stars were banked. */
+  targetDay: number | null;
 }
 
 export interface Sitting {
