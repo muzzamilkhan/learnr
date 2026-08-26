@@ -14,7 +14,7 @@ const SCOPES_PER_TEMPLATE = 5;
  * Every expression string a template holds, deduplicated and in a stable order.
  *
  * This reaches the language as content actually uses it, which is the half the
- * hand-written traps cannot: 725 distinct strings across the shipped corpus. It
+ * hand-written traps cannot: 1,453 distinct strings across the shipped corpus. It
  * is also exactly why the traps exist beside it - content uses `^` not once and
  * never uses `ceil`, `trunc`, `sign`, `sqrt` or `isInt`.
  */
@@ -41,6 +41,25 @@ export function expressionsOf(template: QuestionTemplate): string[] {
   }
 
   for (const distractor of template.choices?.distractors ?? []) add(distractor);
+
+  // A figure's parameters are expressions too, evaluated against this same
+  // bound scope by `buildFigure`. Every `FigureSpec` field is a single `Expr`
+  // apart from the `kind` discriminant, so walking the object is exhaustive
+  // and stays exhaustive when a twelfth kind is added - which is the reason it
+  // is written as a walk rather than a list of field names.
+  if (template.figure) {
+    for (const [field, value] of Object.entries(template.figure)) {
+      if (field !== 'kind') add(value);
+    }
+  }
+
+  // The `jitter` bounds, used when authored distractors run short. No shipped
+  // template carries one today, so this collects nothing yet; it is here so
+  // that the first one to use it is covered rather than silently uncovered.
+  if (template.choices?.jitter) {
+    add(template.choices.jitter.min);
+    add(template.choices.jitter.max);
+  }
 
   return [...new Set(found)];
 }
