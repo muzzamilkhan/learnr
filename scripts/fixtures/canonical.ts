@@ -162,7 +162,17 @@ type Assert<T extends true> = T;
 
 /**
  * Exported so it is never an unused declaration, and because the list is worth
- * reading: it is everything the digest promises to notice.
+ * reading.
+ *
+ * **This holds the *list* against the type, not the digest against the list.**
+ * The compiler forces `QUESTION_FIELDS` and `MARK_FIELDS` to name every key
+ * `GeneratedQuestion` and each arm of `Mark` has - so a field added to the type
+ * and forgotten here is a type error. It does not and cannot check that
+ * `canonicalQuestion` or `canonicalMark` actually *emit* something for every
+ * name on that list: a field named here but never written into a `Field` typechecks
+ * clean and leaves every digest unchanged. That emission is checked at runtime,
+ * in `canonical.test.ts`, by building a fully-populated value and asserting
+ * every declared field shows up in the output.
  */
 export type CanonicalCovers = {
   question: Assert<CheckKeys<(typeof QUESTION_FIELDS)[number], GeneratedQuestion>>;

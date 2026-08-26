@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Figure } from '../../src/lib/figures/types';
+import type { Figure, Mark } from '../../src/lib/figures/types';
 import type { GeneratedQuestion } from '../../src/lib/templates/types';
 import {
   canonicaliseCase,
@@ -8,7 +8,9 @@ import {
   canonicalQuestion,
   digest,
   FIELD_SEP,
+  MARK_FIELDS,
   NAME_SEP,
+  QUESTION_FIELDS,
 } from './canonical';
 
 const question = (over: Partial<GeneratedQuestion> = {}): GeneratedQuestion => ({
@@ -130,5 +132,84 @@ describe('digest', () => {
 
   it('does not confuse one case with two, because cases join on a newline', () => {
     expect(digest(['ab'])).not.toBe(digest(['a', 'b']));
+  });
+});
+
+/**
+ * `CanonicalCovers` only proves `QUESTION_FIELDS` and `MARK_FIELDS` name every
+ * key the types have - the compiler holds the *list* against the type. It
+ * proves nothing about whether `canonicalQuestion` and `canonicalMark` actually
+ * *emit* a field once it is on the list: a name added to `QUESTION_FIELDS` (or
+ * `MARK_FIELDS`) with no corresponding line in the function typechecks clean
+ * and every digest stays byte-identical. These hold the emission against the
+ * list, at runtime, against a value with every optional field present.
+ */
+describe('field emission matches the declared field lists', () => {
+  it('canonicalQuestion emits every field QUESTION_FIELDS declares', () => {
+    const fullyPopulated: GeneratedQuestion = {
+      prompt: 'What is 7 - 3?',
+      answer: 4,
+      answerType: 'choice',
+      choices: [4, 5, 6],
+      hint: 'Count back from 7.',
+      vars: { x: 7, y: 3 },
+      figure: {
+        width: 100,
+        height: 100,
+        marks: [{ kind: 'dot', at: [1, 2] }],
+      },
+    };
+
+    const names = canonicalQuestion(fullyPopulated).map(([n]) => n);
+
+    for (const declared of QUESTION_FIELDS) {
+      if (declared === 'vars') {
+        expect(names.some((n) => n.startsWith('vars.'))).toBe(true);
+      } else if (declared === 'figure') {
+        expect(names.some((n) => n.startsWith('figure.'))).toBe(true);
+      } else {
+        expect(names).toContain(declared);
+      }
+    }
+  });
+
+  it('canonicalMark emits a value that carries every field MARK_FIELDS declares, for every kind', () => {
+    const marks: Record<Mark['kind'], Mark> = {
+      path: {
+        kind: 'path',
+        points: [
+          [12.5, 80],
+          [45, 80],
+        ],
+        closed: true,
+        fill: true,
+        dashed: true,
+      },
+      arc: { kind: 'arc', at: [50, 50], radius: 12, from: 0, to: 90 },
+      dot: { kind: 'dot', at: [1, 2] },
+      label: { kind: 'label', at: [1, 2], text: '3 cm' },
+    };
+
+    const contributionOf: Record<string, (mark: Mark) => string> = {
+      kind: (mark) => mark.kind,
+      points: (mark) => (mark.kind === 'path' ? mark.points.map((p) => `${p[0]},${p[1]}`).join(' ') : ''),
+      closed: (mark) => (mark.kind === 'path' ? String(mark.closed) : ''),
+      fill: (mark) => (mark.kind === 'path' ? String(mark.fill) : ''),
+      dashed: (mark) => (mark.kind === 'path' ? String(mark.dashed) : ''),
+      at: (mark) => (mark.kind !== 'path' ? `${mark.at[0]},${mark.at[1]}` : ''),
+      radius: (mark) => (mark.kind === 'arc' ? String(mark.radius) : ''),
+      from: (mark) => (mark.kind === 'arc' ? String(mark.from) : ''),
+      to: (mark) => (mark.kind === 'arc' ? String(mark.to) : ''),
+      text: (mark) => (mark.kind === 'label' ? mark.text : ''),
+    };
+
+    for (const kind of Object.keys(MARK_FIELDS) as (keyof typeof MARK_FIELDS)[]) {
+      const mark = marks[kind];
+      const value = canonicalMark(mark);
+      for (const field of MARK_FIELDS[kind]) {
+        const contribution = contributionOf[field](mark);
+        expect(value).toContain(contribution);
+      }
+    }
   });
 });
