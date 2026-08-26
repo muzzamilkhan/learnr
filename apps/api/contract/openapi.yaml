@@ -2988,3 +2988,485 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+  /content/manifest:
+    get:
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  subjects:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        subject:
+                          type: string
+                        levels:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              level:
+                                type: string
+                                enum:
+                                  - '1'
+                                  - '2'
+                                  - '3'
+                                  - '4'
+                                  - '5'
+                                  - '6'
+                                  - K
+                              topics:
+                                type: array
+                                items:
+                                  type: string
+                              templateCount:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              etag:
+                                type: string
+                            required:
+                              - level
+                              - topics
+                              - templateCount
+                              - etag
+                            additionalProperties: false
+                      required:
+                        - subject
+                        - levels
+                      additionalProperties: false
+                required:
+                  - version
+                  - subjects
+                additionalProperties: false
+        '304':
+          description: Default Response
+  /content/{subject}/{level}:
+    get:
+      parameters:
+        - schema:
+            type: string
+          in: path
+          name: subject
+          required: true
+        - schema:
+            type: string
+          in: path
+          name: level
+          required: true
+      responses:
+        '200':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  subject:
+                    type: string
+                  level:
+                    type: string
+                    enum:
+                      - '1'
+                      - '2'
+                      - '3'
+                      - '4'
+                      - '5'
+                      - '6'
+                      - K
+                  templates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        subject:
+                          type: string
+                        topic:
+                          type: string
+                        level:
+                          type: string
+                          enum:
+                            - '1'
+                            - '2'
+                            - '3'
+                            - '4'
+                            - '5'
+                            - '6'
+                            - K
+                        tags:
+                          readOnly: true
+                          type: array
+                          items:
+                            type: string
+                        prompt:
+                          type: string
+                        vars:
+                          readOnly: true
+                          type: array
+                          items:
+                            oneOf:
+                              - type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - int
+                                  min:
+                                    type: string
+                                  max:
+                                    type: string
+                                  step:
+                                    type: number
+                                required:
+                                  - name
+                                  - kind
+                                  - min
+                                  - max
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - number
+                                  min:
+                                    type: string
+                                  max:
+                                    type: string
+                                  decimals:
+                                    type: number
+                                required:
+                                  - name
+                                  - kind
+                                  - min
+                                  - max
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - pick
+                                  from:
+                                    readOnly: true
+                                    type: array
+                                    items:
+                                      anyOf:
+                                        - type: string
+                                        - type: number
+                                  weights:
+                                    readOnly: true
+                                    type: array
+                                    items:
+                                      type: number
+                                required:
+                                  - name
+                                  - kind
+                                  - from
+                                additionalProperties: false
+                              - type: object
+                                properties:
+                                  name:
+                                    type: string
+                                  kind:
+                                    type: string
+                                    enum:
+                                      - expr
+                                  expr:
+                                    type: string
+                                required:
+                                  - name
+                                  - kind
+                                  - expr
+                                additionalProperties: false
+                        constraints:
+                          readOnly: true
+                          type: array
+                          items:
+                            type: string
+                        answer:
+                          type: string
+                        answerType:
+                          type: string
+                          enum:
+                            - number
+                            - text
+                            - choice
+                            - boolean
+                        choices:
+                          type: object
+                          properties:
+                            count:
+                              type: number
+                            distractors:
+                              readOnly: true
+                              type: array
+                              items:
+                                type: string
+                            jitter:
+                              type: object
+                              properties:
+                                min:
+                                  type: string
+                                max:
+                                  type: string
+                              required:
+                                - min
+                                - max
+                              additionalProperties: false
+                            rankIsTheQuestion:
+                              type: boolean
+                            propertyIsTheQuestion:
+                              type: boolean
+                          required:
+                            - count
+                          additionalProperties: false
+                        hint:
+                          type: string
+                        figure:
+                          oneOf:
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - polygon
+                                shape:
+                                  type: string
+                                rotation:
+                                  type: string
+                                mirror:
+                                  type: string
+                                rightAngles:
+                                  type: string
+                              required:
+                                - kind
+                                - shape
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - angle
+                                degrees:
+                                  type: string
+                                rotation:
+                                  type: string
+                                armLength:
+                                  type: string
+                                arc:
+                                  type: string
+                              required:
+                                - kind
+                                - degrees
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - bar
+                                values:
+                                  type: string
+                                labels:
+                                  type: string
+                                style:
+                                  type: string
+                                scale:
+                                  type: string
+                              required:
+                                - kind
+                                - values
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - pictograph
+                                counts:
+                                  type: string
+                                labels:
+                                  type: string
+                                key:
+                                  type: string
+                                halves:
+                                  type: string
+                              required:
+                                - kind
+                                - counts
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - spinner
+                                sectors:
+                                  type: string
+                                fills:
+                                  type: string
+                                rotation:
+                                  type: string
+                              required:
+                                - kind
+                                - sectors
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - solid
+                                solid:
+                                  type: string
+                                view:
+                                  type: string
+                                rotation:
+                                  type: string
+                              required:
+                                - kind
+                                - solid
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - number-line
+                                at:
+                                  type: string
+                                from:
+                                  type: string
+                                to:
+                                  type: string
+                                step:
+                                  type: string
+                                minorTicks:
+                                  type: string
+                              required:
+                                - kind
+                                - at
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - clock
+                                hour:
+                                  type: string
+                                minute:
+                                  type: string
+                                numerals:
+                                  type: string
+                                minuteTicks:
+                                  type: string
+                              required:
+                                - kind
+                                - hour
+                                - minute
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - array
+                                rows:
+                                  type: string
+                                columns:
+                                  type: string
+                                orientation:
+                                  type: string
+                              required:
+                                - kind
+                                - rows
+                                - columns
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - fraction-shape
+                                numerator:
+                                  type: string
+                                denominator:
+                                  type: string
+                                shape:
+                                  type: string
+                                rotation:
+                                  type: string
+                              required:
+                                - kind
+                                - numerator
+                                - denominator
+                              additionalProperties: false
+                            - type: object
+                              properties:
+                                kind:
+                                  type: string
+                                  enum:
+                                    - grid
+                                at:
+                                  type: string
+                                columns:
+                                  type: string
+                                rows:
+                                  type: string
+                                axisLabels:
+                                  type: string
+                                onLines:
+                                  type: string
+                              required:
+                                - kind
+                                - at
+                              additionalProperties: false
+                      required:
+                        - id
+                        - subject
+                        - topic
+                        - level
+                        - prompt
+                        - vars
+                        - answer
+                      additionalProperties: false
+                required:
+                  - version
+                  - subject
+                  - level
+                  - templates
+                additionalProperties: false
+        '304':
+          description: Default Response
+        '404':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false

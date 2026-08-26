@@ -10,6 +10,7 @@ import { authPlugin } from './auth/plugin.js';
 import { authRoutes } from './routes/auth.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { childRoutes } from './routes/children.js';
+import { contentRoutes } from './routes/content.js';
 import { reportRoutes } from './routes/reports.js';
 import { shareRoutes } from './routes/shares.js';
 import { speedRoutes } from './routes/speed.js';
@@ -45,6 +46,7 @@ export function buildServer(): FastifyInstance {
   app.register(shareRoutes);
   app.register(speedRoutes);
   app.register(playRoutes);
+  app.register(contentRoutes);
 
   app.get('/openapi.json', async () => app.swagger());
 

@@ -64,7 +64,7 @@ a window onto `src/lib` and `src/content` rather than a copy of them - a second
 copy would start drifting immediately, which is the whole failure this design
 exists to prevent.
 
-**Two consequences worth knowing before they bite:**
+**Three consequences worth knowing before they bite:**
 
 - **The engine may not import through the `@` alias.** That alias is the web app's
   tooling and does not exist for a package, so `@/lib/curriculum` inside
@@ -77,6 +77,13 @@ exists to prevent.
 - **The API's Docker build context is the repository root, not `apps/api`.** The
   symlink points at `../../src`, so a context of `apps/api` alone rebuilds a
   dangling link and nothing resolves.
+- **`tsconfig.json` excludes `packages/core/src`.** Because the symlink resolves
+  to the repository root, `tsc` was walking the same files twice under two path
+  identities - and a test under `src/` that imports from `scripts/` resolves only
+  from the real path, so the mirrored copy failed with `TS2856`/`TS2307`.
+  Excluding the mirror costs no coverage: every one of those files is still
+  typechecked through its real `src/` path, and anything imported is pulled back
+  in regardless - only unimported test copies under the mirror are dropped.
 
 **`apps/api` owns the database.** The schema, the migrations and Prisma live
 there; a deploy runs `db:deploy` as its release command, so a release carries its
@@ -194,14 +201,15 @@ verified against it. `Rng` and `Expr` have theirs
 
 The design is `docs/superpowers/specs/2026-08-26-ios-port-design.md` - **this
 repo is where that spec lives**, and the iOS README still points at the old
-`learnr-api/` path for it. Its build order, of which the first is done and the
-fourth and fifth are in progress ahead of the second and third:
+`learnr-api/` path for it. Its build order, of which the first two are done and
+the fourth and fifth are in progress ahead of the third:
 
 1. **The API server** - done, cutover and all. The impure files are extracted,
    the endpoints stand up, and the web app reads and writes through them.
-2. **Content extraction** - the 505 templates from TypeScript literals to
-   versioned JSON, consumed by the web app first so the format is proven before
-   iOS depends on it.
+2. **Content extraction** - done. The 505 templates ship as versioned JSON,
+   consumed by the web app first so the format was proven before iOS depended on
+   it; `GET /content/manifest` and `GET /content/:subject/:level` are what a
+   Swift client fetches them from.
 3. **Fixture generation** - the golden corpus, TypeScript engine as oracle. The
    spec puts it before any Swift, because otherwise there is nothing to port
    against; `rng` and `expr` have vectors, later layers will need theirs.
@@ -281,6 +289,8 @@ src/lib/dto.ts       the shapes that cross the API boundary, declared once
 src/lib/revive.ts    ISO strings back into Dates, at that boundary
 src/lib/viewer.ts    what a signed-in-but-unreadable account means, and the rest
 src/content/         the shipped course content, a year a file + catalog lookups
+src/content/packs/    the generated JSON packs - the artifact that ships
+scripts/build-content.ts  writes them from the TypeScript literals
 src/components/      UI
 src/app/             routes and server actions
 ```
@@ -436,6 +446,18 @@ buys is that a year is the unit a content change touches. English follows the
 identical shape under `src/content/english/` and adds **155 templates**.
 
 Every template cites the content it practises in `tags` - `AC9M4N02`, `MA2-AR-01`.
+
+**The templates ship as generated JSON, and the TypeScript is what authors
+edit.** `scripts/build-content.ts` serializes them into `src/content/packs/` -
+one pack a subject and year, plus a manifest - and `catalog.ts` reads the packs,
+so `catalog.test.ts` and `leaks.test.ts` run against the artifact rather than
+its source. `src/content/packs.test.ts` regenerates in memory and compares byte
+for byte, so editing a year file without running `npm run content:build` is a
+red suite rather than a stale pack. A pack's `version` is a hash of its own
+bytes: nothing to bump, so nothing to forget. **The JSON import may not carry an
+import attribute** - `with { type: 'json' }` fails the API's typecheck under
+`nodenext`, because the symlink puts the file's real path under a repository
+root that declares no `"type"`.
 
 ### Answer types
 
