@@ -222,7 +222,10 @@ model TopicSkill {
 /// One answered question, as it was answered. The history everything else is
 /// derived from, and the only row a replay or a rebuild needs.
 model Attempt {
-  id                String   @id @default(cuid())
+  /// Client-supplied, so a retried offline flush writes each answer exactly
+  /// once. A server default would make every replay a new row, and the child's
+  /// TopicSkill would count their answers twice.
+  id                String   @id
   learningSessionId String
   templateId        String
   subject           String

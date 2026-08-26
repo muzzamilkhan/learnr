@@ -324,6 +324,8 @@ const SESSION_LIFETIME_MS = 100 * 365 * 24 * 60 * 60 * 1000;
 export interface RedeemedSession {
   token: string;
   expires: Date;
+  /** Whose session it is. The claiming UPDATE ... RETURNING already has it. */
+  userId: string;
 }
 
 /**
@@ -361,7 +363,7 @@ export async function redeemLoginCode(
       const token = randomUUID();
       const expires = new Date(now.getTime() + SESSION_LIFETIME_MS);
       await tx.session.create({ data: { sessionToken: token, userId: child.id, expires } });
-      return { token, expires };
+      return { token, expires, userId: child.id };
     });
   } catch (error) {
     console.error('Failed to redeem login code', error);

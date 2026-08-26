@@ -19,6 +19,7 @@ import {
   type DailyTarget,
   type TargetAnswer,
 } from '@learnr/core/rewards/target';
+import { randomUUID } from 'node:crypto';
 import { localDay } from '@learnr/core/day';
 import type { Attempt } from '@learnr/core/session';
 
@@ -32,6 +33,14 @@ import type { Attempt } from '@learnr/core/session';
  * questions, folded forward with the same `nextSkill` the in-memory profile uses,
  * so the stored profile and the played one cannot drift apart.
  */
+
+/**
+ * An attempt as the API receives it: the engine's `Attempt` plus the id the
+ * client minted for it. Optional so the data layer keeps working for a caller
+ * that has no id - the route schema requires one, so every answer arriving over
+ * the wire carries it.
+ */
+export type IdentifiedAttempt = Attempt & { id?: string };
 
 /** The year the child last chose, as stored - the caller resolves it against content. */
 export async function readSelectedLevel(userId: string): Promise<string | null> {
@@ -58,6 +67,8 @@ export async function writeSelectedLevel(userId: string, level: YearLevel): Prom
 }
 
 export interface StartRecordInput {
+  /** Client-supplied, so an offline sitting can be opened before it syncs. */
+  id?: string;
   userId: string;
   subject: string;
   level: YearLevel;
@@ -67,7 +78,10 @@ export interface StartRecordInput {
 export async function recordSessionStart(input: StartRecordInput): Promise<string | null> {
   if (!prisma) return null;
   try {
-    const session = await prisma.learningSession.create({ data: input });
+    const { id, ...rest } = input;
+    const session = await prisma.learningSession.create({
+      data: { ...rest, ...(id ? { id } : {}) },
+    });
     return session.id;
   } catch (error) {
     console.error('Failed to record session start', error);
@@ -174,13 +188,33 @@ export interface AttemptResult {
 export async function recordAttempt(
   userId: string,
   learningSessionId: string,
-  attempt: Attempt,
+  attempt: IdentifiedAttempt,
 ): Promise<AttemptResult | null> {
   if (!prisma) return null;
   try {
     if (!(await ownsSession(userId, learningSessionId))) return null;
+
+    // An id the client chose is what makes a flush replayable; one minted here
+    // is unique by construction and so never dedupes, which is the old
+    // behaviour for callers that have no id to offer.
+    const id = attempt.id ?? randomUUID();
+
+    // A retried offline flush re-sends answers already written. The attempt row
+    // itself dedupes on that id, but `updateTopicSkill` increments a counter
+    // and would count the answer twice - so a replay must skip the fold.
+    // `foldPlayStreak` is guarded already (`playStreakDay: { lt: ... }`), so it
+    // is safe to run either way, and it is what produces the result the caller
+    // expects.
+    const already = await prisma.attempt.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (already) return await foldPlayStreak(userId, attempt);
+
     await prisma.attempt.create({
       data: {
+        id,
         learningSessionId,
         templateId: attempt.templateId,
         subject: attempt.subject,
