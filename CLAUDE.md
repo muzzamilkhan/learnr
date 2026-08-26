@@ -1,9 +1,11 @@
 # LearnR
 
 A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
-designed for a standard iPad. Maths and English are the two subjects that ship;
-see **English content** below for how the second one changed the rules the first
-one had settled.
+designed for a standard iPad. Maths and English are the two subjects that ship.
+
+This repository is a workspace holding **two applications and the engine they
+share** - see **Where everything lives** below. A native iOS child client is the
+third and lives in its own repository.
 
 ## Commands
 
@@ -19,17 +21,160 @@ npm run db:studio   # browse the data
 ```
 
 `npm run build` runs `db:deploy` first, so a deploy applies its own migrations.
-Without `DATABASE_URL` (or with the placeholder from `.env.example`) that step
-prints a line and succeeds - a build must not be the one thing insisting on
-Postgres when the app itself plays fine without it.
+Without `DATABASE_URL` (or with the `.env.example` placeholder) that step prints a
+line and succeeds - a build must not insist on Postgres when the app plays fine
+without it.
 
-Run `npm test` and `npm run typecheck` before pushing.
+Those are the **web app's**. The API is a workspace and does not answer to them:
+
+```bash
+npm test --workspace apps/api        # Docker must be running - see below
+npm run typecheck --workspace apps/api
+npm run dev --workspace apps/api     # http://localhost:3001
+npm run contract --workspace apps/api  # regenerate contract/openapi.yaml
+fly deploy --ha=false                # from the repository root
+```
+
+`npm install` is always run **from the root**: the workspace links `@learnr/core`
+into both applications, and installing inside `apps/api` cannot see it.
+
+Run `npm test` and `npm run typecheck` before pushing - both, for whichever half
+you touched.
+
+## Where everything lives
+
+One repository, npm workspaces. The web app is at the root, the API is a
+workspace, and the pure engine is a package both consume.
+
+```
+/                    the Next.js web app - src/, public/, prisma/
+packages/core/       @learnr/core: the pure engine, shared
+apps/api/            the Fastify REST API - owns the schema and migrations
+apps/api/contract/   openapi.yaml, generated from the route schemas
+fly.toml             the API's deployment, at the root because the build needs it
+```
+
+**`packages/core/src` is a committed symlink to the repo's own `src/`.** Node
+refuses an `exports` target outside the package directory, so the sources cannot
+live under `packages/core` and every target has to start with `./`. The package is
+a window onto `src/lib` and `src/content` rather than a copy of them - a second
+copy would start drifting immediately, which is the whole failure this design
+exists to prevent.
+
+**Two consequences worth knowing before they bite:**
+
+- **The engine may not import through the `@` alias.** That alias is the web app's
+  tooling and does not exist for a package, so `@/lib/curriculum` inside
+  `src/content` resolves here and fails anywhere else. A guard test in
+  `packages/core/test/exports.test.ts` walks `src/lib` and `src/content` and fails
+  on any `@/` import. Its exemption list is the five files the API cutover deletes.
+- **The API's Docker build context is the repository root, not `apps/api`.** The
+  symlink points at `../../src`, so a context of `apps/api` alone rebuilds a
+  dangling link and nothing resolves.
+
+**`apps/api` owns the database.** The schema, the migrations and Prisma live
+there; a deploy runs `db:deploy` as its release command, so a release carries its
+own schema changes. Its tests run against a real Postgres in Testcontainers rather
+than a mock - three concurrency guards (`SELECT ... FOR UPDATE` on `TopicSkill`
+and on `roundsBanked`, and the compare-and-set on `targetDay`) mean nothing
+against a fake client, and they are the parts most worth proving.
+
+**Its build is an esbuild bundle, not `tsc` output.** `@learnr/core` ships
+TypeScript with extensionless relative imports, which tsx and vitest resolve and
+plain `node` does not - so a `tsc` build alone produces a server that will not
+start. `tsc --noEmit` still does the typechecking.
+
+### Deployed
+
+| | Where | Region |
+| --- | --- | --- |
+| Web app | `learnr.muzza.tech`, Vercel | `syd1` |
+| API | `learnr-api-syd.fly.dev`, Fly | `syd` |
+| Database | Neon | `ap-southeast-2` |
+
+**All three are in Sydney, and that is the whole reason for the hosting choice.**
+A query from Sydney round-trips in about 3ms; the report endpoint makes roughly
+five sequential reads, so an API in the US would cost a second a page. Fly is
+there rather than Vercel because the API is a long-running Fastify process and
+Vercel runs functions. It never scales to zero - the web app calls it server-side
+on every render, so a cold start would land in a parent's page load. The name is
+`learnr-api-syd` because `learnr-api` is taken; Fly app names are globally unique.
+
+**The web app does not call the API yet.** It still reads Prisma directly. The
+cutover is the `api-cutover` branch and
+`docs/superpowers/plans/2026-08-26-api-server-extraction.md`, Task 11 - 18 files
+and 28 import sites. Until it lands, everything below describing `src/lib/db.ts`,
+`records.ts`, `accounts.ts`, `sharing.ts` and `speed-records.ts` is still true.
+
+### The iOS app
+
+**`muzzamilkhan/learnr-ios`** - private, Swift, and already under way. It is
+deliberately **not** a workspace here: it consumes `contract/openapi.yaml` and a
+Swift port of the engine, never the TypeScript package, so there is nothing for a
+workspace to link. `openapi.yaml` is the contract for a client that cannot import
+TypeScript; `@learnr/core/dto` is the same information for the two that can.
+
+```
+LearnrEngine/   a Swift package - the ported engine
+  Rng/          mulberry32 + FNV-1a, bit-exact with the web app
+  Expr/         the sandboxed expression language
+  Api/          the client, the models and the offline sync queue
+LearnrApp/      the app shell - code entry, keychain, session
+```
+
+**Children only.** A parent uses the web app, so the iOS app has no Google
+sign-in and needs no Sign in with Apple - the four-character login code is the
+only way in, which is why `POST /auth/redeem` is the whole of its sign-in
+surface.
+
+**The engine is ported rather than served because play works offline**, which
+means questions are generated on the device, which means the engine exists twice.
+The two are kept in step by **fixture vectors generated from the TypeScript
+engine, which is the oracle**: it defines what correct means and the port is
+verified against it. `Rng` and `Expr` have theirs
+(`LearnrEngine/Tests/.../Vectors/`); the rest of the engine does not yet.
+
+The design is `docs/superpowers/specs/2026-08-26-ios-port-design.md` - **this
+repo is where that spec lives**, and the iOS README still points at the old
+`learnr-api/` path for it. Its build order, of which the first is done and the
+fourth and fifth are in progress ahead of the second and third:
+
+1. **The API server** - done. Extract the impure files, stand up the endpoints,
+   point the web app at them. Task 11 of the plan is what remains.
+2. **Content extraction** - the 505 templates from TypeScript literals to
+   versioned JSON, consumed by the web app first so the format is proven before
+   iOS depends on it.
+3. **Fixture generation** - the golden corpus, TypeScript engine as oracle. The
+   spec puts it before any Swift, because otherwise there is nothing to port
+   against; `rng` and `expr` have vectors, later layers will need theirs.
+4. **The Swift engine** - bottom-up: `rng`, `expr`, `generate`, figures, session.
+   `rng` and `expr` are ported.
+5. **The iOS app** - UI, sync queue, offline store. The shell and the sync queue
+   exist.
+
+**A known gap the iOS client is waiting on:** several endpoints still declare an
+untyped success response (`z.unknown()`), `/me` among them, so some of the Swift
+models are transcribed by hand rather than generated. Writing real response
+schemas would let them be generated and would improve the contract for every
+client.
+
+### Repository visibility
+
+**`learnr` is public; `learnr-ios` is private.** The API's source became public
+with `learnr` when the separate private `learnr-api` repo was folded in - worth
+knowing rather than discovering.
+Nothing sensitive is committed: `.env` has never been in history, and
+`.env.example` carries empty placeholders. Secrets live in Vercel, in Fly
+(`fly secrets set`), and in local gitignored `.env` files.
 
 ## Architecture
 
 **All logic lives in `src/lib` as pure functions.** Nothing in there touches React,
 the network, the clock or the database - callers pass in `now` and an RNG. This is
 the rule that keeps the app testable; don't break it for convenience.
+
+Everything below is the **web app**, at the repository root. The API's own layout
+is in `apps/api/README.md`.
 
 ```
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
@@ -48,36 +193,33 @@ src/components/      UI
 src/app/             routes and server actions
 ```
 
-- `src/lib/expr` is a small Pratt-parsed expression language. It exists because
-  templates are authored **outside the app by AI** and are therefore untrusted -
-  `eval` is not an option. Variable and function lookups use `Object.hasOwn` on
-  null-prototype tables so `constructor`/`__proto__` can't resolve to anything.
+- `src/lib/expr` is a small Pratt-parsed expression language. Templates are
+  authored **outside the app by AI** and are therefore untrusted - `eval` is not an
+  option. Variable and function lookups use `Object.hasOwn` on null-prototype
+  tables so `constructor`/`__proto__` can't resolve.
 - Randomness is always injected (`Rng`), never called directly in engine code, so
-  every test is deterministic and any session can be replayed from its seed.
+  tests are deterministic and any session can be replayed from its seed.
 - Session state is immutable: `submitAnswer` returns a new state.
+- Browser shims live beside the components, never in `src/lib`, because they touch
+  APIs that can't be pure: `sounds.ts`, `speech.ts`, `clock.ts`, `photo-crop.tsx`.
 
 ## Levels and topics
 
 **Levels are Australian school years**: `'K'` then `'1'` to `'6'`, as strings -
 primary school is the whole scope. Never an integer: `'K'` has to sort first, and
-strings keep the door open for years beyond single digits if the scope ever
-widens. Use `compareYearLevels` to sort, `yearLabel` to display
-("Kindergarten", "Year 3"), and `parseYearLevel` at every boundary (URLs,
-imported files) - it normalises `'k'` and `'03'` and returns null for anything
-else.
+strings keep the door open for years beyond single digits. Use `compareYearLevels`
+to sort, `yearLabel` to display ("Kindergarten", "Year 3"), and `parseYearLevel` at
+every boundary (URLs, imported files) - it normalises `'k'` and `'03'` and returns
+null for anything else.
 
 **A topic is what a question practises** ("counting numbers", "even and odd").
 
-**Levels and topics are many-to-many, and neither owns the other.** A year offers
-several topics; a topic recurs across years, harder each time. Counting numbers
-runs from Kindergarten into Year 1; even and odd from Kindergarten into Year 2.
-The pairing lives on the template - one year, one topic - so the curriculum is
-*derived from content*, not declared. Adding a Year 4 division template is all it
-takes to put division into Year 4.
-
-Walk it from either end: `topicsForLevel(subject, level)` and
-`levelsForTopic(subject, topic)`. Don't add a level→topics table; it would go
-stale against the templates that are the actual source of truth.
+**Levels and topics are many-to-many, and neither owns the other.** The pairing
+lives on the template - one year, one topic - so the curriculum is *derived from
+content*, not declared. Adding a Year 4 division template is all it takes to put
+division into Year 4. Walk it from either end: `topicsForLevel(subject, level)` and
+`levelsForTopic(subject, topic)`. Don't add a level→topics table; it would go stale
+against the templates that are the actual source of truth.
 
 ## Question templates
 
@@ -98,653 +240,448 @@ A template is data. The engine binds variables, checks constraints, then renders
 }
 ```
 
-Design rules that keep this flexible:
-
-- **Every numeric field is an expression string**, not a number. So `max: 'x - 1'`
-  works, and bounds can depend on variables bound earlier in the list.
+- **Every numeric field is an expression string**, not a number, so `max: 'x - 1'`
+  works and bounds can depend on variables bound earlier.
 - **`vars` is ordered.** A variable may only reference ones declared before it.
-- **Constraints are arbitrary boolean expressions** over the bound variables,
-  satisfied by rejection sampling (200 attempts, then a descriptive throw).
+- **Constraints are arbitrary boolean expressions**, satisfied by rejection
+  sampling (200 attempts, then a descriptive throw).
 - **`{...}` holes in `prompt`/`hint` take any expression**, e.g. `{x + 1}`.
-- Variable kinds: `int`, `number` (decimals), `pick` (from a list, optionally
-  weighted), `expr` (derived, never random).
-- Optional `choices` turns a template into multiple choice, with authored
-  `distractors` and a `jitter` fallback. **At most 4 options** (`MAX_CHOICES`) -
-  more than that stops being thumb-sized on an iPad.
-- **`answerType` is inferred from what `answer` evaluates to** and rarely needs
-  declaring: a boolean gives `boolean` (true/false), a number gives `number`,
-  anything else gives `text`. Declare it only for `choice`, or for a numeric
-  answer you want typed as text.
-- A boolean answer makes it a true/false question whatever the template says, and
-  `choices` alongside one are meaningless - the play screen draws its own two
-  buttons. `validateTemplate` rejects that pairing.
+- Variable kinds: `int`, `number`, `pick` (list, optionally weighted), `expr`.
+- Optional `choices` makes it multiple choice, with authored `distractors` and a
+  `jitter` fallback. **At most 4 options** (`MAX_CHOICES`) - more stops being
+  thumb-sized on an iPad.
+- **`answerType` is inferred from what `answer` evaluates to**: boolean →
+  `boolean`, number → `number`, else `text`. Declare it only for `choice`, or for a
+  numeric answer you want typed as text.
+- A boolean answer makes it true/false whatever the template says, and `choices`
+  alongside one are meaningless. `validateTemplate` rejects that pairing.
 - **Authoring mistakes are reported by `validateTemplate`, never thrown by
   `generateQuestion`.** Generation runs mid-session with a child waiting, so it
   degrades instead: a disagreeing `answerType` is overridden, choices on a
-  true/false template are dropped, and more than `MAX_CHOICES` options are
-  clamped. That is exactly why content must be validated before it ships.
-
-**A multiple-choice question can answer itself, and that is the anchoring rule's
-sibling.** A figure that never varies teaches a child to recognise the picture;
-an option set that never varies teaches them to recognise the *button*. Both are
-the same failure - the child gets it right, the profile calls the topic secure,
-and the thing that was learned was not the maths - so both are caught the same
-way, by drawing the template many times and looking at what stayed the same.
-`validateTemplate` draws a `choices` template `CHOICE_DRAWS` (40) times and
-refuses three shapes: an answer that always holds the same **rank** among the
-numerically sorted options, an answer always drawn from a different list
-than its distractors (a closed set - three colours, two units - where the odd
-one out is pickable without doing the arithmetic), and the general case both of
-those are special cases of - **the option set predicting the answer**, where
-every distinct set of buttons always came with the same answer. The third check
-is the one that reaches word options, which is where the first two stand down,
-and it is guarded by `OPTION_SET_REPEATS` (2): a template whose options move
-nearly every draw shows one answer per set because no set is ever seen twice,
-and refusing that would be refusing a template for not repeating itself. A sweep of the content
-written before the check existed found **14 templates with a fixed answer rank
-and one option-set leak**. Thirteen of the fifteen needed reworking; the other
-two were "which is largest?", where the rank *is* the question, and they declare
-`rankIsTheQuestion` to say so. A third joined them later, when the
-prediction check reached word options the rank check cannot see: the three
-declarations are `maths.4.decimals.larger`, `maths.4.angles.larger-angle` -
-whose two options are the two words its own prompt reads out - and
-`maths.5.decimals.largest`. Its sibling `propertyIsTheQuestion` covers the
-other shape - "which of these is even?", where an odd distractor can never be an
-even answer, so drawing the distractors from the answer's own values is
-arithmetically impossible - and no shipped template needs it yet. Two flags
-rather than one blanket "trust me": each suppresses the check it names, and
-either also suppresses the prediction check, since both of them assert that the
-option set is what the question is about. Two checks apiece, then, and still
-nothing blanket - and both visible in review, because an undeclared fixed rank
-is a question a child can beat.
-
-**On a figure question the first two checks usually stand down, so measurement
-is still most of the net.** Neither exempts a figure structurally - the rank check
-runs on any `choices` template whose options are all numeric, figure or not.
-It is the *options* that decide, and a shape name or a grid reference is not a
-number, so one wordy draw takes the rank check off the table: 43 of the 44
-shipped templates carrying both a figure and `choices` word their options. The
-forty-fourth is the demonstration rather than the exception -
-`maths.5.angles.estimate-degrees` offers 30, 60, 90 and 120, so it is
-rank-checked like anything else and passes on the merits, its answer sitting on
-each of the four ranks about a quarter of the time. The closed-set check then
-stops reading disjointness as structure above `CLOSED_SET_MAX` (8) distinct
-answers, and a three-by-three grid reaches nine.
-Every leak found while writing this branch's figure content was found by
-*measuring* - keying each draw by its prompt and sorted option set, learning
-the modal answer on one sample and scoring it on a held-out one against the
-blind baseline. **Eight were found that way over this phase**, at rates up to
-100%, and not one of them could have been found by the two checks that existed
-then - the prediction check was written afterwards, from the five one-to-one
-leaks measured at the end of the branch, and it refuses all five. A green suite still says
-little about a new `choice` template that carries a figure: the prediction
-check only speaks where the option set repeats, and a leak that keeps the
-answer to two buttons out of four passes it cleanly. Measure it.
+  true/false template are dropped, extra options are clamped. That is exactly why
+  content must be validated before it ships.
 
 Expression language: `+ - * / % ^`, comparisons, `&& || !`, ternary, string
 literals, and `abs min max floor ceil round trunc sign sqrt pow mod gcd lcm isInt
 isEven isOdd`.
 
-Template ids follow `subject.level.topic.variant`, e.g.
-`maths.2.even-and-odd.next-odd`.
+Template ids follow `subject.level.topic.variant`.
+
+### The anchoring rule for option sets
+
+**A multiple-choice question can answer itself, and that is the figure anchoring
+rule's sibling.** A figure that never varies teaches recognition of the picture; an
+option set that never varies teaches recognition of the *button*. Both let the
+child get it right, the profile call the topic secure, and the maths go unlearned.
+Both are caught the same way: draw the template many times and look at what stayed
+the same. `validateTemplate` draws a `choices` template `CHOICE_DRAWS` (40) times
+and refuses three shapes:
+
+1. an answer that always holds the same **rank** among numerically sorted options;
+2. an answer always drawn from a **different list** than its distractors (a closed
+   set where the odd one out is pickable without doing the arithmetic);
+3. the general case - **the option set predicting the answer**, where every
+   distinct set of buttons always came with the same answer. This is the one that
+   reaches word options, and it is guarded by `OPTION_SET_REPEATS` (2) so a
+   template whose options move nearly every draw isn't refused for not repeating
+   itself.
+
+A sweep of content written before the check found **14 templates with a fixed
+answer rank and one option-set leak**; thirteen of fifteen needed reworking. The
+other two are "which is largest?", where the rank *is* the question, and declare
+`rankIsTheQuestion`. A third joined them when the prediction check reached word
+options: `maths.4.decimals.larger`, `maths.4.angles.larger-angle` and
+`maths.5.decimals.largest`. Its sibling `propertyIsTheQuestion` covers "which of
+these is even?", where an odd distractor can never be an even answer - no shipped
+template needs it yet. Two flags rather than one blanket "trust me": each
+suppresses the check it names, and either also suppresses the prediction check.
+
+**On a figure question the first two checks usually stand down, so measurement is
+most of the net.** Nothing exempts a figure structurally - it is the *options* that
+decide, and a shape name or grid reference is not a number. 43 of the 44 shipped
+figure+`choices` templates word their options; the forty-fourth
+(`maths.5.angles.estimate-degrees`, offering 30/60/90/120) is rank-checked and
+passes on the merits. The closed-set check stops reading disjointness as structure
+above `CLOSED_SET_MAX` (8) distinct answers, and a 3x3 grid reaches nine. **Eight
+leaks were found by measuring** - keying each draw by its prompt and sorted option
+set, learning the modal answer on one sample and scoring it on a held-out one
+against the blind baseline - at rates up to 100%, none findable by the checks that
+existed then. A green suite still says little about a new `choice` template
+carrying a figure: the prediction check only speaks where the option set repeats,
+and a leak that narrows the answer to two of four buttons passes cleanly. **Measure
+it.**
+
+### Validation and limits
 
 **Always run new templates through `validateTemplate` before importing them.** It
-catches unbound variables, out-of-order references, malformed expressions, levels
-that aren't school years, and unsatisfiable constraints, then proves the template
-can actually generate. `src/content/catalog.test.ts` validates everything shipped
-and checks the rest of what makes content usable: an id shaped
-`subject.level.topic.variant`, a curriculum citation in `tags`, at
-least 20 templates per year, and no typed answer the number pad cannot enter. A
-template carrying a `figure` is also drawn fifty times and made to prove it never
-draws one answer the same way twice - see **Question diagrams** below.
+catches unbound variables, out-of-order references, malformed expressions, bad
+levels and unsatisfiable constraints, then proves the template can generate.
+`src/content/catalog.test.ts` validates everything shipped and checks an id shaped
+`subject.level.topic.variant`, a curriculum citation in `tags`, at least 20
+templates per year, and no typed answer the number pad cannot enter. A template
+carrying a `figure` is drawn fifty times and made to prove it never draws one
+answer the same way twice.
 
 **A rendered prompt may be no longer than `MAX_PROMPT_CHARS` (140)**
-(`src/lib/templates/limits.ts`), and that is not a tidiness rule: it is the only
-lever there is on how big every question on the play screen is drawn. The screen
-sets one size for all of them and that size is the worst case's (see **UI**), so
-a template sneaking past the cap makes every *other* question smaller. 140 is
-measured rather than chosen - over 300 draws of each of the 350 shipped
-templates the longest prompt is 135 characters
-(`maths.5.chance.most-likely-from-trials`), the median 45 and the shortest 14 -
-and the five characters of slack are there because a cap with no headroom goes
-red the first time a number *inside* an existing template grows a digit, which
-is a template being edited rather than a template getting too long. Five
-characters cost under 2% of the rendered size, which nobody can see; a suite
-going red for a reason nobody meant is expensive. `catalog.test.ts` draws every
-shipped template fifty times against it, fifty rather than the twenty-five its
-neighbours use because this is a maximum over a distribution rather than a
-property of every draw. Shortening the thirty templates already over 90
-characters would buy a larger size for everything, and it is a content pass with
-its own argument rather than a thing to do while the cap is being written.
+(`src/lib/templates/limits.ts`). This is the only lever on how big every question
+on the play screen is drawn: the screen sets one size for all of them and that size
+is the worst case's, so a template past the cap makes every *other* question
+smaller. 140 is measured - over 300 draws of each of the 350 shipped templates the
+longest prompt is 135 chars (`maths.5.chance.most-likely-from-trials`), median 45,
+shortest 14 - with five characters of slack so a growing digit inside a template
+doesn't redden the suite. `catalog.test.ts` draws every template fifty times
+against it (fifty rather than the usual twenty-five because this is a maximum over
+a distribution). Shortening the thirty templates already over 90 characters would
+buy a larger size for everything, and is its own content pass.
 
-Maths content ships for K-6 as **350 templates, one file per school year** under
-`src/content/maths/` - `k.ts` through `6.ts`, concatenated in school order by
-`index.ts`. It was a single 3,500-line `maths.ts` until half again as many
-questions were about to be written into it, and the split is filing rather than
-structure: `mathsTemplates` is the same array in the same order it always was,
-and `catalog.ts` never learned there is more than one file. What it buys is that
-a year is the unit a content change touches, so two years being written no
-longer means one file being edited twice. English follows the identical shape
-under `src/content/english/` - a file per year, concatenated by its own
-`index.ts` - and adds a further 155 templates; see **English content** below for
-what carried over unchanged and what a second subject made this section revisit.
+### Shape of the content
 
-Every template cites the content it practises in `tags` - `AC9M4N02`,
-`MA2-AR-01` - so the curriculum link is checkable rather than claimed. There are
-**two syllabus families** behind those codes, across **four** documents - one
-ACARA and one NSW document per subject - which is the next section.
+Maths ships K-6 as **350 templates, one file per school year** under
+`src/content/maths/` (`k.ts`-`6.ts`, concatenated in school order by `index.ts`).
+The split is filing rather than structure: `mathsTemplates` is the same array in
+the same order, and `catalog.ts` never learned there is more than one file. What it
+buys is that a year is the unit a content change touches. English follows the
+identical shape under `src/content/english/` and adds **155 templates**.
 
-All four answer types render, so any of them is safe to author. **Pick the type
-the pad can express**:
+Every template cites the content it practises in `tags` - `AC9M4N02`, `MA2-AR-01`.
+
+### Answer types
 
 | `answerType` | how it is answered | what it can express |
 | --- | --- | --- |
 | `number` | number pad, then Check | digits and one decimal point - **no minus key** |
 | `text` | on-screen A-Z pad, then Check | letters only, no spaces or digits, ≤ 16 chars |
 | `boolean` | two buttons, True / False | one tap answers |
-| `choice` | 2-4 buttons | one tap answers; anything the other types cannot express |
+| `choice` | 2-4 buttons | one tap; anything the other types cannot express |
 
-A negative answer has to be multiple choice, because the pad has no minus key -
-that is why the Year 6 integer questions are `choice`. A distractor a child would
-find nonsensical is still bad content, so keep them plausible.
+A negative answer has to be multiple choice (no minus key) - that is why the Year 6
+integer questions are `choice`. Keep distractors plausible.
 
 **`text` is a last resort, and never below Year 4 - in maths.** A word answer makes
-the child spell before they can answer, which tests literacy rather than maths - a
-Kindergartener knows a triangle long before they can spell it. Word answers in K-3
-maths are `choice` instead, and `catalog.test.ts` enforces that. Any answer drawn
-from a small closed set ("red or blue?", "metres or centimetres?") is a `choice`
-question at any level; a two-option `choices` with both literals as distractors is
-the usual shape. **English inverts this rule rather than merely relaxing it**,
-because spelling is not a side effect of an English question the way it is of a
-maths one - it *is* the skill being taught, above Kindergarten. See
-**English content** below for the floor and ceiling that replace maths' flat ban.
+the child spell before they can answer, which tests literacy rather than maths.
+Word answers in K-3 maths are `choice` instead, and `catalog.test.ts` enforces it.
+Any answer drawn from a small closed set ("metres or centimetres?") is `choice` at
+any level. **English inverts this rule** - see below.
 
 **`QuestionSpec` and `QuestionTemplate` are a deliberate split**
-(`src/lib/templates/types.ts`). A spec is everything it takes to make a
-question - the prompt, the vars, the constraints, the answer - and a template is
-a spec placed in a course, adding an id, a subject, a topic and a school year.
-The split exists because a speed run question (see **Speed run**) has no
-curriculum topic and no school year to declare; giving it a nominal one would be
-a lie told in the type system, in the one place a level is guaranteed to be a
-real Australian school year. `specsFor` in `src/lib/speedrun/modes.ts` returns
-bare `QuestionSpec`s for exactly this reason, and reuses `generate` unchanged.
+(`src/lib/templates/types.ts`). A spec is everything it takes to make a question; a
+template is a spec placed in a course, adding an id, subject, topic and school
+year. A speed run question has no curriculum topic and no school year, and giving
+it a nominal one would be a lie told in the type system. `specsFor` in
+`src/lib/speedrun/modes.ts` returns bare `QuestionSpec`s and reuses `generate`.
 
 ## English content
 
-Maths taught a single number in a hundred different sentences; English mostly
-teaches from a *closed vocabulary* - homophone families, synonym pairs, the same
-few dozen irregular plurals - and that difference forced its own rules rather
-than letting it inherit maths' unchanged.
+Maths taught a single number in a hundred sentences; English mostly teaches from a
+*closed vocabulary* - homophone families, synonym pairs, a few dozen irregular
+plurals - which forced its own rules.
 
-**A closed word bank is exactly the shape the two anchoring checks in
-`validateTemplate` were built to stand down for.** The rank check reads numeric
-options; a shape name or `weight`/`wait` is not a number, so it never fires. The
-closed-set check stops reading disjointness as structure above `CLOSED_SET_MAX`
-distinct answers, and a bank of six rhyming families or six synonym pairs sits
-right at the edge of that. Both checks exist to catch an option set that
-predicts its own answer, and a small closed bank is the case where that is
-easiest to write by accident and hardest for either check to see - which is why
-English content leans on the same "offer the whole family across more than one
-sentence" fix throughout (see the homophones note in
-`src/content/english/4.ts`): the same buttons have to arrive with a different
-correct answer depending on which sentence is being asked, so no set is ever a
-fixed answer to memorise.
+**A closed word bank is exactly what the two anchoring checks stand down for.** The
+rank check reads numeric options; `weight`/`wait` is not a number. The closed-set
+check stops above `CLOSED_SET_MAX`, and a bank of six families sits right at that
+edge. So English content leans on one fix throughout (see the homophones note in
+`src/content/english/4.ts`): **offer the whole family across more than one
+sentence**, so the same buttons arrive with a different correct answer depending on
+the sentence, and no set is ever a fixed answer to memorise.
 
-**That reasoning is sound and was still not enough**, which is the argument for
-`src/content/english/leaks.test.ts`. It draws thousands of questions per
+**That reasoning was still not enough**, which is why
+`src/content/english/leaks.test.ts` exists. It draws thousands of questions per
 `choices` template, learns the modal answer per option set on half the draws,
-and scores that rule against the other half - the same measurement `figures`
-content is checked with, because a closed vocabulary and a jittered figure fail
-the same way: a rule that never appears in `validateTemplate`'s checks can still
-be *learnable from the buttons*, and the only way to know is to try to learn it.
-It found real leaks the two structural checks could not: an index reused
-between the target and a distractor measured at up to +18 points over blind
-guessing on held-out draws, invisible to a rank check because the options
-weren't numeric and invisible to the closed-set check because the leak was
-about *which* member of the set was offered, not about the set itself. A green
-`validateTemplate` suite said nothing about that until this test measured it -
-which is the same lesson the figures work drew from measuring diagram anchoring
-directly rather than trusting a static check to have anticipated every shape a
-leak could take. It is scoped to `subject === 'english'` and to templates that
-actually generate `choices` on a probe draw, and it is also honest about what it
-still cannot see: it keys on the option set alone, deliberately excluding the
-prompt, so a question that hands over its own answer in the prompt's own words
-is invisible to it. Read `leaks.test.ts`'s own doc comment before assuming it
-covers everything that can leak.
+and scores that rule against the other half - the same measurement figures
+content gets, because a closed vocabulary and a jittered figure fail the same
+way. It found real leaks the structural checks could not: an index reused
+between target and distractor measured at up to +18 points over blind guessing
+on held-out draws. It is scoped to `subject === 'english'` and to templates that
+actually generate `choices` on a probe draw, and it keys on the option set
+alone, deliberately excluding the prompt - so a question that hands over its
+answer in its own words is invisible to it. Read its doc comment before assuming
+it covers everything.
 
-**The typed-answer rule maths wrote gets inverted rather than merely relaxed.**
-Maths bans `text` below Year 4 because spelling a maths answer tests literacy
-instead of maths - a Kindergartener knows a triangle long before they can spell
-it. English has no equivalent side effect to avoid: spelling correctly *is* the
-skill `EN1-SPELL-01` and its siblings name, so a typed answer is measuring the
-right thing from Year 1 on, and Kindergarten alone keeps the maths-shaped ban -
-hunting individual letters on a QWERTY pad tests pad navigation rather than
-phonics at that age. Past Kindergarten the rule is a band rather than a
-ceiling or a floor alone: `catalog.test.ts` caps typed answers at 40% of a
-year's templates, because a typed answer costs roughly three times what a
-tapped one does to answer and a year that drifted mostly-typed would starve the
-reinforcement selector of the observations `MIN_OBSERVATIONS` and
-`SECURE_OBSERVATIONS` are counted in; and it floors typed answers at 15% spread
-across at least two topics, because the selector weights topics and a year
-whose only typing sits in one topic lets a child secure in that topic go a
-whole year without typing anything - which is backwards for exactly the
-children doing best. Both are measured on the *generated* `answerType`, not
-the declared one, for the reason `answerType` is inferred at all: a template
-that declares nothing and evaluates to a string is a typed question whatever
-its author thought it was.
+**The typed-answer rule is inverted, not relaxed.** Spelling correctly *is* the
+skill `EN1-SPELL-01` names, so a typed answer measures the right thing from Year 1
+on. Kindergarten alone keeps the maths-shaped ban - hunting letters on a QWERTY pad
+tests pad navigation rather than phonics. Past Kindergarten it is a **band**:
+`catalog.test.ts` caps typed answers at **40%** of a year's templates (a typed
+answer costs ~3x a tapped one, and a mostly-typed year starves the selector of
+observations) and floors them at **15% spread across at least two topics** (a year
+whose only typing sits in one topic lets a child secure in that topic go a year
+without typing). Both are measured on the *generated* `answerType`, not the
+declared one.
 
 ## Two syllabus families
 
-Content is written against **two publishing families**, across **four**
-curriculum documents once English joined maths: ACARA's *Mathematics: Scope and
-sequence F-10 (v9.0)* and the NSW Mathematics K-10 Syllabus (2022), and ACARA's
-*English* v9.0 scope and sequence alongside the NSW English K-10 Syllabus
-(2022) beside it. `SYLLABUSES` in `src/content/catalog.ts` names all four,
-scoped by `subject` so a maths code and an English code are never checked
-against the wrong pair, and `syllabusOf` tells a tag's family apart by its
-shape. NSW is there because NSW schools teach the NSW syllabus and not ACARA
-directly: a parent reading `/curriculum` should be able to find their child's
-**stage**, which is the word their child's school actually uses.
+Content is written against **four curriculum documents**: ACARA's *Mathematics:
+Scope and sequence F-10 (v9.0)*, the NSW Mathematics K-10 Syllabus (2022), ACARA's
+*English* v9.0, and the NSW English K-10 Syllabus (2022). `SYLLABUSES` in
+`src/content/catalog.ts` names all four, scoped by `subject` so a maths code and an
+English code are never checked against the wrong pair; `syllabusOf` tells a tag's
+family apart by shape. NSW is there because NSW schools teach the NSW syllabus: a
+parent reading `/curriculum` should find their child's **stage**, the word their
+school actually uses.
 
 **A stage is derived and never stored** (`stageForLevel`): Early Stage 1 is
-Kindergarten, Stage 1 is Years 1-2, Stage 2 is Years 3-4, Stage 3 is Years 5-6.
-A stage spans two years where a level is one, so the mapping is total in this
-direction and lossy in the other - and a stage written onto a template would be
-a second truth free to disagree with the level beside it, the same objection
-`TopicSkill` answers by being a cache rather than a second history. It is also
-why one Stage 2 code honestly sits on a Year 3 template *and* a Year 4 one, and
-why the check below is against a template's stage and never its year. The one
-place the mapping is written down is `STAGE_BY_LEVEL`; `levelsForStage` inverts
-it rather than restating it, because Stage 2 being Years 3 and 4 rather than
-Year 2 is a thing this app has already got wrong more than once.
+Kindergarten, Stage 1 is Years 1-2, Stage 2 Years 3-4, Stage 3 Years 5-6. A stage
+spans two years, so the mapping is total this way and lossy the other - and a stage
+written onto a template would be a second truth free to disagree with the level
+beside it. It is why one Stage 2 code honestly sits on a Year 3 template *and* a
+Year 4 one, and why the check below is against a template's stage, never its year.
+`STAGE_BY_LEVEL` is the one place the mapping is written; `levelsForStage` inverts
+it rather than restating it.
 
-**The two halves of this feature look different because the copyright is
-different.** ACARA's material is CC BY 4.0, so a content description is quoted
-in full on `/curriculum`. NESA's is Crown copyright, so an NSW outcome is
-**cited and never reproduced** - no outcome statement, and no gloss of one,
-goes into a `tags` array, a code comment or the page. That is the one rule here
-whose breach would be a licensing problem rather than a bug, which is exactly
-why it is not left to be judged one comment at a time. It had to be swept for
-twice: comments in four content files and in `catalog.test.ts` had drifted into
-restating what an outcome *covers* rather than where the syllabus *places* it,
-and each of them read as an obviously harmless line on its own. Say where a
-syllabus puts something; do not say what it says.
+**The two halves look different because the copyright is different.** ACARA's
+material is CC BY 4.0, so a content description is quoted in full on
+`/curriculum`. NESA's is Crown copyright, so an NSW outcome is **cited and never
+reproduced** - no outcome statement, and no gloss of one, in a `tags` array, a code
+comment or the page. Breaching this is a licensing problem rather than a bug. It
+had to be swept for twice, because comments had drifted into restating what an
+outcome *covers*. **Say where a syllabus puts something; do not say what it says.**
 
 **There are no Part A / Part B tags.** NESA says outright that "Part A does not
 equate to Year 3 only" - which part of a stage a concept is taught in is a
-teacher's programming decision, not a property of the content. Tagging it would
-put a guess into the one field that exists to be checkable, which is the lie in
-the type system the `QuestionSpec`/`QuestionTemplate` split already refuses to
-tell.
+teacher's programming decision. Tagging it would put a guess into the one field
+that exists to be checkable.
 
 **And no topic was renamed into NSW's vocabulary.** NSW would fold `money` into
-additive relations and place value, and `algebra` into additive and
-multiplicative relations; both are naming rather than coverage, and `topic` is
-*stored*, on `Attempt` and on `TopicSkill`. A rename orphans every child's
-history and breaks `buildProfile`'s obligation to reproduce the stored row from
-the attempts. A second vocabulary rides in the tag, which is where a second
-vocabulary belongs.
+additive relations and place value, and `algebra` into additive and multiplicative
+relations; both are naming rather than coverage. `topic` is *stored*, on
+`Attempt` and `TopicSkill`; a rename orphans every child's history and breaks
+`buildProfile`'s obligation to reproduce the stored row. A second vocabulary rides
+in the tag.
 
-**Four rules are enforced over every shipped template**, and the order they were
-added in is the argument for the last two:
+**Four rules are enforced over every shipped template:**
 
 - **Every template cites at least one syllabus.** Either satisfies it alone,
-  because the two disagree about which year some content belongs to. An uncited
-  question is a claim about the curriculum that nothing can check.
-- **An NSW code may only come from the stage its template's year falls in.**
-  The characteristic bug of a second citation family, and invisible by
-  inspection across a whole catalogue: a Stage 2 code on a Year 5 template
-  reads as perfectly plausible and is simply wrong.
-- **An NSW code has to be one the syllabus actually has**, checked against the
-  73 codes transcribed into `catalog.test.ts` from
-  `docs/superpowers/notes/nsw-outcome-codes.md`. This is the only one of the
-  four that checks a citation for *truth* rather than for shape, **and it
-  exists because all three of the others pass on a typo**: `MA3-RFQ-01` for
-  `MA3-RQF-01` is code-shaped, cites a syllabus, and reports the right stage,
-  and the curriculum page would then invite a parent to look up an outcome that
-  does not exist. Transcribed rather than parsed out of the notes file because a
-  regex that stops matching yields an *empty* list, and an empty membership list
-  waves every code through - a green test is the one failure mode this net must
-  not have. It fails safe only against omissions, so a wrong entry stays green
-  forever and the manual two-way diff against the notes file is the only guard
-  there is.
-- **Every tag is a recognised code**, not merely free of whitespace. A
-  whitespace test refuses prose and waves through both a hyphen-joined
-  `interprets-data-displays` and a shape-broken `MA3-DATA-1` - and
-  `curriculumCodes` silently *drops* a tag it does not recognise, so a broken
-  code reached the curriculum page as a missing citation rather than a visible
-  error, which nobody would ever have noticed. It commits the repo to every tag
-  being a curriculum code, so a `needs-review` note is no longer free to add.
+  because the two disagree about which year some content belongs to.
+- **An NSW code may only come from the stage its template's year falls in.** The
+  characteristic bug of a second citation family, invisible by inspection.
+- **An NSW code has to be one the syllabus actually has**, checked against the 73
+  codes transcribed into `catalog.test.ts` from
+  `docs/superpowers/notes/nsw-outcome-codes.md`. The only one of the four checking
+  a citation for *truth*, and it exists because the other three pass on a typo:
+  `MA3-RFQ-01` for `MA3-RQF-01` is code-shaped, cites a syllabus and reports the
+  right stage. Transcribed rather than parsed, because a regex that stops matching
+  yields an empty list and an empty membership list waves every code through. It
+  fails safe only against omissions - a wrong entry stays green forever, and the
+  manual two-way diff against the notes file is the only guard.
+- **Every tag is a recognised code**, not merely free of whitespace.
+  `curriculumCodes` silently *drops* an unrecognised tag, so a broken code reached
+  the page as a missing citation rather than a visible error. This commits the repo
+  to every tag being a curriculum code - a `needs-review` note is not free to add.
 
-**Where the two syllabuses disagree the template cites one of them, and the
-divergence is named by a test.** Six templates cite NSW alone, because NSW
-teaches reading a clock face and halves of a shape earlier than ACARA writes
-them down; ten cite ACARA alone, three of them because NSW places integers at
-Stage 4 and seven across four other topics where the honest stage code does not
-reach the content. Both lists are asserted as **set equalities** and not as
-memberships, because the useful half is the other end: with "cites at least one
-syllabus" satisfied by either, a citation quietly dropped from any *other*
-template would pass green. Closed from both ends, a divergence cannot appear or
-disappear without somebody deciding it should. `DIVERGENCE_NOTES` carries the
-sentence explaining each one and lives beside the derivation rather than in the
-page, since a note in `page.tsx` cannot carry a test - and this whole
-cross-reference exists to replace trusted citations with enforced ones.
+**Where the two syllabuses disagree the template cites one, and the divergence is
+named by a test.** Six templates cite NSW alone (clock faces and halves of a shape
+come earlier there); ten cite ACARA alone (three because NSW places integers at
+Stage 4, seven where the honest stage code does not reach the content). Both lists
+are asserted as **set equalities**, not memberships: with "cites at least one"
+satisfied by either, a citation quietly dropped from any other template would pass
+green. `DIVERGENCE_NOTES` carries the sentence explaining each and lives beside the
+derivation rather than in the page, since a note in `page.tsx` cannot carry a test.
 
 ## Question diagrams
 
-Some questions are a picture rather than a sentence. "What shape is this?" has no
-hole to fill - the figure *is* the question and the prompt is only its caption.
-`src/lib/figures/` is the pure half, geometry judged by tests rather than by eye
-for the reason `photo/crop.ts` and `chart/axis-labels.ts` are already there, and
+Some questions are a picture. "What shape is this?" has no hole to fill - the
+figure *is* the question and the prompt is only its caption. `src/lib/figures/` is
+the pure half, geometry judged by tests rather than by eye;
 `src/components/diagram.tsx` is a dumb renderer: marks to SVG, no geometry and no
-decisions, which is what lets the play screen and a row in the parent's report
-draw the same figure five times apart in size.
+decisions, which is what lets the play screen and a report row draw the same figure
+at very different sizes.
 
-It exists because of a gap in what a sentence can ask. Counting the ACARA content
-descriptions cited in the maths content before any of this was written,
-Number, Algebra and Measurement were close to complete while Space carried
-**one** description each in K, 1, 2, 4 and 6 and **none at all** in Year 3 or
-Year 5. That was not an accident about which topics somebody got round to: Space
-and Statistics are the strands where the question is a picture, and an app that
-can only render a sentence cannot ask them.
+It exists because of a gap in what a sentence can ask. Before this, Number, Algebra
+and Measurement were near complete while Space carried **one** ACARA description
+each in K, 1, 2, 4 and 6 and **none** in Years 3 and 5. Space and Statistics are
+the strands where the question is a picture.
 
 **No single diagram may become the anchor for an answer.** This is the rule the
-whole design is shaped around, and everything below is a consequence of it. If
-every obtuse angle is drawn the same way, a child learns to recognise that
-picture rather than an obtuse angle - and the app would be teaching the wrong
-thing while its analytics called the topic secure. That is the worst failure
-available here: a wrong answer is visible and a mislearned one is not, and the
-selector would be putting the topic away as mastered on the strength of it.
+whole design is shaped around. If every obtuse angle is drawn the same way, a child
+learns to recognise that picture - and the analytics call the topic secure. A wrong
+answer is visible; a mislearned one is not.
 
 So a figure is never an asset chosen by the answer. It is **generated**, from the
-same bound scope and the same injected `Rng` the question already uses, and it
-**varies by default**: a template pins the property the question is about and
-says nothing about rotation, size or proportion, which the builder jitters for
-itself. Omitting an optional parameter is what asks for variation; supplying one
-pins it. An author who wants an upright figure writes `rotation: '0'` on purpose,
-and pinning is the exception rather than the default because forgetting is the
-failure mode.
+same bound scope and injected `Rng` the question uses, and it **varies by default**:
+a template pins the property the question is about and says nothing about rotation,
+size or proportion, which the builder jitters. Omitting an optional parameter asks
+for variation; supplying one pins it. Pinning is the exception because forgetting
+is the failure mode.
 
-**And because forgetting is invisible - an anchored figure looks perfectly
-correct - the rule is enforced rather than intended.** `validateTemplate` draws a
-figure template `FIGURE_DRAWS` (50) times on different seeds, groups the resolved
-figures by the answer each one accompanied, and fails any answer that always
-produced the same picture. `catalog.test.ts` runs it over everything shipped, so
-an anchored diagram cannot reach a child without a test going red first.
-Coordinates are rounded at build time (`FIGURE_PRECISION`), which keeps the JSON
-stored beside an attempt small and - the reason that actually matters - makes two
-figures comparable as strings, which is the only thing that lets "drawn
-identically again" be detected at all.
+**And because forgetting is invisible, the rule is enforced.** `validateTemplate`
+draws a figure template `FIGURE_DRAWS` (50) times on different seeds, groups the
+resolved figures by the answer each accompanied, and fails any answer that always
+produced the same picture. `catalog.test.ts` runs it over everything shipped.
+Coordinates are rounded at build time (`FIGURE_PRECISION`), which keeps stored JSON
+small and - the reason that matters - makes two figures comparable as strings.
 
 **Those fifty draws are shared across all of a template's answers, so the check
-gets stricter as the answers multiply** - which is the opposite of what anyone
-assumes and is worth knowing before authoring a wide question. A template with
-four answers gets a dozen drawings each and one with nine gets five or six -
-but **the refusals do not come from that average, they come from its tail**,
-where an answer happens to turn up only two or three times in the fifty and two
-identical pictures is the whole of the evidence the check needs. For an answer
-whose only lever is a small discrete set - a coordinate plane, where the dot
-and the grid's extent decide the picture between them - the chance an answer's
-*n* drawings all land on one of *e* extents is `e^(1-n)`, and taken **over the
-distribution of counts** that comes to roughly one refusal in six for nine
-answers over six extents, and essentially never for four. Evaluate the same
-formula at the mean instead and it reads about one in two thousand, which is
-exactly the mistake to avoid: the low-count tail is the whole of the risk, and
-averages hide it. The seeds are keyed off the template's own id, so that
-refusal is the same on every run and every machine: the risk of a wide answer
-set is a cost the author meets once, at validation, and never something a child
-sees. The fix is not to narrow the question but to widen what varies, or to
-offer the same few answers on every draw and let the picture grow around them.
+gets stricter as the answers multiply.** Four answers get a dozen drawings each,
+nine get five or six - but **the refusals come from the tail**, where an answer
+turns up two or three times and two identical pictures are the whole of the
+evidence. For an answer whose only lever is a small discrete set, the chance an
+answer's *n* drawings all land on one of *e* extents is `e^(1-n)`; over the
+distribution of counts that is roughly one refusal in six for nine answers over six
+extents, and essentially never for four. Evaluated at the mean instead it reads one
+in two thousand - the low-count tail is the whole of the risk and averages hide it.
+Seeds are keyed off the template id, so a refusal is the same on every run and
+every machine. The fix is not to narrow the question but to widen what varies, or
+to offer the same few answers on every draw and let the picture grow around them.
 
-**Pinning `rotation: '0'` on a regular polygon therefore fails validation,
-deliberately and with no escape hatch.** Such a shape has no free proportion
-left, so a pinned rotation is one fixed picture and the check rejects it. That is
-the check working, not a limitation to route around: a regular hexagon drawn the
-same way every time is an anchor for "hexagon", however deliberately it was
-pinned. An opt-out flag was the obvious kindness and was left out on purpose,
-because the author who reaches for it is precisely the author about to make this
-mistake, and a comment on the flag would then be the only thing between a child
-and a memorised picture. Pinning stays available wherever something else still
-varies - a scalene triangle's proportions, an angle's two arms - which is the
-whole of the rule.
+**Pinning `rotation: '0'` on a regular polygon fails validation, deliberately and
+with no escape hatch.** Such a shape has no free proportion left, so a pinned
+rotation is one fixed picture. An opt-out flag was left out on purpose: the author
+who reaches for it is precisely the author about to make this mistake. Pinning
+stays available wherever something else still varies - a scalene triangle's
+proportions, an angle's two arms.
 
-**Two kinds fight that rule, and between them they are the two patterns to
-reach for.** Ordinarily a kind varies the thing being drawn: a spinner turns,
-a number line reframes its range. **`clock` cannot.** Three o'clock is three
-o'clock - the hands *are* the answer and may not move, and a dial turned even
-slightly is not a picture of the same time drawn differently, it is a different
-time. So the variation moves off the answer and onto the presentation around
-it: whether the numerals are drawn, whether the minute track is, and how long
-each hand is as a share of the dial. That last one is the one that survives a
-template pinning the other two, and it has to be a *proportion* rather than a
-size, because `fit` is uniform and centring, so a bigger dial is the same
-drawing. Any kind whose answer fully determines its geometry has to find its
-variation somewhere else, and this is how. **`solid` has the opposite
-problem**: a cube has **eleven** nets, so "which solid does this net fold into?"
-answered `cube` has many correct pictures and the failure available is picking a
-favourite - show the cross fifty times and a child learns the cross. `CUBE_NETS`
-is all eleven, laid one of the eight ways round a square and then turned, so
-nothing about a cube's net is pinnable at all, which is what makes the rule hold
-even for the author who pins the rotation.
+**Two kinds fight that rule, and between them they are the two patterns to reach
+for.** **`clock` cannot vary its answer** - three o'clock is three o'clock, and a
+dial turned slightly is a different time - so the variation moves onto the
+presentation: whether numerals are drawn, whether the minute track is, and each
+hand's length **as a share of the dial**. That last survives a template pinning the
+other two, and it must be a proportion rather than a size because `fit` is uniform
+and centring. Any kind whose answer fully determines its geometry has to find its
+variation somewhere else. **`solid` has the opposite problem**: a cube has
+**eleven** nets, so the failure available is picking a favourite. `CUBE_NETS` is
+all eleven, laid one of the eight ways round a square and then turned, so nothing
+about a cube's net is pinnable at all.
 
-**What a kind can actually be asked to draw is measured, not assumed**, and
-lives in `docs/superpowers/notes/figure-content-notes.md` beside
-`figure-kind-author-notes.md` for adding a kind. Every limit in there was found
-by drawing the thing and reading the refusal, and none of it is derivable from
-the types: a labelled coordinate plane may be wider than it is tall (5x4 draws,
-4x5 is refused), and a bar graph's room for a category name shrinks when the
-*value axis* reaches two digits, so "Ball" fits until the values reach 10.
+**What a kind can be asked to draw is measured, not assumed**, and lives in
+`docs/superpowers/notes/figure-content-notes.md`, beside
+`figure-kind-author-notes.md` for adding a kind. Every limit there was found by
+drawing the thing and reading the refusal: a labelled coordinate plane may be wider
+than tall (5x4 draws, 4x5 is refused), and a bar graph's room for a category name
+shrinks when the *value axis* reaches two digits.
 
 **`FigureSpec` and `Figure` are the split `QuestionSpec` and a generated question
-already make**: what an author writes, and what the engine resolved it into. A
-`FigureSpec` is expressions - every parameter is an expression string over the
-bound scope, exactly as `min`/`max` already are - and a `Figure` is a
+already make**: a `FigureSpec` is expressions over the bound scope, a `Figure` is a
 serialisable drawing in a 0-100 box made of four `Mark` kinds: `path` (points,
-closed, filled, dashed), `arc`, `dot` and `label`. Four, and a renderer must
-handle every one of them, which is the reason there are so few: anything
-`diagram.tsx` has to know how to draw is a decision that has escaped `lib`. A
-right-angle tick is a three-point open `path` and a mirror line is a dashed one
-for that reason rather than for economy. `arc` is the one mark carrying both
-coordinate frames at once - its `at` is in screen coordinates, y down, where
-`fit` left it, while `from`/`to` never left the maths frame the figure was
-authored in, anticlockwise from east - which is why `arcPath` is exported and
-tested rather than read carefully by the next person.
+closed, filled, dashed), `arc`, `dot` and `label`. Four, and a renderer must handle
+every one - anything `diagram.tsx` has to know how to draw is a decision that has
+escaped `lib`. A right-angle tick is a three-point open `path` and a mirror line is
+a dashed one for that reason. `arc` carries both coordinate frames at once - its
+`at` is screen coordinates, y down, where `fit` left it, while `from`/`to` are the
+maths frame, anticlockwise from east - which is why `arcPath` is exported and
+tested.
 
 **`buildFigure` is total and clamps; `figureIssues` reports.** The same division
-`generateQuestion` and `validateTemplate` already make, for the same reason:
-generation runs mid-session with a child waiting, so an unknown shape name or a
-400-degree angle degrades into something drawable rather than throwing a stack
-trace into the middle of a question, exactly as `MAX_CHOICES` clamps a fifth
-option away. `figureIssues` takes the spec and the scope and no `Rng` at all - it
-judges the authored spec, not one of the drawings that spec can produce - and
-validation is its only caller, which is what makes the quiet clamping safe: the
-mistake is caught, just not in front of the child.
+`generateQuestion` and `validateTemplate` make: an unknown shape name or a
+400-degree angle degrades into something drawable rather than throwing in front of
+a waiting child. `figureIssues` takes the spec and the scope and no `Rng` - it
+judges the authored spec, not a drawing - and validation is its only caller.
 
 **`parseFigure` is the boundary**, beside `parseYearLevel`, `parseTarget` and
-`parsePhoto`. A figure is stored on `Attempt` and read back later, so an old row
-predates the column, a newer build may have reshaped `Mark`, and a hand-rolled
-write can put anything at all in a `Json?` column. One bad mark fails the whole
-figure rather than being dropped: a figure is a single composition read together,
-and silently losing the tick that said a corner was square would draw a picture
-`buildFigure` never produced, with nothing on screen to say a stroke went
-missing. `MAX_MARKS` caps the count for the reason `MAX_PHOTO_BYTES` caps a
-photograph - real content is two orders of magnitude short of it, and a crafted
-payload is not.
+`parsePhoto`. A figure is stored on `Attempt` and read back later. One bad mark
+fails the whole figure rather than being dropped: a figure is read together, and
+silently losing the tick that said a corner was square would draw a picture
+`buildFigure` never produced. `MAX_MARKS` caps the count for the reason
+`MAX_PHOTO_BYTES` does.
 
-**There are eleven kinds** (`FIGURE_KINDS`), and each is a module behind a
-registry: `polygon` and `angle` came first, then `bar`, `pictograph`, `spinner`,
-`solid`, `number-line`, `clock`, `array`, `fraction-shape` and `grid`.
-`buildFigure` used to be a ternary over the kind with `figureIssues` branching
-beside it, which is fine for two and is a queue for eleven - every new kind an
-edit to the same two functions, with a kind's drawing and its validation written
-a hundred lines apart and nothing but discipline keeping them describing the
-same fields. A `FigureKindModule` (`registry.ts`) puts a kind's two halves in
-one file and reduces adding one to a file and a line. Two details are load
-bearing rather than tidy: the lookup is a `Map` and not a record literal because
-it is keyed by a string off untrusted content, the same reason `src/lib/expr`
-reads its variables off null-prototype tables; and a module's `fields` table is
-a record whose mapped type strips the spec's `?` markers, so a parameter added
-to a kind and forgotten there is a type error, where a list would simply have
-left it unvalidated for good.
+**There are eleven kinds** (`FIGURE_KINDS`), each a module behind a registry:
+`polygon`, `angle`, `bar`, `pictograph`, `spinner`, `solid`, `number-line`,
+`clock`, `array`, `fraction-shape`, `grid`. A `FigureKindModule` (`registry.ts`)
+puts a kind's drawing and its validation in one file and reduces adding one to a
+file and a line. Two details are load bearing: the lookup is a `Map` and not a
+record literal because it is keyed by a string off untrusted content (the
+null-prototype reason again); and a module's `fields` table is a record whose
+mapped type strips the spec's `?` markers, so a parameter added to a kind and
+forgotten there is a type error.
 
-The shape vocabulary is closed (`POLYGON_SHAPES`: the triangles, the
-quadrilaterals, and pentagon through octagon). A count of sides would be less
-to author with and not enough to author *from* - it cannot tell a rhombus from
-a kite, and a randomly wobbled quadrilateral has no axis of symmetry at all, so
-the true/false symmetry question would have no true case to draw. A polygon
-takes `shape`, `rotation`, `mirror` and `rightAngles`; an angle takes
-`degrees`, `rotation`, `armLength` and `arc`. `mirror` is a **boolean** -
-whether the dashed line is a genuine axis - and which true axis, or which
-plausible wrong line, is the builder's to vary; the template's own variable is
-what the answer reads. An angle's two arms are unequal by default, both because
-equal arms are an anchor and because children read longer arms as a bigger
-angle, a misconception ACARA names outright. There is never a right-angle
-square: a box in the corner answers "what kind of angle is this?" before the
-child has looked at it, the same reason the play screen's header counts
-nothing.
+The shape vocabulary is closed (`POLYGON_SHAPES`: triangles, quadrilaterals,
+pentagon through octagon). A count of sides could not tell a rhombus from a kite,
+and a randomly wobbled quadrilateral has no axis of symmetry at all. A polygon
+takes `shape`, `rotation`, `mirror` and `rightAngles`; an angle takes `degrees`,
+`rotation`, `armLength` and `arc`. `mirror` is a **boolean** - whether the dashed
+line is a genuine axis - and which axis, or which plausible wrong line, is the
+builder's to vary. An angle's two arms are unequal by default, because equal arms
+are an anchor and children read longer arms as a bigger angle (a misconception
+ACARA names). There is never a right-angle square: a box in the corner answers
+"what kind of angle is this?" before the child has looked.
 
-Two content rules, both learned the hard way. **A `mirror` that evaluates falsy
-is reported on a shape whose symmetry axes sit closer than
-`WRONG_MIRROR_CLEARANCE` (15 degrees) apart.** The wrong line is drawn as far
-from every axis as the shape allows, and how far that is falls as the axes
-multiply - a regular polygon's are `180/n` apart, so the best any line can manage
-is `90/n`. A heptagon's "deliberately wrong" mirror therefore lands a few degrees
-off a real one, which is not a child failing to see symmetry but a picture that
-does not contain the answer, and it would be marked wrong either way. The bound
-is written as an angle rather than as a list of shapes, so a kind added later is
-judged by its own geometry instead of by whether somebody remembered to add it to
-a list. And **the existing answer-type rules apply unchanged**: no word answer
-below Year 4, so shape names are `choice` there. That nothing had to be relaxed
-to fit figures in is the best evidence available that the
-`QuestionSpec`/`QuestionTemplate` split was already in the right place - a figure
-is a property of the spec, beside `choices`, so a speed run inherits the
-capability and never uses it, exactly as it inherits `hint`.
+Two content rules learned the hard way. **A `mirror` that evaluates falsy is
+reported on a shape whose symmetry axes sit closer than `WRONG_MIRROR_CLEARANCE`
+(15 degrees) apart.** A regular polygon's axes are `180/n` apart, so the best a
+wrong line can manage is `90/n`; a heptagon's lands a few degrees off a real one,
+which is a picture that does not contain the answer. Written as an angle rather
+than a list of shapes, so a kind added later is judged by its own geometry. And
+**the answer-type rules apply unchanged**: shape names are `choice` below Year 4.
 
-**A figure question reads its prompt aloud and stops.** The picture is the part
-you look at and it cannot be described without giving the answer away - "a shape
-with three sides" *is* the answer. A pre-literate child can still answer, since
-seeing a triangle needs no reading, and tapping the question still repeats the
-words.
+**A figure question reads its prompt aloud and stops.** The picture cannot be
+described without giving the answer away - "a shape with three sides" *is* the
+answer.
 
-**The figure takes a tap now, and it opens over the whole screen**
-(`src/components/figure-zoom.tsx`, with a magnifier glyph in the figure's corner
-saying so - a picture, for the reason the door, the tick and the lightbulb are
-pictures). That reverses a sentence this section used to carry: the figure was
-not a second control and took no tap. What is unchanged is the reason it said
-so - a figure must not be a second thing to decode - and a tap that only ever
-makes the same picture bigger decodes nothing. **It has to cover the screen,
-because the question area is bound by height and not by width.** Expanding a
-figure into the prompt's half of the row buys almost nothing: on a landscape
-iPad that area is around 270px tall whether the picture has 60% of the width or
-all of it. The only room left to take is the pad's, and taking the pad's room
-means covering the pad - so a child cannot answer while the picture is open, and
-closing it is one tap anywhere rather than a target to find. **The prompt rides
-along**, set small along the top, because the questions this exists for are the
-ones where the picture carries the data - a bar graph, a coordinate grid - and
-reading a graph against a question you are trying to remember is what made the
-small figure hard in the first place. The overlay draws at `ZOOM_LABEL_SIZE`,
-smaller than either size a figure was already drawn at, which needed no change
-to any kind: `labels.ts` makes a kind leave room for the *larger* of the sizes
-it will be drawn at, so a third size below both asks for less room than the
-budget already allows. It is a tap and not yet a keyboard target - the wrapper
-is a `role="button"` with no `tabIndex`, exactly as the prompt's own
-tap-to-repeat beside it has always been, and fixing one of the two alone would
-leave them inconsistent the other way round.
+**The figure takes a tap, and it opens over the whole screen**
+(`src/components/figure-zoom.tsx`, with a magnifier glyph saying so). A figure must
+not be a second thing to decode, and a tap that only makes the same picture bigger
+decodes nothing. **It has to cover the screen, because the question area is bound
+by height, not width** - on a landscape iPad that area is ~270px tall whether the
+picture has 60% of the width or all of it. The only room left is the pad's, so a
+child cannot answer while it is open, and closing is one tap anywhere. **The prompt
+rides along**, small along the top, because the questions this exists for are the
+ones where the picture carries the data. The overlay draws at `ZOOM_LABEL_SIZE`,
+smaller than either size a figure was already drawn at, which needed no change to
+any kind: `labels.ts` makes a kind leave room for the *larger* of the sizes it will
+be drawn at. It is a tap and not yet a keyboard target - a `role="button"` with no
+`tabIndex`, exactly as the prompt's own tap-to-repeat beside it.
 
-**The figure sits beside the question rather than above it**, from `sm` up -
-every tablet and every desktop: a row, prompt left and figure right, split
-40/60 in the figure's favour. The prompt is one size now
-(see **UI**) and needs only the room its worst case takes, so the wider share
-goes to the picture. **A portrait phone keeps the column, because there a row
-would make the figure smaller rather than larger.** A row divides width and a
-390px phone has none to divide: side by side the drawing comes out around 195px
-against roughly 280px stacked. The gain from a row is real on a landscape iPad
-(about 150px to 270px) and on a portrait iPad (about 330px to 384px), and
-negative here, so the rule follows the measurement rather than a preference for
-one shape. The 40/60 shares are `sm:`-prefixed for that same reason: below that
-line the wrapper is still a column, where those shares would divide *height* and
-hand the figure 60% of it where stacking already gives it about 74%.
+**The figure sits beside the question rather than above it**, from `sm` up: a row,
+prompt left and figure right, split 40/60 in the figure's favour. **A portrait
+phone keeps the column, because there a row would make the figure smaller** - side
+by side ~195px against ~280px stacked. The gain is real on a landscape iPad (150px
+→ 270px) and a portrait iPad (330px → 384px). The 40/60 shares are `sm:`-prefixed
+for the same reason: below that line the wrapper is a column, where those shares
+would divide *height* and hand the figure 60% where stacking gives it ~74%.
 
 **A landscape phone draws no figure at all, and never did.** At 390px tall the
-header, the pad's own 12rem floor, the hint row and the answer display already
-account for more height than there is, so the flexible middle column resolves to
-nothing and the figure's `min(64px,100%)` floor resolves to nothing with it.
-That is deliberate and predates this layout - it was measured against the code
-before any of it changed - and the floor is written `min(64px,100%)` rather than
-a bare `64px` precisely so a figure disappears where there is no room instead of
-painting itself over the header's speaker button. It is worth saying plainly
-what that costs, because it is not small: on that one viewport a figure question
-cannot be answered, since the picture *is* the question. It is also why retiring
-the figure's own `max-height:500px` rule cost nothing - the row that query
-granted had no height to lay anything out in either way.
+header, the pad's 12rem floor, the hint row and the answer display exceed the
+height available, so the flexible middle column resolves to nothing and the
+figure's `min(64px,100%)` floor resolves with it. That floor is written
+`min(64px,100%)` rather than `64px` precisely so a figure disappears where there is
+no room instead of painting over the header. The cost is real: on that one viewport
+a figure question cannot be answered.
 
-**The first pass deferred a list, and said of it that each would be a new figure
-kind and no engine change - which is the test of whether any of the above was
-right.** The list was bar and picture graphs (the Statistics hole), analogue
-clock faces, number lines, arrays, fractions of a shape, grids and coordinates,
-and nets. **All of them now ship, and the prediction held.** `FigureSpec` gained
+**The first pass deferred a list, and said each would be a new kind and no engine
+change - which is the test of whether the design was right.** The list was bar and
+picture graphs, clock faces, number lines, arrays, fractions of a shape, grids and
+coordinates, and nets. **All ship, and the prediction held.** `FigureSpec` gained
 variants and `FIGURE_KINDS` gained names, but `Figure`, `Mark`, `fit`,
-`parseFigure`, `MAX_MARKS`, the anchoring check and the answer-type rules are
-what they were. The one structural change is the registry, and that was a
-consequence of the *count* rather than of any kind - eleven branches in two
-functions, not a capability the design turned out to be missing.
+`parseFigure`, `MAX_MARKS`, the anchoring check and the answer-type rules are what
+they were. The one structural change is the registry, a consequence of the *count*.
 
-`label` was in `Mark` before anything emitted one, on the argument that those
-kinds are unreadable without it and a renderer is cheaper to write once than to
-extend. **That is the one place the bill came due.** Five kinds emit a label
-now, and it cost `Diagram` a second prop: SVG 2 defines
-`vector-effect: non-scaling-size`, which would do for `font-size` what
-`non-scaling-stroke` does for a line, but no shipping engine implements it - so
-unlike `strokeWidth` a label's size cannot be pinned to real pixels and each
-caller estimates its own box (`labelSize`, roughly 7 on the play screen and 16
-in a report row). It also costs the kinds `labels.ts`, the shared arithmetic for
-what a label takes from the geometry around it - and a figure is built once for
-both call sites, so a kind that places labels by geometry has to leave room for
-the *larger* of the two or its ticks collide in the report. Even so, the four
-`Mark` kinds are still four, which is the claim that was actually at risk: every
-one of the nine kinds draws itself out of paths, arcs, dots and labels, so no
-new decision escaped into `diagram.tsx`.
+`label` was in `Mark` before anything emitted one. **That is the one place the bill
+came due.** Five kinds emit a label now, and it cost `Diagram` a second prop: SVG
+2's `vector-effect: non-scaling-size` is unimplemented everywhere, so unlike
+`strokeWidth` a label's size cannot be pinned to real pixels and each caller
+estimates its own box (`labelSize`, ~7 on the play screen and 16 in a report row).
+It also cost the kinds `labels.ts`, the shared arithmetic for what a label takes
+from the geometry around it. Even so the four `Mark` kinds are still four.
 
 ## Sessions
 
 A session never ends. The child picks subject + year and answers until they stop;
-templates are drawn from the pool for that year, across all of its topics, with
-the reinforcement selector deciding which. **The header counts nothing**: no
-clock and no right-so-far tally, only the way out (a door icon, drawn for the
-same reason the Check key is a tick) and the profile menu. Both were things
-a child would watch instead of the question, and neither is theirs to worry
-about - the round's stars are the only reckoning, and they come between
-questions. A daily target, if a parent has set one, adds a bar with no numbers
-on it; see **Daily targets** below for why it carries none.
+templates are drawn from that year's pool across all its topics, with the
+reinforcement selector deciding which. **The header counts nothing**: no clock and
+no tally, only the way out (a door icon) and the profile menu. Both were things a
+child would watch instead of the question. A daily target, if set, adds a bar with
+no numbers on it.
 
 Every answer is recorded (`Attempt`: template, topic, level, time taken,
-correct/incorrect, the response as typed, the UTC offset it was given at, and -
-for a question that had one - the figure the child looked at) and folded into
-that child's `TopicSkill` for the topic. Attempts are the history; the skill row
-is that history rolled forward, and a cache of it - never a second truth, so
-`buildProfile` over the attempts has to reproduce the row.
+correct/incorrect, the response as typed, the UTC offset, and - where there was one
+- the figure the child looked at) and folded into that child's `TopicSkill`.
+Attempts are the history; the skill row is that history rolled forward, a cache and
+never a second truth - so `buildProfile` over the attempts has to reproduce it.
 
-**The figure is stored resolved, not as the template's parameters**, for the
-reason `prompt` is stored as text rather than re-rendered: a template edited next
-month must not change what a parent is shown about last week. Figures make that
-argument twice over, since they are jittered - even an untouched template redraws
-a different picture on a different seed, so the parameters would name a shape and
-still not be the picture. It is read back through `parseFigure`, and only a
-figure question pays for the column: an ordinary one leaves it unset rather than
-writing `null`, which is already what every attempt from before the column means.
+**The figure is stored resolved, not as the template's parameters**, for the reason
+`prompt` is stored as text: a template edited next month must not change what a
+parent is shown about last week. Figures make that argument twice, being jittered.
+Read back through `parseFigure`; an ordinary question leaves the column unset.
 
-Keeping that true costs a **row lock**: `updateTopicSkill` reads with
-`SELECT ... FOR UPDATE` inside a transaction, so answers landing at once queue up
-and each folds onto the one before. Two tabs will do it, and so will one child
-answering faster than the round trip. The lock is there rather than a merge in SQL
-so `nextSkill` stays the only place the arithmetic is written down. The row cannot
-be locked before it exists, so the first answer on a topic can still collide on
-insert - hence the retry, and one time round is enough.
+Keeping the cache true costs a **row lock**: `updateTopicSkill` reads with `SELECT
+... FOR UPDATE` inside a transaction, so answers landing at once queue and each
+folds onto the one before. Two tabs will do it, and so will one child answering
+faster than the round trip. The lock is there rather than a merge in SQL so
+`nextSkill` stays the only place the arithmetic is written. The row cannot be
+locked before it exists, so the first answer on a topic can collide on insert -
+hence the retry, and one time round is enough.
 
 **Time taken is capped** (`MAX_TIME_MS`) before it is recorded. An abandoned
-question - the iPad put down and picked up after dinner - is not a measurement,
-and the total is per topic and never trimmed, so one of them would otherwise sit
-in that topic's average for good. That average is what a parent is shown.
+question is not a measurement, and the total is per topic and never trimmed.
 
 Recording is best-effort and must never block or interrupt play: writes go through
 server actions that swallow failures. `learningSessionId` round-trips through the
@@ -758,74 +695,60 @@ Two libraries over one model. `src/lib/analytics/profile.ts` folds attempts into
 (`correctDays`) and when it was last answered.
 `src/lib/reinforcement/select.ts` reads that profile to pick the next template;
 `src/lib/analytics/report.ts` reads the same history to say where a child needs
-help. Neither owns the other, and both are pure - `now` and the RNG are passed in.
+help. Neither owns the other, and both are pure.
 
-The profile is built by folding, one answer at a time (`nextSkill`), so the same
-arithmetic serves the stored `TopicSkill` row and the in-session profile that
-updates as the child plays. That is why a topic falling apart in the first ten
-questions is being mixed in more heavily by the twentieth.
+The profile is built by folding one answer at a time (`nextSkill`), so the same
+arithmetic serves the stored row and the in-session profile. That is why a topic
+falling apart in the first ten questions is mixed in more heavily by the twentieth.
 
 **Status is what everything keys off** (`skillStatus`), and it refuses to guess:
 under `MIN_OBSERVATIONS` answers a topic is `new`, never a weakness. Then
-`struggling` (strength under 0.6), `developing`, `secure` and `review-due` -
-secure, but left alone long enough to be worth confirming.
+`struggling` (strength under 0.6), `developing`, `secure` and `review-due`.
 
 **The two bars are not the same height, deliberately.** Calling a topic hard costs
 a few extra questions on something the child can do, so `MIN_OBSERVATIONS` is
-enough for it. Calling a topic *known* is the expensive mistake - it drops the
-topic to a fraction of the questions and puts it away for days - so it needs a
-strong run *and* `SECURE_OBSERVATIONS` answers *and* right answers on
-`SECURE_DAYS` separate days. A run inside one sitting is one memory answering
-several times; the answer that survives a night's sleep is the one that means
-something, and it is the only thing allowed to count as mastery.
+enough. Calling a topic *known* is the expensive mistake - it drops the topic to a
+fraction of the questions and puts it away for days - so it needs a strong run
+*and* `SECURE_OBSERVATIONS` answers *and* right answers on `SECURE_DAYS` separate
+days. A run inside one sitting is one memory answering several times; the answer
+that survives a night's sleep is the only thing allowed to count as mastery.
 
-The review gap then grows with `correctDays`, not with the streak: a couple of
-days for something just learned, a month for something known five times over. A
-streak can reach any length in ten minutes, so intervals key off the number of
-times a child has *come back* and still known it. Coming back *after* it has
-started to fade is the point.
+The review gap grows with `correctDays`, not with the streak: a couple of days for
+something just learned, a month for something known five times over. A streak can
+reach any length in ten minutes.
 
 Days are the child's, not the server's: each attempt carries the UTC offset it was
-given at, so an evening's practice in Sydney counts as that evening. `correctDays`
-only ever counts a day later than the last one counted, so answers arriving out of
-order undercount rather than inflate - mastery is delayed, never faked.
+given at. `correctDays` only ever counts a day later than the last counted, so
+answers arriving out of order undercount - mastery is delayed, never faked.
 
-Selection rules, in order - all three matter, and none of them ever rules a
-template out entirely:
+Selection rules, in order - none of them ever rules a template out entirely:
 
 - **No pattern, no steering.** Until one topic has `MIN_OBSERVATIONS` answers the
-  weights are flat and questions are drawn at random, exactly as before.
+  weights are flat and questions are drawn at random.
 - **Weight by status**, so hard topics come up more and mastered ones get out of
-  the way without disappearing - a child should still get things right.
-- **Weight the topic, not the template.** A topic's weight is divided across
-  however many templates it has, because template count is a fact about how much
-  content got written and must never decide how much practice a child gets. Years
-  ship with between one and five templates a topic; without this a struggling
-  topic with one template came up less often than an unproven topic with four.
+  the way without disappearing.
+- **Weight the topic, not the template.** A topic's weight is divided across its
+  templates, because template count is a fact about how much content got written
+  and must never decide how much practice a child gets. Years ship with between one
+  and five templates a topic.
 - **Hold weak topics to a share of the session** (`MIN_FOCUS_SHARE` to
-  `MAX_FOCUS_SHARE`). Prioritised, not swarmed: a fifth of the questions is enough
-  to improve, and past a bit under half it stops being practice and starts being
-  picked on. The floor is skipped when the only topic needing work is the one just
-  asked.
-- **Cool down what was just asked**, so the mix is spread through the session
-  rather than clumped.
+  `MAX_FOCUS_SHARE`). A fifth is enough to improve; past a bit under half it stops
+  being practice and starts being picked on. The floor is skipped when the only
+  topic needing work is the one just asked.
+- **Cool down what was just asked.**
 
-`weightTemplates` is exported because it *is* the policy - read it in a test, or
-to explain a choice later. Tests assert shares over a few hundred seeded draws
-rather than exact sequences; the RNG is deterministic, so they don't flake.
+`weightTemplates` is exported because it *is* the policy. Tests assert shares over
+a few hundred seeded draws rather than exact sequences.
 
 **Selection is driven by correctness alone - time taken is reported, never acted
-on.** It is tempting signal: fast and right is fluency, slow and right is working
-it out. But slow is also distracted, or asking a parent, and one number cannot
-tell those apart. Marking a child down for being slow is exactly the punitive
-thing this app does not do. If that changes, the honest version is to gate
-*mastery* on fluency - a slow correct answer still counts as correct but does not
-advance a topic towards `secure` - never to weight a topic up for slowness.
+on.** Slow is also distracted, or asking a parent, and one number cannot tell those
+apart. If that changes, the honest version is to gate *mastery* on fluency - a slow
+correct answer still counts as correct but does not advance a topic towards
+`secure` - never to weight a topic up for slowness.
 
 The analytics side is a library only: `topicReports`, `problemTopics`,
-`dueForReview`, `progressOverTime` and `summarise`. `/progress` is the screen that
-consumes them - see **Parent analytics** below. Buckets take a UTC offset from the
-caller so a Sydney evening's practice doesn't land on the next day.
+`dueForReview`, `progressOverTime` and `summarise`. Buckets take a UTC offset from
+the caller.
 
 ## UI
 
@@ -834,1571 +757,1026 @@ simple enough for a child to pick up with no explanation.
 
 - **Level is the home screen's top-level choice**: one dropdown labelled "Level",
   then the subjects offering that level below it, each card carrying a coloured
-  glyph tile, the subject, its year, and its topics as **chips** (`MAX_CHIPS`,
-  then "+n more"). The topics used to be one run-on line of dots, which was the
-  only thing on the card saying what is inside and the least readable thing on
-  the screen. Switching level swaps the cards in place - no navigation. The choice is
-  remembered on `User.selectedLevel` and the screen reopens on it; signed out or
-  without a database there is nowhere to keep it, so it opens on Kindergarten.
-  `resolveInitialLevel` falls back when a stored level has lost its content.
-- **The play screen must fit the viewport with no scrolling.** It's `h-[100dvh]`
-  with `overflow-hidden`; the answer pad is fixed-height and the question area
-  flexes. Check both orientations after changing that layout, and check a phone
-  as well as an iPad - a phone is where it runs out of height first.
-- **Height, not width, is what the play screen is short of.** The pad takes 40%
-  of the height it is given, phone or tablet, and what is left over is the
-  question's. What differs is the floor and ceiling on that 40%, and those now
-  ask for **height as well as width**. `sm:` is a width breakpoint standing in
-  for "tablet", and a landscape phone breaks the proxy rather than the reasoning:
-  it is wide - often past the 640px line - and short at the same time, so it took
-  the tablet's 16rem floor, built for a device with height to spare, on exactly
-  the device with the least of it, and left the question no room at all. The
-  larger bounds sit behind `[@media(min-width:640px)_and_(min-height:501px)]`
-  instead, so a landscape phone keeps the phone-sized clamp however wide it is
-  and every tablet clears both halves and is untouched. The speed run's pad
-  carries the identical query, because the two screens must not disagree about
-  what "tablet" means.
+  glyph tile, the subject, its year, and its topics as **chips** (`MAX_CHIPS`, then
+  "+n more"). Switching level swaps the cards in place - no navigation. The choice
+  is remembered on `User.selectedLevel`; signed out or without a database it opens
+  on Kindergarten. `resolveInitialLevel` falls back when a stored level has lost
+  its content.
+- **The play screen must fit the viewport with no scrolling.** `h-[100dvh]` with
+  `overflow-hidden`; the answer pad is fixed-height and the question area flexes.
+  Check both orientations and a phone as well as an iPad after changing it.
+- **Height, not width, is what the play screen is short of.** The pad takes 40% of
+  the height it is given, phone or tablet. What differs is the floor and ceiling on
+  that 40%, and those ask for **height as well as width**: `sm:` is a width
+  breakpoint standing in for "tablet", and a landscape phone breaks the proxy - it
+  is wide and short at once, so it took the tablet's 16rem floor on the device with
+  the least height. The larger bounds sit behind
+  `[@media(min-width:640px)_and_(min-height:501px)]`. The speed run's pad carries
+  the identical query, because the two screens must not disagree about "tablet".
 - **One short-viewport line, and a second should not be invented.**
-  `max-height:500px` means "landscape phone", and there is one use of it left:
-  the pad's bounds above take that same boundary from the other side, as
-  `min-height:501px`, where the question genuinely is about height. It had a
-  second use, turning a figure and its prompt into a row, and that went when the
-  figure's layout moved to the `sm` width line - a landscape phone is wide, so
-  the width query already covers every device the height query was reaching for,
-  and the height query was the more specific way of saying the same thing. This
-  note getting *shorter* is the direction it should go. There used to be a
-  `max-height:600px` beside it hiding the speed run result's right / missed /
-  answered tally, and it went with the tally rather than being found a second
-  job. Written out as a literal class name rather than kept in a variable, since
-  Tailwind reads class names as literals and a composed one compiles to nothing.
-  Reach for it before adding a number beside it.
+  `max-height:500px` means "landscape phone", and there is one use left: the pad's
+  bounds take that boundary from the other side as `min-height:501px`. Written as a
+  literal class name, since Tailwind reads class names as literals and a composed
+  one compiles to nothing. Reach for it before adding a number beside it.
 - **The question is one size, and the box is what is measured** (`Prompt`). The
-  room it has depends on the device, the orientation, whether a target bar is
-  showing and whether the question carries a figure, so the box is still
-  measured and the largest whole pixel size that still fits is still searched
-  for - re-run by a `ResizeObserver` when the box changes. **What it is searched
-  against is `PROMPT_SENTINEL`, not the prompt in hand**: the sentinel is
-  `MAX_PROMPT_CHARS` long, so the size found is the worst case's size and every
-  question in the same box is set at it. The fitter used to measure the question
-  itself, which made the type jump from question to question - about 96px for a
-  short one against about 33px for a long one - and that jump carried no
-  information, since it was a fact about how many words the template's author
-  used rather than about the maths. Deleting the fitter and declaring a
-  `clamp()` is the obvious alternative and is still refused, for the reason the
-  first sentence gives: a declared size has to survive the worst combination of
-  all four of those on every device, so every device pays for the worst one,
-  where this is fitted against the box that actually exists. The fit test is
-  "the sentinel fits **and** the prompt fits" - the sentinel is the longer
-  string so it binds, and the second half is one `&&` of insurance against a
-  real prompt of unusually wide glyphs rather than a branch anybody plans to
-  reach, and it only means anything measured against the prompt actually on
-  screen. `Prompt` no longer takes a `key` off the question number - the
-  component holds no other state a question boundary needs to reset - but the
-  effect keeps `prompt` in its dependency list: with the remount gone that is
-  the only thing left that reruns the fit when the question does, and the
-  sentinel binds in the normal run, so the rerun returns the identical size and
-  nothing on screen moves. `promptSize` collapsed to one `PROMPT_CLASS` for a
-  different reason - a length-keyed size on the server was the same
-  unsteadiness arriving a frame early.
-  **What that one size comes out at is the cap's business, which is why
-  `catalog.test.ts` enforces it** - see **Question templates**. Measured in a
-  browser on a landscape iPad, a question with no figure lands between 29px and
-  43px and one with a figure between 15px and 16px. It is a range and not a
-  number because the answer pad's shape decides how much of the column is left
-  over: a typed answer draws an 80px answer box a tapped one does not, and a
-  two-option `ChoicePad` is shorter than a number pad. So a question is one size
-  for every question of the same *shape*, and independence from length - which
-  is the thing that was actually wrong - holds exactly.
-  `--prompt-max` is the ceiling, and it is where the two scales live: a phone
-  keeps the `vh` ceiling it always had, and from `sm` up it is twice that, since
-  a tablet or a laptop has the height to spend. It is registered with `@property`
-  as a `<length>` in `globals.css` - an unregistered custom property computes to
-  the word `clamp(...)` rather than a number, and the search needs a number.
-  `PROMPT_CLASS` is still what the server renders, so a prompt arrives about the
-  right size rather than snapping into place, and it is what a browser without
-  JavaScript keeps. A viewport too short to leave the question any room at all -
-  a phone held sideways - collapses the box to nothing, and there the fit stands
-  aside and lets the declared size overrun, exactly as it did before: the
-  question overflowing is bad, and the question hidden is worse.
-- **Every answer is given on-screen, never with the iPad keyboard** - it keeps the
-  question visible and the targets large and fixed. `answerMode` in
-  `src/lib/session/answers.ts` decides which pad a question gets (`NumberPad`,
-  `LetterPad` or `ChoicePad`); all three occupy the same fixed slot.
-- Tapped answers (choice, true/false) commit on the first touch, with no Check
-  button - there is nothing for a child to review. Typed answers keep a Check
-  key, drawn as a tick (`CheckIcon`) rather than the word, so a child who cannot
-  read yet still knows it. The speed run is the exception and has none: there a
-  typed answer commits the instant it matches, so a tick could only ever be
-  pressed on an entry the pad has already refused.
-- After a wrong tap, the right option turns green and the child's turns red, so
-  they always see which one was right.
-- **A right answer moves on by itself after a moment; a wrong one waits.** The
-  pad gives way to a Continue button and the right answer stays on screen until
-  the child taps it, so nothing is missed by being slow to read. Tapped
-  questions keep their pad while waiting - the buttons are what shows which
-  option was right - and Continue sits beneath them.
+  room depends on the device, the orientation, whether a target bar is showing and
+  whether there is a figure, so the box is measured and the largest whole pixel
+  size that still fits is searched for, re-run by a `ResizeObserver`. **What it is
+  searched against is `PROMPT_SENTINEL`, not the prompt in hand**: the sentinel is
+  `MAX_PROMPT_CHARS` long, so the size found is the worst case's and every question
+  in the same box is set at it. The fitter used to measure the question itself,
+  which made the type jump from ~96px to ~33px between questions - a fact about how
+  many words the author used, not about the maths. Declaring a `clamp()` instead is
+  refused because a declared size has to survive the worst combination on every
+  device, so every device pays for the worst one. The fit test is "the sentinel
+  fits **and** the prompt fits" - the sentinel binds, and the second half is
+  insurance against unusually wide glyphs. `Prompt` takes no `key` off the question
+  number; the effect keeps `prompt` in its dependency list, which is the only thing
+  left that reruns the fit when the question does.
+  Measured on a landscape iPad: no figure lands between 29px and 43px, with a
+  figure between 15px and 16px - a range because the pad's shape decides what is
+  left over. So a question is one size for every question of the same *shape*, and
+  independence from length holds exactly.
+  `--prompt-max` is the ceiling and where the two scales live: a phone keeps the
+  `vh` ceiling, and from `sm` up it is twice that. It is registered with
+  `@property` as a `<length>` in `globals.css` - an unregistered custom property
+  computes to the word `clamp(...)` rather than a number. `PROMPT_CLASS` is what
+  the server renders, so a prompt arrives about the right size, and it is what a
+  browser without JavaScript keeps. A viewport too short to leave any room
+  collapses the box to nothing and the fit stands aside: the question overflowing
+  is bad, the question hidden is worse.
+- **Every answer is given on-screen, never with the iPad keyboard.** `answerMode`
+  in `src/lib/session/answers.ts` picks the pad (`NumberPad`, `LetterPad`,
+  `ChoicePad`); all three occupy the same fixed slot.
+- Tapped answers commit on the first touch, with no Check button. Typed answers
+  keep a Check key drawn as a tick (`CheckIcon`) rather than the word, so a child
+  who cannot read still knows it. The speed run is the exception and has none.
+- After a wrong tap, the right option turns green and the child's turns red.
+- **A right answer moves on by itself after a moment; a wrong one waits.** The pad
+  gives way to a Continue button and the right answer stays until tapped. Tapped
+  questions keep their pad while waiting - the buttons are what shows which option
+  was right - and Continue sits beneath.
 - **A template's `hint` sits behind a lightbulb** under the question, so help is
-  asked for rather than pushed - a child who doesn't want the method isn't given
-  it. Tapping swaps the bulb for the hint; it resets with each question, and goes
-  once the question is answered. Templates without a hint just leave the row
-  empty, which keeps the question from jumping.
-- **A fraction is drawn with a bar, not a slash.** `1/2` is the notation the
-  expression language happens to produce, not the one a child is taught, and
-  every fraction in the shipped content is a proper fraction read as one thing -
-  a slash makes it look like a division, which here it never is, since division
-  is written `÷`. The split is the usual one: `src/lib/fractions.ts` decides
-  which slashes are fractions (`splitFractions`, pure and tested, with the gap
-  marker counting as a numerator so `?/12` draws as `?` over `12`) and
-  `src/components/maths-text.tsx` draws them and decides nothing, exactly as
-  `src/lib/figures` and `diagram.tsx` divide. `MathsText` is sized entirely in
-  `em`, so it grows with whatever the fitter chose for the element above it
-  rather than having to be told, and the same component works unchanged in a
-  `text-4xl` choice button and in a hint; the vinculum is `border-current`, so
-  it takes the green of a revealed right answer or the soft ink of a hint
-  without any caller passing it a colour. It is used on the prompt, the hint,
-  the choice buttons and the feedback line, which is every place on the play
-  screen a fraction can appear. **The parent's report is deliberately left as
-  text.** Its answered-question rows are single-line and elided so the column
-  can be read down, and a stacked fraction is about 1.6 line-heights tall; the
-  report's job is a weekly skim and the play screen's is the notation a child is
-  being taught, so the two are allowed to differ. Nothing stored, graded or
-  spoken changes - the value on the `Attempt` and in `gradeAnswer` is still the
-  string `1/2`.
+  asked for rather than pushed. Tapping swaps the bulb for the hint; it resets each
+  question and goes once answered. Templates without a hint leave the row empty, so
+  the question doesn't jump.
+- **A fraction is drawn with a bar, not a slash.** `1/2` is what the expression
+  language produces, not what a child is taught, and every shipped fraction is a
+  proper fraction read as one thing - a slash looks like division, which is written
+  `÷`. `src/lib/fractions.ts` decides which slashes are fractions
+  (`splitFractions`, with the gap marker counting as a numerator so `?/12` draws as
+  `?` over `12`) and `src/components/maths-text.tsx` draws them and decides
+  nothing. `MathsText` is sized entirely in `em`, so it grows with whatever the
+  fitter chose; the vinculum is `border-current`. Used on the prompt, the hint, the
+  choice buttons and the feedback line. **The parent's report is deliberately left
+  as text** - its rows are single-line and elided, and a stacked fraction is ~1.6
+  line-heights tall. Nothing stored, graded or spoken changes.
 - **The rewards are a break and a badge, never a running score.** The stars fill
-  the screen for a few seconds between rounds and the streak flashes once a day;
-  neither sits on the play screen where a child could watch it and worry. There
-  is no per-question timer and nothing a wrong answer takes away.
+  the screen between rounds and the streak flashes once a day; neither sits on the
+  play screen. No per-question timer, and nothing a wrong answer takes away.
 - Colours are CSS variables in `globals.css`, used as `text-(--color-ink)`.
 - **The logo's palette is scoped to the two screens someone is *choosing* on.**
-  `--color-grape`, `--color-berry`, `--color-leaf` and `--color-sun` are sampled
-  from `public/logo.PNG`, and only the landing page and the child's home screen
-  use them: a loud, warm mark sitting at the top of a cool blue page of boxes read
-  as two different products. `--color-brand` is deliberately unchanged, so the
-  play screen and the parent's report are untouched - a child answering a question
-  does not need more colour, and a parent reading a report needs less. Both
-  screens open on a soft gradient band (grape → paper → brand) with a blurred warm
-  disc behind it; that band is the decoration, and everything below it stays flat.
-- **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS -
-  system font, system blue, its own rounding - so it is the one control the theme
-  cannot reach, and on an iPad it lands a grey widget in the middle of a screen
-  built from `--color-*`. `src/components/select.tsx` is a button plus a listbox
-  with the same look as everything beside it, and options sized for a thumb.
-  It comes in `lg` for the child's screens and `sm`/`md` for a parent's, matching
-  the two scales above. The trigger is sized to its **widest** option rather than
-  its current one - every label renders into one grid cell with all but the chosen
-  one hidden - so picking "Year 3" after "Kindergarten" doesn't shrink the control
-  and shift what sits beside it. It closes on an outside pointerdown or Escape,
-  never on blur: a tap on an option moves focus off the button first, and closing
-  there would remove the option before the tap could land on it.
-- **`src/components/clock.ts` is the third browser shim**, beside `sounds.ts`
-  and `speech.ts` and there for the same reason: it reads `Date.now()` and the
-  device's own offset, so it could never live in `src/lib`, where every day
-  question takes both as arguments. Which day a moment falls in is a question
-  only the device can answer, so the profile menu's run of days, the home
-  screen's goal panel and the play screen's goal bar all read it through
-  `useSyncExternalStore` rather than rendering a number at UTC and correcting it
-  a frame later. One `subscribeToTheClock` for all three - it was copied into
-  each of them, comment and all.
+  `--color-grape`, `--color-berry`, `--color-leaf`, `--color-sun` are sampled from
+  `public/logo.PNG` and used only by the landing page and the child's home screen.
+  `--color-brand` is unchanged, so the play screen and the report are untouched.
+  Both screens open on a soft gradient band (grape → paper → brand) with a blurred
+  warm disc behind it; that band is the decoration and everything below is flat.
+- **There are no native `<select>`s.** A `<select>`'s popup is drawn by the OS, so
+  it is the one control the theme cannot reach. `src/components/select.tsx` is a
+  button plus a listbox, in `lg` for the child's screens and `sm`/`md` for a
+  parent's. The trigger is sized to its **widest** option - every label renders into
+  one grid cell with all but the chosen hidden - so picking "Year 3" after
+  "Kindergarten" doesn't shift what sits beside it. It closes on an outside
+  pointerdown or Escape, never on blur: a tap on an option moves focus off the
+  button first.
+- **`src/components/clock.ts` is a browser shim** for the same reason as
+  `sounds.ts` and `speech.ts`: it reads `Date.now()` and the device's own offset.
+  The profile menu's run of days, the home screen's goal panel and the play
+  screen's goal bar all read it through `useSyncExternalStore` rather than
+  rendering at UTC and correcting a frame later. One `subscribeToTheClock` for all
+  three.
 - **Three sounds, and only on the play screen**: right, wrong, and a fanfare with
-  the stars. `src/components/sounds.ts` is the shim - it lives beside the
-  components, not in `src/lib`, because it touches `Audio` and could never be
-  pure. Playing is best-effort like recording an answer: a silent switch or an
-  autoplay refusal rejects the `play()` promise, and that is caught and dropped
-  rather than thrown into the middle of a question. One element per sound,
-  rewound rather than stacked - a child can answer faster than a clip finishes,
-  and the newest answer is the one worth hearing. The files are preloaded when
-  the screen mounts, since iOS gates *playback* on a gesture but not loading.
+  the stars. `src/components/sounds.ts` is the shim. Playing is best-effort: a
+  silent switch or autoplay refusal rejects `play()`, caught and dropped. One
+  element per sound, rewound rather than stacked - the newest answer is the one
+  worth hearing. Preloaded on mount, since iOS gates *playback* on a gesture but
+  not loading.
 - **The fanfare is the same for one star as for three.** Finishing the round is
-  what it marks; a thinner sound for a hard round would undo what the star floor
-  is for.
-- `public/sounds/*.m4a` - mono AAC at 48 kb/s, silence trimmed and peaks levelled
-  so the three sit at the same loudness. About 5-13 KB each, from 300 KB+
-  originals. AAC in `.m4a` rather than Opus because iPad Safari is the target and
-  it plays this everywhere, with no fallback source to maintain.
+  what it marks.
+- `public/sounds/*.m4a` - mono AAC at 48 kb/s, silence trimmed and peaks levelled.
+  ~5-13 KB each. AAC in `.m4a` rather than Opus because iPad Safari is the target.
 
 ## Narration
 
-A child who cannot read yet cannot use the app at all: every question is a
-sentence, and the door, the lightbulb and the tick were the only things on the
-play screen that needed no reading. A speaker button beside the door makes the
-question one of them.
+A child who cannot read cannot use the app: every question is a sentence. A speaker
+button beside the door makes the question one of the things that needs no reading.
 
-**The switch is on the child's screen, not the parent's.** A column beside the
-daily target would be the tidy home for it, and it is the wrong one twice over:
-the person who needs narration is the one who cannot read a settings screen, and
-iOS will not speak without a gesture, so the tap that turns it on has to be the
-thing that lets it talk at all. The preference is `localStorage`, read through
-`useSyncExternalStore` like the streak and the day's total - only the browser
-knows it, so the server renders silence rather than guessing. A shared family
-iPad is the cost, and it is one tap either way.
+**The switch is on the child's screen, not the parent's.** The person who needs
+narration cannot read a settings screen, and iOS will not speak without a gesture,
+so the tap that turns it on has to be the thing that lets it talk. The preference
+is `localStorage`, read through `useSyncExternalStore` - only the browser knows it,
+so the server renders silence. A shared family iPad is the cost, and it is one tap
+either way.
 
 **Tapping the question repeats it**, and only while narration is on. A child who
-missed it reaches for the words themselves, which needs no icon and no
-explaining, and a child who can read never finds a button where the question is.
-A revealed hint is read as it appears - asking for it is a tap, so it is also a
-gesture that may speak - and answering stops the voice mid-sentence, since the
-question is over and a voice under the right-or-wrong sound is two things at
-once.
+missed it reaches for the words themselves; a child who can read never finds a
+button where the question is. A revealed hint is read as it appears - asking for it
+is a gesture that may speak - and answering stops the voice mid-sentence.
 
-**Speaking a question is not reading its characters.** Prompts are generated, so
-there is nothing to record, and once the holes are filled they still hold
-`+ − × ÷ = / % ° $`, abbreviated units, and a bare `?` standing for the gap in
-"12, 13, ?, 15". Handed over as they are, "What is 7 − 3?" is spoken "What is
-7 3?", which is worse than silence. `src/lib/speech/narration.ts` is the
-translation and is pure like the rest of `lib`: `spokenText` for the symbols,
-`questionNarration` for a whole question. A `?` is the gap when nothing wordlike
-precedes it and the sentence's own punctuation when something does - which is
-what tells the two apart in "What goes in the box? 4 + ? = 9". Every `/` in the
-shipped content is a fraction, because division is written `÷`.
+**Speaking a question is not reading its characters.** Prompts are generated, and
+once the holes are filled they hold `+ − × ÷ = / % ° $`, abbreviated units, and a
+bare `?` standing for a gap. Handed over as-is, "What is 7 − 3?" is spoken "What is
+7 3?", worse than silence. `src/lib/speech/narration.ts` is the translation and is
+pure: `spokenText` for symbols, `questionNarration` for a whole question. A `?` is
+the gap when nothing wordlike precedes it and punctuation when something does.
 
 **That fraction rule lives in `src/lib/fractions.ts` and narration imports it.**
-The play screen draws a fraction with a bar off the same rule (see **UI**), and
-the spoken form and the drawn form must not be able to disagree about which
-slashes are fractions - two regexes in two files is exactly how they would, one
-tuned and the other not, with nothing on screen to say so. The claim itself used
-to be the comment above and is a test now: `catalog.test.ts` renders every
-prompt, hint, answer and choice across every shipped template, maths and
-English alike, and counts a slash falling outside a fraction as a failure. It
-has been true since the content was written, and it is load-bearing in two
-places rather than one.
+The spoken form and the drawn form must not be able to disagree about which slashes
+are fractions. `catalog.test.ts` renders every prompt, hint, answer and choice
+across every shipped template and counts a slash outside a fraction as a failure.
 
-**Word options are read out; numbers are not.** A word answer below Year 4 is a
-`choice` question precisely because the child cannot spell it, so three unread
-buttons would leave that question as unanswerable as it was. Numerals are read
-long before words and four of them said back is noise. Options the prompt has
-already *offered* are left alone - "Which ribbon is longer, red or blue?" does
-not need "Is it red or blue?" after it. Offering them is what counts, not merely
-saying the words: "What comes next? red, orange, purple, red, orange, purple,
-red, ?" contains all three of its options and offers none of them, and taking
-that as already said left a Kindergartener with three unread buttons. The word
-that tells the two apart is "or", between two of the options and inside one
-sentence, so both have to hold before the reading is skipped.
+**Word options are read out; numbers are not.** A word answer below Year 4 is
+`choice` precisely because the child cannot spell it, so three unread buttons leave
+it unanswerable. Numerals are read long before words. Options the prompt has
+already *offered* are left alone - "Which ribbon is longer, red or blue?" needs no
+"Is it red or blue?" after it. Offering is what counts, not merely saying the
+words: "What comes next? red, orange, purple, red, orange, purple, red, ?" contains
+all three options and offers none. The word that tells the two apart is "or",
+between two options and inside one sentence; both must hold to skip the reading.
 
-`src/components/speech.ts` is the browser shim, beside `sounds.ts` and for the
-same reason: it touches `speechSynthesis`, so it could never be pure. Speaking is
-best-effort, a new utterance cancels the one before it, and an en-AU voice is
-preferred where the device has one. It is also the seam - the alternative was a
-cloud voice, which buys consistency for an API key, a cache keyed by prompt and a
-round trip in front of a waiting child. Swapping one in is a change to `speak`
-and nothing above it.
+`src/components/speech.ts` is the browser shim. Speaking is best-effort, a new
+utterance cancels the one before, and an en-AU voice is preferred where available.
+It is also the seam - swapping in a cloud voice is a change to `speak` and nothing
+above it.
 
 ## The logo
 
-`public/logo.PNG` is the artwork as delivered - the badge, the wordmark and the
-tagline, drawn on a white page. Everything else is cut from it and committed
-beside it, so the derived files are the ones the app loads and the original stays
-the thing to re-cut from:
+`public/logo.PNG` is the artwork as delivered. Everything else is cut from it and
+committed beside it, so the derived files are what the app loads and the original
+stays the thing to re-cut from:
 
 - `public/logo-mark.png` - the badge alone, for headers.
 - `public/logo-lockup.png` - the whole thing, for the landing hero.
-- `src/app/icon.png`, `src/app/apple-icon.png`, `src/app/favicon.ico`,
-  `src/app/opengraph-image.png` - Next wires these up by filename, so the only
-  thing `layout.tsx` adds is a `metadataBase` for their absolute URLs.
+- `src/app/icon.png`, `apple-icon.png`, `favicon.ico`, `opengraph-image.png` - Next
+  wires these up by filename, so `layout.tsx` adds only a `metadataBase`.
 
 **The white page is flood-filled to transparency from the edges inwards**, not
 keyed off luminance: the white *inside* the mark - the book's pages, the pencil's
-eyes, the sparkles - has to survive, and only a fill that starts at the border
-leaves it alone. Without it the mark would sit on `--color-paper` as a faintly
-paler square, `#ffffff` against `#f7f9fc`. The apple icon is the one that keeps
-an opaque background, because iOS composites its own rounded mask over a square
-and a transparent one comes out black.
+eyes, the sparkles - has to survive. Without it the mark would sit on
+`--color-paper` as a faintly paler square. The apple icon keeps an opaque
+background, because iOS composites its own mask and a transparent one comes out
+black.
 
-**The mark alone is what goes in a header**, since the word "LearnR" is already
-there in type beside it; the lockup carries its own wordmark and tagline, so it
-is only used where nothing else is saying what this is.
-
-**Not on the play screen.** That screen is one question at arm's length with
-nothing else to look at, and a logo in the corner is exactly the sort of thing a
-child watches instead of the question - the same reason the header counts no time
-and no score.
+**The mark alone is what goes in a header**, since "LearnR" is already there in
+type. **Not on the play screen** - a logo in the corner is exactly the sort of
+thing a child watches instead of the question.
 
 ## Rewards
 
-`src/lib/rewards` - pure, like the rest of `lib`, and read by nothing that
-decides what to ask next. Reinforcement is driven by the profile alone; stars and
-streaks would make it reward-seeking rather than teaching.
+`src/lib/rewards` - pure, and read by nothing that decides what to ask next. Stars
+and streaks would make reinforcement reward-seeking rather than teaching.
 
 **Stars come every `ROUND_SIZE` (10) questions**: 3 for a clean round, 2 for some
 right, 1 for a round with none. The floor is the point - sitting through ten hard
-questions is the behaviour worth rewarding, so a bad round still earns something,
-and 3 stays worth aiming at. `RoundReward` covers the screen for a few seconds,
-dismissable by a tap, and the next question's clock restarts when it goes so the
-break never lands in that question's recorded time.
+questions is the behaviour worth rewarding. `RoundReward` covers the screen for a
+few seconds, dismissable by a tap, and the next question's clock restarts when it
+goes.
 
-**`User.stars` is the app's one star total, and it is banked rather than
-derived.** It used to be `SUM(LearningSession.stars)`, recounted from the stored
-answers every time - which was self-correcting, and had to go the moment the
-daily target arrived: a target is mutable, and a recount of a past day against
-today's setting would take stars off a child who had earned them. So the total
-is **incremented** by what is newly owed and never recomputed.
-
-Nothing recounts a star total now, so the play screen's optimistic `+3` is the
-only correction there is - which is why both it and the server value a round
-with the same `closedRound` over the same answers.
+**`User.stars` is banked rather than derived.** It used to be
+`SUM(LearningSession.stars)`, which was self-correcting and had to go the moment
+the daily target arrived: a target is mutable, and a recount of a past day against
+today's setting would take stars off a child who had earned them. So the total is
+**incremented** and never recomputed. Nothing recounts, so the play screen's
+optimistic `+3` is the only correction there is - which is why both it and the
+server value a round with the same `closedRound` over the same answers.
 
 What replaced the recount's idempotence is a guard on every increment. A round's
-stars are banked against `LearningSession.roundsBanked`, read under `SELECT ...
-FOR UPDATE` and moved up in the same transaction, so a repeated call, a retry or
-two tabs answering at once each pay for a round exactly once - the same row lock
-`updateTopicSkill` takes, for the same reason. The day's target uses a
-compare-and-set on `User.targetDay`. The server still **decides** what is owed by
-reading the stored answers; the client only says *that* a round closed, and the
-banking happens after the tenth answer's write resolves, since racing it would
-find nine answers and award nothing.
+stars are banked against `LearningSession.roundsBanked`, read under `SELECT ... FOR
+UPDATE` and moved up in the same transaction, so a repeat, a retry or two tabs each
+pay for a round exactly once. The day's target uses a compare-and-set on
+`User.targetDay`. The server **decides** what is owed by reading the stored
+answers; the client only says *that* a round closed, and the banking happens after
+the tenth answer's write resolves.
 
-The cost is stated plainly because it is real: a dropped award no longer heals
-itself. A total can fail to grow, but it can never shrink - which is the right
-way round for the only number a child watches.
+The cost is real: a dropped award no longer heals itself. A total can fail to grow,
+but it can never shrink - the right way round for the only number a child watches.
 
 **The play streak counts days, not hours.** `User.playStreak` and
 `User.playStreakDay` - a day number, not a timestamp, because a day here is the
-child's (`src/lib/day.ts`) and a timestamp would need the offset re-applied at
-every read. A missed day restarts at 1, not 0: the child is answering right now.
-The write is a compare-and-set on the stored day, so two answers landing together
-advance it once. `currentStreak` decides whether a stored run is still alive -
-yesterday still counts, the day before does not - and it is computed in the
-browser via `useSyncExternalStore`, since only the child's device knows what day
-it is where they are.
+child's (`src/lib/day.ts`). A missed day restarts at 1, not 0: the child is
+answering right now. The write is a compare-and-set on the stored day.
+`currentStreak` decides whether a stored run is still alive - yesterday counts, the
+day before does not - and is computed in the browser via `useSyncExternalStore`. An
+hours rule was rejected: after school one day and before school the next is twenty
+hours apart and would break a streak the child kept perfectly well.
 
-An hours rule was considered and rejected: practice after school one day and
-before school the next is twenty hours apart and would break a streak the child
-kept perfectly well.
-
-**Both totals ride on the profile menu** - the run of days, then the stars, then
-the avatar, the same control on the home screen and the play screen so a child
-never looks in two places for the two numbers. Days sit left of the stars: the
-run is the thing that lapses if they stop. Behind the tap there is only the name
-and the way out.
+**Both totals ride on the profile menu** - days, then stars, then the avatar, the
+same control on the home and play screens. Days sit left of the stars: the run is
+the thing that lapses. Behind the tap there is only the name and the way out.
 
 **Everything the playing screens read off the child's row is one query**
-(`readPlayerState`): the level they last chose, the run of days, the star total
-and the daily target all live on `User`, and both `/` and `/play` want all four
-before they can render. Asked for a function at a time that was four round trips
-to one row, with the target's two arriving *after* a `Promise.all` they had no
-reason to wait behind - a waterfall in front of the first question a child sees.
-The single-column readers that remain have callers that genuinely want one thing:
-`readSelectedLevel` for the redirect that runs before anything else on `/play`,
-and `readPlayStreak` inside the streak fold.
+(`readPlayerState`): level, streak, stars and target all live on `User`, and both
+`/` and `/play` want all four. Asked for a function at a time that was four round
+trips - a waterfall in front of the first question. The single-column readers that
+remain have callers that want one thing: `readSelectedLevel` for `/play`'s
+redirect, and `readPlayStreak` inside the streak fold.
 
-Both are drawn through `formatCount` (`src/lib/format.ts`), which pins `en-AU`
-rather than reading the browser's locale - the totals are rendered on the server
-and corrected on the client, and a locale that disagrees across that boundary is
-a hydration mismatch. A star total has no ceiling, and "1,204" is a number to be
-pleased about where "1204" is one to decipher.
+Both totals are drawn through `formatCount` (`src/lib/format.ts`), which pins
+`en-AU` rather than reading the browser's locale - they are rendered on the server
+and corrected on the client, and a disagreeing locale is a hydration mismatch.
 
-Neither is a score. The star total only ever goes up - a whole round or a whole
-day at a time - and nothing a wrong answer does takes anything off either of
-them. A lapsed run
-renders as nothing rather than a zero - a 0 beside a flame reads as a
-telling-off, and the child is here to start a new one. The play screen still
-flashes the streak once (`StreakFlash`) on the answer that extends it.
+Neither is a score. A lapsed run renders as nothing rather than a zero - a 0 beside
+a flame reads as a telling-off. The play screen flashes the streak once
+(`StreakFlash`) on the answer that extends it.
 
 ## Daily targets
 
 `src/lib/rewards/target.ts` - optional, one per child, set by their parent. It is
-the one thing in the app that asks a child to commit to something, so it is a
-floor and never a cap: nothing stops them carrying on past it, nothing is taken
-away for missing it, and a missed day produces no value at all. The only thing
-the module ever says is that a day was met.
+the one thing that asks a child to commit to something, so it is a floor and never
+a cap: nothing stops them carrying on, nothing is taken away for missing it, and a
+missed day produces no value at all.
 
-**Questions or minutes a day, and not per subject** - a child who answers twenty
-questions has answered twenty whichever screen they were on, so every read behind
-a target is cross-subject where `readObservations` is scoped. `TARGET_LIMITS`:
-questions 10-60, minutes 5-30, in fives. The floors matter more than the
-ceilings - ten questions is exactly one round and five minutes is a real sitting
-at six, because the first thing this feature must not do is have a child fail at
-something their parent chose. The ceilings stop a well-meaning parent setting a
-bar nobody clears on a school night. `parseTarget` is the boundary normaliser,
-like `parseYearLevel`: a target off the step or outside the bounds is refused in
-that one place, so no caller has to know the bounds.
+**Questions or minutes a day, and not per subject** - twenty questions is twenty
+whichever screen they were on, so every read behind a target is cross-subject where
+`readObservations` is scoped. `TARGET_LIMITS`: questions 10-60, minutes 5-30, in
+fives. The floors matter more than the ceilings - ten questions is exactly one
+round - because the first thing this must not do is have a child fail at something
+their parent chose. `parseTarget` is the boundary normaliser, like `parseYearLevel`.
 
-**A minute is summed `timeTakenMs`** - already capped at `MAX_TIME_MS` per
-answer - and never wall clock. It is the same number the parent's report calls
-"time on questions", so an iPad left on the sofa cannot earn minutes and the
-target and the report can never disagree about how long a child practised.
+**A minute is summed `timeTakenMs`** - already capped at `MAX_TIME_MS` - never wall
+clock. It is the same number the report calls "time on questions", so an iPad left
+on the sofa cannot earn minutes and the two can never disagree.
 
-**Hitting it is worth `TARGET_STARS` (10), flat rather than scaled** to the size
-of the target. Scaling would make a child's star total a measure of how much
-their parent asked of them, and hand a parent a dial on their child's rewards.
-Ten is worth three or four clean rounds - clearly the day's biggest award,
-without making a round worth nothing.
+**Hitting it is worth `TARGET_STARS` (10), flat rather than scaled.** Scaling would
+make a star total a measure of how much a parent asked, and hand a parent a dial on
+their child's rewards. Ten is worth three or four clean rounds.
 
-The award is one compare-and-set on `User.targetDay`, the shape the play streak
-already uses, so a repeated or raced call pays out once. `awardDailyTarget`
-recounts the day server-side before it writes; the client is trusted for the
-offset, not for the total.
+The award is one compare-and-set on `User.targetDay`. `awardDailyTarget` recounts
+the day server-side before it writes; the client is trusted for the offset, not the
+total.
 
-**Which answers are "today" is decided on the child's device**, because only it
-knows the offset. The server ships `TARGET_WINDOW_MS` (two days) of answers and
-the client folds them with `dayTotal` through `useSyncExternalStore` - the same
-reason `currentStreak` is computed in the browser, and the server snapshot says
-nothing rather than a number computed at UTC.
+**Which answers are "today" is decided on the child's device.** The server ships
+`TARGET_WINDOW_MS` (two days) of answers and the client folds them with `dayTotal`
+through `useSyncExternalStore`.
 
-**The play screen's bar carries no numbers**, for the same reason the header
-counts nothing. A minutes bar creeps during a question, capped at `MAX_TIME_MS`,
-so what is shown can never run ahead of what will be recorded. **The play bar
-goes once the goal is met and the home screen's stays**: on the play screen a bar
-that no longer moves is only something to look at instead of the question, while
-the home screen is where a child takes stock, and it is the one place that lasts
-- the celebration itself is over in four seconds.
+**The play screen's bar carries no numbers.** A minutes bar creeps during a
+question, capped at `MAX_TIME_MS`, so what is shown can never run ahead of what
+will be recorded. **The play bar goes once the goal is met and the home screen's
+stays**: on the play screen a bar that no longer moves is only something to look at
+instead of the question, while the home screen is where a child takes stock.
 
 **The two celebrations queue, round first and day second** (`RoundReward`, then
-`TargetReward`), because one answer can finish both and one tap cannot dismiss
-two screens. `TargetReward` shares the round's shape and its fanfare
-deliberately: a child has learned what that screen and that sound mean, and this
-is the same kind of event, only bigger.
+`TargetReward`), because one answer can finish both and one tap cannot dismiss two
+screens. `TargetReward` shares the round's shape and fanfare deliberately.
 
 **The parent's practice calendar judges past days against the *current* target**,
-since past targets are not stored. The note under it names the goal it is
-judging by, so a fortnight that changes colour after the goal is raised has the
-number that changed it written underneath. `readRecentAnswers` returns `null` on
-a failed read, like `readObservations` and `readSittings`, and the calendar drops
-the goal along with it - four weeks drawn as four weeks of missed days is exactly
-the lie that convention exists to prevent, so the note says it could not check
-rather than saying nothing. On the play path the same read is best-effort
-(`?? []`): an empty bar is only an empty bar.
+since past targets are not stored. The note under it names the goal it is judging
+by. `readRecentAnswers` returns `null` on a failed read and the calendar drops the
+goal with it - four weeks drawn as four weeks of missed days is exactly the lie the
+null convention prevents. On the play path the same read is best-effort (`?? []`).
 
-**The offset is bounded at the action, not trusted** (`parseOffsetMinutes`). It
-is the browser's word, and the day it produces is *stored* - on `User.targetDay`
-and `User.playStreakDay` - behind guards that compare against the day being
-written. One absurd value written once would sit in the future and quietly
-refuse every real day after it, which is a child's stars gone with nothing on
-screen to say why. A refused offset declines the award; a recorded answer falls
-back to UTC rather than being thrown away, because history is worth more than a
-perfect day boundary.
+**The offset is bounded at the action, not trusted** (`parseOffsetMinutes`). The
+day it produces is *stored* - on `User.targetDay` and `User.playStreakDay` - behind
+guards that compare against the day being written, so one absurd value would sit in
+the future and quietly refuse every real day after it. A refused offset declines
+the award; a recorded answer falls back to UTC rather than being thrown away,
+because history is worth more than a perfect day boundary.
 
 ## Speed run
 
-Ninety seconds, one mode, how many you can get right. It is a game rather than
-a lesson - the first thing in the app with a clock, a score and a number to
-beat, all three of which the rest of LearnR deliberately withholds: the play
-screen's header counts nothing and a session keeps no running score, on
-purpose. A speed run breaks both rules, and that is safe to do only because it
-is walled off from everything those rules protect.
+Ninety seconds, one mode, how many you can get right. It is a game rather than a
+lesson - the first thing with a clock, a score and a number to beat, all three of
+which the rest of LearnR deliberately withholds. That is safe only because it is
+walled off from everything those rules protect.
 
 **There is no wrong answer in a speed run.** A run moves on a correct answer and
-on nothing else: the entry is judged as it is typed (`judgeEntry`), and digits
-that can no longer become the answer flash the box red and clear it, leaving the
-same question up to be typed again. Nothing is recorded about the attempt and
-the run does not advance, so the score and the number of questions answered are
-one number rather than two.
+nothing else: the entry is judged as it is typed (`judgeEntry`), and digits that
+can no longer become the answer flash the box red and clear it, leaving the same
+question up. Nothing is recorded about the attempt, so the score and the number of
+questions answered are one number rather than two. That rule took the Check key,
+Enter, the misses read back on the result, the right/missed/answered tally, the
+`of 20` and the `answered` column on both `SpeedRecord` and `SpeedAttempt` with it.
+It is the only place in the app where getting something wrong costs nothing but
+seconds - which is why the *lesson* still marks answers and this does not.
 
-That one rule took several things with it, and each of them existed only to
-describe a wrong answer: the Check key, Enter, the misses read back on the
-result screen, the right / missed / answered tally under the score, the `of 20`
-beside a score in the cabinet and the report's table, and the `answered` column
-on both `SpeedRecord` and `SpeedAttempt`. What is left is the thing the screen
-was always for. It is also the only place in the app where getting something
-wrong costs nothing at all but the seconds - which is the honest shape of a
-game against a clock, and is why the *lesson* still marks answers and this does
-not.
+**Sealed off because an `Attempt` carries a curriculum topic and a school year, and
+a speed run has neither.** `add.hard` is a drill, not a question ACARA describes.
+Recording it anyway would put a topic outside the curriculum into
+`weightTemplates`, and forty answers in ninety seconds would swamp the
+recency-weighted `strength` of every topic genuinely being learned. A speed run
+writes no `Attempt`, no `TopicSkill`, no star and no streak, and earns no
+daily-target credit - the only row it writes is `SpeedRecord` (and `SpeedAttempt`).
 
-**Sealed off because an `Attempt` carries a curriculum topic and an Australian
-school year, and a speed run has neither.** `add.hard` is a drill, not a
-question ACARA describes, and it belongs to no level. Recording it as an
-`Attempt` anyway would put a topic outside the curriculum into
-`weightTemplates`, the selector that decides what a child is asked next, and
-forty answers in ninety seconds would swamp the recency-weighted `strength` of
-every topic genuinely being learned faster than a session could produce them. A
-speed run writes no `Attempt`, no `TopicSkill`, no star and no streak, and earns
-no daily-target credit - the only row it ever writes is `SpeedRecord`.
+### Modes
 
-**Twenty-six modes, and the list is closed.** A free "from" and "to" range
-across the times tables would give something closer to sixty, most differing
-from a neighbour by one table: two near-identical numbers, each set once and
-never approached again. A record is only worth beating if the mode is worth
-naming, so `modes.ts` enumerates the twenty-six by hand rather than building
-them from a range: three difficulties each for addition, subtraction, division
-and mixed, the ten single tables plus four named bundles for multiplication.
-Fewer modes than a free range would give, and every one of them accumulates a
-record with some history behind it rather than being set once and forgotten.
+**Twenty-six modes, and the list is closed.** A free "from"/"to" range across the
+tables would give ~sixty, most differing from a neighbour by one table. A record is
+only worth beating if the mode is worth naming, so `modes.ts` enumerates them by
+hand: three difficulties each for addition, subtraction, division and mixed, plus
+the ten single tables and four named bundles for multiplication.
 
 **Nothing drills the ten times table**, in a mode of its own or in a bundle.
-Multiplying by ten is a place-value rule rather than a fact to recall - write
-the digit, write a nought - so a run of it measures how fast a child can type,
-and a mode is a thing to come back to and beat. That is `SINGLE_TABLES` beside
-`TABLES` in `modes.ts`: the tables offered as a mode of their own, and every
-table there is. The top bundle is `11-12` rather than `10-12` for the same
-reason at a third the strength - three tables' worth of ninety seconds with one
-of them free is a third of the run measuring nothing. Ten stays in **`all`**,
-which means all of them and would be lying otherwise, and in what a **mixed**
-run draws from, where the easy question among the hard ones is the point. Any
-`multiply.10` or `multiply.10-12` already banked simply stops appearing - every
-reader of a stored key runs it through `parseMode` and skips what comes back
-null, which is the whole of what retiring a mode costs.
+Multiplying by ten is a place-value rule rather than a fact to recall. That is
+`SINGLE_TABLES` beside `TABLES`: the tables offered as a mode, and every table there
+is. The top bundle is `11-12` rather than `10-12` for the same reason. Ten stays in
+**`all`**, which would be lying otherwise, and in what a **mixed** run draws from.
+Any `multiply.10` already banked simply stops appearing - every reader of a stored
+key runs it through `parseMode` and skips a null.
 
-**A single table is labelled the way it is said: "7x", not "7 times table".**
-Fourteen chips reading "n times table" are fourteen labels differing in one
-character, which is the slowest thing to scan and the widest thing to draw, and
-the short form is what lets the picker lay the singles out five to a row instead
-of two. A bundle keeps the same notation at both ends - "2x to 5x", "11x to
-12x" - so it reads as a run of the chips above it rather than as a different
-kind of thing named a different way; `all` is the one that cannot be written
-that way and stays "All tables". **`recordBanners` keeps the prose form
-regardless** ("a personal best in the 7 times table", "in tables 11-12"), which
-is the `operationLabel`/`operationNoun` split again: a chip is a control and a
+**A single table is labelled the way it is said: "7x", not "7 times table."**
+Fourteen labels differing in one character are the slowest thing to scan and the
+widest to draw; the short form lets the picker lay singles out five to a row. A
+bundle keeps the notation at both ends - "2x to 5x" - and `all` stays "All tables".
+**`recordBanners` keeps the prose form** ("a personal best in the 7 times table"),
+which is the `operationLabel`/`operationNoun` split: a chip is a control and a
 banner is a sentence.
 
 **An operation is labelled with the verb, not the noun**: "Add", "Subtract",
-"Multiply", "Divide". A card, a heading and a button all name something to *do*,
-the short word is the one a child reads without decoding four syllables, and
-five cards labelled with it are the same width as each other where
-"Multiplication" beside "Add" is not. `operationNoun` keeps the other form for
-the one place that needs prose - `recordBanners` says "a speed run personal best
-in easy addition", and "in easy add" is not English. It says **"a speed run
-personal best"** rather than a bare one because that banner is the only thing on
-a parent's report not about practice, and it no longer says "in 90 seconds":
-every run is ninety seconds, so the phrase padded the score without telling a
-parent anything they could not assume. Two tables side by side in
-`modes.ts` rather than one derived from the other, because no rule turns
-"Divide" into "division" that isn't this table written twice.
+"Multiply", "Divide". `operationNoun` keeps the other form for prose -
+`recordBanners` says "a speed run personal best in easy addition". It says **"a
+speed run personal best"** because that banner is the only thing on a parent's
+report not about practice, and no longer says "in 90 seconds" since every run is.
+Two tables side by side in `modes.ts` rather than one derived from the other.
 
-**Going back is not going home**, so `SpeedRun` takes both. The door inside a
-run lands on the screen the run was started from -
-`/#speed-run` for a child, `/speed` for a parent - because what someone
-is usually undoing is "I picked Multiply", not "I opened this app". For a child
-those are now the same page and not the same place on it: the door aims at the
-speed section, where the cards and the scores are, and the result screen's own
-door still goes to the top of home. "See records" goes where the back arrow
-does, since the scores are the top of that section - which is why `SpeedRun`
-takes no `recordsHref` of its own any more.
+**Multiplication has no difficulty axis, because the times tables are how
+multiplication is drilled.** Mixed still needs multiplication bands;
+`MIXED_TABLES` gives it 2, 5 and 10 at easy, 2-10 at moderate, the full set at hard.
 
-**A parent's speed screens run at the parent's density, but the run itself
-does not.** `SpeedCards` takes the same `scale` prop `SpeedRecordsCabinet`
-already had, and carries it down to the mode chips inside a card: at `'parent'`
-they are `text-base`/`text-sm`, single-width borders and `rounded-xl`, like
-everything else under `ParentShell`, because a parent picking a run is doing it
-inside a report drawn at that size. `SpeedRun` takes no `scale` at all any more
-and never did anything else with it - the ninety seconds are identical for
-everyone, since a question readable at a glance and a pad hit without looking
-are not things an adult wants smaller either, and so is the result screen. The
-line is between choosing and playing, not between who is playing, and now that
-choosing happens entirely on the cards the run has nothing on either side of
-that line to size.
+**Every answer is a non-negative integer, because the number pad has no minus key.**
+Subtraction never goes negative - each difficulty's `y` is bounded by `x`, an
+ordered var referencing one already drawn - and division is exact by construction
+(`x: d * q`) rather than drawn and then checked. **Hard means hard, not just bigger
+digits**: `add.hard` is constrained to carry and `subtract.hard` to borrow, because
+without that constraint two-digit sums draw 20 + 30 about as often as 37 + 58.
 
-**The result screen wears the colour of the operation just run.**
-`OPERATION_ACCENT` is one table shared by the cards, the cabinet and the result,
-so finishing a Multiply run looks like the Multiply card that started it rather
-than like the one blue number every mode used to share. Its `wash`, `text` and
-`solid` classes are written out in full per operation because Tailwind reads
-class names as literals - `bg-(--color-${op}-soft)` compiles to nothing. A
-beaten best overrides the lot with the star tokens: the rarest state has to be
-the one a player already recognises from the round rewards and the streak, not
-just another operation's colour. Under the score there is
-nothing: the tally that used to sit there was right / missed / answered, three
-tiles that are now the same number three times, and the misses below it are a
-list that can no longer have anything in it. The two blocks that remain arrive
-on a staggered `reward-in` so the screen assembles rather than appearing whole,
-and the score centres itself in the viewport rather than sitting under a panel
-that is no longer there.
+### Choosing a run
 
-**The cards, the cabinet and the leaderboard are one screen**, and the scores
-are the top of it. **Every screen that offers a run shows them**: the child's
-home screen under "Speed run", and a parent's `/speed`.
+**The cards, the cabinet and the leaderboard are one screen**, and the scores are
+the top of it. **Every screen that offers a run shows them**: the child's home
+screen under "Speed run", and a parent's `/speed`.
 
-**Which tab a screen opens on follows who is reading it.** A child opens on
-their own records - they came to see what they scored, and the family board is
-the context for it. A parent opens on the **leaderboard**: their own personal
-bests are the least of what this screen has to tell them, and how everyone in
-the house is going is the question they arrived with, the same judgement that
-sends `/` to the report rather than to `/children`. It is one answer
-(`CHILD_DEFAULT_TAB`, `PARENT_DEFAULT_TAB`) driving three things that must
-agree - which tab is leftmost (`tabOrder`), which one the bare URL means
-(`scoreTabHref`) and what a mistyped `?tab=` falls back to (`parseScoreTab`) -
-so all three take it rather than each knowing a favourite of its own. A tab bar
-whose left tab is not the panel under it is not a state that exists, and a
-default tab that no URL names is a panel nothing can link back to.
+**Which tab a screen opens on follows who is reading it.** A child opens on their
+own records; a parent opens on the **leaderboard** - how everyone in the house is
+going is the question they arrived with, the same judgement that sends `/` to the
+report. It is one answer (`CHILD_DEFAULT_TAB`, `PARENT_DEFAULT_TAB`) driving three
+things that must agree - which tab is leftmost (`tabOrder`), which one the bare URL
+means (`scoreTabHref`) and what a mistyped `?tab=` falls back to (`parseScoreTab`).
 
-**There is no `/speed` page for a child**, though `/speed` is now a page - a
-parent's, see the routes below, and a child asking for it is redirected to the
-section named here. The child's speed run screen *is* their home
-screen - the scores and the five cards sit under "Speed run" below practice -
-and a second screen showing the same two things existed only to be the way back
-from a run. `CHILD_SPEED_HREF` (`/#speed-run`) does that without a page to keep
-in step: the anchor and the id it lands on live together in `tabs.ts`, because
-two copies of that string going out of step is a link that scrolls nowhere and
-says nothing about it. `CHILD_SPEED_HREF` is itself built by calling
-`scoreTabHref` rather than written out, so it cannot drift from the tab bar's
-own idea of where the child's default tab lives.
+**There is no `/speed` page for a child** - a child asking for it is redirected.
+The child's speed screen *is* their home screen. `CHILD_SPEED_HREF` (`/#speed-run`)
+is the way back from a run without a page to keep in step; the anchor and the id it
+lands on live together in `tabs.ts`, and `CHILD_SPEED_HREF` is built by calling
+`scoreTabHref` rather than written out.
 
-It was three screens - the cards, and the two walls behind links underneath
-them - which meant the only way to compare a card with itself was out and back
-in, and the links were an invitation to leave a screen to look at cards about
-the modes it was already offering. **`SpeedCards` has no links under it any
-more**, and not a flag to turn them off either: every caller draws
-`SpeedScores` directly above the cards, so there was no screen left for a true
-value to serve. `SpeedScores` is the shared half - the tabs, the two reads and
-the signed-out and no-household sentences - because three screens rendering the
-same thing from three copies is three chances to drift.
+**`SpeedCards` has no links under it** - every caller draws `SpeedScores` directly
+above the cards. `SpeedScores` is the shared half: the tabs, the two reads and the
+signed-out and no-household sentences.
 
-**The two walls are `?tab=` on that one page, not a route each**
-(`parseScoreTab`, `scoreTabHref` in `src/lib/speedrun/tabs.ts`). It is still
-one URL per tab - a bookmark, a back button and a link from the home screen all
-work - and both halves are still server-rendered, but the page now *knows*
-which tab it is showing, so `ScoreTabs` is a plain server component instead of
-the `usePathname` client one two routes forced. `parseScoreTab` **falls back
-rather than refusing**, unlike `parseMode` and `parseYearLevel` beside it: those
-normalise stored keys and real content, where this only picks which of two
-panels is drawn, so a mistyped tab opens the screen's own default rather than
-404ing a screen that works perfectly. It falls back to *that* rather than to a
-fixed favourite so a junk tab and a bare URL land on the same panel instead of
-on two. It is called inside `SpeedScores` rather than by each page, unlike
-`?child=` and the rest: that component is the only thing that reads `?tab=`,
-and a page naming its default *and* normalising against it would be naming one
-fact twice.
+**The two walls are `?tab=` on one page, not a route each** (`parseScoreTab`,
+`scoreTabHref` in `src/lib/speedrun/tabs.ts`). Still one URL per tab, both halves
+server-rendered, and the page *knows* which tab it is showing, so `ScoreTabs` is a
+plain server component. `parseScoreTab` **falls back rather than refusing**, unlike
+`parseMode` and `parseYearLevel`: it only picks which panel is drawn, so a mistyped
+tab opens the screen's own default rather than 404ing a working screen. It falls
+back to that rather than a fixed favourite so a junk tab and a bare URL land
+together. It is called inside `SpeedScores` rather than by each page.
 
-**The scores sit above the cards** because what a player opens the screen for,
-after their first run, is how they are doing - and the cards are five, so
-reaching them costs a short scroll rather than a screen. The parent's copy is
-two `Well`s, "Scores" and "Start a run", because that is how every other parent
-screen separates two questions - and the board there lost the line explaining
-that a parent's own runs are on it, since their face on the podium says it
-better.
+**The scores sit above the cards** because what a player opens the screen for is
+how they are doing. The parent's copy is two `Well`s, "Scores" and "Start a run".
 
 **On the home screen the tabs carry an anchor** (`scoreTabHref`'s `hash`,
-`#speed-run`). The speed section is below practice there, so a tab switch is a
-navigation that would otherwise land a child at the top of the screen, several
-scrolls from the wall they were reading. It is the one screen that needs it, and
-the reason it is a parameter rather than always-on: on `/speed` the
-tabs are already at the top, and a fragment there would be a jump to where the
-page already is.
+`#speed-run`), because the speed section is below practice there. It is a parameter
+rather than always-on: on `/speed` the tabs are already at the top.
 
 **`tabPath` and `runPath` are two questions, not one.** A tab is a URL on the
-screen the scores are *on*, and a run lives under `/speed/...` however that
-screen was reached - the same string for a parent and not for a child, whose
-scores are on `/` and whose runs are not. One `basePath` doing both jobs built
-`//multiply` for every Try button on the home screen, which a browser reads as a
-host called `multiply` rather than a path.
+screen the scores are *on*; a run lives under `/speed/...` however that screen was
+reached. One `basePath` doing both built `//multiply` on the home screen, which a
+browser reads as a host called `multiply`.
 
-**Every card carries a Try button, and it goes straight into the run.** A card
-names a mode and shows what has been scored at it, and until it had a button,
-doing something about that meant backing out, opening the operation and finding
-the same mode again to answer the question the card had just asked. One
-`SpeedTryLink` serves both walls of cards, since the cabinet's card and the
-leaderboard's card are deliberately the same object.
+**Every card carries a Try button, and it goes straight into the run.** One
+`SpeedTryLink` serves both walls, since the cabinet's card and the leaderboard's
+card are deliberately the same object.
 
-**Choosing a run is one screen, and the mode is the route.** It used to be two:
-five operation cards here, and a second screen at `/speed/<op>` whose whole job
-was to ask which variation, with a Start button under it confirming what two
-taps had already said - three taps and a page load in front of ninety seconds.
-The operation card now **opens in place** (`SpeedCards`) and its modes are the
-buttons that start the run, so it is two taps and the second one *is* the run.
+**Choosing a run is one screen, and the mode is the route.** The operation card
+**opens in place** (`SpeedCards`) and its modes are the buttons that start the run,
+so it is two taps and the second one *is* the run. The old second screen at
+`/speed/<op>` is gone rather than hidden, and it took `SpeedRun`'s `'choosing'`
+phase, its `Chooser`, its `scale` and its `op` prop with it: `SpeedRun` takes a
+`Mode`, and its first paint - the server's included - is the count-in. It still
+starts the run in a mount effect rather than a lazy initialiser, because starting
+one reads the clock and makes a seed.
 
-That second screen is gone rather than hidden, and it took `SpeedRun`'s
-`'choosing'` phase, its `Chooser`, its `scale` and its `op` prop with it:
-`SpeedRun` takes a `Mode` now, not a starting point it might change, and its
-first paint - the server's included - is the count-in. It still starts the run
-in a mount effect rather than a lazy initialiser, because starting one reads the
-clock and makes a seed and a render may do neither.
+**So `/speed/multiply.7` is a route and `/speed/multiply` is not.** A route that
+only works with a query is a route lying about what it is. The mode segment makes
+`parseMode` the whole of the validation, where the old pair needed that *plus* a
+check that path and query agreed.
 
-**So `/speed/multiply.7` is a route and `/speed/multiply` is not.** The old
-shape was the operation in the path with the mode as an optional `?mode=` on
-top, and it was right while `/speed/multiply` was a screen somebody chose on.
-It isn't one any more, and a route that only works with a query is a route
-lying about what it is. The mode segment also makes `parseMode` the whole of
-the validation, where the pair needed that *plus* a check that the path and the
-query agreed about the operation - a mismatch only a hand-typed URL could
-produce, and one that had to be handled anyway. Ordinary cards and Try buttons
-build the same URL, so there is one way to name a run rather than two.
+**The picker is a `<details>`, not client state**: the modes render with the page,
+the disclosure is the whole interaction, and `SpeedCards` stays a server component
+a browser running no JavaScript can open. All twenty-six modes are in the HTML. The
+cards became a **stack** rather than a two-column grid when they gained something
+to open. **Opening one closes the others, and that is `name` on the `<details>`** -
+the platform's own accordion, so this still needs no client component. An engine
+too old to know the attribute leaves them independently openable, which is a screen
+that works rather than a broken one.
 
-**The picker is a `<details>`, not client state**, exactly as the report's
-"Needs a hand" rows are: the modes render with the page, the disclosure is the
-whole interaction, and `SpeedCards` stays a server component that a browser
-running no JavaScript can still open. All twenty-six modes are in the HTML. The
-cards became a **stack** rather than a two-column grid when they gained
-something to open: a card that opens has to open the full width or its modes are
-chips in a column, and a grid with one cell three times the height of its
-neighbour is a hole in a row.
-
-**Opening one closes the others, and that is `name` on the `<details>`** rather
-than an `onToggle` and a piece of state - the five share a name, which is the
-platform's own accordion and the whole reason this still needs no client
-component. An engine too old to know the attribute leaves them independently
-openable, which is a screen that works rather than a broken one. Exclusive
-because the open card is four rows tall at its worst, and two of those at once
-is a section a child scrolls past rather than reads.
-
-**Multiply gets two grids, because it has two kinds of chip.** A single table
-reads "7x" and a bundle reads "11x to 12x", and a grid wide enough for the
-second wastes most of a row on the first - which is what made fourteen multiply
-modes seven rows of mostly white space. The ten singles get a dense run of small
-square targets, **five to a row from `sm` up at either scale** so the two rows
-are the same length as each other, and the four bundles the ordinary wide row
-beneath them: four rows where there were seven. `isSingleTable` is what splits
-them and it lives in `modes.ts`, not in the component - what counts as a single
-table is that module's business. Every other operation has no singles at all and
-draws one grid.
+**Multiply gets two grids, because it has two kinds of chip.** "7x" and "11x to
+12x" want different widths. The ten singles get a dense run of small square
+targets, **five to a row from `sm` up at either scale** so the two rows match, and
+the four bundles the ordinary wide row beneath: four rows where there were seven.
+`isSingleTable` lives in `modes.ts`, not the component.
 
 **A child's phone gets two columns everywhere it can, and the difficulties get
-one.** Three chips into two columns is 2+1, the ragged half-row a grid of four
-does not have, and "Moderate" is the widest label in the picker - at half a
-phone's width it is already close to wrapping and at a third it certainly would.
-So the difficulties stack, and the multiply card runs two across for its tables
-as well as its bundles rather than the four the short labels would fit. That
-costs the open Multiply card real height on a phone - five rows of tables where
-there were three - and buys a target a thumb hits without aiming, on the device
-where aiming is hardest. Scrolling a phone is cheap and a missed tap in a picker
-is not. From `sm` up the width is there and every grid takes it: five tables to
-a row, four bundles, three difficulties.
+one.** Three chips into two columns is 2+1, and "Moderate" is the widest label in
+the picker. So difficulties stack, and the multiply card runs two across on a
+phone. That costs the open Multiply card real height and buys a target a thumb hits
+without aiming. From `sm` up: five tables to a row, four bundles, three
+difficulties.
 
-**A chip is coloured by how hard it is, green through to purple**, and that is
-one ramp for all twenty-six (`modeHardness`). Easy, moderate and hard are the
-ends and the middle of it. **The times tables ramp across it too, which is the
-answer to what colour multiplication should be**: they have a difficulty order
-of their own - a child who has 2x has not got 12x - so the thing worth saying
-about a table is the thing the difficulties are already saying, and the
-operation's own accent is on the card around them either way. A single table
-takes its place from its **position** in `SINGLE_TABLES` rather than from its
-value, so the missing ten leaves no gap between nine and eleven; a bundle takes
-the mean of the tables it draws from, which puts `2-5` near the green end,
-`11-12` near the purple one and **`all` in the middle** - a run of everything is
-not the hardest run, it is the mixed one.
+**A chip is coloured by how hard it is, green through to purple**, one ramp for all
+twenty-six (`modeHardness`). **The times tables ramp across it too**, which is the
+answer to what colour multiplication should be: they have a difficulty order of
+their own. A single table takes its place from its **position** in `SINGLE_TABLES`
+rather than its value, so the missing ten leaves no gap; a bundle takes the mean of
+its tables, putting **`all` in the middle** - a run of everything is the mixed run,
+not the hardest. The three colours per chip are **mixed rather than picked from a
+table**, unlike `OPERATION_ACCENT`: an accent is one of five names and a ramp is a
+continuum. `color-mix` **in `oklch`** here where the calendar uses `srgb`, because
+sRGB runs green to purple through a muddy grey. The text is darkened off the ramp
+rather than being the ramp colour (`--color-leaf` on a near-white wash is under
+3:1). `--tone`, `--tone-soft` and `--tone-ink` are registered with `@property`, so
+an engine without `color-mix` draws the ordinary card colours instead of drawing
+them wrong. Nothing but the colour reads `modeHardness`.
 
-The three colours per chip are **mixed rather than picked from a table**, unlike
-`OPERATION_ACCENT`, and for the opposite reason: an accent is one of five names
-and a ramp is a continuum, so ten tables would need ten tokens differing from
-their neighbour by a shade. `color-mix` is already how the practice calendar
-shades a day - **in `oklch` here** where the calendar uses `srgb`, because these
-two ends are far apart in hue and sRGB runs green to purple through a muddy
-grey where oklch runs it through the teals and blues actually between them. The
-text is darkened off the ramp rather than being the ramp colour, since a chip
-label is small and `--color-leaf` on a near-white wash is under three to one.
-`--tone`, `--tone-soft` and `--tone-ink` are registered with `@property` in
-`globals.css` for the reason `--prompt-max` is: an unregistered property holding
-a value the browser cannot parse takes the whole declaration down with it, so an
-engine without `color-mix` draws the ordinary card colours instead of drawing
-them wrong. Nothing but the colour reads `modeHardness` - it is not a difficulty
-the selector acts on, and it never reaches an `Attempt`.
+### Running and results
 
-**The way out of a result is the door, top-left, exactly where the play
-screen puts it.** It was a third button in the row under the score, which made
-three equal boxes of two ways *on* and one way *out* and gave "Go home" the
-same weight as the button the screen exists for. **Going again is a glyph too**
-- a loop, which is what repeat looks like on every remote a child has already
-used - so the button they press most needs no reading, the argument the door,
-the tick and the lightbulb are all built on. Both keep their words in
-`aria-label` and `title`: off the screen, not off the page. What is left in the
-row is a big coloured loop with "See records" under it, and **neither is drawn
-as a box**: two filled buttons side by side made a toolbar of a screen with one
-number on it, and put the loudest thing on it under the score rather than the
-score itself. What is left is one thing to do and one thing to read - the glyph
-large enough to say it is the thing to press, since nothing is drawn round it,
-and the link plain underlined text. "See records" lands where the door does - the screen the run was started from, whose top half is the
-scores - so `SpeedRun` no longer takes a `recordsHref` of its own: there is
-nothing left for a second URL to be, and one that could drift is worse than
-none.
+**The timer is one CSS transition, and only the pulse comes from React.** The bar's
+width is set once, as a transition running down to zero; a bar re-rendered from
+state ten times a second would repaint the whole screen to say what a transition
+says for free. `pulseFor` steps the animation faster at 30, 15 and 5 seconds left.
 
-**And the result says when a run moved the player on the family board.** It is
-the one leaderboard fact that is *news* rather than something to go and look
-at - the run just happened - so it sits on the result and nowhere else.
-`standingChange` (`src/lib/speedrun/leaderboard.ts`, pure and tested beside
-`familyStandings`) decides whether there is anything to say and hands back null
-otherwise: **null when nobody else runs that mode**, because a board of one is
-not a leaderboard and being 1st on it is a prize for turning up - the same
-judgement the leaderboard page makes before it draws anything - and **null when
-the place did not change**, which is most runs. A place can only ever improve
-from your own run, so a standing repeated after every one of them would be
-furniture; a standing that appears only when it moved is worth reading. Arriving
-on the board counts as a move, with `previousPlace` null to say so, and reads
-"You're 3rd in the family" where a climb reads "Up to 2nd". Ties share a place,
-`placesFor`'s rule, so matching the leader is joint first.
+**The next question sits above the current one, dimmed, and it is real state, not a
+render trick.** Reading ahead is most of what makes a fast run fast, so `RunState`
+carries a lookahead of one: the question drawn as "next" *is* the one that becomes
+"current". An answer commits the instant what is typed matches the expected answer
+as an exact string - so `07` for 7 is a leading zero the answer does not begin
+with, and it is dead on the keystroke. A dead entry clears itself immediately: at
+this speed a stuck entry costs more than the mistake, and it is paid most by the
+child mistyping most. Nothing is shown about what the answer should have been.
 
-The rank is computed from the *rivals'* bests alone - the player's own two
-scores are already in hand as `previousBest` and `best` - and read **after** the
-write, since a place among what is stored is not a place among what the run
-arrived with. It is best-effort and quiet like everything else on this path: a
+**The speed run's pad has no tick, no decimal point and no Delete** (`NumberPad`
+takes all three as options; the play screen passes all three). Every answer is a
+whole number by construction, so a `.` is a key that can only kill what it lands
+in, next to the `0` it would be mistaken for. Delete goes because a dead entry
+already clears itself, so a backspace has only a digit thought better of left to
+undo. A physical Backspace still works.
+
+**What that buys is the fourth column for `0`, full height** - the Check key's own
+slot in an ordinary key's clothes, and the pad keeps four columns. About a third of
+answers contain a nought and on the bottom row it was the one digit a thumb had to
+travel for. Styled like every other digit, because it *is* a digit.
+
+**The way out of a result is the door, top-left, exactly where the play screen puts
+it.** **Going again is a glyph too** - a loop, what repeat looks like on every
+remote a child has used. Both keep their words in `aria-label` and `title`. What is
+left is a big coloured loop with "See records" under it, and **neither is drawn as
+a box**: two filled buttons made a toolbar of a screen with one number on it. "See
+records" lands where the door does, so `SpeedRun` takes no `recordsHref`.
+
+**The result screen wears the colour of the operation just run.**
+`OPERATION_ACCENT` is one table shared by the cards, the cabinet and the result.
+Its `wash`, `text` and `solid` classes are written out in full per operation
+because Tailwind reads class names as literals. A beaten best overrides the lot
+with the star tokens: the rarest state has to be the one a player already
+recognises. Under the score there is nothing. The two blocks arrive on a staggered
+`reward-in`, and the score centres itself in the viewport.
+
+**And the result says when a run moved the player on the family board.** It is the
+one leaderboard fact that is *news*, so it sits on the result and nowhere else.
+`standingChange` (`src/lib/speedrun/leaderboard.ts`) hands back null when **nobody
+else runs that mode** - a board of one is not a leaderboard - and when **the place
+did not change**, which is most runs. A place can only improve from your own run,
+so a standing repeated every time would be furniture. Arriving counts as a move,
+with `previousPlace` null, and reads "You're 3rd in the family" where a climb reads
+"Up to 2nd". Ties share a place (`placesFor`'s rule). The rank is computed from the
+*rivals'* bests alone and read **after** the write. Best-effort and quiet: a
 household that cannot be read costs the line, not the result. `readStanding`
-resolves the family through `householdId` and `householdMemberIds`, which was
-lifted out of `readFamilyRecords` rather than written twice - two copies of "who
-counts as this family" is the second truth `ChildShare` carrying no `ownerId`
-exists to avoid.
+resolves the family through `householdId` and `householdMemberIds`, lifted out of
+`readFamilyRecords` rather than written twice.
 
-**The cabinet lists what has been run, and nothing else.** A mode never played
-has no record to show, and twenty-six rows of dashes made a to-do list of a
-trophy case - the four scores actually set were the smallest thing on a screen
-mostly composed of what had not happened. A player with no runs at all gets one
-sentence. What is missing is not the prompt to go and play: the five cards above
-are, and they are always all five.
+**A first run is not a record.** Recording one would make a personal best mean
+somebody *improved*, and would let a child working through the modes fire
+twenty-six notifications at their parent in an afternoon. The result screen says
+"that's your score to beat" instead, and has a fourth case for a run never banked
+at all (signed out, no database, failed write), where it claims no best rather than
+pretending the run was a first one. `seen` is `false` if and only if a run is
+reported as a record, on the write and the read alike.
 
-**The cabinet is the leaderboard's card, with a table where the podium goes.**
-Same coloured title bar carrying the whole mode name, same foil sheen, same
-fixed portrait frame, same `OPERATION_ACCENT` - the two screens answer
-neighbouring questions (how the house is going, how *I* am going) and should be
-the same object with a different picture on the front. A podium is the wrong
-picture for one player: it would be one face with two holes punched beside it.
-So the picture is that player's `HISTORY_RUNS` (5) best runs at the mode,
-highest first, **the top one bold and starred**. It is the number that is
-really the record - the one `SpeedRecord` keeps, the leaderboard ranks and the
-banner announces - and the four beneath it are what say whether it was a fluke
-or a floor. Only one row is ever starred, even when a later run matched it: the
-star marks the run that *set* the best, which is the run `achievedAt` names.
-Cards are ordered freshest first on the runs *shown*, the leaderboard's rule
-for the leaderboard's reason - a sixth-best run this afternoon changes nothing
-on the card and must not reorder the board.
+**A run that got nothing right is never submitted.** Banking a nought would store a
+best the first real attempt then "beats". Since a run only moves on a right answer,
+a score of nought and a run nobody touched are the same thing.
 
-**`SpeedAttempt` is that history, and `SpeedRecord` stays the maximum.** A table
-of five cannot be built from one row per mode, so every finished run is now
-written down whether it beat anything or not - the run that failed to beat the
-best is exactly the kind that says whether the best was a fluke. The two writes
-go together in `submitSpeedRun` and are independent: the record decides what the
-result screen says, the attempt is best-effort like `records.ts`, and a lost
-attempt costs a line of history rather than a game. It needs no lock and no
-guard at all, unlike either of its neighbours - an insert is neither a maximum
-nor a counter, so a retry writes a second row instead of paying twice, which is
-the honest reading of two runs anyway. `readSpeedAttempts` slices the top five
-per mode with a `ROW_NUMBER()` window, the shape `readAnsweredQuestions` uses
-and for its reason: taking the last few hundred runs and hoping would show
-nothing for the mode somebody came to look at. `runHistory`
-(`src/lib/speedrun/history.ts`) is the pure half, beside `leaderboard.ts`,
-because which of two tied runs is starred is not a thing to judge by eye in a
-component.
+**A record needs no row lock**, unlike `roundsBanked` or `targetDay`. A speed
+record is a maximum, and a maximum is idempotent: `best: { lt: run.correct }` in
+the update's `WHERE` is the whole guard. The one place that needs care is the
+*insert* - two concurrent first-ever runs can both read no row. Same race as
+`TopicSkill`, handled the same way: catch the unique violation and retry once.
 
-**A parent's report gets a table instead of the cards** (`SpeedTable`, in the
-`Speed runs` well on `/progress`). The cards are collectibles - a coloured
-frame, a foil sheen, a starred best - and they are built for the player, who
-reads a wall of them by colour the way they read a wall of cards. A parent
-skimming a weekly report is reading down a column instead, so the same data is
-one row a mode: the best, the **latest** run, and the change between that run
-and the one before it. Each is one number - a run's score is now also its count
-of questions, so there is no "8 of 20" left to disambiguate a bare 8 with. The
-child's own trophy screen and the parent's own runs at
-`/speed` both keep the cabinet - the cards are the right shape
-for the question those screens answer.
+### Records, cabinet and leaderboard
 
-**The latest run is the number in the middle, and the best is only the standing
-figure.** A best cannot fall, so a table of bests is a high-water mark that
-reads the same whether a child improved, plateaued or stopped playing a
-fortnight ago - it cannot answer the question the report exists for. The change
-beside it is what a parent is actually reading the row for, and it is a
-percentage of the previous run except where that run scored nought, where a
-percentage is a division by zero and the count gained is the only honest thing
-to put there. A first run has nothing to compare against and gets an em dash
-rather than a zero, since no change and no previous run are different things.
-Rows are ordered by when a mode was last played, freshest first - the
-leaderboard's rule and the cabinet's, for their reason.
+**The cabinet lists what has been run, and nothing else.** Twenty-six rows of
+dashes made a to-do list of a trophy case. A player with no runs gets one sentence;
+the prompt to go and play is the five cards above.
 
-`speedSummaries` (`src/lib/speedrun/summary.ts`) is the pure half, beside
-`history.ts`, and `readSpeedSummaries` is the read. It takes the latest two runs
-per mode **and** the best, with two `ROW_NUMBER()` windows over the same rows:
-one ranks by score so the best survives however old it is, one by recency so the
-pair the change is measured from always does. The best is then the maximum over
-what came back rather than a number read from somewhere else, so the table can
-never claim a best that none of its own rows could have set.
+**The cabinet is the leaderboard's card, with a table where the podium goes.** Same
+coloured title bar, foil sheen, fixed portrait frame and `OPERATION_ACCENT` - the
+two screens answer neighbouring questions (how the house is going, how *I* am
+going). A podium is the wrong picture for one player, so the picture is that
+player's `HISTORY_RUNS` (5) best runs at the mode, highest first, **the top one
+bold and starred**. Only one row is ever starred, even when a later run matched it:
+the star marks the run that *set* the best, which `achievedAt` names. Cards are
+ordered freshest first on the runs *shown*.
+
+**`SpeedAttempt` is that history, and `SpeedRecord` stays the maximum.** Every
+finished run is written down whether it beat anything or not - the run that failed
+to beat the best is exactly the kind that says whether the best was a fluke. The
+two writes go together in `submitSpeedRun` and are independent: the record decides
+what the result says, the attempt is best-effort. It needs no lock and no guard -
+an insert is neither a maximum nor a counter, so a retry writes a second row, which
+is the honest reading of two runs anyway. `readSpeedAttempts` slices the top five
+per mode with a `ROW_NUMBER()` window, the shape `readAnsweredQuestions` uses and
+for its reason. `runHistory` (`src/lib/speedrun/history.ts`) is the pure half.
 
 Every record set before the table existed is backfilled as **one** run each,
 carrying the record's own `achievedAt` - one run is all that can honestly be
-recovered, since the best was the only run ever written down. Without it a
-player who had records saw blank cards while the leaderboard, still reading
-`SpeedRecord`, showed those same scores back to them.
+recovered.
 
-**The family leaderboard ranks the household, per mode, first to third.**
-the leaderboard tab, beside the cabinet on every screen that offers a run - the
-child's home screen and `/speed`. A household is `User.parentId` read
-from both ends - a parent and the children they manage - which `householdId`
-(`src/lib/children.ts`) resolves for whoever is looking; it is `parentId` alone
-for the reason ownership always is, so there is no second column to drift out of
-step. A **parent is on the board**, since they play too and a board that quietly
-left them out would not be the one their children are reading. A child on their
-own Google account and a parent with no children have no household at all, and
-get a sentence rather than a board of one.
+**A parent's report gets a table instead of the cards** (`SpeedTable`, in the
+`Speed runs` well on `/progress`). The cards are collectibles built for the player;
+a parent skimming is reading down a column, so the same data is one row a mode: the
+best, the **latest** run, and the change between that run and the one before.
+**The latest run is the number in the middle, and the best is only the standing
+figure** - a best cannot fall, so a table of bests reads the same whether a child
+improved, plateaued or stopped a fortnight ago. The change is a percentage of the
+previous run except where that run scored nought, where the count gained is the
+only honest thing. A first run gets an em dash rather than a zero. Rows are ordered
+by when a mode was last played, freshest first.
 
-**A viewer a child was shared with widens the board, on both sides.** A
-separated parent, or any other second grown-up given a share, is on that
-child's leaderboard, and the child's household sees them back - the whole
-point of sharing a child with a co-parent is that they *are* raising the same
-child, not reading about them from outside. What crosses is narrower than the
-household itself: `readFamilyRecords` (`src/lib/speed-records.ts`) reads the
-household as before, then reads every `ChildShare` touching it in either
-direction - one where this household is the owner sharing a child out, one
-where it is the viewer a child was shared in to - and
-`extendHouseholdWithShares` (`src/lib/children.ts`, pure and tested) adds only
-the viewer and the specific child a grant names, never the rest of either
-side. A sibling nobody shared stays off both boards, the same privacy the
-report itself already gives a share.
+`speedSummaries` (`src/lib/speedrun/summary.ts`) is the pure half and
+`readSpeedSummaries` the read. It takes the latest two runs per mode **and** the
+best, with two `ROW_NUMBER()` windows over the same rows: one ranks by score so the
+best survives however old it is, one by recency so the pair the change is measured
+from always does. The best is the maximum over what came back, so the table can
+never claim a best none of its own rows could have set.
+
+**The family leaderboard ranks the household, per mode, first to third.** A
+household is `User.parentId` read from both ends, which `householdId`
+(`src/lib/children.ts`) resolves for whoever is looking - `parentId` alone, so
+there is no second column to drift. A **parent is on the board**, since they play
+too. A child on their own Google account and a parent with no children have no
+household at all, and get a sentence rather than a board of one.
+
+**A viewer a child was shared with widens the board, on both sides.**
+`readFamilyRecords` (`src/lib/speed-records.ts`) reads the household, then every
+`ChildShare` touching it in either direction, and `extendHouseholdWithShares`
+(`src/lib/children.ts`, pure and tested) adds only the viewer and the specific
+child a grant names, never the rest of either side. A sibling nobody shared stays
+off both boards.
 
 `familyStandings` (`src/lib/speedrun/leaderboard.ts`) is the ranking, pure and
-tested like `banner.ts` beside it, and it needs no schema: a leaderboard is
-`SpeedRecord` rows sorted, on the same maximum the cabinet stars.
-**A tie shares a place and skips the next** - 1st, 1st, 3rd - because in a
-family of three a tie is common and breaking it on a technicality hands someone
-a second place they did not lose; within one, whoever got there first is listed
-first, which is the only thing that honestly separates them. The cut is at three
-*places*, not three rows, so a three-way tie for first shows all three names.
-Only modes somebody has run appear - the cabinet's rule above, for the
-cabinet's reason - and they are ordered **freshest first**: the newest
-`achievedAt` among a card's *places*, so a fourth-place run, which changes
-nothing anybody can see, does not reorder the board. Twenty-six cards is more
-than anyone reads top to bottom, and the ones worth reading are the ones that
-just moved. Equally fresh modes keep `MODES` order between them.
+tested, and needs no schema: a leaderboard is `SpeedRecord` rows sorted. **A tie
+shares a place and skips the next** - 1st, 1st, 3rd - because in a family of three
+a tie is common and breaking it hands someone a second place they did not lose;
+within one, whoever got there first is listed first. The cut is at three *places*,
+not three rows. Only modes somebody has run appear, ordered **freshest first** by
+the newest `achievedAt` among a card's *places*, so a fourth-place run does not
+reorder the board. Equally fresh modes keep `MODES` order.
 
-**A mode is a collectible card, and its result is a podium.** One card per
-mode, twenty-six of them: a coloured title bar carrying the whole name -
-"Add - Easy", "Multiply - 7x" - and the podium as the picture
-beneath it. A child reads a wall of them the way they read a wall of cards, by
-colour and by who is on the front. The mode used to be a subtitle under the bar,
-which split one name across two zones and spent a line of the card's height
-saying the second half of it. The frame is tall and portrait because a podium needs height more than
-width, and a card wider than it is tall is a row wearing a border.
+**A mode is a collectible card, and its result is a podium.** A coloured title bar
+carrying the whole name - "Add - Easy", "Multiply - 7x" - and the podium beneath.
+The frame is tall and portrait because a podium needs height more than width. First
+sits at the top with a crown above the circle, second below to the left, third
+lower to the right, so no two sit on one line. Each place is a face with its score
+beneath: **both the crown and the score are captions to the face, and neither may
+cover it** - the board shows faces instead of names precisely so a pre-literate
+child can find themselves.
 
-First sits at the top with a crown above the circle, second below it to the
-left, third lower again to the right, so no two of the three sit on one line.
-Each place is a face with its score beneath it: **both the crown and the score
-are captions to the face, and neither may cover it** - the board shows faces
-instead of names precisely so a pre-literate child can find themselves, and
-covering the picture would cost it the one thing it is read for. It replaced
-five operation sections of stacked rows, where first, second and third were
-three lines of the same size told apart by a badge; position says who won
-before anything is decoded. The operation headings went with the sections
-because the card's own title bar carries them.
+**A place nobody holds is drawn as a hole punched through the card**, not left out:
+a recessed circle with a dashed rim says the place exists and nobody is in it,
+where a card missing a third of its picture reads as one that has not loaded.
 
-**A place nobody holds is drawn as a hole punched through the card**, not left
-out. The podium is the card's picture, and a card missing a third of it reads as
-one that has not loaded; a recessed circle with a dashed rim says what a gap
-says - the place exists and nobody is in it - which is the honest state of a
-mode only one person in the house has run.
+**The card carries a foil sheen**: white at low opacity over the operation's wash,
+a soft light from the top-left and one diagonal band, plus a hairline along the top
+of the title bar. One gradient shared by every card rather than a per-accent one,
+and it sits *under* the podium - a gloss across a child's face would be decoration
+spoiling the one thing the card is read for.
 
-**The card carries a foil sheen**: white at low opacity over the operation's
-wash, a soft light from the top-left and one diagonal band across it, plus a
-hairline along the top of the title bar. It is written as one gradient shared by
-every card rather than a per-accent one, so there is nothing to keep in step
-with `OPERATION_ACCENT`, and it sits *under* the podium - a gloss across a
-child's face would be decoration spoiling the one thing the card is read for.
+The podium is laid out by *place* rather than list position, so a shared first puts
+both faces on the top step. Six cards across on a desktop, five on a landscape
+tablet, four portrait, two on a phone, and **every card a fixed height**: a grid
+row stretching its cards to whichever wrapped its label makes the next row a
+different size. `OPERATION_ACCENT` gained a `line` alongside `border`, since
+`border` was only ever a hover.
 
-The podium is laid out by *place* rather than by list position, so a shared
-first puts both faces on the top step rather than demoting one of them to the
-left. **A card wears its operation's colour** - `OPERATION_ACCENT`'s solid in
-the title bar, its wash behind the podium and its border around the lot -
-because twenty-six identical white boxes are told apart only by reading their
-titles, and Multiply here is the same pink as the card that starts the run.
-That accent gained a `line` alongside `border`, since `border` was only ever a
-hover. Six across on a desktop, five on a tablet held sideways, four on one
-held upright, two on a phone, and **every
-card a fixed height**: a grid row stretching its cards to whichever of them
-wrapped its mode label is what makes the next row a different size. The podium
-centres itself in whatever the title leaves, so a mode with one place and a mode
-with three are the same card.
+### Density and routes
 
-**Multiplication has no difficulty axis, because the times tables are how
-multiplication is drilled.** "Hard multiplication" answers a question nobody
-asked when a child came to practise their sevens - the table stands in for a
-difficulty of its own. Mixed still needs multiplication bands, because a mixed
-run has no table to choose and multiplication is one of its four operations
-regardless; `MIXED_TABLES` gives it 2, 5 and 10 at easy, the whole of 2-10 at
-moderate, and the full set at hard.
+**A parent's speed screens run at the parent's density, but the run itself does
+not.** `SpeedCards` takes the same `scale` prop `SpeedRecordsCabinet` has and
+carries it down to the mode chips: at `'parent'` they are `text-base`/`text-sm`,
+single-width borders and `rounded-xl`. `SpeedRun` takes no `scale` at all - the
+ninety seconds are identical for everyone, since a question readable at a glance
+and a pad hit without looking are not things an adult wants smaller. The line is
+between choosing and playing, not between who is playing.
 
-**Every answer is a non-negative integer, because the number pad has no minus
-key.** Subtraction never goes negative - each difficulty's `y` is bounded by
-`x`, an ordered var referencing one already drawn - and division is exact by
-construction: built as a divisor times a quotient (`x: d * q`) rather than
-drawn and then checked, so there is nothing for rejection sampling to reject.
-**Hard means hard, not just bigger digits**: `add.hard` is constrained to carry
-and `subtract.hard` to borrow, because two-digit-plus-two-digit without that
-constraint draws 20 + 30 about as often as 37 + 58, and a "hard" that draws its
-easy cases just as often is moderate wearing a bigger font.
+**Going back is not going home**, so `SpeedRun` takes both. The door inside a run
+lands on the screen the run was started from - `/#speed-run` for a child, `/speed`
+for a parent - because what someone is usually undoing is "I picked Multiply". The
+result screen's own door still goes to the top of home.
 
-**A record needs no row lock, unlike `roundsBanked` or `targetDay`.**
-`User.stars` is *incremented*, so a repeated call would pay a child twice if
-nothing stopped it - that is what the round-star lock exists for. A speed
-record is a maximum, and a maximum is idempotent: `best: { lt: run.correct }`
-in the update's `WHERE` clause is the whole guard, and a repeat, a retry or two
-runs landing at once all agree on the same outcome with no transaction needed.
-The one place that still needs care is the *insert* - the row cannot be locked
-before it exists, so two concurrent first-ever runs on the same mode can both
-read no row and both try to create one. That is the identical race
-`updateTopicSkill` hits on `TopicSkill`, handled the same way: catch the unique
-violation and retry the guarded update once. One time round is enough.
+**A parent plays too, privately.** `/speed/[mode]` renders the same component the
+child gets, and a parent's runs bank to their own `SpeedRecord` rows.
+`SpeedBanner` reports someone else's achievement and never your own:
+`readUnseenRecords` is scoped to a parent's *children*.
 
-**A first run is not a record.** Recording one as a record would make a
-personal best mean somebody *improved*, which a first run has not done, and it
-would let a child working through the modes fire twenty-six notifications at
-their parent in an afternoon. The result screen has a third thing to say rather
-than two - "that's your score to beat", where a fanfare would be invented - and
-a fourth for when the run was never banked at all: signed out, no database, or
-a write that failed, in which case the screen claims no best rather than
-pretending the run was a first one. `seen` is `false` if and only if a run is
-reported as a record, on the write and the read alike, so the same event can
-never tell the child "new best" and leave the parent's banner silent, or the
-reverse.
-
-**A run that got nothing right is never submitted.** Banking a nought would
-store a best the child's first real attempt then "beats" - laundering a first
-run into a celebrated record through a run that never actually happened. The
-guard used to be on the number of answers rather than the score, so that nought
-out of eight - a real run with a real baseline - was still banked. There is no
-such run any more: a run only moves on a right answer, so a score of nought and
-a run nobody touched are the same thing, and nought is the one score with
-nothing to say.
-
-**The timer is one CSS transition, and only the pulse comes from React.** The
-bar's width is set once, at the start of the run, as a transition running down
-to zero over the time left; a bar re-rendered from state ten times a second
-under a child answering as fast as they can would repaint the whole screen to
-say what a transition says for free. React still owns the beat - `pulseFor`
-steps the animation faster at 30, 15 and 5 seconds left, because that changes
-three times in ninety seconds and not thirty.
-
-**The next question sits above the current one, dimmed, and it is real state,
-not a render trick.** Reading ahead is most of what makes a fast run fast, so
-`RunState` carries a lookahead of one: the question drawn as "next" is the very
-question that becomes "current" the moment this one is answered, not a preview
-redrawn to match. An answer commits the instant what is typed matches the
-expected answer as an exact string, and there is no Check key to grade it any
-other way - so `07` for 7 is not a right answer waiting to be checked, it is a
-leading zero the answer does not begin with, and it is dead on the keystroke.
-A dead entry clears itself immediately rather than waiting for a backspace:
-at this speed a stuck entry costs more than the mistake did, and it is paid
-most by the child mistyping most. Nothing is shown about what the answer should
-have been, on the screen or afterwards - ninety seconds is not teaching time,
-and the question is still up to be got right.
-
-**The speed run's pad has no tick, no decimal point and no Delete**
-(`NumberPad` takes all three as options; the play screen passes all three).
-There is nothing to check, and every answer here is a whole number by
-construction, so a `.` would not be a key that does nothing - with the entry
-judged as it is typed it is a key that can only ever kill what it lands in,
-sitting next to the `0` it would be mistaken for. Delete goes for the same kind
-of reason: a dead entry already clears itself on the keystroke that killed it,
-so all a backspace has left to undo is a digit typed and thought better of,
-which costs less to finish and let the pad refuse than to reach across the pad
-for. A physical Backspace still works, because a keyboard player reaches for
-nothing.
-
-**What that buys is the fourth column for `0`, full height** - the Check key's
-own slot, in an ordinary key's clothes, and the pad keeps its four columns
-rather than narrowing to three. A speed run is scored on how fast a whole
-number can be typed and about a third of the answers contain a nought; on the
-bottom row it was the one digit a thumb had to travel for, which is a child's
-own complaint about the pad. Given the tall column it is the biggest target
-there and the only one that can be hit without aiming. Styled like every other
-digit and not like the tick, because it *is* a digit - a brand-filled column
-says "this key ends something", which is the one thing `0` does not do.
-
-**A parent plays too, privately.** `/speed/[mode]` renders the same
-component the child gets, and a parent's own runs bank to their own
-`SpeedRecord` rows the same way. `SpeedBanner` reports someone else's
-achievement and never your own: `readUnseenRecords` is scoped to a parent's
-*children*, so a parent beating their own best produces no row in their own
-banner - there is nothing the banner needs to do to keep that true.
-
-**`/speed` and `/speed/[mode]` are one pair of routes serving whoever is signed
-in, branching on the reader rather than on the URL.** A parent's speed screens
-used to nest under the report at `/progress/speed` and `/progress/speed/[mode]`,
-on a real argument: a route group adds no path segment, so a bare
-`(parent)/speed` would have sat exactly beside the child's `/speed/...` - two
-top-level URLs a hyphen apart, told apart only by spelling, and a redirect or a
-copied `href` that got the two backwards produces no build error and no test
-failure. Nesting distinguished by depth instead, which cannot be muddled the
-same way.
-
-**What retires that argument is that there is no second path left to confuse.**
-The two routes were never two screens: `/progress/speed` rendered the same
-`SpeedScores` and `SpeedCards` the child's home screen does, and
-`/progress/speed/[mode]` rendered the same `SpeedRun` with two different hrefs
-on it - which is what the whole second route amounted to, since the ninety
-seconds are identical for everyone and `SpeedRun` takes no scale. A parent and a
-child asking for `/speed` are asking the same question, and the difference
-between the answers is a frame and a density, not an address. So `readViewer`
-(`src/app/(parent)/parent.ts`) reads the role without deciding anything on it -
-`readParent` beside it is a *gate* and redirects, which is the wrong shape for a
-screen that serves two kinds of reader - and each route branches once.
-
-**A child is redirected rather than served.** Their speed screen is still their
-home screen, so `/speed` sends them to `CHILD_SPEED_HREF`; drawing the section a
-second time at its own URL would be the duplication that deleting `/speed` fixed
-the first time. A signed-out visitor goes the same way, landing on the page that
-offers them a way in. `PARENT_SPEED_HREF` is the one place the parent's path is
-named, beside `CHILD_SPEED_HREF` and for its reason.
+**`/speed` and `/speed/[mode]` are one pair of routes serving whoever is signed in,
+branching on the reader rather than on the URL.** These used to nest under
+`/progress/speed`, on the argument that a route group adds no path segment so a
+bare `(parent)/speed` would sit a hyphen away from the child's `/speed/...`. What
+retires that is that there is no second path left to confuse: the two routes were
+never two screens - `/progress/speed` rendered the same `SpeedScores` and
+`SpeedCards`, and `/progress/speed/[mode]` the same `SpeedRun` with two different
+hrefs. So `readViewer` (`src/app/(parent)/parent.ts`) reads the role without
+deciding anything on it - `readParent` beside it is a *gate* and redirects, the
+wrong shape for a screen serving two kinds of reader - and each route branches
+once. **A child is redirected rather than served**, to `CHILD_SPEED_HREF`; a
+signed-out visitor goes the same way. `PARENT_SPEED_HREF` is the one place the
+parent's path is named.
 
 The `/speed` page draws `ParentShell` itself rather than inheriting it, since it
-sits outside the `(parent)` route group - it has to, that group adding no path
-segment and `/speed` being the path. `ParentNav` reads the URL for which item is
-current, so the nav highlights "Speed run" from here exactly as it did from under
-`/progress`. What the move *buys* `useParentScreen` is the end of an ordering
-constraint: `/progress/speed` and `/progress` both matched a speed URL, so the
-specific one had to be tested first or every speed screen highlighted
-"Progress". The three prefixes are disjoint now and no line depends on sitting
-above another. The cost is one account read on the child's run path, which
-previously needed only the session.
+sits outside the `(parent)` route group. `ParentNav` reads the URL, so "Speed run"
+highlights from here as it did from under `/progress`. What the move buys
+`useParentScreen` is the end of an ordering constraint: `/progress/speed` and
+`/progress` both matched a speed URL, so the specific one had to be tested first.
+The three prefixes are disjoint now. The cost is one account read on the child's
+run path.
 
 ## Accounts
 
-There are two kinds of account, `parent` and `child` (`User.role`), and **a
-Google sign-in can only ever produce a parent**. A child is a profile their
-parent made - no email, no `Account` row - and a login code is their only way
-in, so signing in with Google *is* saying you are a grown-up and it is taken as
-the answer rather than followed by a screen asking the question.
+There are two kinds of account, `parent` and `child` (`User.role`), and **a Google
+sign-in can only ever produce a parent**. A child is a profile their parent made -
+no email, no `Account` row - and a login code is their only way in, so signing in
+with Google *is* saying you are a grown-up.
 
-It used to be a choice: a chooser on `/` offering two cards to any account whose
-role was null. What retired it is that the second card produced an account
-nobody managed. A self-declared child had `parentId` null, and `parentId` is the
-whole of what fixes a level - so `/play`'s redirect of a mismatched `?level=`
-did not apply to them, and the year their parent set was bypassable by signing
-in with Google and picking "child". It is also what makes dropping Google from
-the planned iOS app sound: the child is the only native user there, and a
-provider that cannot produce a child is a provider the native app does not need.
+It used to be a choice, and what retired it is that the second card produced an
+account nobody managed. A self-declared child had `parentId` null, and `parentId`
+is the whole of what fixes a level - so `/play`'s redirect of a mismatched
+`?level=` did not apply, and the year a parent set was bypassable. It is also what
+makes dropping Google from the planned iOS app sound: the child is the only native
+user there.
 
 **The compare-and-set outlived the chooser it was written for.**
-`claimParentRole` is still `UPDATE ... WHERE role IS NULL`, so a role already
-set is never overwritten - a managed child cannot be promoted by any path, and
-`sharing.ts` writes the identical statement inside its acceptance transaction
-for that reason rather than because it is a second policy.
+`claimParentRole` is still `UPDATE ... WHERE role IS NULL`, so a role already set
+is never overwritten - a managed child cannot be promoted by any path, and
+`sharing.ts` writes the identical statement inside its acceptance transaction.
 
 **It is claimed on the sign-in event, and healed on `/`.** `events.signIn` in
-`auth.ts` is the door every Google account comes through, including the accounts
-that predate the column, which a create-time hook would have missed. A session
-does not expire, though, so an account still holding one from before that event
-existed would never pass through it - which is why `/` claims the role too when
-it finds a signed-in account without one, and treats it as a parent. Every other
-parent screen redirects a null role to `/`, so that bounce heals rather than
-loops.
+`auth.ts` is the door every Google account comes through, including accounts that
+predate the column. A session does not expire, though, so an account still holding
+one from before that event would never pass through it - which is why `/` claims
+the role too when it finds a signed-in account without one. Every other parent
+screen redirects a null role to `/`, so that bounce heals rather than loops.
 
 A **parent does not play**, so they get neither the level picker nor a subject
-card. They get two screens instead, and **the report is the one they land on**:
-setting a profile up happens once, reading how a child is going happens every
-week, so `/` **redirects a parent to `/progress`** rather than rebuilding the
-report there. Only a parent with no children yet gets a screen at `/`: a sentence
-and an "Add a child" button pointing at the other screen. A failed read is not
-"no children" and is not redirected - it says so and stays put.
+card. They get two screens, and **the report is the one they land on**: `/`
+**redirects a parent to `/progress`**. Only a parent with no children yet gets a
+screen at `/`: a sentence and an "Add a child" button. A failed read is not "no
+children" and is not redirected.
 
-`/children` is that other screen: a card per child with name, avatar and level,
-plus add, edit, remove and the login code. It does not link to the report: the
-nav above it already goes there and the report picks its own child, so a second
-way in was a button per card saying what one dropdown already says. Both screens sit in
-`ParentShell`, which carries the title, the two-item nav between them, the
-profile menu and the curriculum link - the last of which follows every signed-in
-branch, a parent's included, because it is the one thing they would actually want
-to read. That link is a panel rather than a footnote: a line of small print under
-a page of boxed sections is the shape of something nobody is meant to click.
+`/children` is the other screen: a card per child with name, avatar and level, plus
+add, edit, remove and the login code. It does not link to the report - the nav
+above already goes there and the report picks its own child. Both screens sit in
+`ParentShell`, which carries the title, the two-item nav, the profile menu and the
+curriculum link - the last follows every signed-in branch, and is a panel rather
+than a footnote, since a line of small print is the shape of something nobody is
+meant to click.
 
 **The shell is a layout, not something each page draws.** Both screens live in
-the `src/app/(parent)` route group and `layout.tsx` renders `ParentShell` around
-them, so hopping between the report and the profiles replaces only what differs:
-the logo, the profile menu and the nav stay mounted rather than being torn down
-and rebuilt, which is what made the hop flicker. A layout is never told which
-page it is wrapping, so the two things that vary - the title and which nav item
-is current - read the URL from the client (`ParentHeading`, `ParentNav`), and
-`resolveChild` picks the child the `?child=` parameter names so the heading and
-the report can't disagree about who is on screen. The layout is a frame and not
-a gate: it does not re-run on a client-side hop, so `readParent` - which is
-where the sign-in and parent-role checks live - is called by the pages too, and
-`cache`d so the two calls in one request are one query.
+`src/app/(parent)` and `layout.tsx` renders `ParentShell` around them, so hopping
+between them replaces only what differs. A layout is never told which page it is
+wrapping, so the title and the current nav item read the URL from the client
+(`ParentHeading`, `ParentNav`), and `resolveChild` picks the child `?child=` names
+so the heading and the report can't disagree. The layout is a frame and not a gate:
+it does not re-run on a client-side hop, so `readParent` - where the sign-in and
+parent-role checks live - is called by the pages too, and `cache`d.
 
-**The child card's buttons are all glyphs.** Every card carries the same three
-and every card says the same thing with them, so the words were only ever taking
-up width - and on a narrow screen they pushed the row onto a second line. The
-code button keeps its three states and gets a picture for each: a **key** when
-there is no live code, because that state is the one that changes something, and
-an **eye** - struck through once the code is on screen - for revealing and
-hiding what is already stored. Two pictures rather than one, because issuing and
-revealing are not the same act. The label they lose moves to `aria-label` and `title` - it is off the
-screen, not off the page - and the buttons stay the same height as the ones
-beside them so the row still lines up. Remove is a bin rather than a cross: a
-cross on a card reads as "close this", and dismissing the row is the one thing
-that button must not be mistaken for.
+**The child card's buttons are all glyphs.** Every card says the same thing with
+them, so the words were only taking up width. The code button keeps three states
+and gets a picture for each: a **key** when there is no live code, and an **eye** -
+struck through once on screen - for revealing and hiding. Two pictures, because
+issuing and revealing are not the same act. Labels move to `aria-label` and
+`title`. Remove is a bin rather than a cross: a cross on a card reads as "close
+this".
 
-**Removing a child is confirmed in the card, never with `confirm()`.** The
-browser dialog is unstyled, unreadable on an iPad, and - being synchronous - the
-one thing on that screen that can freeze it. It also cannot say what is being
-lost, which is the only reason to ask: the row cascades, so the confirmation
-names the child and says the answers, progress and login code go with them.
+**Removing a child is confirmed in the card, never with `confirm()`.** The browser
+dialog is unstyled, unreadable on an iPad and synchronous, and it cannot say what
+is being lost - which is the only reason to ask. The confirmation names the child
+and says the answers, progress and login code go with them.
 
-**A parent's screens say the level short**: `shortYearLabel`, so Kindergarten
-reads "Year K" beside every other "Year n". A row of short facts wrapping for
-the youngest child and nobody else is the thing to avoid, and it keeps a level
-dropdown from being sized by its one long option. The child's own screens keep
-`yearLabel` - there is room there, and it is their year being named.
+**A parent's screens say the level short**: `shortYearLabel`, so Kindergarten reads
+"Year K" beside every other "Year n". The child's own screens keep `yearLabel`.
 
-**Parent screens are not built to the child's scale.** The play and level screens
-are sized for a six-year-old holding an iPad at arm's length; a parent is reading
-a report on a laptop, and blowing that up only means more scrolling and less on
-screen. So `ParentShell` and everything under it run denser: `text-sm`/`text-base`
-body, single-width borders, `rounded-xl`, `px-3 py-1.5` buttons. The one
-exception is the login code itself, which is still drawn large - it is read off
-this screen by eye and typed into another device.
+**Parent screens are not built to the child's scale.** `ParentShell` and everything
+under it run denser: `text-sm`/`text-base` body, single-width borders,
+`rounded-xl`, `px-3 py-1.5` buttons. The one exception is the login code itself,
+read off this screen by eye and typed into another device.
 
-A **managed child** is a `User` row with `parentId` set, no email and no
-`Account` row - nothing OAuth about it. Because it is an ordinary user row,
-`LearningSession`, `Attempt`, `TopicSkill`, `records.ts` and the play actions all
-work on it unchanged. `parentId` is the only flag that matters downstream: it is
-what fixes the level. A managed child gets `SubjectCards` for their
-`selectedLevel` with no dropdown, and `/play` **redirects** a mismatched `level`
-parameter back to theirs - hiding the dropdown while leaving a typed URL open
-would not be enforcing anything.
+A **managed child** is a `User` row with `parentId` set, no email and no `Account`
+row. Because it is an ordinary user row, `LearningSession`, `Attempt`,
+`TopicSkill`, `records.ts` and the play actions work on it unchanged. `parentId` is
+the only flag that matters downstream: it is what fixes the level. A managed child
+gets `SubjectCards` for their `selectedLevel` with no dropdown, and `/play`
+**redirects** a mismatched `level` parameter back to theirs.
 
-**A child with no parent is a shape the app no longer creates.** The level
-dropdown is still what `/` draws for a `child` row without a `parentId`, since
-there is nothing else it could honestly show one, but nothing can mint one any
-more - every `child` row comes from a parent, and so carries the level lock.
+**A child with no parent is a shape the app no longer creates.** The level dropdown
+is still what `/` draws for a `child` row without a `parentId`, but nothing can
+mint one any more.
 
 **Signed out, both ways in live in the landing page's top bar as peers** - a
-grown-up signs in with Google, a child types their code, and neither is the
-fallback for the other. On a phone there is no room to say that side by side:
-four characters read off another screen have a floor on how small they get, so
-below `sm` the pair goes behind one "Get started" button and opens as a panel
-underneath, where each gets a full row and a line of copy saying whose it is.
-`GetStarted` renders them **once** and re-lays them out in CSS - `sm:contents`
-dissolves the wrapper at the wider size - rather than shipping a phone copy and
-a desktop copy of the code box, which is how the two would drift apart.
+grown-up signs in with Google, a child types their code. On a phone there is no
+room to say that side by side, so below `sm` the pair goes behind one "Get started"
+button and opens as a panel where each gets a full row and a line of copy.
+`GetStarted` renders them **once** and re-lays them out in CSS (`sm:contents`
+dissolves the wrapper) rather than shipping two copies of the code box.
 
 **The landing page says what this is and who it helps, not how it is built.** How
-the selector weights a topic, that questions are generated rather than stored, how
-long a code lives - all true, all the author's preoccupations, none of them what a
-parent deciding in thirty seconds is asking. They want to know whether their child
-will use it and whether they will learn anything, so the page is a hero, a panel
+the selector weights a topic, that questions are generated - all true, none of them
+what a parent deciding in thirty seconds is asking. So the page is a hero, a panel
 each for *what your child gets* and *what you get*, three numbered steps, and the
-coverage. The single exception is the curriculum, which stays because it is the
-one claim on the page a parent can actually check - and it is rendered straight
-from the shipped templates (`subjectOverview`), so the page cannot promise more
-than the questions deliver. The one call to action is a parent's; a child's way
-in is the code box in the bar, and it stays there.
+coverage. The single exception is the curriculum, the one claim a parent can
+actually check - rendered straight from the shipped templates (`subjectOverview`),
+so the page cannot promise more than the questions deliver.
 
-**Login codes.** A parent generates a 4-character code
-(`src/lib/login-code.ts`) that a child types on the sign-in screen. The charset
-excludes `0/O` and `1/I/L` - a code is read off one screen and typed into
-another, so the pairs that get confused in that handoff are not in the alphabet.
-Randomness is injected, as everywhere in `src/lib`, but the caller must pass
-`crypto.randomInt` and **not** the seeded `Rng`: replayability is exactly the
-property a login code must not have.
+**Login codes.** A parent generates a 4-character code (`src/lib/login-code.ts`)
+that a child types on the sign-in screen. The charset excludes `0/O` and `1/I/L` -
+a code is read off one screen and typed into another. Randomness is injected, but
+the caller must pass `crypto.randomInt` and **not** the seeded `Rng`: replayability
+is exactly the property a login code must not have.
 
 **The short-lived thing is the code, not the login.** A code lasts an hour and is
 spent at redemption - `UPDATE ... RETURNING` clears it and identifies its owner in
-one statement, so two taps arriving together cannot both get a session, and
-issuing a new code invalidates the old one by overwriting it. The session it
-creates then does not expire on a schedule. Those are two halves of one decision:
-the window protects the handoff from parent to child, and once the child is in
-they stay in. Being locked out of a maths app mid-term and having to find a parent
-to get back in is the friction this feature exists to remove. `Session.expires` is
-not nullable, so "does not expire" is spelled as a date far enough out never to
-arrive.
+one statement, so two taps cannot both get a session, and issuing a new code
+invalidates the old by overwriting it. The session it creates does not expire on a
+schedule. Two halves of one decision: the window protects the handoff, and once the
+child is in they stay in. `Session.expires` is not nullable, so "does not expire"
+is a date far enough out never to arrive.
 
-**Showing a code and issuing one are different actions**, and the child card
-keeps them apart. One button carries three states: "Get code" when there is no
-live code, "Show code" when there is one (revealing what is already stored - a
-child may be halfway through typing it, and re-issuing here would break the code
-in their hand), and "Hide code" once it is on screen. Regenerating is its own
-button under the revealed code. That code is centred in its panel with a copy
-button right beside the digits, since copying is the other way it reaches the
-child's device - read aloud across a room, or pasted into a message. The copy
-turns into a tick for a moment: a clipboard write is otherwise invisible, and a
-button that looks unchanged gets tapped twice. The write is best-effort like
-playing a sound - an insecure context rejects it, and a code still sitting on
-screen to be typed is not worth throwing over.
+**Showing a code and issuing one are different actions.** One button carries three
+states: "Get code", "Show code" (revealing what is already stored - a child may be
+halfway through typing it), and "Hide code". Regenerating is its own button under
+the revealed code. The code is centred with a copy button beside the digits, since
+copying is the other way it reaches the child's device. The copy turns into a tick
+for a moment: a clipboard write is otherwise invisible. The write is best-effort.
 
-`isCodeLive` is the pure test that picks between the first two states, and the
-hour is counted down in an effect rather than at render - reading the clock
-while rendering is not something a component gets to do.
+`isCodeLive` is the pure test picking between the first two states, and the hour is
+counted down in an effect rather than at render.
 
-Redemption is **not** a NextAuth provider. Auth.js refuses to combine a
-Credentials provider with database sessions (`UnsupportedStrategy`), and moving
-the app to JWT sessions to get around that would cost server-side session state
-for nothing. Instead `redeemLoginCode` writes the same `Session` row the Prisma
-adapter would and the action sets the same cookie - `auth()` cannot tell the two
-paths apart. That only works if both agree on the cookie, so `auth.ts` pins
-`SESSION_COOKIE_NAME`/`SESSION_COOKIE_OPTIONS` explicitly rather than leaving
-Auth.js to switch the `__Secure-` prefix implicitly, and exports them.
+Redemption is **not** a NextAuth provider. Auth.js refuses to combine a Credentials
+provider with database sessions (`UnsupportedStrategy`), and moving to JWT sessions
+would cost server-side session state for nothing. Instead `redeemLoginCode` writes
+the same `Session` row the Prisma adapter would and the action sets the same
+cookie - `auth()` cannot tell the two paths apart. That only works if both agree on
+the cookie, so `auth.ts` pins `SESSION_COOKIE_NAME`/`SESSION_COOKIE_OPTIONS`
+explicitly rather than leaving Auth.js to switch the `__Secure-` prefix implicitly.
 
 **`/signin` is where a sign-in goes when it does not work, and it is not
 optional.** `auth.ts` names it as `pages.signIn`, and Auth.js resolves *every*
 `SignInError` against that setting - `AccessDenied`, `OAuthCallbackError`,
-`OAuthAccountNotLinked` and `MissingCSRF` all carry `kind = 'signIn'` - so it is
-not a screen anybody navigates to on purpose. It shipped missing for a while,
-which made the ordinary act of tapping "Sign in with Google" and then declining
-on Google's own consent screen land on a 404, indistinguishable from the app
-being broken. `GET /api/auth/signin` redirects here too, with a `?callbackUrl=`.
+`OAuthAccountNotLinked` and `MissingCSRF` - so it is not a screen anybody navigates
+to on purpose. It shipped missing for a while, which made declining on Google's own
+consent screen land on a 404. `GET /api/auth/signin` redirects here too, with a
+`?callbackUrl=`. Deleting the `pages.signIn` line instead would let Auth.js render
+its own unstyled page, which is the objection this app makes to a native `<select>`
+only louder. It carries **both ways in as peers**, and holds harder here: somebody
+bounced out of a sign-in is exactly who might have tried the wrong one. A signed-in
+visitor is redirected home.
 
-Deleting the `pages.signIn` line instead - one line rather than a page - would
-have let Auth.js render its own, and that is the wrong way round: the built-in
-page is unstyled and unbranded, which is the objection this app already makes to
-a native `<select>`, only louder, since this is a whole screen and the first one
-a failed sign-in shows. It carries **both ways in as peers**, the landing page's
-rule, and it holds harder here: somebody bounced out of a sign-in is exactly who
-might have been trying the wrong one of the two. A signed-in visitor is
-redirected home rather than offered a second sign-in.
-
-`src/lib/signin.ts` is the pure half, tested, and it is two boundary normalisers
-beside `parseYearLevel` and the rest. `authErrorMessage` turns an `?error=` code
-into a sentence about the account rather than the protocol - "OAuthAccountNotLinked"
-is true and useless to a parent - and **falls back rather than refusing**, for
-`parseScoreTab`'s reason: Auth.js may add error types in a minor release, and a
-page rendering nothing for one it has not heard of leaves somebody with no
-account of why they are on it. Only the codes a single Google provider can
-actually produce are named; a list obliged to be complete is a list that goes
-stale against a dependency. `parseCallbackUrl` refuses anything but a path
-inside this app, since it decides where a freshly signed-in session is pointed:
-an absolute URL there would hand somebody's new session to a site somebody else
-chose, the argument `parsePhoto` makes about a remote image. `//host` and `/\host`
-are refused by name, because a slash a backslash disagree about is exactly where
-an open redirect lives.
+`src/lib/signin.ts` is the pure half: two boundary normalisers. `authErrorMessage`
+turns an `?error=` code into a sentence about the account rather than the protocol,
+and **falls back rather than refusing** (`parseScoreTab`'s reason): Auth.js may add
+error types in a minor release. Only the codes a single Google provider can produce
+are named. `parseCallbackUrl` refuses anything but a path inside this app, since it
+decides where a freshly signed-in session is pointed. `//host` and `/\host` are
+refused by name, because a slash a backslash disagree about is where an open
+redirect lives.
 
 `src/lib/accounts.ts` holds the Prisma side, following `records.ts`: every child
 mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**
-best-effort - a silently failed answer costs history and the child plays on, but
-a silently failed login is a child locked out and a silently failed removal is a
-parent lied to, so the mutations report whether they worked.
+best-effort - a silently failed login is a child locked out and a silently failed
+removal is a parent lied to.
 
 ## Profile pictures
 
-A parent can give a child a photograph, and **the preset animal is what shows
-when they have not**. The eight animals in `src/lib/avatars.ts` are still the
-fallback everywhere and still the whole story for a family that never uploads
-anything - a photo is an addition to that list, not a replacement for it.
+A parent can give a child a photograph, and **the preset animal is what shows when
+they have not**. The eight animals in `src/lib/avatars.ts` are still the fallback
+everywhere - a photo is an addition to that list, not a replacement.
 
-**Nothing is uploaded.** `src/components/photo-crop.tsx` decodes whatever
-picture was chosen with `createImageBitmap`, draws the circle's square into a
-256px canvas and encodes WebP, so what reaches a server action is about 20KB
-whatever the camera produced. That is why there is no size limit and no MIME
-allow-list on the way in: the test of a picture is that the browser could decode
-it, and a 12MP HEIC and a 200px PNG cost the database exactly the same. It is
-the fourth browser shim, beside `sounds.ts`, `speech.ts` and `clock.ts`, and for
-the same reason - `File`, `createImageBitmap` and `<canvas>` could never live in
-`src/lib`.
+**Nothing is uploaded.** `src/components/photo-crop.tsx` decodes the chosen picture
+with `createImageBitmap`, draws the circle's square into a 256px canvas and encodes
+WebP, so what reaches a server action is ~20KB whatever the camera produced. That
+is why there is no size limit and no MIME allow-list on the way in: the test of a
+picture is that the browser could decode it. It is a browser shim for the usual
+reason - `File`, `createImageBitmap` and `<canvas>`.
 
-**The geometry is pure and tested** (`src/lib/photo/crop.ts`): `coverScale` is
-the zoom floor at which the picture covers the window, so a crop with an empty
-crescent in it cannot be produced; `clampOffset` is what a drag may not do; and
-`sourceRect` is the square handed to `drawImage`. Judging that by eye in a
-component is exactly what the `lib` rule exists to prevent, and there are no
-component tests here to catch it later - vitest is node-only.
+**The geometry is pure and tested** (`src/lib/photo/crop.ts`): `coverScale` is the
+zoom floor at which the picture covers the window, so a crop with an empty crescent
+cannot be produced; `clampOffset` is what a drag may not do; `sourceRect` is the
+square handed to `drawImage`. There are no component tests to catch it later -
+vitest is node-only.
 
-**`parsePhoto` is the boundary**, beside `parseYearLevel`, `parseTarget` and
-`parseAvatar`: only a `data:image/webp;base64,` string under `MAX_PHOTO_BYTES`
-is ever stored. A photo arrives through a server action, which is to say through
-the browser, so a remote URL accepted here would be a way to make every screen
-that draws this child fetch something somebody else chose. The byte cap is
-defence against a hand-rolled call, not against a parent's camera roll.
+**`parsePhoto` is the boundary**: only a `data:image/webp;base64,` string under
+`MAX_PHOTO_BYTES` is ever stored. A photo arrives through the browser, so a remote
+URL accepted here would make every screen that draws this child fetch something
+somebody else chose. The byte cap is defence against a hand-rolled call.
 
 **`ChildPhoto` is a table, not a column on `User`.** The Auth.js adapter selects
-whole user rows on every authenticated request, and a photo has no business
-riding along with a session lookup; the row is joined only where a face is
-actually drawn. It cascades with the child, so the removal copy's promise that
-the answers, the progress and the code go with them stays true of their picture
-too.
+whole user rows on every authenticated request, and a photo has no business riding
+along with a session lookup; the row is joined only where a face is drawn. It
+cascades with the child, so the removal copy's promise stays true.
 
 **`ProfileFace` is the one place the fallback order lives**: photo → the Google
 picture a grown-up has → the preset animal → the initial → a silhouette. Six
-screens draw a face, and the order got copied the moment it was written twice.
-Threading it through the profile menu fixed a bug it walked past: a managed
-child has no Google `image`, and that menu had never looked at their `avatar` at
-all, so a child saw their initial on the one screen that is theirs.
+screens draw a face. Threading it through the profile menu fixed a bug it walked
+past: a managed child has no Google `image`, and that menu had never looked at
+their `avatar`.
 
-**The leaderboard shows faces and no names.** Everywhere else a face sits beside
-a name; there it replaces one. The board is the screen a pre-literate child
-reads for themselves, which is the reason the avatars exist in the first place,
-and a photograph is found faster than a name by someone who is not reading
-either. The name moves to the face's `alt` and `title`, so a hover and a screen
-reader still have it. There is no "you" chip either: on a card of three faces
-the viewer's own is the one they already know by sight, and a label naming it
-was a word on a screen built to need none. A grown-up in the household with no Google picture is a
-lettered circle among photographs; that is the honest cost of the trade and not
-worth an upload path of its own yet.
+**The leaderboard shows faces and no names.** Everywhere else a face sits beside a
+name; there it replaces one - the board is the screen a pre-literate child reads
+for themselves. The name moves to the face's `alt` and `title`. There is no "you"
+chip either: the viewer's own face is the one they know by sight. A grown-up with
+no Google picture is a lettered circle among photographs; that is the honest cost.
 
 ## Sharing a child
 
 A second grown-up - a separated parent, a grandparent, a tutor - can be given a
 child's report and nothing else. `src/lib/sharing.ts` is the Prisma side, beside
-`accounts.ts` and following its rules; `src/lib/share-link.ts` is the pure half,
-beside `login-code.ts` and for the same reasons.
+`accounts.ts`; `src/lib/share-link.ts` is the pure half, beside `login-code.ts`.
 
 **Read-only is a property of the schema, not a check anyone has to remember.**
 Ownership is still `User.parentId` alone, and every mutation in `accounts.ts`
 already scopes its `where` by it - so there is no query in the app that edits a
-child and can be reached through a share. Adding viewers therefore changed none
-of them. A permission column consulted by each caller would have been the same
-feature with a place to forget, and this is the one part of the app where
-forgetting means showing one family another family's child.
+child and can be reached through a share. Adding viewers therefore changed none of
+them. A permission column consulted by each caller would have been the same feature
+with a place to forget, and this is the one part of the app where forgetting means
+showing one family another family's child.
 
-**A `ChildShare` row carries no `ownerId`.** Who owns the child is
-`User.parentId`, and a copy here would be a second truth to keep in step - the
-same objection as `TopicSkill` being a cache rather than a second history. A
-revoke scopes itself through the child (`child: { parentId }`), which cannot
-drift from ownership because it *is* ownership.
+**A `ChildShare` row carries no `ownerId`.** Who owns the child is `User.parentId`,
+and a copy here would be a second truth. A revoke scopes itself through the child
+(`child: { parentId }`), which cannot drift from ownership because it *is*
+ownership.
 
-**The link is short-lived and single-use; what it buys is not.** Exactly the
-split a child's login code makes: `ShareInvite` lasts `INVITE_TTL_MS` (7 days,
-not the code's hour - an adult opens a message after the weekend) and is spent at
-acceptance, and the `ChildShare` it leaves stands until the owner revokes it.
-Acceptance is one `UPDATE ... RETURNING` on the token *and* a null `acceptedAt`,
-like `redeemLoginCode`, so two taps cannot both get in. The token is 32
-characters of a 62-character alphabet rather than four of a reduced one, because
-nobody reads it aloud - and `crypto.randomInt`, never the seeded `Rng`, for the
-reason a login code says.
+**The link is short-lived and single-use; what it buys is not.** `ShareInvite`
+lasts `INVITE_TTL_MS` (7 days, not the code's hour - an adult opens a message after
+the weekend) and is spent at acceptance; the `ChildShare` it leaves stands until
+revoked. Acceptance is one `UPDATE ... RETURNING` on the token *and* a null
+`acceptedAt`, like `redeemLoginCode`. The token is 32 characters of a 62-character
+alphabet rather than four of a reduced one, because nobody reads it aloud - and
+`crypto.randomInt`, never the seeded `Rng`.
 
-**Accepting again by the same person is not a failure.** Signing in is the
+**Accepting again by the same person is not a failure.** Signing in *is* the
 acceptance - Google's round trip returns to `/share/<token>?go=1` and the page
-takes the invite on arrival - so a reload must not read as a dead link while the
-grants are sitting there. `acceptShareInvite` returns success for the viewer who
-already holds it, which is what makes the auto-accept safe.
+takes the invite on arrival - so a reload must not read as a dead link.
+`acceptShareInvite` returns success for the viewer who already holds it, which is
+what makes the auto-accept safe.
 
 **`ShareInvite.childIds` is an array, not a join table**, because it records what
-was *offered* rather than what is granted: it is written once and read once, and
-every id in it is checked against the issuer's current children at acceptance. A
-child removed in between is simply not granted. The page behind the link runs the
-same filter, so it cannot promise what the acceptance would then not give.
+was *offered* rather than what is granted: written once, read once, and every id in
+it is checked against the issuer's current children at acceptance. A child removed
+in between is simply not granted. The page behind the link runs the same filter.
 
-**A new account arriving through a link is a parent like any other Google
-sign-in** - a compare-and-set to `parent` on `role IS NULL`, the same statement
-`claimParentRole` makes, written out inline because it has to run inside the
-acceptance transaction. A viewer is an ordinary parent account: they can add
-children of their own, and being shared someone else's is a grant beside that,
-not a lesser kind of account. A signed-in *child* account is refused at the page
-rather than allowed to collect other families' children.
+**A new account arriving through a link is a parent like any other Google sign-in** -
+the same compare-and-set on `role IS NULL`, written out inline because it has to
+run inside the acceptance transaction. A viewer is an ordinary parent account: they
+can add children of their own. A signed-in *child* account is refused at the page.
 
-`readViewableChildren` is what every parent screen resolves `?child=` against -
-own children first, then shared - so a child that is not in it is not reachable
-by typing its id, and there is no second ownership check to drift out of step.
-Shared children come back with `access: 'viewer'`, no login code (never
-selected, rather than selected and blanked) and the name of the parent who
-shared them.
+`readViewableChildren` is what every parent screen resolves `?child=` against - own
+children first, then shared - so a child not in it is not reachable by typing its
+id. Shared children come back with `access: 'viewer'`, no login code (never
+selected, rather than selected and blanked) and the name of the parent who shared.
 
 ## Parent analytics
 
-`/progress?child=<id>&subject=maths` - a parent picks a child and sees how they
-are going. It reads and renders; nothing on it writes. It is also **where a
-parent lands**, since `/` redirects them here as soon as they have one child -
-see **Accounts** above.
+`/progress?child=<id>&subject=maths` - a parent picks a child and sees how they are
+going. It reads and renders; nothing on it writes. It is also **where a parent
+lands**.
 
 **The child id is never trusted.** `listChildren(parentId)` returns both the
-dropdown's options and the set of ids this parent may look at, and the parameter
-is resolved against that list. There is no separate ownership check to drift out
-of step with the query - the same reason `accounts.ts` puts `parentId` in every
-`where`.
+dropdown's options and the set of ids this parent may look at, and the parameter is
+resolved against that list. There is no separate ownership check to drift.
 
-**Whose days these are is the child's question, not the parent's.** The server
-has no timezone and does not know the browser's, so the offset comes from
-`latestOffsetMinutes` - the offset the child last answered at, which every
-`Attempt` already stores. A parent reading this from another timezone still sees
+**Whose days these are is the child's question, not the parent's.** The offset
+comes from `latestOffsetMinutes` - the offset the child last answered at, which
+every `Attempt` already stores. A parent reading from another timezone still sees
 their child's evenings as evenings.
 
 **`readObservations` and `readSittings` are not best-effort**, unlike everything
-else in `records.ts`. A swallowed failure there costs a little history while a
-child plays on; here an empty array would render as "your child has never
+else in `records.ts`. Here an empty array would render as "your child has never
 practised", which is a lie when the database hiccuped. `null` means *could not
 read* and `[]` means *nothing recorded*, and the screen says something different
 for each.
 
-**The screen refuses to diagnose what it doesn't know.** Under
-`MIN_OBSERVATIONS` answers, "Needs a hand" and "Doing well" say so in words
-rather than listing something built from two data points. A child who has never
+**The screen refuses to diagnose what it doesn't know.** Under `MIN_OBSERVATIONS`
+answers, "Needs a hand" and "Doing well" say so in words. A child who has never
 played gets a sentence, not empty charts.
 
-**"Needs a hand" unfolds the questions themselves.** A percentage says a topic
-is hard and only the questions say *how* it is going wrong, so each struggling
-topic carries a disclosure with its last `EXAMPLE_ANSWERS` (3) answers - the
-prompt as the child saw it, the diagram beside it where the question had one,
-what they answered, and what it should have been - one row each, elided rather
-than wrapped so the column can be read down. The diagram is the **stored** figure
-redrawn small (`Diagram` again, at report density), never a fresh draw off
-today's template: a jittered figure drawn again is a different picture, and a
-parent asking how a question went wrong has to be looking at the one their child
-was looking at. Three
-is enough to see a pattern and few enough to unfold without a page of history.
-It is a plain `<details>`: the rows are rendered with the page and the
-disclosure is the whole interaction, so nothing here needs a client component.
-Folded rather than shown, because the weekly skim is the common read and this is
-what a parent opens when they are about to sit down with the child.
+**"Needs a hand" unfolds the questions themselves.** A percentage says a topic is
+hard and only the questions say *how* it is going wrong, so each struggling topic
+carries a disclosure with its last `EXAMPLE_ANSWERS` (3) answers - the prompt as
+the child saw it, the diagram beside it where there was one, what they answered,
+and what it should have been - one row each, elided rather than wrapped. The
+diagram is the **stored** figure redrawn small (`Diagram` at report density), never
+a fresh draw off today's template: a jittered figure drawn again is a different
+picture, and a parent asking how a question went wrong has to be looking at the one
+their child was. It is a plain `<details>`, so nothing here needs a client
+component. Folded rather than shown, because the weekly skim is the common read.
 
-`readAnsweredQuestions` is the read, and it fetches the last three for **every**
-topic rather than being told which topics are struggling: which those are is
-`topicReports`' answer, over history the read knows nothing about. One query
-with a `ROW_NUMBER()` window does the per-topic slicing in the database - the
-alternative, taking the last few hundred attempts and hoping, would quietly show
-nothing for a topic last got wrong a while ago, which is exactly the topic a
-parent came to look at. `null` on failure like its neighbours, and the panel
-says it could not fetch them rather than drawing a topic as having no history.
+`readAnsweredQuestions` fetches the last three for **every** topic rather than
+being told which are struggling: which those are is `topicReports`' answer, over
+history the read knows nothing about. One query with a `ROW_NUMBER()` window does
+the per-topic slicing in the database - taking the last few hundred attempts and
+hoping would quietly show nothing for a topic last got wrong a while ago, which is
+exactly the topic a parent came to look at. `null` on failure like its neighbours.
 
-`headline` holds the arithmetic behind the three tiles - a rolling 7 days
-against the 7 before, because a Monday-aligned week reads "0 questions" every
-Monday morning. It lives in `lib` and is tested, like everything else that
-counts, and the `now` it runs on is read once, at the request boundary -
-`requestNow()` in `src/app/now.ts` - one of these for the whole app, rather than
-a bare `Date.now()` in the component, which `react-hooks/purity` flags as impure.
-`strengths` mirrors `problemTopics`, ordered by `correctDays` because that is
-the evidence that means something; it excludes `review-due` so no topic appears in two sections at once.
+`headline` holds the arithmetic behind the three tiles - a rolling 7 days against
+the 7 before, because a Monday-aligned week reads "0 questions" every Monday
+morning. The `now` it runs on is read once, at the request boundary -
+`requestNow()` in `src/app/now.ts`, one of these for the whole app, rather than a
+bare `Date.now()` in the component, which `react-hooks/purity` flags as impure.
+`strengths` mirrors `problemTopics`, ordered by `correctDays`; it excludes
+`review-due` so no topic appears in two sections at once.
 
 Two framing decisions the copy depends on. The tile says **"time on questions"**,
-not "minutes spent": it is summed `timeTakenMs`, already capped per answer, so
-it can't be inflated by an iPad left on the sofa - and it undercounts, which the
-label has to be honest about. And a line under the tiles explains that **around
-three in four right is the system working**; the selector mixes hard topics in
-deliberately, and without that line a parent reads 76% as a C.
+not "minutes spent": it is summed `timeTakenMs`, already capped, so it can't be
+inflated by an iPad on the sofa - and it undercounts, which the label has to be
+honest about. And a line under the tiles explains that **around three in four right
+is the system working**; without it a parent reads 76% as a C.
 
-`recharts` draws the topic bars and is the project's only UI dependency. Height
-is questions and the fill is correct answers; the remainder is line grey rather
-than `--color-wrong`, because it is "the rest of the questions" and not a column
-of failures. **Its labels lie flat where there is room and tilt to
-`LABEL_ANGLE` (45 degrees) where there isn't**: a topic name is several words
-and a year's worth of topics puts a dozen bars across a panel, so on a phone
-flat labels collided however they were wrapped. Flat is the better read where
-it fits, so from `md` up they lie down, and what limits them there is the bar's
-own width, measured with a `ResizeObserver` rather than declared - a label is
-only ever as wide as the band it sits under. When even that leaves nothing
-legible (`MIN_CHARS`) they tilt. Anything longer than its budget is elided
-either way, and the tooltip still names the topic in full.
+`recharts` draws the topic bars and is the project's only UI dependency. Height is
+questions and the fill is correct answers; the remainder is line grey rather than
+`--color-wrong`, because it is "the rest of the questions" and not a column of
+failures. **Its labels lie flat where there is room and tilt to `LABEL_ANGLE` (45
+degrees) where there isn't.** From `md` up they lie down, and what limits them
+there is the bar's own width, measured with a `ResizeObserver` rather than declared.
+When even that leaves nothing legible (`MIN_CHARS`) they tilt. Anything longer than
+its budget is elided either way, and the tooltip names the topic in full.
 
-**They used to turn fully on their side, and the tilt is the trade that
-replaced it.** Vertical labels cannot collide whatever the bar width and need no
-width at all, which is exactly why they fit a phone - but reading one means
-turning the phone, and a label nobody reads is not doing its job. The geometry
-of the tilt is `src/lib/chart/axis-labels.ts`, pure and tested for the reason
-`photo/crop.ts` gives: it is geometry, and a phone is both the case that goes
-wrong and the hardest thing to keep checking by hand. A label is anchored at its
-**end**, under the bar it names, since which bar a name belongs to is the one
-thing a tilted axis can get wrong. The tilt then costs two things vertical got
-for free, and both are measured rather than hoped for. **Horizontal room**: a
-label leans up and to the left, an SVG clips at its own edge, and what runs off
-is simply gone - so the chart takes a **gutter** on its left, capped at
-`MAX_GUTTER_SHARE` of the width so the bars never become slivers. **What that
-gutter is worth is decided by position, not by length**: only the bars near the
-left edge can run out of chart, and a long name over the sixth bar has five
-bars' width of its own to lean across and wants nothing from the gutter at all.
-So each label is asked what *it* needs from where *it* sits and the gutter is
-the largest of those answers, which for a typical run of topic names is nothing.
-Sizing it off the longest name wherever that name sat spent a quarter of a
-phone's panel on room the labels did not want, and read as a hole punched in the
-corner of the panel. Eliding follows position for the same reason: a single
-budget would have to be the leftmost bar's, and trimming a name that has the
-whole plot to lean across, because a different name on the far side is cramped,
-is that same mistake pointed the other way. **The angle is set against the
-gutter too**, since those also pull opposite ways - a flatter label is the
-easier read and reaches further sideways, so it wants more room to lean into.
-30 degrees asked for half again what 45 does, and 45 costs about four characters
-of the longest topic name.
-**Clearance from the label next door**: tilted labels are parallel strips
-separated by the band *across* the tilt rather than the bar width, and length
-cannot help since two strips are the same distance apart however long they are -
-so the type size comes down as far as `MIN_FONT`, which buys back characters as
-well as daylight. `CHART_INSETS` is shared with the component rather than
-written twice, because two copies of the value axis' width is how a label starts
-being clipped by a margin nobody told the geometry about. The practice calendar is hand-rolled SVG and server-rendered - no
-library ships one worth the bytes. It draws **four Monday-to-Sunday weeks**
-(`calendarWeeks`), not runs of seven ending today: real weeks are what lets it
-carry weekday labels, since a column that is Monday one week and Thursday the
-next is not a column. The tail of the current week is `future` and gets **no
-square at all** - a Friday nobody has reached and a Friday nobody used must not
-look the same, and it is why the count reads "of the last 24 days" rather than
-28. It is a CSS grid of seven `1fr` columns rather than an SVG, because the two
-axes want different things: the width is whatever the column gives it, the
-height is a fixed 14px. One viewBox cannot scale to that without stretching the
-corner radii with it.
+**They used to turn fully on their side, and the tilt is the trade that replaced
+it.** Vertical labels cannot collide and need no width, which is why they fit a
+phone - but reading one means turning the phone. The geometry is
+`src/lib/chart/axis-labels.ts`, pure and tested. A label is anchored at its **end**,
+under the bar it names, since which bar a name belongs to is the one thing a tilted
+axis can get wrong. The tilt costs two things vertical got free, both measured:
 
-**Each section of the report is a `Well`** - one bordered panel per question a
-parent is asking. Run together as bare headings they read as one long page to
-parse; boxed, the boundaries are visible in a skim, which is how a weekly read
-actually happens. The three headline tiles are already boxed and stay as they
-are, with the "three in four" line as their caption. Inside a well, lists are
-`divide-y` rows rather than cards - a card in a well reads as double-boxed.
+- **Horizontal room.** A label leans up and to the left and an SVG clips at its own
+  edge, so the chart takes a **gutter** on its left, capped at `MAX_GUTTER_SHARE`
+  so the bars never become slivers. **What that gutter is worth is decided by
+  position, not length**: only bars near the left edge can run out of chart, and a
+  long name over the sixth bar has five bars to lean across. So each label is asked
+  what *it* needs from where *it* sits and the gutter is the largest answer - for a
+  typical run of topic names, nothing. Sizing it off the longest name wherever it
+  sat spent a quarter of a phone's panel on room the labels did not want. Eliding
+  follows position for the same reason.
+- **Clearance from the label next door.** Tilted labels are parallel strips
+  separated by the band *across* the tilt, and length cannot help, so the type size
+  comes down as far as `MIN_FONT`.
 
-**Subject is a dropdown, not tabs** (`SubjectPicker`, alongside `ChildPicker`
-and URL-backed the same way). It was written while maths was still the only
-subject, on the argument that a row of one tab is a label pretending to be a
-control where a dropdown with one option is honestly a dropdown - and it reads
-the same now that English has made it a real choice, which is what that
-argument was for.
+**The angle is set against the gutter too**, since those pull opposite ways - a
+flatter label is the easier read and reaches further sideways. 30 degrees asked for
+half again what 45 does, and 45 costs about four characters of the longest topic
+name. `CHART_INSETS` is shared with the component rather than written twice.
 
-**A parent's profile menu has no stars and no streak.** They don't play, so both
-would be counting nothing; `page.tsx` skips those two reads entirely for a
-parent rather than reading numbers it won't show.
+The practice calendar is hand-rolled SVG and server-rendered. It draws **four
+Monday-to-Sunday weeks** (`calendarWeeks`), not runs of seven ending today: real
+weeks are what lets it carry weekday labels. The tail of the current week is
+`future` and gets **no square at all** - a Friday nobody has reached and a Friday
+nobody used must not look the same, and it is why the count reads "of the last 24
+days" rather than 28. It is a CSS grid of seven `1fr` columns rather than an SVG,
+because the width is whatever the column gives it and the height is a fixed 14px;
+one viewBox cannot scale to that without stretching the corner radii.
+
+**Each section is a `Well`** - one bordered panel per question a parent is asking.
+Run together as bare headings they read as one long page; boxed, the boundaries are
+visible in a skim. The three headline tiles are already boxed, with the "three in
+four" line as their caption. Inside a well, lists are `divide-y` rows rather than
+cards - a card in a well reads as double-boxed.
+
+**Subject is a dropdown, not tabs** (`SubjectPicker`, alongside `ChildPicker` and
+URL-backed the same way). Written while maths was the only subject, on the argument
+that a row of one tab is a label pretending to be a control - and it reads the same
+now English has made it a real choice.
+
+**A parent's profile menu has no stars and no streak.** They don't play, so
+`page.tsx` skips those two reads entirely rather than reading numbers it won't show.
 
 ## Setup
 
@@ -2406,8 +1784,8 @@ Copy `.env.example` to `.env` and fill in:
 
 - `DATABASE_URL` - Neon Postgres via the Vercel Marketplace
 - `AUTH_SECRET` - `npx auth secret`
-- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, with redirect
-  URI `http://localhost:3000/api/auth/callback/google`
+- `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
+  `http://localhost:3000/api/auth/callback/google`
 
 Without these the app still runs and plays - auth and recording are skipped
 (`isAuthConfigured`, `isDatabaseConfigured`) so the engines and UI stay workable.
@@ -2415,6 +1793,19 @@ Without these the app still runs and plays - auth and recording are skipped
 Prisma 7: the connection URL lives in `prisma.config.ts`, not the schema, and the
 client is generated to `src/generated/prisma` (gitignored) and constructed with the
 `@prisma/adapter-pg` driver adapter.
+
+**The API has its own `.env`**, at `apps/api/.env`, needing only `DATABASE_URL`
+and `PORT` - Auth.js runs in the web app, so the API needs no `AUTH_*` variable.
+It reads the same `Session` rows Auth.js writes, which is how one sign-in serves
+both.
+
+**Its tests need Docker**, and they do *not* read that `.env`: the Testcontainers
+Postgres is started in a vitest `globalSetup` which sets `DATABASE_URL` before any
+test module is imported. It has to be that early, because the data modules build
+their client from the variable at import time - a per-file `beforeAll` leaves
+`prisma` null and every function returning null against a database that is running
+perfectly well. `npm run db:deploy` and `prisma migrate dev` **do** read it, so
+they reach whatever it names.
 
 ## Working agreements
 
