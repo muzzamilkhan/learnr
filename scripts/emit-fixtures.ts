@@ -9,9 +9,9 @@ import { allSets, buildDigestFiles } from './fixtures/digests';
 const CORPUS_DIR = 'fixtures/corpus';
 
 /**
- * Writes the full corpus - about 110 MB - which is never committed. 33 MB was
- * the measurement on compact JSON; this indents two spaces, because the corpus
- * exists to be read.
+ * Writes the full corpus - about 110 MB - which is never committed. The same
+ * data measures 37.7 MB without the indentation; this indents two spaces
+ * because the corpus exists to be read.
  *
  * It carries the manifest version of the run that produced it, so a copy
  * vendored into another repository names itself as stale rather than passing
