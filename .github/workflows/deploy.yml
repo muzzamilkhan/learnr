@@ -158,10 +158,19 @@ jobs:
       # the deploy pipeline.
       - run: npm install -g vercel@59.5.0
 
-      # Pulls the project's settings and its production environment variables
-      # onto the runner, which is what makes the build below the same build
-      # Vercel would have run.
-      - run: vercel pull --yes --environment=production
+      # `whoami` first, because the failure this job actually hits is a token
+      # that authenticates perfectly well but belongs to a scope that cannot
+      # see this project - which the CLI reports as "Could not retrieve Project
+      # Settings", reading like a broken link rather than the wrong credential.
+      # One line of log naming the account is the difference between knowing
+      # that and bisecting it. An outright invalid token says so itself.
+      #
+      # The pull puts the project's settings and its production environment
+      # variables on the runner, which is what makes the build below the same
+      # build Vercel would have run.
+      - run: |
+          vercel whoami
+          vercel pull --yes --environment=production
 
       # Built here rather than on Vercel so the artifact that ships is the one
       # the suites above ran beside, and so a red test means nothing was built
