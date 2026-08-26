@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@fastify/swagger": "^9.8.1",
+    "@learnr/core": "file:../learnr/packages/core",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "fastify": "^5.12.1",

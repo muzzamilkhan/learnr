@@ -1,36 +1,25 @@
-import { execSync } from 'node:child_process';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { PrismaClient } from '../../src/generated/prisma/client.js';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
- * A real Postgres, not a mock. The three guards this server depends on -
- * `SELECT ... FOR UPDATE` on TopicSkill and on roundsBanked, and the
- * compare-and-set on targetDay - have no meaning against a fake client, and
- * they are the parts most worth proving.
+ * The container itself is started once per run by global-setup.ts, which also
+ * applies the migrations and exports DATABASE_URL. By the time a test file is
+ * imported the variable already names that container, so this only has to open
+ * a client against it - and src/db.ts, built from the same variable, is
+ * pointing at the same database.
  */
-let container: StartedPostgreSqlContainer | undefined;
 let client: PrismaClient | undefined;
 
 export async function startDatabase(): Promise<void> {
-  container = await new PostgreSqlContainer('postgres:17-alpine').start();
-  const url = container.getConnectionUri();
-
-  // `migrate deploy` applies the same migrations a production deploy would, so
-  // a broken migration fails here rather than on Vercel.
-  execSync('npx prisma migrate deploy', {
-    env: { ...process.env, DATABASE_URL: url },
-    stdio: 'inherit',
-  });
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error('global-setup.ts did not run: DATABASE_URL is unset');
 
   client = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 }
 
 export async function stopDatabase(): Promise<void> {
   await client?.$disconnect();
-  await container?.stop();
   client = undefined;
-  container = undefined;
 }
 
 export function testPrisma(): PrismaClient {
