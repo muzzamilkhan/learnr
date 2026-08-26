@@ -3,6 +3,7 @@ import type { QuestionTemplate } from '../../src/lib/templates/types';
 import { digest } from './canonical';
 import { corpusCases, DRAWS } from './corpus';
 import { exprSet } from './expr';
+import { gradingSet } from './grading';
 
 /** Two spaces, because the digest diff is how an engine change gets reviewed. */
 const INDENT = 2;
@@ -46,7 +47,7 @@ export function corpusSets(templates: readonly QuestionTemplate[]): DigestSet[] 
  * the whole point of that stamp is that a stale vendored copy names itself.
  */
 export function allSets(templates: readonly QuestionTemplate[]): DigestSet[] {
-  return [...corpusSets(templates), exprSet(templates)];
+  return [...corpusSets(templates), exprSet(templates), gradingSet(templates)];
 }
 
 /**

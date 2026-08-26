@@ -14,6 +14,10 @@ describe('buildDigestFiles', () => {
     expect([...generated.keys()]).toContain('manifest.json');
   });
 
+  it('carries the grading set', () => {
+    expect([...generated.keys()]).toContain('grading.json');
+  });
+
   it('holds one group per template, hashed', () => {
     const file = read('maths.3.json');
     const ids = allTemplates.filter((t) => t.subject === 'maths' && t.level === '3').map((t) => t.id);
