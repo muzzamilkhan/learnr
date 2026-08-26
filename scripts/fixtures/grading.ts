@@ -2,7 +2,7 @@ import { createRng } from '../../src/lib/rng';
 import { gradeAnswer } from '../../src/lib/session/grade';
 import { generateQuestion } from '../../src/lib/templates/generate';
 import type { Question, QuestionTemplate } from '../../src/lib/templates/types';
-import { canonicaliseCase, digest } from './canonical';
+import { canonicaliseCase, canonicalQuoted, digest } from './canonical';
 import { seedFor } from './corpus';
 import type { DigestSet } from './digests';
 
@@ -60,11 +60,13 @@ export function responsesFor(question: Question): string[] {
  * hundredth draw exercises the same path as the first. What varies usefully is
  * the *response*, which is why that list is constructed rather than sampled.
  *
- * `response` and `recorded` go through `JSON.stringify` rather than raw, because
+ * `response` and `recorded` go through `canonicalQuoted` rather than raw, because
  * a response is deliberately allowed to be empty or to carry padding: quoting
  * escapes any value that would otherwise collide with the canonical form's own
  * separators and throw from `canonicaliseCase`, and it makes leading and
- * trailing whitespace visible when reading a raw diff.
+ * trailing whitespace visible when reading a raw diff. It is these two
+ * fields alone, and `canonicalQuoted` spells the escaping out rather than
+ * calling `JSON.stringify`, so a port needs no JSON encoder to agree here.
  */
 export function gradingSet(templates: readonly QuestionTemplate[]): DigestSet {
   const groups = new Map<string, string>();
@@ -76,9 +78,9 @@ export function gradingSet(templates: readonly QuestionTemplate[]): DigestSet {
       return canonicaliseCase([
         ['answer', String(question.answer)],
         ['answerType', question.answerType],
-        ['response', JSON.stringify(response)],
+        ['response', canonicalQuoted(response)],
         ['correct', String(grade.correct)],
-        ['recorded', JSON.stringify(grade.response)],
+        ['recorded', canonicalQuoted(grade.response)],
       ]);
     });
     groups.set(template.id, digest(cases));

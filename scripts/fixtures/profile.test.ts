@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MIN_OBSERVATIONS } from '../../src/lib/analytics/profile';
+import { MIN_OBSERVATIONS, nextSkill } from '../../src/lib/analytics/profile';
 import { localDay } from '../../src/lib/day';
-import { profileSet, SCENARIOS } from './profile';
+import { NAME_SEP } from './canonical';
+import { canonicalSkill, profileSet, SCENARIOS } from './profile';
 
 describe('SCENARIOS', () => {
   it('names each one once', () => {
@@ -59,5 +60,18 @@ describe('profileSet', () => {
       scenario.observations.map((o) => localDay(o.answeredAt, o.offsetMinutes)),
     );
     expect(days.size).toBe(3);
+  });
+});
+
+describe('an absent value', () => {
+  it("writes `null`, because the form takes its text from which primitive is absent", () => {
+    // `String(null)` and `String(undefined)` are different strings, so a port
+    // holding an `Optional` cannot decide this from emptiness. `lastCorrectDay`
+    // is the one field in the whole form that reaches it.
+    const wrong = SCENARIOS.find((s) => s.name === 'struggling')!.observations[0];
+    expect(nextSkill(undefined, { ...wrong, correct: false }).lastCorrectDay).toBeNull();
+    expect(canonicalSkill(nextSkill(undefined, { ...wrong, correct: false }))).toContain(
+      `lastCorrectDay${NAME_SEP}null`,
+    );
   });
 });

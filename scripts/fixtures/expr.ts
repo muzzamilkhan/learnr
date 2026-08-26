@@ -17,6 +17,14 @@ const SCOPES_PER_TEMPLATE = 5;
  * hand-written traps cannot: 1,453 distinct strings across the shipped corpus. It
  * is also exactly why the traps exist beside it - content uses `^` not once and
  * never uses `ceil`, `trunc`, `sign`, `sqrt` or `isInt`.
+ *
+ * **The traversal order below is contract, not incidental.** `[...new Set(found)]`
+ * keeps first insertion, so a group's cases come out in the order this function
+ * walks a template - answer, constraints, var bounds, prompt holes, hint holes,
+ * distractors, figure params, jitter - and reordering the walk moves every digest
+ * without changing a single value. A port has to dedupe in insertion order rather
+ * than reach for whatever set its language gives it; Swift has none that keeps
+ * order, so this is a deliberate ordered dedupe there.
  */
 export function expressionsOf(template: QuestionTemplate): string[] {
   const found: string[] = [];

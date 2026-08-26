@@ -114,7 +114,7 @@ export const SCENARIOS: readonly Scenario[] = [
 ];
 
 /** `lastCorrectDay` stringifies as `"null"` where it is unset, and that is intended - a null day and day 0 are different things. */
-const canonicalSkill = (skill: TopicSkill): string =>
+export const canonicalSkill = (skill: TopicSkill): string =>
   canonicaliseCase([
     ['topic', skill.topic],
     ['level', skill.level],

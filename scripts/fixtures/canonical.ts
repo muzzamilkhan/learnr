@@ -18,6 +18,15 @@ import type { GeneratedQuestion } from '../../src/lib/templates/types';
  * to the answer. Hashing this form makes the digest test the thing the port had
  * to get right anyway, rather than adding a second formatting rule to keep in
  * step.
+ *
+ * **An absent value takes its text from which primitive is absent, not from
+ * absence.** `String(null)` is `"null"` and `String(undefined)` is
+ * `"undefined"` - two different strings - so a port holding an `Optional` cannot
+ * decide what to write from emptiness alone; it has to know which of the two the
+ * TypeScript holds at that site. Today exactly one field reaches this:
+ * `lastCorrectDay` in `profile.ts`, which is `null` when unset and never
+ * `undefined`, and writes `"null"` deliberately - a null day and day 0 are
+ * different things. Nothing in the form emits `"undefined"`.
  */
 
 /** Between a field's name and its value. */
@@ -96,6 +105,43 @@ export function canonicalQuestion(q: GeneratedQuestion): Field[] {
   fields.push(...canonicalScope('vars', q.vars));
   if (q.figure) fields.push(...canonicalFigure(q.figure));
   return fields;
+}
+
+/**
+ * A value wrapped in quotes, with anything structural escaped.
+ *
+ * `grading.ts` needs this and nothing else does: a response is deliberately
+ * allowed to be empty or padded, so quoting is what makes `""` and `" 4 "`
+ * visible in a raw diff and what keeps a value that carried a separator from
+ * being read as two fields.
+ *
+ * **It is written out rather than delegated to `JSON.stringify`.** The escaping
+ * rules are the same ones - and the test beside this asserts that byte for byte
+ * over every control character - but a port cannot reach for its platform's JSON
+ * encoder to get them: `JSON.stringify` leaves the minus sign, times, divide,
+ * degree and dollar unescaped where another encoder may not, which is the very
+ * cross-encoder agreement problem the canonical form exists to avoid. Naming the
+ * six escapes here means both engines read the rule instead of inferring it.
+ *
+ * Only the quotes are doing work today: over the whole grading set, 16 of 10,612
+ * values are non-ASCII (the curly apostrophe in "o\u2019clock") and **none**
+ * needs an escape at all.
+ */
+export function canonicalQuoted(value: string): string {
+  let out = '"';
+  for (const ch of value) {
+    const code = ch.codePointAt(0) as number;
+    if (ch === '"') out += '\\"';
+    else if (ch === '\\') out += '\\\\';
+    else if (ch === '\b') out += '\\b';
+    else if (ch === '\f') out += '\\f';
+    else if (ch === '\n') out += '\\n';
+    else if (ch === '\r') out += '\\r';
+    else if (ch === '\t') out += '\\t';
+    else if (code < 0x20) out += `\\u${code.toString(16).padStart(4, '0')}`;
+    else out += ch;
+  }
+  return `${out}"`;
 }
 
 export function canonicaliseCase(fields: readonly Field[]): string {

@@ -6,6 +6,7 @@ import {
   canonicalFigure,
   canonicalMark,
   canonicalQuestion,
+  canonicalQuoted,
   digest,
   FIELD_SEP,
   MARK_FIELDS,
@@ -211,5 +212,45 @@ describe('field emission matches the declared field lists', () => {
         expect(value).toContain(contribution);
       }
     }
+  });
+});
+
+describe('canonicalQuoted', () => {
+  it('wraps in quotes, so an empty response and a padded one are visible', () => {
+    expect(canonicalQuoted('4')).toBe('"4"');
+    expect(canonicalQuoted('')).toBe('""');
+    expect(canonicalQuoted(' 4 ')).toBe('" 4 "');
+  });
+
+  it('escapes what would otherwise be read as structure', () => {
+    expect(canonicalQuoted('a"b')).toBe('"a\\"b"');
+    expect(canonicalQuoted('a\\b')).toBe('"a\\\\b"');
+  });
+
+  it('escapes the three separators, which is the reason quoting is here at all', () => {
+    expect(canonicalQuoted('a\nb')).toBe('"a\\nb"');
+    expect(canonicalQuoted(`a${FIELD_SEP}b`)).toBe('"a\\u001eb"');
+    expect(canonicalQuoted(`a${NAME_SEP}b`)).toBe('"a\\u001fb"');
+  });
+
+  it('passes non-ASCII through raw, which is what content actually carries', () => {
+    expect(canonicalQuoted('11 o’clock')).toBe('"11 o’clock"');
+    expect(canonicalQuoted('7 − 3 × 2 ÷ 1 = 45° $5')).toBe('"7 − 3 × 2 ÷ 1 = 45° $5"');
+  });
+
+  it('is JSON string quoting written out, byte for byte', () => {
+    const control = (code: number): string => `a${String.fromCharCode(code)}b`;
+    const awkward = [
+      '',
+      ' 4 ',
+      'a"b',
+      'a\\b',
+      '11 o’clock',
+      '7 − 3 × 2 ÷ 1 = 45° $5',
+      '😀',
+      ...Array.from({ length: 0x20 }, (_, code) => control(code)),
+      control(0x7f),
+    ];
+    for (const value of awkward) expect(canonicalQuoted(value)).toBe(JSON.stringify(value));
   });
 });
