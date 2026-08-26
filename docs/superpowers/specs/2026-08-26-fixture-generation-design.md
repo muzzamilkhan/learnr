@@ -31,14 +31,17 @@ the packs landed with step 2 and are served at `GET /content/manifest` and
 
 ## What it costs, measured
 
-The iOS port spec estimated "a few megabytes". It is 33 MB.
+The iOS port spec estimated "a few megabytes". It is 33 MB compact, and
+~110 MB as the emitter writes it - indented two spaces, because a corpus nobody
+can read is not the debugging tool this exists to be.
 
 | | |
 | --- | --- |
 | Templates | 505 |
 | Draws each | 100 |
 | Cases | 50,500 |
-| JSON | 32.9 MB |
+| JSON, compact | 32.9 MB |
+| JSON, as emitted (2-space indent) | ~110 MB |
 | Of which figures | 22.0 MB |
 | Generation time | 2.3s |
 
@@ -69,7 +72,7 @@ all. The redundancy costs nothing, so there is no reason to buy less coverage.
 
 ## The shape: digests committed, corpus generated
 
-33 MB cannot be reviewed as a diff, which is the whole point of the spec's rule
+110 MB cannot be reviewed as a diff, which is the whole point of the spec's rule
 that **regeneration is its own reviewable diff**. So what is committed is a
 digest - one hash per template - and the corpus itself is gitignored and rebuilt
 on demand.
@@ -83,7 +86,7 @@ scripts/fixtures/grading.ts     responses either side of the tolerance
 scripts/fixtures/profile.ts     observation sequences per threshold
 scripts/fixtures/digests.ts     sets in, committed bytes out
 scripts/build-fixtures.ts       writes fixtures/digests/  (committed, ~100 KB)
-scripts/emit-fixtures.ts        writes fixtures/corpus/   (gitignored, 33 MB)
+scripts/emit-fixtures.ts        writes fixtures/corpus/   (gitignored, ~110 MB)
 fixtures/digests/               14 pack-shaped files + 3 small sets + a manifest
 ```
 

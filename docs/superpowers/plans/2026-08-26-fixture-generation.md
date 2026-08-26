@@ -4,7 +4,7 @@
 
 **Goal:** Generate a golden corpus from the TypeScript engine, commit a digest of it, and guard both against drift - so the Swift port has an oracle to be verified against.
 
-**Architecture:** A pure canonicaliser turns engine output into a separator-delimited string; a digest is twelve hex characters of sha256 over a group of those strings. Digests are committed (~100 KB) and the 33 MB corpus is generated on demand. A drift test regenerates the digests in memory and compares byte for byte against what is committed - the shape `scripts/content-packs.test.ts` already uses.
+**Architecture:** A pure canonicaliser turns engine output into a separator-delimited string; a digest is twelve hex characters of sha256 over a group of those strings. Digests are committed (~100 KB) and the 110 MB corpus is generated on demand. A drift test regenerates the digests in memory and compares byte for byte against what is committed - the shape `scripts/content-packs.test.ts` already uses.
 
 **Tech Stack:** TypeScript, vitest, `node:crypto`, tsx. No new dependencies.
 
@@ -769,7 +769,7 @@ A digest names the template and nothing finer. This is what turns "`maths.4.angl
 Append to `.gitignore`:
 
 ```
-# the emitted golden corpus - 33 MB, rebuilt in seconds by `npm run fixtures:emit`
+# the emitted golden corpus - ~110 MB, rebuilt in seconds by `npm run fixtures:emit`
 /fixtures/corpus/
 ```
 
@@ -789,7 +789,7 @@ import { allSets, buildDigestFiles } from './fixtures/digests';
 const CORPUS_DIR = 'fixtures/corpus';
 
 /**
- * Writes the full corpus - about 33 MB - which is never committed.
+ * Writes the full corpus - about 110 MB - which is never committed.
  *
  * It carries the manifest version of the run that produced it, so a copy
  * vendored into another repository names itself as stale rather than passing
@@ -855,7 +855,7 @@ Add to `package.json` scripts, immediately after `"fixtures:build"`:
 - [ ] **Step 3: Run it both ways**
 
 Run: `npm run fixtures:emit`
-Expected: `Wrote 14 files to fixtures/corpus (505 templates)`. Confirm `du -sh fixtures/corpus` is roughly 33 MB.
+Expected: `Wrote 14 files to fixtures/corpus (505 templates)`. Confirm `du -sh fixtures/corpus` is roughly 110 MB.
 
 Run: `npm run fixtures:emit -- subtraction.difference`
 Expected: `Wrote 1 files to fixtures/corpus (1 templates)`.
@@ -1852,8 +1852,9 @@ The engine here is the **oracle** for the Swift port in `learnr-ios`, and
 it; `npm run fixtures:emit` writes the full corpus for reading.
 
 **What is committed is a digest, not the corpus.** 505 templates drawn 100 times
-is 33 MB - two thirds of it figures, where one `clock` drawing is 6.4 KB against
-a `polygon`'s 169 bytes - and 33 MB cannot be reviewed as a diff, which is the
+is 33 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
+two spaces, because it exists to be read - two thirds of it figures, where one `clock` drawing is 6.4 KB against
+a `polygon`'s 169 bytes - and 110 MB cannot be reviewed as a diff, which is the
 whole point of regeneration being its own reviewable commit. So
 `fixtures/digests/` holds one twelve-character hash per template (~100 KB) and
 `fixtures/corpus/` is gitignored and rebuilt in about three seconds.
@@ -1954,7 +1955,7 @@ git commit -m "Say what the corpus is, and that regenerating it is deliberate"
 - `npm test` and `npm run typecheck` are green.
 - `fixtures/digests/` holds 18 files: 14 corpus years, `expr.json`, `grading.json`, `profile.json`, `manifest.json`.
 - `npm run fixtures:build` twice in a row leaves `git status --short` clean.
-- `npm run fixtures:emit` writes ~33 MB that `git status` does not see.
+- `npm run fixtures:emit` writes ~110 MB that `git status` does not see.
 - Editing any shipped template reddens `scripts/fixtures/digests.test.ts` and names the year.
 - Removing a field from `QUESTION_FIELDS` or from a `MARK_FIELDS` arm fails `npm run typecheck` and names the field.
 - Changing a trap's expected value reddens `scripts/fixtures/expr-traps.test.ts` and names the expression.
