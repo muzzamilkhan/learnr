@@ -1962,9 +1962,10 @@ never in the same commit as the change. This is the one rule here that is
 documentation rather than a test, because a check for it is defeated by a rebase.
 
 **Four sets, and one of them asserts rather than records.**
-`scripts/fixtures/expr-traps.ts` carries about sixty expressions whose expected
+`scripts/fixtures/expr-traps.ts` carries seventy expressions whose expected
 values a human wrote down - `round(-2.5)` is `-2`, `-2 ^ 2` is `-4`, `1 && 2` is
-`true` - and its test asserts them against the engine. Everywhere else the engine
+`true`, `mod(-7, 3)` is `2` where `-7 % 3` is `-1`, and `"a" + 1 + 2` is `"a12"`
+where `1 + 2 + "a"` is `"3a"` - and its test asserts them against the engine. Everywhere else the engine
 is the oracle and a fixture proves *agreement*, so a bug here would be reproduced
 in Swift and both sides would stay green. Harvesting cannot reach these: the 505
 shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
@@ -1972,8 +1973,18 @@ shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
 
 The other three record: the main corpus; the 1,453 expressions content actually
 uses, evaluated against real bound scopes (`q.vars` *is* the scope, so this needs
-no engine instrumentation); and grading and profile folding over constructed
-inputs built to reach each threshold.
+no engine instrumentation - and a figure's parameters are expressions too, which
+is why the harvest walks `FigureSpec` rather than naming its fields); and grading
+and profile folding over constructed inputs built to reach each threshold.
+
+Two things the profile set learned the hard way, both worth keeping. **It folds
+through `nextSkill` *and* `buildProfile` because `buildProfile` sorts** by
+`answeredAt` first - so the out-of-order undercount can only ever appear on the
+`nextSkill` path, which is the one the stored row takes in production. And it
+hashes `skillStatus` and `reviewIntervalMs` at two instants, the last answer and
+when review falls due, because **a stored row cannot express `review-due`** -
+status is a function of `now` as well as the row, so without the second instant
+one of the five statuses is unreachable however many scenarios are added.
 
 `fixtures/` is in `changed-apps.ts`'s `IGNORED`: the digests are not in the Next
 bundle and not in the API's Docker context, so a regeneration deploys nothing.
@@ -1987,7 +1998,12 @@ In `docs/superpowers/notes/2026-08-26-api-extraction-handoff.md`, replace the pa
 **That gap is closed.** `scripts/fixtures/expr-traps.ts` now asserts
 `round(-2.5)` is `-2`, `-2 ^ 2` is `-4` and `1 && 2` is `true`, along with `%` on
 negatives and the five functions no shipped template uses, each as a value a
-human wrote down rather than read off the engine. It sits inside the golden
+human wrote down rather than read off the engine. Two of the seventy came out of
+writing the list rather than being known in advance: **`mod()` is not `%`** - it
+is `((a % b) + b) % b`, so it takes the divisor's sign and disagrees with the
+operator on every mixed-sign pair - and **`+` concatenates when either side is a
+string**, where left-associativity makes `1 + 2 + "a"` `"3a"` but `"a" + 1 + 2`
+`"a12"`. It sits inside the golden
 corpus of build-order step 3 - see `## The golden corpus` in `CLAUDE.md` - which
 is what the Swift port of `generate`, the figures and the session machines is
 verified against.
