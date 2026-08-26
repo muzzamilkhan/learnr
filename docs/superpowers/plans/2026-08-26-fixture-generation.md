@@ -1011,6 +1011,19 @@ export const EXPR_TRAPS: readonly TrapCase[] = [
   { expr: 'x > 3 ? "big" : "small"', scope: { x: 1 }, expect: 'small' },
   { expr: '"a" == "a"', expect: true },
 
+  // **`+` concatenates when either side is a string**, and that is the
+  // stringification trap again in a branch nothing else here reaches
+  // (`evaluate.ts`'s `+` case). `renderTemplateString` stringifies every hole,
+  // so a port yielding "2.0" for `x / 2` yields "n2.0" for the fourth of these.
+  // Left-associativity decides whether the numbers are summed first or
+  // concatenated one at a time - the last two differ for that reason alone.
+  { expr: '1 + "a"', expect: '1a' },
+  { expr: '"a" + 1', expect: 'a1' },
+  { expr: '2 + "0"', expect: '20' },
+  { expr: '"n" + (x / 2)', scope: { x: 4 }, expect: 'n2' },
+  { expr: '1 + 2 + "a"', expect: '3a' },
+  { expr: '"a" + 1 + 2', expect: 'a12' },
+
   // Float accumulation, which both engines must get wrong identically.
   { expr: '0.1 + 0.2', expect: 0.30000000000000004 },
   { expr: '0.1 * 3', expect: 0.30000000000000004 },
