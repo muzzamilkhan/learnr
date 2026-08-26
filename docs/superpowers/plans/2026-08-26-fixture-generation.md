@@ -1169,7 +1169,7 @@ const SCOPES_PER_TEMPLATE = 5;
  * Every expression string a template holds, deduplicated and in a stable order.
  *
  * This reaches the language as content actually uses it, which is the half the
- * hand-written traps cannot: 725 distinct strings across the shipped corpus. It
+ * hand-written traps cannot: 1,377 distinct strings across the shipped corpus. It
  * is also exactly why the traps exist beside it - content uses `^` not once and
  * never uses `ceil`, `trunc`, `sign`, `sqrt` or `isInt`.
  */
@@ -1912,7 +1912,7 @@ in Swift and both sides would stay green. Harvesting cannot reach these: the 505
 shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
 `sqrt` or `isInt`. When that file and the engine disagree, decide which is wrong.
 
-The other three record: the main corpus; the 725 expressions content actually
+The other three record: the main corpus; the 1,377 expressions content actually
 uses, evaluated against real bound scopes (`q.vars` *is* the scope, so this needs
 no engine instrumentation); and grading and profile folding over constructed
 inputs built to reach each threshold.
