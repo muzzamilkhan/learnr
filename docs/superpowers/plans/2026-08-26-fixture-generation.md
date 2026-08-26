@@ -119,8 +119,8 @@ describe('canonicalMark', () => {
       canonicalMark({
         kind: 'path',
         points: [
-          { x: 12.5, y: 80 },
-          { x: 45, y: 80 },
+          [12.5, 80],
+          [45, 80],
         ],
         closed: true,
         fill: false,
@@ -128,11 +128,11 @@ describe('canonicalMark', () => {
       }),
     ).toBe('path|12.5,80 45,80|true|false|false');
 
-    expect(canonicalMark({ kind: 'arc', at: { x: 50, y: 50 }, radius: 12, from: 0, to: 90 })).toBe(
+    expect(canonicalMark({ kind: 'arc', at: [50, 50], radius: 12, from: 0, to: 90 })).toBe(
       'arc|50,50|12|0|90',
     );
-    expect(canonicalMark({ kind: 'dot', at: { x: 1, y: 2 } })).toBe('dot|1,2');
-    expect(canonicalMark({ kind: 'label', at: { x: 1, y: 2 }, text: '3 cm' })).toBe(
+    expect(canonicalMark({ kind: 'dot', at: [1, 2] })).toBe('dot|1,2');
+    expect(canonicalMark({ kind: 'label', at: [1, 2], text: '3 cm' })).toBe(
       'label|1,2|3 cm',
     );
   });
@@ -144,8 +144,8 @@ describe('canonicalFigure', () => {
       width: 100,
       height: 100,
       marks: [
-        { kind: 'dot', at: { x: 1, y: 2 } },
-        { kind: 'label', at: { x: 3, y: 4 }, text: 'A' },
+        { kind: 'dot', at: [1, 2] },
+        { kind: 'label', at: [3, 4], text: 'A' },
       ],
     };
     expect(canonicalFigure(figure)).toEqual([
@@ -231,7 +231,8 @@ const SEPARATORS = /[\u001e\u001f\n]/;
 
 export type Field = readonly [name: string, value: string];
 
-const point = (p: Point): string => `${String(p.x)},${String(p.y)}`;
+/** `Point` is a tuple, `readonly [number, number]` - not an object with x and y. */
+const point = (p: Point): string => `${String(p[0])},${String(p[1])}`;
 
 /**
  * A mark's kind, then its fields in declared order, joined by `|`.
@@ -511,10 +512,11 @@ This is the task that produces working software: after it, the corpus is guarded
 - Modify: `package.json` (add `fixtures:build`)
 
 **Interfaces:**
-- Consumes: `corpusCases`, `DRAWS` from `./corpus`; `digest` from `./canonical`; `CORPUS` from `../content-packs`; `compareYearLevels` from `src/lib/curriculum`.
+- Consumes: `corpusCases`, `DRAWS` from `./corpus`; `digest` from `./canonical`; `allTemplates` from `src/content/catalog`; `compareYearLevels` from `src/lib/curriculum`.
 - Produces:
   - `interface DigestSet { name: string; groups: Map<string, string> }`
   - `corpusSets(templates: readonly QuestionTemplate[]): DigestSet[]`
+  - `allSets(templates: readonly QuestionTemplate[]): DigestSet[]` - **the one place the set list is written**; Tasks 6-8 extend this and nothing else
   - `buildDigestFiles(sets: readonly DigestSet[]): Map<string, string>` - filename to exact bytes
 
 - [ ] **Step 1: Write the failing test**
@@ -525,11 +527,10 @@ Create `scripts/fixtures/digests.test.ts`:
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { CORPUS } from '../content-packs';
-import { buildDigestFiles, corpusSets } from './digests';
+import { allTemplates } from '../../src/content/catalog';
+import { allSets, buildDigestFiles } from './digests';
 
-const sets = () => corpusSets(CORPUS);
-const generated = buildDigestFiles(sets());
+const generated = buildDigestFiles(allSets(allTemplates));
 const read = (name: string) => JSON.parse(generated.get(name)!);
 
 describe('buildDigestFiles', () => {
@@ -541,24 +542,24 @@ describe('buildDigestFiles', () => {
 
   it('holds one group per template, hashed', () => {
     const file = read('maths.3.json');
-    const ids = CORPUS.filter((t) => t.subject === 'maths' && t.level === '3').map((t) => t.id);
+    const ids = allTemplates.filter((t) => t.subject === 'maths' && t.level === '3').map((t) => t.id);
     expect(Object.keys(file.groups).sort()).toEqual([...ids].sort());
     for (const hash of Object.values(file.groups)) expect(hash).toMatch(/^[0-9a-f]{12}$/);
   });
 
   it('derives a version from its own body, so identical content hashes the same', () => {
     expect(read('maths.3.json').version).toBe(
-      JSON.parse(buildDigestFiles(sets()).get('maths.3.json')!).version,
+      JSON.parse(buildDigestFiles(allSets(allTemplates)).get('maths.3.json')!).version,
     );
     expect(read('maths.3.json').version).toMatch(/^[0-9a-f]{12}$/);
   });
 
   it('moves the version of the set that changed, and of no other', () => {
-    const edited = [...CORPUS];
+    const edited = [...allTemplates];
     const index = edited.findIndex((t) => t.subject === 'maths' && t.level === '3');
     edited[index] = { ...edited[index], prompt: `${edited[index].prompt} ` };
 
-    const after = buildDigestFiles(corpusSets(edited));
+    const after = buildDigestFiles(allSets(edited));
     const versionOf = (files: Map<string, string>, name: string) =>
       JSON.parse(files.get(name)!).version;
 
@@ -638,6 +639,20 @@ export function corpusSets(templates: readonly QuestionTemplate[]): DigestSet[] 
 }
 
 /**
+ * Every set the digests cover, in file order.
+ *
+ * **This is the one place the list is written.** `build-fixtures.ts`,
+ * `emit-fixtures.ts` and the drift guard all call it, so a set added here
+ * reaches all three at once. Written out in three places instead,
+ * `emit-fixtures.ts` would stamp an emitted corpus with a manifest version
+ * computed over a different set list than the committed manifest covers - and
+ * the whole point of that stamp is that a stale vendored copy names itself.
+ */
+export function allSets(templates: readonly QuestionTemplate[]): DigestSet[] {
+  return [...corpusSets(templates)];
+}
+
+/**
  * Every digest file and the manifest, as the exact bytes that get committed.
  *
  * Returning bytes rather than objects is what lets the drift guard compare
@@ -685,8 +700,8 @@ Create `scripts/build-fixtures.ts`:
 ```ts
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { CORPUS } from './content-packs';
-import { buildDigestFiles, corpusSets } from './fixtures/digests';
+import { allTemplates } from '../src/content/catalog';
+import { allSets, buildDigestFiles } from './fixtures/digests';
 
 const DIGEST_DIR = 'fixtures/digests';
 
@@ -700,7 +715,7 @@ const DIGEST_DIR = 'fixtures/digests';
  * itself.
  */
 async function main(): Promise<void> {
-  const files = buildDigestFiles(corpusSets(CORPUS));
+  const files = buildDigestFiles(allSets(allTemplates));
   await mkdir(DIGEST_DIR, { recursive: true });
   for (const [name, body] of files) await writeFile(join(DIGEST_DIR, name), body, 'utf8');
   console.log(`Wrote ${files.size} files to ${DIGEST_DIR}`);
@@ -746,7 +761,7 @@ A digest names the template and nothing finer. This is what turns "`maths.4.angl
 - Modify: `.gitignore`, `package.json`
 
 **Interfaces:**
-- Consumes: `DRAWS`, `seedFor` from `./fixtures/corpus`; `buildDigestFiles`, `corpusSets` from `./fixtures/digests`; `CORPUS` from `./content-packs`.
+- Consumes: `DRAWS`, `seedFor` from `./fixtures/corpus`; `allSets`, `buildDigestFiles` from `./fixtures/digests`; `allTemplates` from `src/content/catalog`.
 - Produces: nothing importable. A CLI: `npm run fixtures:emit -- [templateIdSubstring]`.
 
 - [ ] **Step 1: Add the gitignore rule**
@@ -767,9 +782,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createRng } from '../src/lib/rng';
 import { generateQuestion } from '../src/lib/templates/generate';
-import { CORPUS } from './content-packs';
+import { allTemplates } from '../src/content/catalog';
 import { DRAWS, seedFor } from './fixtures/corpus';
-import { buildDigestFiles, corpusSets } from './fixtures/digests';
+import { allSets, buildDigestFiles } from './fixtures/digests';
 
 const CORPUS_DIR = 'fixtures/corpus';
 
@@ -785,14 +800,14 @@ const CORPUS_DIR = 'fixtures/corpus';
  */
 async function main(): Promise<void> {
   const filter = process.argv[2];
-  const templates = filter ? CORPUS.filter((t) => t.id.includes(filter)) : CORPUS;
+  const templates = filter ? allTemplates.filter((t) => t.id.includes(filter)) : allTemplates;
   if (templates.length === 0) {
     console.error(`No template id contains ${JSON.stringify(filter)}`);
     process.exitCode = 1;
     return;
   }
 
-  const version = JSON.parse(buildDigestFiles(corpusSets(CORPUS)).get('manifest.json')!).version;
+  const version = JSON.parse(buildDigestFiles(allSets(allTemplates)).get('manifest.json')!).version;
   await mkdir(CORPUS_DIR, { recursive: true });
 
   const bySet = new Map<string, unknown[]>();
@@ -1061,7 +1076,7 @@ git commit -m "Assert what the expression language does either side of zero"
 
 **Files:**
 - Create: `scripts/fixtures/expr.ts`, `scripts/fixtures/expr.test.ts`
-- Modify: `scripts/fixtures/digests.test.ts`, `scripts/build-fixtures.ts`, `fixtures/digests/`
+- Modify: `scripts/fixtures/digests.ts` (extend `allSets`), `scripts/fixtures/digests.test.ts`, `fixtures/digests/`
 
 **Interfaces:**
 - Consumes: `EXPR_TRAPS` from `./expr-traps`; `canonicaliseCase`, `digest` from `./canonical`; `seedFor` from `./corpus`; `type DigestSet` from `./digests`; `evaluate` from `src/lib/expr`.
@@ -1243,33 +1258,29 @@ If `canonicaliseCase` throws because a scope value or an error message carries a
 
 - [ ] **Step 5: Wire it into the digests**
 
-In `scripts/build-fixtures.ts`, add the import and change the one line in `main`:
-
-```ts
-import { exprSet } from './fixtures/expr';
-```
-
-```ts
-  const files = buildDigestFiles([...corpusSets(CORPUS), exprSet(CORPUS)]);
-```
-
-In `scripts/fixtures/digests.test.ts`, add the import and change `sets` so every call picks the new set up:
+**One edit, in `scripts/fixtures/digests.ts`.** `allSets` is the single place
+the list lives, so `build-fixtures.ts`, `emit-fixtures.ts` and the drift guard
+all pick the new set up without being touched. Add the import and extend the
+returned array:
 
 ```ts
 import { exprSet } from './expr';
 ```
 
 ```ts
-const sets = () => [...corpusSets(CORPUS), exprSet(CORPUS)];
+export function allSets(templates: readonly QuestionTemplate[]): DigestSet[] {
+  return [...corpusSets(templates), exprSet(templates)];
+}
 ```
 
-Change the `'moves the version of the set that changed'` test's line to match:
+This closes an import cycle in the module graph - `expr.ts` imports the
+`DigestSet` *type* from `digests.ts` and `digests.ts` now imports the `exprSet`
+*function* back. It resolves because the type import is erased at compile time
+and `exprSet` is only called, never evaluated at module load. If the runtime
+disagrees, move `DigestSet` into its own `scripts/fixtures/types.ts` and have
+both import from there; say so in the commit message.
 
-```ts
-    const after = buildDigestFiles([...corpusSets(edited), exprSet(edited)]);
-```
-
-And add to the `describe('buildDigestFiles')` block:
+Then add to the `describe('buildDigestFiles')` block in `scripts/fixtures/digests.test.ts`:
 
 ```ts
   it('carries the expression set beside the corpus years', () => {
@@ -1284,7 +1295,7 @@ Run: `npm run fixtures:build && npm test && npm run typecheck`
 Expected: `Wrote 16 files`; all green.
 
 ```bash
-git add scripts/fixtures/expr.ts scripts/fixtures/expr.test.ts scripts/fixtures/digests.test.ts scripts/build-fixtures.ts fixtures/digests
+git add scripts/fixtures/expr.ts scripts/fixtures/expr.test.ts scripts/fixtures/digests.ts scripts/fixtures/digests.test.ts fixtures/digests
 git commit -m "Harvest the expressions content uses, against the scopes it uses them in"
 ```
 
@@ -1294,7 +1305,7 @@ git commit -m "Harvest the expressions content uses, against the scopes it uses 
 
 **Files:**
 - Create: `scripts/fixtures/grading.ts`, `scripts/fixtures/grading.test.ts`
-- Modify: `scripts/fixtures/digests.test.ts`, `scripts/build-fixtures.ts`, `fixtures/digests/`
+- Modify: `scripts/fixtures/digests.ts` (extend `allSets`), `scripts/fixtures/digests.test.ts`, `fixtures/digests/`
 
 **Interfaces:**
 - Consumes: `gradeAnswer` from `src/lib/session/grade`; `canonicaliseCase`, `digest` from `./canonical`; `seedFor` from `./corpus`; `type DigestSet` from `./digests`.
@@ -1468,31 +1479,20 @@ Expected: PASS, typecheck clean.
 
 - [ ] **Step 5: Wire it into the digests**
 
-In `scripts/build-fixtures.ts`:
-
-```ts
-import { gradingSet } from './fixtures/grading';
-```
-
-```ts
-  const files = buildDigestFiles([...corpusSets(CORPUS), exprSet(CORPUS), gradingSet(CORPUS)]);
-```
-
-In `scripts/fixtures/digests.test.ts`, add the import, extend `sets` and the `after` line:
+**One edit, in `scripts/fixtures/digests.ts`** - `allSets` is the only call
+site. Add the import and extend the returned array:
 
 ```ts
 import { gradingSet } from './grading';
 ```
 
 ```ts
-const sets = () => [...corpusSets(CORPUS), exprSet(CORPUS), gradingSet(CORPUS)];
+export function allSets(templates: readonly QuestionTemplate[]): DigestSet[] {
+  return [...corpusSets(templates), exprSet(templates), gradingSet(templates)];
+}
 ```
 
-```ts
-    const after = buildDigestFiles([...corpusSets(edited), exprSet(edited), gradingSet(edited)]);
-```
-
-And add:
+Then add to the `describe('buildDigestFiles')` block in `scripts/fixtures/digests.test.ts`:
 
 ```ts
   it('carries the grading set', () => {
@@ -1506,7 +1506,7 @@ Run: `npm run fixtures:build && npm test && npm run typecheck`
 Expected: `Wrote 17 files`; all green.
 
 ```bash
-git add scripts/fixtures/grading.ts scripts/fixtures/grading.test.ts scripts/fixtures/digests.test.ts scripts/build-fixtures.ts fixtures/digests
+git add scripts/fixtures/grading.ts scripts/fixtures/grading.test.ts scripts/fixtures/digests.ts scripts/fixtures/digests.test.ts fixtures/digests
 git commit -m "Grade every answer type against the responses either side of the tolerance"
 ```
 
@@ -1516,7 +1516,7 @@ git commit -m "Grade every answer type against the responses either side of the 
 
 **Files:**
 - Create: `scripts/fixtures/profile.ts`, `scripts/fixtures/profile.test.ts`
-- Modify: `scripts/fixtures/digests.test.ts`, `scripts/build-fixtures.ts`, `fixtures/digests/`
+- Modify: `scripts/fixtures/digests.ts` (extend `allSets`), `scripts/fixtures/digests.test.ts`, `fixtures/digests/`
 
 **Interfaces:**
 - Consumes: `buildProfile`, `nextSkill`, `REVIEW_INTERVALS_MS`, `MIN_OBSERVATIONS`, `type Observation`, `type TopicSkill` from `src/lib/analytics/profile`; `canonicaliseCase`, `digest` from `./canonical`; `type DigestSet` from `./digests`.
@@ -1749,41 +1749,21 @@ Expected: PASS, typecheck clean.
 
 - [ ] **Step 5: Wire it into the digests**
 
-In `scripts/build-fixtures.ts`:
-
-```ts
-import { profileSet } from './fixtures/profile';
-```
-
-```ts
-  const files = buildDigestFiles([
-    ...corpusSets(CORPUS),
-    exprSet(CORPUS),
-    gradingSet(CORPUS),
-    profileSet(),
-  ]);
-```
-
-In `scripts/fixtures/digests.test.ts`, add the import, extend `sets` and the `after` line:
+**One edit, in `scripts/fixtures/digests.ts`** - `allSets` is the only call
+site. Add the import and extend the returned array. `profileSet` takes no
+argument: its inputs are the hand-built scenarios, not the content.
 
 ```ts
 import { profileSet } from './profile';
 ```
 
 ```ts
-const sets = () => [...corpusSets(CORPUS), exprSet(CORPUS), gradingSet(CORPUS), profileSet()];
+export function allSets(templates: readonly QuestionTemplate[]): DigestSet[] {
+  return [...corpusSets(templates), exprSet(templates), gradingSet(templates), profileSet()];
+}
 ```
 
-```ts
-    const after = buildDigestFiles([
-      ...corpusSets(edited),
-      exprSet(edited),
-      gradingSet(edited),
-      profileSet(),
-    ]);
-```
-
-And add:
+Then add to the `describe('buildDigestFiles')` block in `scripts/fixtures/digests.test.ts`:
 
 ```ts
   it('carries the profile set', () => {
@@ -1797,7 +1777,7 @@ Run: `npm run fixtures:build && npm test && npm run typecheck`
 Expected: `Wrote 18 files`; all green.
 
 ```bash
-git add scripts/fixtures/profile.ts scripts/fixtures/profile.test.ts scripts/fixtures/digests.test.ts scripts/build-fixtures.ts fixtures/digests
+git add scripts/fixtures/profile.ts scripts/fixtures/profile.test.ts scripts/fixtures/digests.ts scripts/fixtures/digests.test.ts fixtures/digests
 git commit -m "Fold observations to a skill row, across the day boundary and out of order"
 ```
 
