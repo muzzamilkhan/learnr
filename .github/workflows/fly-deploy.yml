@@ -34,9 +34,9 @@ jobs:
     name: Tests and typechecks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24 # the version apps/api/Dockerfile builds and runs on
           cache: npm
@@ -69,9 +69,12 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      # Pinned to a release rather than @master, which Fly's own docs suggest:
+      # a moving branch on a third-party action is arbitrary code landing in the
+      # deploy pipeline unreviewed.
+      - uses: superfly/flyctl-actions/setup-flyctl@1.5
 
       # From the repository root, because the Docker build context has to be:
       # packages/core/src is a symlink to ./src, and a context of apps/api
