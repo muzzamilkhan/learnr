@@ -20,7 +20,9 @@ describe('expressionsOf', () => {
 
   it('finds every distinct expression the shipped content holds', () => {
     const all = new Set(allTemplates.flatMap(expressionsOf));
-    expect(all.size).toBeGreaterThan(700);
+    // 1,453 today (docs and CLAUDE.md's "golden corpus" section cite the same
+    // figure). >700 would pass a harvester that lost half its coverage.
+    expect(all.size).toBeGreaterThan(1400);
   });
 });
 
