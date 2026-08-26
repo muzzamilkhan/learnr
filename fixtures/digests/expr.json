@@ -1,7 +1,7 @@
 {
-  "version": "7b86c25941b5",
+  "version": "b8867df117c2",
   "set": "expr",
-  "draws": 100,
+  "draws": 5,
   "groups": {
     "english.1.letters-and-sounds.alphabet-before": "26544b06e528",
     "english.1.letters-and-sounds.blend-word": "6cb387766922",

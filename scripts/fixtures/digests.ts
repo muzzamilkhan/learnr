@@ -18,6 +18,13 @@ export interface DigestSet {
   name: string;
   /** Group name to twelve hex characters. A group is a template id or a scenario. */
   groups: Map<string, string>;
+  /**
+   * How many draws produced each group's cases, where the set draws at a fixed
+   * count - `undefined` where it doesn't (the trap list, the profile
+   * scenarios), so the field can be omitted rather than stating a number that
+   * isn't true.
+   */
+  draws?: number;
 }
 
 const unique = <T>(items: readonly T[]): T[] => [...new Set(items)];
@@ -31,7 +38,7 @@ export function corpusSets(templates: readonly QuestionTemplate[]): DigestSet[] 
       for (const template of forSubject.filter((t) => t.level === level)) {
         groups.set(template.id, digest(corpusCases(template)));
       }
-      sets.push({ name: `${subject}.${level}`, groups });
+      sets.push({ name: `${subject}.${level}`, groups, draws: DRAWS });
     }
   }
   return sets;
@@ -66,7 +73,10 @@ export function buildDigestFiles(sets: readonly DigestSet[]): Map<string, string
     const groups = Object.fromEntries([...set.groups].sort(([a], [b]) => (a < b ? -1 : 1)));
     // The version is over the body without itself, which it would otherwise
     // have to contain.
-    const body = { set: set.name, draws: DRAWS, groups };
+    const body =
+      set.draws === undefined
+        ? { set: set.name, groups }
+        : { set: set.name, draws: set.draws, groups };
     const version = digest([JSON.stringify(body, null, INDENT)]);
     files.set(`${set.name}.json`, `${JSON.stringify({ version, ...body }, null, INDENT)}\n`);
     versions.push({ set: set.name, version });

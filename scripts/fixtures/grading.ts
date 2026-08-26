@@ -84,5 +84,5 @@ export function gradingSet(templates: readonly QuestionTemplate[]): DigestSet {
     groups.set(template.id, digest(cases));
   }
 
-  return { name: 'grading', groups };
+  return { name: 'grading', groups, draws: 1 };
 }

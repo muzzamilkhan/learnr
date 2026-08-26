@@ -1,7 +1,6 @@
 {
-  "version": "150b210406db",
+  "version": "11570323392b",
   "set": "profile",
-  "draws": 100,
   "groups": {
     "all-wrong": "6c789d7afd31",
     "below-min-observations": "59d07b3a92e4",

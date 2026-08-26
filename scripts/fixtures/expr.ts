@@ -122,5 +122,5 @@ export function exprSet(templates: readonly QuestionTemplate[]): DigestSet {
     groups.set(template.id, digest(cases));
   }
 
-  return { name: 'expr', groups };
+  return { name: 'expr', groups, draws: SCOPES_PER_TEMPLATE };
 }
