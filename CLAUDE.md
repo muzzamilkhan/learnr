@@ -35,14 +35,47 @@ npm run contract --workspace apps/api  # regenerate contract/openapi.yaml
 fly deploy --ha=false                # from the repository root, and by hand
 ```
 
-**A push to `master` deploys the API too** (`.github/workflows/fly-deploy.yml`),
-behind both suites and both typechecks. Fly has no git integration of its own -
-`fly deploy` is a CLI push of an image - so before that workflow a push moved the
-web app on Vercel and left the API a version behind. The gate matters more than
-the automation: the content packs are generated, and the drift test is the only
-thing between an edited year file and a stale shipped pack, which neither
-`next build` nor the Docker build runs. `fly deploy` by hand still works and is
-what to reach for when the deploy is the only thing you want.
+**A push to `master` deploys both halves** (`.github/workflows/deploy.yml`),
+behind both suites and both typechecks. Vercel used to build the web app itself
+on every push - ungated, and in parallel with those tests - while `fly deploy`
+waited behind them, so a push touching both moved the web app in about two
+minutes and the API in about six, with no order between them. `vercel.json` now
+sets `git.deploymentEnabled: false`, so Vercel never builds on a push and
+production moves from the workflow alone. **There are no preview deployments any
+more**, which is the price of that.
+
+**The API goes first and the web app second.** A Fly release runs `db:deploy`,
+so a schema change lands before the web app that reads through it and an
+endpoint exists before the page that calls it - and the web app calls the API
+server-side on every render, which is what makes the order load-bearing rather
+than a preference. The web job waits on the API job having *succeeded or been
+skipped*, spelled out in its `if:` because Actions reads a skipped dependency as
+unmet and would otherwise skip the web app whenever the API had nothing to ship.
+
+**What a push moves is `scripts/changed-apps.ts`'s answer, and it has tests.**
+`apps/api/` and `fly.toml` move the API; the Next app at the root moves the web
+app; `src/lib`, `src/content`, `packages/` and the workspace root move **both**,
+because the engine ships inside the Next bundle and inside the API image alike
+and half a move leaves the two running different engine code. Prose moves
+nothing. A path matching no rule moves both: a wasted deploy is the cheaper
+mistake than a change that silently did not ship. There is deliberately no
+`paths-ignore:` on the workflow - a second list would be free to disagree with
+the tested one. Node 24 runs that file directly, which is why the job deciding
+this needs no `npm ci`.
+
+The gate matters more than the automation: the content packs are generated, and
+the drift test is the only thing between an edited year file and a stale shipped
+pack, which neither `next build` nor the Docker build runs.
+
+Both deploys by hand still work, and are what to reach for when the deploy is
+the only thing you want: `fly deploy --ha=false`, and `vercel build --prod &&
+vercel deploy --prebuilt --prod`.
+
+**The workflow needs three repository secrets beyond `FLY_API_TOKEN`** -
+`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. The two ids are not
+secret but sit in the gitignored `.vercel/project.json` and stay out of the tree
+with it. Without them the web job fails and the API still ships, which is the
+right way round.
 
 `npm install` is always run **from the root**: the workspace links `@learnr/core`
 into both applications, and installing inside `apps/api` cannot see it.
@@ -65,6 +98,8 @@ packages/core/       @learnr/core: the pure engine, shared
 apps/api/            the Fastify REST API - owns the schema and migrations
 apps/api/contract/   openapi.yaml, generated from the route schemas
 fly.toml             the API's deployment, at the root because the build needs it
+vercel.json          git deploys off; the web app ships from the workflow alone
+scripts/changed-apps.ts  which halves a push has to move, and its test beside it
 ```
 
 **`packages/core/src` is a committed symlink to the repo's own `src/`.** Node
