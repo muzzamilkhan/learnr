@@ -26,6 +26,28 @@ route schemas and committed.
 **Nothing is pushed.** Both repos have local commits only. Task 2 sits on
 `learnr`'s `master`, which is live on Vercel - see "Before you push" below.
 
+## The local .env points at production
+
+`learnr-api/.env` holds the **production Neon** `DATABASE_URL`, copied from
+`learnr/.env`. It is gitignored. Only `DATABASE_URL` was copied - the API uses no
+`AUTH_*` variable, because Auth.js runs in the web app and the API only reads the
+`Session` rows it writes.
+
+Two things follow:
+
+- **Tests are unaffected.** `test/helpers/global-setup.ts` sets `DATABASE_URL` to
+  a Testcontainers Postgres before any test module is imported, so it wins over
+  anything on disk. Verified: the suite resolves to `localhost`, never
+  `neon.tech`.
+- **`npm run db:deploy` and `prisma migrate dev` would hit production.** They read
+  the same file. Task 12 is where migrations move to the API server; until then,
+  do not run either without meaning to.
+
+`dev` and `start` load the file with `node --env-file-if-exists=.env`. Nothing
+loaded it before, so `npm run dev` used to boot with no database at all and serve
+a perfectly healthy unconfigured server - `/health` answered `{"ok":true}` while
+every read returned null.
+
 ## Verify before continuing
 
 ```bash
@@ -125,9 +147,11 @@ remaining tasks share the pattern:
 
 Neither blocks the plan.
 
-- **Existing self-declared children.** Before Task 12, query production for
-  `role = 'child' AND parentId IS NULL`. These can no longer be created; any that
-  exist need a decision - grandfather or migrate.
+- ~~**Existing self-declared children.**~~ **Answered 2026-08-26: there are
+  none.** Production was queried read-only for `role = 'child' AND parentId IS
+  NULL` and returned 0, so there is nothing to grandfather or migrate and Task 12
+  needs no decision here. Production at that moment: 5 users, 3 children, 78
+  sittings, 484 attempts.
 - **Content update cadence on iOS.** Belongs to build-order step 2. An `ETag`
   makes any choice cheap.
 
