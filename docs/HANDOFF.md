@@ -1,174 +1,137 @@
-# Handoff: continuing the API extraction on another machine
+# Handoff: continuing the API extraction
 
-**Written:** 2026-08-26
-**State:** Task 1 of 13 complete and reviewed. Tasks 2-12 remain.
-**Why:** This work needs Docker (Testcontainers). It moves to a machine that has it.
-The original laptop keeps only the iOS work, which needs Xcode and cannot start yet.
+**Written:** 2026-08-26 (replaces the pre-Docker handoff of the same date)
+**State:** Tasks 1-10 complete. Tasks 11a, 11 and 12 remain.
+**Where:** `/home/muzza/code/{learnr,learnr-api}`, which has Docker.
 
-## What you are picking up
+## What is done
 
-LearnR is a maths and English practice app for children — Next.js, Prisma, Neon
-Postgres, deployed on Vercel. It is being split into three repos plus a shared
-contract, so a native iOS app can play offline while a single API owns the data.
+The API server is finished and green. 86 tests against a real Postgres 17 in
+Testcontainers, `tsc --noEmit` clean, `contract/openapi.yaml` generated from the
+route schemas and committed.
 
-Read these two documents first, in this order:
-
-1. `docs/superpowers/specs/2026-08-26-ios-port-design.md` — the design and the
-   reasoning. The binding authority.
-2. `docs/superpowers/plans/2026-08-26-api-server-extraction.md` — the plan you are
-   executing. Thirteen tasks; Task 1 is done.
-
-## Repos
-
-| Repo | Where | State |
+| Task | Repo | Commit |
 | --- | --- | --- |
-| `muzzamilkhan/learnr-api` | this repo | `main`, 6 commits, Task 1 complete |
-| `muzzamilkhan/learnr` | existing, live on Vercel | `master` untouched; Tasks 11a and 11 land on a new branch |
-| `learnr-ios` | not created | Nothing to do yet — needs build-order steps 2 and 3 first |
+| 1. Scaffold | learnr-api | `16be89c` |
+| 2. `@learnr/core` | learnr | `9fdc3b0` |
+| 3. Schema + Testcontainers | learnr-api | `c97ebf6` |
+| 4. `accounts.ts` | learnr-api | `aaec49f` |
+| 5. `records.ts` + star guards | learnr-api | `7b9efc5` |
+| 6. `sharing.ts`, `speed-records.ts` | learnr-api | `7424720` |
+| 7. Auth from the Session table | learnr-api | `791fda5` |
+| 8. Play and auth routes | learnr-api | `bd44177` |
+| 9. Parent routes | learnr-api | `fc0eb71` |
+| 10. OpenAPI contract | learnr-api | `dd729d5` |
 
-Clone both `learnr-api` and `learnr` side by side, in the same parent directory.
-**This matters:** Task 2 symlinks `packages/core/src -> ../../src` inside `learnr`,
-and Task 4 installs it into `learnr-api` via `file:../learnr/packages/core`. A
-different layout breaks both.
+**Nothing is pushed.** Both repos have local commits only. Task 2 sits on
+`learnr`'s `master`, which is live on Vercel - see "Before you push" below.
 
-```
-~/Projects/
-  learnr/        git@github.com:muzzamilkhan/learnr.git
-  learnr-api/    git@github.com:muzzamilkhan/learnr-api.git
-```
-
-## Prerequisites on the new machine
-
-- **Node 24+** (`node --version`).
-- **Docker or Colima, running.** Tasks 3 through 10 need it for Testcontainers
-  Postgres. `docker info` must succeed. Colima is the lighter option:
-  `brew install colima docker && colima start`.
-- **A Neon connection string** is NOT required to run the tests — Testcontainers
-  provides its own Postgres. It is only needed for Task 12's deploy.
-
-## Where Task 1 got to
-
-Commit `16be89c`. A Fastify scaffold that boots and answers `/health`:
-
-```
-src/env.ts        isDatabaseConfigured, DATABASE_URL, PORT
-src/server.ts     buildServer(): FastifyInstance  <- tasks 8, 9, 10 register onto this
-src/main.ts       listen
-test/server.test.ts
-```
-
-Reviewed clean: spec ✅, quality Approved. Strict mode verified by injecting an
-implicit `any` and confirming `tsc` rejects it.
-
-Verify it still works before continuing:
+## Verify before continuing
 
 ```bash
-npm install     # must be clean: no peer warnings, no --legacy-peer-deps
-npm test        # 1 passed
-npm run typecheck
+cd learnr-api && npm install && npm test && npm run typecheck   # 86 passing
+cd ../learnr   && npm install && npm test && npm run typecheck  # 980 passing
 ```
 
-## Rulings already made — do not re-litigate these
+Docker must be running. `npm install` must stay clean - no peer warnings, no
+`--legacy-peer-deps`. If it ever needs the flag, the versions are wrong; fix the
+versions.
 
-Four decisions were taken during planning and setup. Each is in the plan; they are
-repeated here because they are the ones most likely to look wrong without context.
+## What is left
 
-**1. `fastify-type-provider-zod` must be v6+, not v4.**
-v4 and v5 peer-depend on zod 3; only v6 accepts zod 4. v6 also peer-depends on
-`@fastify/swagger` and `openapi-types`, so both are already direct dependencies.
-If `npm install` ever needs `--legacy-peer-deps`, the versions are wrong — fix the
-versions, do not pass the flag.
-
-**2. Task 2 symlinks the engine; it does not copy or move it.**
-Node rejects an `exports` target outside the package directory
-(`ERR_INVALID_PACKAGE_TARGET`, "targets must start with ./"). This was verified by
-experiment. So `packages/core/src` is a symlink to `../../src`, every export target
-starts with `./`, and the sources stay where they are. The symlink is committed —
-a fresh clone needs it. Verified working end to end: npm workspace link, cross-repo
-`file:` install, and Vitest resolving TypeScript source through both symlinks.
-
-**3. Task 8 uses `foldPlayStreak`, not `readStreakOnly`.**
-The first draft of the plan called a function that does not exist. The real helper
-is `foldPlayStreak(userId, attempt)`, private to `records.ts`, returning
-`AttemptResult | null`. It is already idempotent — it guards on
-`playStreakDay: { lt: next.lastDay }` — so a replayed attempt writes nothing and
-reports `streakAdvanced: false`. The dedupe guard's actual job is skipping
-`updateTopicSkill`, which increments `attempts` and is not idempotent.
-
-**4. The web app keeps a Prisma client for Auth.js alone.**
-`PrismaAdapter` needs a live client in-process and cannot speak REST. `src/auth.ts`
-is the only file outside `src/lib` that imports `db.ts`, so the compromise is one
-file. Everything else in the web app goes through the API.
-
-## The three guards that must not break
-
-The whole reason the tests use a real Postgres rather than a mock. None of these
-had any test coverage before this plan; Tasks 5 and 6 write their first ones.
-
-1. `updateTopicSkill` — `SELECT ... FOR UPDATE` plus a retry on the insert race.
-   Without the lock, ten concurrent answers lose some of their folds.
-2. `awardRoundStars` — `SELECT ... FOR UPDATE` on `roundsBanked`. Without it, a
-   retried award pays twice.
-3. `awardDailyTarget` — compare-and-set in the `where` on `targetDay`. Without it,
-   a day's target pays more than once.
-
-A mocked Prisma cannot test any of them. If a future change makes these tests slow
-or awkward, fix the test, not the guard.
-
-## How to run the remaining tasks
-
-The plan was being executed with `superpowers:subagent-driven-development`: a fresh
-subagent per task, a review after each, a whole-branch review at the end. Continue
-that way or execute the tasks by hand — the plan is written to be followed either
-way, with the complete code in every step.
-
-If you continue with the skill, the ledger lives at
-`.superpowers/sdd/2026-08-26-api-server-extraction/progress.md`. It is git-ignored,
-so **it did not travel with the push**. The relevant contents are reproduced here:
-Task 1 complete at `d03cd32..16be89c`, review clean, two deferred minors (a
-`.superpowers/` line in `.gitignore`, and an interim `--legacy-peer-deps` detour
-that no longer exists in the committed state). Start a fresh ledger; Task 2 is next.
-
-### Task order and what needs Docker
-
-| Task | Repo | Docker? |
+| Task | Repo | Notes |
 | --- | --- | --- |
-| 2. `@learnr/core` package | learnr | no |
-| 3. Schema + Testcontainers | learnr-api | **yes** |
-| 4. `accounts.ts` | learnr-api | yes |
-| 5. `records.ts` + star guards | learnr-api | yes |
-| 6. `sharing.ts`, `speed-records.ts` | learnr-api | yes |
-| 7. Auth from the Session table | learnr-api | yes |
-| 8. Play and auth routes | learnr-api | yes |
-| 9. Parent routes | learnr-api | yes |
-| 10. OpenAPI generation | learnr-api | no |
-| 11a. Date reviver | learnr | no |
-| 11. Point web at the API | learnr | no |
-| 12. Deploy | both | no |
+| 11a. Date reviver | learnr | On a branch |
+| 11. Point web at the API | learnr | On a branch - deletes Prisma, rewrites every server action |
+| 12. Deploy | both | Needs a Neon connection string |
 
-Task 2 lands in `learnr` on `master` — it only adds a package boundary and changes
-no behaviour. Tasks 11a and 11 must land on a branch (`api-cutover` or similar):
-Task 11 deletes Prisma and rewrites every server action in a live app.
+Tasks 11a and 11 must land on a branch (`api-cutover` or similar), not `master`.
+
+## Before you push
+
+`learnr` is live on Vercel and Task 2 added `"workspaces": ["packages/*"]` to its
+`package.json`. That changes how Vercel installs. The change is behaviour-neutral
+locally - 980 tests, typecheck and lint all pass - but the first push to `master`
+is the first time Vercel installs a workspace root. Watch that deploy.
+
+## Rulings, carried forward
+
+The four from the original handoff still stand:
+
+1. **`fastify-type-provider-zod` must be v6+.** Only v6 accepts zod 4. It peer-
+   depends on `@fastify/swagger` and `openapi-types`, so both are direct deps.
+2. **Task 2 symlinks the engine.** Node rejects an `exports` target outside the
+   package directory, so `packages/core/src -> ../../src` and every target starts
+   with `./`. The symlink is committed; a fresh clone needs it.
+3. **`foldPlayStreak`, not `readStreakOnly`.** Already idempotent via
+   `playStreakDay: { lt: next.lastDay }`.
+4. **The web app keeps a Prisma client for Auth.js alone.** `PrismaAdapter` needs
+   a live client in-process. `src/auth.ts` is the only file that may import it.
+
+### And six more, learned while executing
+
+5. **The engine may not use learnr's `@` alias.** 19 files under `src/content`
+   did, so `@learnr/core/content/catalog` resolved inside `learnr` and died with
+   `ERR_MODULE_NOT_FOUND` anywhere else. They are relative now, and a guard test
+   in `packages/core/test/exports.test.ts` walks `src/lib` and `src/content` to
+   keep it that way. Its exemption list is the five impure files Task 11 deletes;
+   it should shrink, never grow.
+
+6. **The test container starts in a vitest `globalSetup`, not a `beforeAll`.**
+   The data modules read the singleton in `src/db.ts`, and that client is built
+   from `DATABASE_URL` at import time. A per-file `beforeAll` is too late: the
+   module has already resolved `prisma` to null and every function returns null.
+   `fileParallelism` is off, because the files share one database.
+
+7. **A concurrency test on a cold connection pool proves nothing.** Prisma opens
+   connections lazily, so the first eight concurrent callers in a fresh process
+   queue rather than overlap - a race test passes against code whose lock has
+   been deleted. `warmPool()` in `test/helpers/db.ts` exists for this. All three
+   guards were verified by deleting them and watching the right test go red; do
+   that again for any new one.
+
+8. **`Attempt.id` is client-supplied, and there is no migration for it.**
+   `@default(cuid())` is generated by Prisma's client, not Postgres, so removing
+   it changes the generated types and no SQL.
+
+9. **Values off the wire go through the existing parsers.** `parseFigure`,
+   `parseAvatar`, `parseTarget`, `parsePhoto`, `parseMode`. The routes do not
+   assert past them: an unknown avatar is a 400, a malformed figure is dropped
+   rather than costing the answer it came with.
+
+10. **`@fastify/swagger` only sees routes inside registered plugins.** `/health`
+    and `/openapi.json` are declared inline on the root instance and so are
+    absent from the contract - correct for both, but a new endpoint must live in
+    a route plugin to be documented.
+
+## Where the plan was wrong
+
+The plan is good but predates some of the code. What it got wrong, in case the
+remaining tasks share the pattern:
+
+- `chooseRole(userId, role)` does not exist; `learnr#671f719` replaced it with
+  `claimParentRole(userId)`.
+- Its `awardDailyTarget` test set a target of five questions, below the floor of
+  ten that `TARGET_LIMITS` enforces, so `parseTarget` refused it.
+- Its route code declared only success responses, so every 404/503 failed to
+  typecheck, and `errorSchema` was written but never used.
+- Its children routes passed `request.body` straight to `createChild`, which
+  wants a different shape entirely.
+- Relative imports need `.js` extensions under `moduleResolution: nodenext`.
+
+**Check every signature against the source before writing a test around it.**
 
 ## Known open questions
 
 Neither blocks the plan.
 
 - **Existing self-declared children.** Before Task 12, query production for
-  `role = 'child' AND parentId IS NULL`. Post-`learnr#3` these can no longer be
-  created, but any that already exist need a decision: grandfather or migrate.
-- **Content update cadence on iOS.** Not this plan — it belongs to build-order
-  step 2. An `ETag` makes any choice cheap.
+  `role = 'child' AND parentId IS NULL`. These can no longer be created; any that
+  exist need a decision - grandfather or migrate.
+- **Content update cadence on iOS.** Belongs to build-order step 2. An `ETag`
+  makes any choice cheap.
 
-## What happens after this plan
+## After this plan
 
-The spec's build order continues. None of it can start until step 1 is done:
-
-2. **Content extraction** — 505 templates from TypeScript literals to versioned
-   JSON. Needed by both engines.
-3. **Fixture generation** — the golden corpus, TypeScript engine as oracle. Must
-   precede any Swift, or there is nothing to port against.
-4. **Swift engine** — bottom-up: rng, expr, generate, figures, session.
-5. **iOS app** — UI, sync queue, offline store.
-
-Steps 4 and 5 are the ones staying on the original laptop.
+The spec's build order continues: content extraction, fixture generation, the
+Swift engine, then the iOS app. Steps 4 and 5 need Xcode.
