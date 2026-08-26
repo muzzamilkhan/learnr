@@ -32,8 +32,17 @@ npm test --workspace apps/api        # Docker must be running - see below
 npm run typecheck --workspace apps/api
 npm run dev --workspace apps/api     # http://localhost:3001
 npm run contract --workspace apps/api  # regenerate contract/openapi.yaml
-fly deploy --ha=false                # from the repository root
+fly deploy --ha=false                # from the repository root, and by hand
 ```
+
+**A push to `master` deploys the API too** (`.github/workflows/fly-deploy.yml`),
+behind both suites and both typechecks. Fly has no git integration of its own -
+`fly deploy` is a CLI push of an image - so before that workflow a push moved the
+web app on Vercel and left the API a version behind. The gate matters more than
+the automation: the content packs are generated, and the drift test is the only
+thing between an edited year file and a stale shipped pack, which neither
+`next build` nor the Docker build runs. `fly deploy` by hand still works and is
+what to reach for when the deploy is the only thing you want.
 
 `npm install` is always run **from the root**: the workspace links `@learnr/core`
 into both applications, and installing inside `apps/api` cannot see it.
