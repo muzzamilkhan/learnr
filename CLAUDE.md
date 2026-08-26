@@ -234,9 +234,32 @@ TypeScript; `@learnr/core/dto` is the same information for the two that can.
 LearnrEngine/   a Swift package - the ported engine
   Rng/          mulberry32 + FNV-1a, bit-exact with the web app
   Expr/         the sandboxed expression language
+  Templates/    binding, constraints, {expr} holes
+  Figures/      all eleven kinds
+  Session/      the state machine, grading, the profile and the selector
+  SpeedRun/     the second state machine, and the modes
   Api/          the client, the models and the offline sync queue
-LearnrApp/      the app shell - code entry, keychain, session
+LearnrApp/      the app shell - code entry, keychain, session, the screens
 ```
+
+**Work crosses between the two repositories as a GitHub issue and never as a
+commit.** Nothing in `learnr-ios` is edited from a session here, and nothing here
+is edited from a session there; each side raises an issue on the other and says
+what it needs, naming the exact files or endpoints and what it is doing in the
+meantime. Both repositories are live - this one deploys to Vercel and Fly on a
+push to `master` - and the iOS side is worked on from a different machine, so a
+commit arriving across is a change nobody on the receiving side asked for or
+expected. It is written into `learnr-ios/CLAUDE.md` from the other direction too.
+
+```bash
+gh issue create --repo muzzamilkhan/learnr-ios --title "..." --body-file ...
+```
+
+**So the issues are the current state of the other side, and a clone is not.**
+Because iOS development happens elsewhere, a clone of `learnr-ios` here can be
+several days behind what its latest issue reports - `learnr#6` described a port
+far ahead of anything pushed to its `main`. Read the issues first, and treat the
+checkout as evidence of what has *shipped* rather than of what exists.
 
 **Children only.** A parent uses the web app, so the iOS app has no Google
 sign-in and needs no Sign in with Apple - the four-character login code is the
@@ -247,13 +270,21 @@ surface.
 means questions are generated on the device, which means the engine exists twice.
 The two are kept in step by **fixture vectors generated from the TypeScript
 engine, which is the oracle**: it defines what correct means and the port is
-verified against it. `Rng` and `Expr` have theirs
-(`LearnrEngine/Tests/.../Vectors/`); the rest of the engine does not yet.
+verified against it. `Rng` and `Expr` have per-case vectors of their own
+(`LearnrEngine/Tests/.../Vectors/`), generated before the golden corpus existed;
+everything ported since is held against **`fixtures/digests/`, vendored into
+`learnr-ios`** rather than read from a sibling clone or fetched, so `swift test`
+needs neither the network nor a checkout of this repository. The manifest version
+sits in that diff, which is what makes a stale copy name itself.
 
 The design is `docs/superpowers/specs/2026-08-26-ios-port-design.md` - **this
-repo is where that spec lives**, and the iOS README still points at the old
-`learnr-api/` path for it. Its build order, of which the first two are done and
-the fourth and fifth are in progress ahead of the third:
+repo is where that spec lives**. Its conformance-suite section is superseded by
+`2026-08-26-fixture-generation-design.md`: the spec asked for a corpus both
+suites load and compare field by field, and what shipped is a *digest*, because
+50,000 cases is 37.7 MB and unreviewable as a diff. The cost of that trade is
+real and lands on the port - a red digest names the template and not the field -
+which is what `npm run fixtures:emit` is for. Its build order, of which the first
+three are done and the fifth is in progress:
 
 1. **The API server** - done, cutover and all. The impure files are extracted,
    the endpoints stand up, and the web app reads and writes through them.
@@ -261,17 +292,23 @@ the fourth and fifth are in progress ahead of the third:
    consumed by the web app first so the format was proven before iOS depended on
    it; `GET /content/manifest` and `GET /content/:subject/:level` are what a
    Swift client fetches them from.
-3. **Fixture generation** - the golden corpus, TypeScript engine as oracle. The
-   spec puts it before any Swift, because otherwise there is nothing to port
-   against; `rng` and `expr` have vectors, later layers will need theirs.
-4. **The Swift engine** - bottom-up: `rng`, `expr`, `generate`, figures, session.
-   `rng` and `expr` are ported.
-5. **The iOS app** - UI, sync queue, offline store. The shell and the sync queue
-   exist.
+3. **Fixture generation** - done. Four digest sets over the shipped content, the
+   TypeScript engine as oracle. It ran after steps 4 and 5 had started rather
+   than before them, which the spec anticipated; what it unblocked is everything
+   above `expr`, which had nothing to be verified against until it existed.
+4. **The Swift engine** - `rng`, `expr`, `generate`, all eleven figure builders,
+   the session and profile and selector, and the speed run are ported and green
+   (`learnr#6`). Figure *rendering* is a rewrite to SwiftUI `Canvas`, judged by
+   eye, as the spec said it would be. What remains is verifying the port against
+   the digests rather than against the older per-case vectors.
+5. **The iOS app** - UI, sync queue, offline store. The shell, sync queue, code
+   entry, play screen and speed-run screen exist.
 
 **Every response is typed now**, so the Swift models can be generated rather
 than transcribed. Sixteen declarations used to be `z.unknown()`, `/me` among
-them, and the contract said little more than "a 200 happens".
+them, and the contract said little more than "a 200 happens". All 32 paths carry
+a schema and the contract holds no empty one, which is `learnr#4` closed - the
+hand-transcribed models on the iOS side are the thing that outlived it.
 
 **A response schema is a serializer, not a description**, which is the thing to
 know before editing one. Fastify runs the value through it on the way out and a
