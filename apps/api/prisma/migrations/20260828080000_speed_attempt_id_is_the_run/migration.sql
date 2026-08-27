@@ -1,0 +1,15 @@
+-- The id of a speed run is the client's, so a retried offline flush writes the
+-- run exactly once.
+--
+-- `POST /speed/runs` has always validated a client-supplied `id` and then
+-- thrown it away, because this column defaulted to a fresh cuid. So a flush
+-- retried after a timeout wrote a second row for one run: the cabinet listed it
+-- twice, and the report's "latest run" and the percentage change beside it
+-- could both be measured off the duplicate. `SpeedRecord` was never at risk -
+-- a best is a maximum, and `best < :correct` is idempotent on its own.
+--
+-- Dropping the default is the whole change. Nothing is backfilled: existing
+-- rows keep their generated cuids, which are unique and were never a claim
+-- about which run they came from. From here the insert's primary key is the
+-- guard, the same way `Attempt.id` is on the lesson path.
+ALTER TABLE "SpeedAttempt" ALTER COLUMN "id" DROP DEFAULT;

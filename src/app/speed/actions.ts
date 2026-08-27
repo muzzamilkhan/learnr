@@ -38,7 +38,13 @@ export async function submitRunAction(key: string, correct: number): Promise<Spe
   // before it is stored - never negative, never fractional, never absurd.
   const right = Math.max(0, Math.min(Math.floor(correct) || 0, 10_000));
 
-  // The id is the client's, so a retried flush banks one run rather than two.
+  // One id per submission, and the endpoint dedupes on it: `SpeedAttempt.id` is
+  // the run rather than the row, so a client that re-sends a run writes it once.
+  // Minted here rather than passed in from the browser because this path has no
+  // retry queue to replay - the action is called once when a run ends, and a
+  // failure costs the run rather than being tried again. A client that *does*
+  // queue offline runs has to hold one id per run across every flush of it,
+  // which is the whole reason the column stopped defaulting.
   return api.submitSpeedRun({ id: randomUUID(), mode: modeKey(mode), correct: right });
 }
 

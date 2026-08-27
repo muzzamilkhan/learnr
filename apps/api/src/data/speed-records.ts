@@ -120,10 +120,10 @@ const isUniqueViolation = (error: unknown): boolean =>
  */
 export async function submitSpeedRun(
   userId: string,
-  mode: Mode,
-  correct: number,
+  run: { id: string; mode: Mode; correct: number },
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
+  const { id, mode, correct } = run;
 
   // Two independent writes, so they go together rather than one after the
   // other: the record is the maximum and the attempt is the history behind it,
@@ -131,7 +131,7 @@ export async function submitSpeedRun(
   // the cabinet's table; a failed record costs the outcome this returns, which
   // is why only one of the two can decide what the result screen says.
   const [, banked] = await Promise.all([
-    recordAttempt(userId, modeKey(mode), correct),
+    recordAttempt(id, userId, modeKey(mode), correct),
     bankRecord(userId, modeKey(mode), correct),
   ]);
   if (banked === null) return null;
@@ -194,15 +194,30 @@ async function readStanding(
  * that says whether a best was a fluke.
  *
  * Best-effort like `records.ts`: the run is over, and a lost row costs a line
- * of history rather than a game. It needs no guard of any kind - an insert is
- * neither a maximum nor a counter, so a retry writes a second row rather than
- * paying twice, which is the honest reading of two runs anyway.
+ * of history rather than a game.
+ *
+ * **The id is the run, not the row**, which is what makes a retried flush safe.
+ * An insert is neither a maximum nor a counter, so it cannot be guarded the way
+ * `bankRecord` and `roundsBanked` are - the id is the whole guard, and a unique
+ * violation on it means the run is already stored rather than that anything
+ * went wrong. Caught by name and swallowed silently for that reason: logging it
+ * as a failure would fill the log with the sync queue working correctly.
+ *
+ * Two runs that scored the same are still two runs. Only a repeat of the same
+ * id collapses, which is why the id has to be minted once per *run* on the
+ * client and reused across every flush of it - not minted per request.
  */
-async function recordAttempt(userId: string, mode: string, correct: number): Promise<void> {
+async function recordAttempt(
+  id: string,
+  userId: string,
+  mode: string,
+  correct: number,
+): Promise<void> {
   if (!prisma) return;
   try {
-    await prisma.speedAttempt.create({ data: { userId, mode, correct } });
+    await prisma.speedAttempt.create({ data: { id, userId, mode, correct } });
   } catch (error) {
+    if (isUniqueViolation(error)) return;
     console.error('Failed to record speed attempt', error);
   }
 }

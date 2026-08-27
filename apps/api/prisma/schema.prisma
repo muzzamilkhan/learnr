@@ -309,7 +309,11 @@ model SpeedRecord {
 /// not a counter, so a retry writes a second row rather than paying twice, and
 /// two runs landing at once are simply two runs.
 model SpeedAttempt {
-  id     String @id @default(cuid())
+  /// Client-supplied, for the reason `Attempt.id` is: a retried offline flush
+  /// writes the run exactly once. A server default would make every replay a
+  /// new row, and the cabinet would list one run twice while the report's
+  /// "latest run" and its change measured themselves off the duplicate.
+  id     String @id
   userId String
   /// The mode's canonical key, e.g. "multiply.7". Parsed by `parseMode`.
   mode   String

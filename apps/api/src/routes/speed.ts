@@ -45,7 +45,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
     const mode = parseMode(request.body.mode);
     if (!mode) return reply.code(400).send({ error: 'No such mode' });
 
-    const outcome = await submitSpeedRun(userId, mode, request.body.correct);
+    const outcome = await submitSpeedRun(userId, { id: request.body.id, mode, correct: request.body.correct });
     if (!outcome) return reply.code(503).send({ error: 'Could not record the run' });
 
     return reply.send(outcome);
