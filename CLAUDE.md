@@ -282,6 +282,16 @@ yet. Those get `ledger escalate` **and a line in the reply to Muzzamil**: an
 invented answer to that kind of question is how the two sides end up shipping
 different products.
 
+**An ask wakes this side rather than waiting to be noticed.** `ledger ask` fires
+`answer <id>` for anything raised *for* the web side: a headless Claude in this
+repository, read-only, which reads the item, answers it from the engine, the
+contract and the specs, and writes back with `ledger answer` - or escalates. It
+logs to `~/code/learnr-ledger/runs/<id>.log`, and a run that cannot start
+escalates rather than going quiet, because a question that silently never got
+answered is the worst of the three outcomes. So most asks are already answered
+by the time a session here looks at them, and the session's job is to read what
+was said and carry on from it. `.claude/skills/ledger/SKILL.md` is the how.
+
 **So the ledger is the current state of the other side, and a clone is not.**
 Because iOS development happens elsewhere, the clone at `~/code/learnr-ios` can
 be several days behind what the ledger reports - `learnr#6` described a port far
