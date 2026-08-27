@@ -242,23 +242,50 @@ LearnrEngine/   a Swift package - the ported engine
 LearnrApp/      the app shell - code entry, keychain, session, the screens
 ```
 
-**Work crosses between the two repositories as a GitHub issue and never as a
+**Work crosses between the two repositories through the ledger, and never as a
 commit.** Nothing in `learnr-ios` is edited from a session here, and nothing here
-is edited from a session there; each side raises an issue on the other and says
-what it needs, naming the exact files or endpoints and what it is doing in the
-meantime. Both repositories are live - this one deploys to Vercel and Fly on a
-push to `master` - and the iOS side is worked on from a different machine, so a
-commit arriving across is a change nobody on the receiving side asked for or
-expected. It is written into `learnr-ios/CLAUDE.md` from the other direction too.
+is edited from a session there. Both repositories are live - this one deploys to
+Vercel and Fly on a push to `master` - and the iOS side is worked on from a
+different machine, so a commit arriving across is a change nobody on the
+receiving side asked for or expected. That half is unchanged and is the reason
+the ledger exists. It is written into `learnr-ios/CLAUDE.md` from the other
+direction too.
+
+**The ledger is one file both sides write to**, at
+`/home/muzza/code/learnr-ledger/LEDGER.md` on this machine, with a `ledger`
+script beside it that locks, stamps the date and commits every write, so two
+sessions writing at once cannot lose each other's work. The iOS agent reaches it
+by SSH into this machine. It replaced the GitHub issues the two used to raise on
+each other, which had become Muzzamil's to chase across two repositories rather
+than the two sides' to hand over between themselves.
 
 ```bash
-gh issue create --repo muzzamilkhan/learnr-ios --title "..." --body-file ...
+ledger read                       # first thing, every session
+ledger items                      # what is outstanding across the boundary
+ledger status web                 # rewrite this side's "Now" block, body on stdin
+ledger entry web decision "..."   # log something the other side could contradict
+ledger answer L4 "..."            # answer an iOS question
+ledger escalate L4 "..."          # ... or hand it to Muzzamil
 ```
 
-**So the issues are the current state of the other side, and a clone is not.**
-Because iOS development happens elsewhere, a clone of `learnr-ios` here can be
-several days behind what its latest issue reports - `learnr#6` described a port
-far ahead of anything pushed to its `main`. Read the issues first, and treat the
+**It sits outside both repositories deliberately.** `learnr` is public and a
+push to it deploys; the ledger belongs to neither side, ships nothing, and puts
+nothing about the iOS app in a public repo. Its git history has no remote.
+
+**This side answers the questions, and escalates the ones the source cannot
+answer.** The engine here is the oracle, the API owns the schema and the specs
+live in this repo, so how something is *meant* to work is answerable here - and
+iOS is told to ask rather than guess, because a wrong guess in the port is
+invisible until a digest reddens, and sometimes not even then. What is not
+answerable here is a product call, a priority call, or a trade nobody has made
+yet. Those get `ledger escalate` **and a line in the reply to Muzzamil**: an
+invented answer to that kind of question is how the two sides end up shipping
+different products.
+
+**So the ledger is the current state of the other side, and a clone is not.**
+Because iOS development happens elsewhere, the clone at `~/code/learnr-ios` can
+be several days behind what the ledger reports - `learnr#6` described a port far
+ahead of anything pushed to its `main`. Read the ledger first, and treat the
 checkout as evidence of what has *shipped* rather than of what exists.
 
 **Children only.** A parent uses the web app, so the iOS app has no Google
@@ -2102,3 +2129,7 @@ they reach whatever it names.
 
 - TDD, lean tests. Test behaviour through the public function, not internals.
 - Work on `master` and push when a piece of work is done. Not a stable release yet.
+- **Read the ledger at the start of a session** - `~/code/learnr-ledger/ledger read`.
+  It is where the iOS side says what it has done and what it needs, and where this
+  side answers. See **The iOS app** above for what belongs in it and what gets
+  escalated to Muzzamil instead of answered.
