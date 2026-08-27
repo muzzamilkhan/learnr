@@ -81,16 +81,25 @@ export function canonicalFigure(figure: Figure): Field[] {
 }
 
 /**
+ * How anything keyed by name is ordered, wherever it is walked.
+ *
+ * A Swift dictionary has no insertion order to borrow, so a name-keyed
+ * collection has to sort before it can be compared. Exported rather than
+ * written twice: `canonicalScope` below needs it, and so does the figure walk
+ * in `expr.ts`, and two comparators are two chances to disagree.
+ */
+export const byName = ([a]: readonly [string, unknown], [b]: readonly [string, unknown]): number =>
+  a < b ? -1 : 1;
+
+/**
  * A scope's entries, sorted by key and named `<prefix>.<key>`.
  *
- * A Swift dictionary has no insertion order to borrow, so anything keyed by
- * name has to sort before it can be compared - `vars` here, and the same
- * treatment `expr.ts` needs for the scope it evaluates expressions against.
- * One function so the two can never sort differently.
+ * The `byName` rule above, applied to `vars` here and to the scope `expr.ts`
+ * evaluates expressions against.
  */
 export function canonicalScope(prefix: string, scope: Record<string, unknown>): Field[] {
   return Object.entries(scope)
-    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .sort(byName)
     .map(([name, value]) => [`${prefix}.${name}`, String(value)] as const);
 }
 

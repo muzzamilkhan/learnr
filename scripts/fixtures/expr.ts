@@ -2,7 +2,7 @@ import { evaluate } from '../../src/lib/expr';
 import { createRng } from '../../src/lib/rng';
 import { generateQuestion } from '../../src/lib/templates/generate';
 import type { QuestionTemplate } from '../../src/lib/templates/types';
-import { canonicaliseCase, canonicalScope, digest } from './canonical';
+import { byName, canonicaliseCase, canonicalScope, digest } from './canonical';
 import { seedFor } from './corpus';
 import type { DigestSet } from './digests';
 import { EXPR_TRAPS } from './expr-traps';
@@ -25,6 +25,18 @@ const SCOPES_PER_TEMPLATE = 5;
  * without changing a single value. A port has to dedupe in insertion order rather
  * than reach for whatever set its language gives it; Swift has none that keeps
  * order, so this is a deliberate ordered dedupe there.
+ *
+ * **That fixes the order of the seven sources, and the figure walk needed its
+ * own rule for the order *within* one of them.** Every other source is a list
+ * or a string the author wrote in sequence; a figure's parameters are an object,
+ * so they arrived in whatever order the year file's literal happened to declare
+ * them - which made swapping two lines in `src/content/maths/2.ts` a no-op for
+ * the engine that moved that template's digest anyway. The port could not have
+ * reproduced it in any case: a `Codable` `FigureSpec` has declared property
+ * order and `JSONSerialization` has none, so 127 of the 505 groups here were
+ * pinned to something Swift cannot honestly compute. They are sorted by field
+ * name now, by `canonical.ts`'s `byName` so they cannot sort differently from
+ * the scope beside them.
  */
 export function expressionsOf(template: QuestionTemplate): string[] {
   const found: string[] = [];
@@ -54,9 +66,10 @@ export function expressionsOf(template: QuestionTemplate): string[] {
   // bound scope by `buildFigure`. Every `FigureSpec` field is a single `Expr`
   // apart from the `kind` discriminant, so walking the object is exhaustive
   // and stays exhaustive when a twelfth kind is added - which is the reason it
-  // is written as a walk rather than a list of field names.
+  // is written as a walk rather than a list of field names. Sorted because a
+  // walk of an object has no order a port can borrow; see above.
   if (template.figure) {
-    for (const [field, value] of Object.entries(template.figure)) {
+    for (const [field, value] of Object.entries(template.figure).sort(byName)) {
       if (field !== 'kind') add(value);
     }
   }
