@@ -1,5 +1,5 @@
 {
-  "version": "d51c90436a28",
+  "version": "894399383f0b",
   "set": "maths.3",
   "draws": 100,
   "groups": {
@@ -44,7 +44,7 @@
     "maths.3.multiplication.tables": "91a4f4867c4f",
     "maths.3.place-value.count-thousands": "f17c567c5cdc",
     "maths.3.place-value.digit-value": "ca5f00b9dce3",
-    "maths.3.position.grid-direction": "58aa7b50fb18",
+    "maths.3.position.grid-direction": "9fb3cc16123b",
     "maths.3.position.grid-reference": "024a7bd6598e",
     "maths.3.shapes.net-faces": "d2f1a7b1294f",
     "maths.3.shapes.net-folds-to": "5585adfe0cab",
