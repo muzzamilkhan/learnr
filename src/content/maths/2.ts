@@ -541,6 +541,10 @@ export const year2: QuestionTemplate[] = [
     topic: 'time',
     level: '2',
     prompt: 'What time is this?',
+    // Two hours crossed with two forms, which is `1.ts`'s `time.half-past`
+    // exactly - the analysis of why three hours over four buttons names the
+    // answer is written out there and not re-derived here. This one measured at
+    // 60% with the clock unseen before the change, against a 25% blind guess.
     vars: [
       // **`a` is the hour the *words* say, not the hour the short hand sits
       // nearest.** Quarter to 6 is drawn at 5:45, so the two part company for
@@ -548,43 +552,33 @@ export const year2: QuestionTemplate[] = [
       // keeps the arithmetic below the same in both forms.
       { name: 'a', kind: 'int', min: '1', max: '12' },
       { name: 'past', kind: 'pick', from: [1, 0] },
-      // Signed offsets, so the answer is never the middle of a run of
-      // consecutive hours - `1.ts`'s `time.half-past` has the analysis, and it
-      // is not re-derived here.
-      { name: 'near', kind: 'pick', from: [-2, -1, 1, 2] },
-      { name: 'far', kind: 'pick', from: [-5, -4, -3, 3, 4, 5] },
-      { name: 'an', kind: 'expr', expr: 'mod(a + near - 1, 12) + 1' },
-      { name: 'af', kind: 'expr', expr: 'mod(a + far - 1, 12) + 1' },
-      // Four options over three hours means one hour is written twice; `flip`
-      // is what stops the doubled one always being the answer's. Same fix,
-      // same reason, same fifty per cent left over - see `1.ts`.
-      { name: 'flip', kind: 'pick', from: [1, 0] },
-      { name: 'ad', kind: 'expr', expr: 'flip == 1 ? a : an' },
-      // The hour the hands are drawn at: quarter past A is A:15, and quarter
-      // to A is the quarter before A, so an hour earlier at :45.
+      // Symmetric about nought and never nought - see `1.ts`.
+      { name: 'off', kind: 'pick', from: [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5] },
+      { name: 'g', kind: 'expr', expr: 'mod(a + off - 1, 12) + 1' },
+      // The hour the hands are drawn at: quarter past A is A:15, and quarter to
+      // A is the quarter before A, so an hour earlier at :45.
       { name: 'h', kind: 'expr', expr: 'past == 1 ? a : mod(a + 10, 12) + 1' },
     ],
     // A time is not something the number pad can type, so the options are
     // written out and tapped.
     answer: "past == 1 ? 'quarter past ' + a : 'quarter to ' + a",
     answerType: 'choice',
-    // Two options in each form, always, so "the odd one out is the answer"
-    // never works - and so that reading the minute hand narrows four to two
-    // rather than to one, which is what leaves the hour hand a question to
-    // answer.
     choices: {
       count: 4,
       distractors: [
-        "past == 1 ? 'quarter to ' + ad : 'quarter past ' + ad",
-        "past == 1 ? 'quarter past ' + an : 'quarter to ' + an",
-        "past == 1 ? 'quarter to ' + af : 'quarter past ' + af",
+        // The answer's hour, read with the wrong hand.
+        "past == 1 ? 'quarter to ' + a : 'quarter past ' + a",
+        // The other hour, read with the right hand.
+        "past == 1 ? 'quarter past ' + g : 'quarter to ' + g",
+        // Both wrong.
+        "past == 1 ? 'quarter to ' + g : 'quarter past ' + g",
       ],
     },
     hint: 'The long hand points to 3 for quarter past and to 9 for quarter to.',
     // **`numerals` is pinned, and leaving it out would be a bug rather than a
     // missing flourish**: an omitted field is a coin toss, so half of these
-    // would draw a dial with no numbers on it - and the hint above names two
-    // of them. The minute track and the two hand lengths still jitter.
+    // would draw a dial with no numbers on it - and the hint above names two of
+    // them. The minute track and the two hand lengths still jitter.
     figure: { kind: 'clock', hour: 'h', minute: 'past == 1 ? 15 : 45', numerals: 'true' },
     tags: ['AC9M2M04', 'MA1-NSM-02'],
   },
@@ -1122,10 +1116,21 @@ export const year2: QuestionTemplate[] = [
     answer:
       "share == n ? 'certain' : share == 0 ? 'impossible' : share * 2 > n ? 'likely' : 'unlikely'",
     answerType: 'choice',
-    // The same four buttons every time, so the option set says nothing.
+    // **Three buttons, not four, and which three follows the question.** A
+    // button that can never be right is not a distractor, it is a tell: asked
+    // about a shaded part the answer is never "impossible", because a disc with
+    // no shaded parts cannot be drawn (`shadedFills` - one group is the shaded
+    // group), and asked about a plain part it is never "certain" for the same
+    // reason. Offering all four put a permanently dead button on screen and
+    // left three live answers behind a one-in-four baseline, so guessing among
+    // the three that could happen beat that baseline by eight points without
+    // the picture being looked at. Dropping the dead one costs the child
+    // nothing - all four words still come up across draws - and makes the
+    // baseline the honest one in three, against which `whole`'s weighting
+    // above already balances the three live answers.
     choices: {
-      count: 4,
-      distractors: ["'certain'", "'likely'", "'unlikely'", "'impossible'"],
+      count: 3,
+      distractors: ["'likely'", "'unlikely'", "asked == 1 ? 'certain' : 'impossible'"],
     },
     figure: {
       kind: 'spinner',

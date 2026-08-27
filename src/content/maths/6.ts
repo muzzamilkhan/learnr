@@ -59,16 +59,34 @@ export const year6: QuestionTemplate[] = [
     topic: 'integers',
     level: '6',
     prompt: 'The temperature is {a}°C. Overnight it falls {d}°C. What is the new temperature, in °C?',
+    // **The run is drawn first and the question derived from it**, which is what
+    // an evenly spaced set needs to be honest. Building the run around an
+    // answer drawn independently leaves the members near the ends of the
+    // answer's range unreachable - the set says "the answer cannot be the
+    // bottom one, that would be colder than this question goes" - and that
+    // narrowing was worth 11 points on its own. Drawing `lo` where all four
+    // members are legal answers, then `k` for which one it is, makes the four
+    // exactly equally likely. `d` follows from the answer rather than the
+    // other way about.
     vars: [
+      { name: 'u', kind: 'pick', from: [1, 2] },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'lo', kind: 'int', min: '-20', max: '-2 - 3 * u' },
       { name: 'a', kind: 'int', min: '1', max: '8' },
-      { name: 'd', kind: 'int', min: 'a + 2', max: 'a + 12' },
-      // One degree out either way - the slip a child makes counting past zero,
-      // and what stops the sign errors pinning the answer to one rank.
-      { name: 's', kind: 'pick', from: [-1, 1] },
+      { name: 'd', kind: 'expr', expr: 'a - (lo + k * u)' },
     ],
     answer: 'a - d',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['d - a', '-(a + d)', 'a - d + s'] },
+    // **An evenly spaced run with the answer at a drawn position**, for the
+    // reason `maths.4.decimals.tenths` sets out. The sign errors that used to be
+    // the other two buttons are what made this readable: `b - a` is the answer's
+    // exact mirror, so "the negative whose size matches the positive option"
+    // named the answer outright, every draw, with the question unread. A
+    // misconception offered as a distractor has to be one the option set cannot
+    // give away, and an exact mirror never is. What is left is the slip this
+    // question is actually about - landing a step out counting past zero - at
+    // one of two step sizes.
+    choices: { count: 4, distractors: ['lo', 'lo + u', 'lo + 2 * u', 'lo + 3 * u'] },
     hint: 'Count down past zero.',
     tags: ['AC9M6N01'],
   },
@@ -81,13 +99,15 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'a', kind: 'int', min: '1', max: '20' },
       { name: 'b', kind: 'int', min: 'a + 2', max: 'a + 20' },
-      // One out either way, counting back past zero. The two sign errors sit on
-      // fixed sides of the answer, so this is what moves its rank.
-      { name: 's', kind: 'pick', from: [-1, 1] },
+      { name: 'u', kind: 'pick', from: [1, 2] },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'lo', kind: 'expr', expr: 'a - b - k * u' },
     ],
     answer: 'a - b',
     answerType: 'choice',
-    choices: { count: 4, distractors: ['b - a', '-(a + b)', 'a - b + s'] },
+    // An evenly spaced run with the answer at a drawn position; `temperature`
+    // above is the same fix and carries the reasoning.
+    choices: { count: 4, distractors: ['lo', 'lo + u', 'lo + 2 * u', 'lo + 3 * u'] },
     tags: ['AC9M6N01'],
   },
   {
@@ -153,17 +173,27 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '105', max: '4995' },
       { name: 'nb', kind: 'int', min: '105', max: '4995' },
-      // Which side the whole-number slip falls on, so the answer is not for ever
-      // second-smallest behind a lone hundredth below it.
-      { name: 's', kind: 'pick', from: [-100, 100] },
+      // The size of the slip the wrong buttons are, and where in the run of four
+      // the answer sits.
+      { name: 'u', kind: 'pick', from: [1, 10, 100] },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'lo', kind: 'expr', expr: 'na + nb - k * u' },
       { name: 'a', kind: 'expr', expr: 'na / 100' },
       { name: 'b', kind: 'expr', expr: 'nb / 100' },
     ],
     answer: '(na + nb) / 100',
     answerType: 'choice',
+    // **The options are an evenly spaced run with the answer at a drawn
+    // position**, for the reason `maths.4.decimals.tenths` sets out: distractors
+    // built as fixed offsets from the answer make the option set a signature of
+    // it, and the answer was the one with a hundredth below it and a tenth
+    // above. Moving its rank left that intact. A run has no such signature -
+    // every option sits the same step from its neighbours - and `u` is what
+    // keeps the misconceptions: the step is a hundredth, a tenth or a whole
+    // number, so a slip of each size is still what the wrong buttons are.
     choices: {
       count: 4,
-      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + s) / 100'],
+      distractors: ['lo / 100', '(lo + u) / 100', '(lo + 2 * u) / 100', '(lo + 3 * u) / 100'],
     },
     tags: ['AC9M6N04', 'MA3-AR-01'],
   },
@@ -176,19 +206,22 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'n', kind: 'int', min: '105', max: '995' },
       { name: 'a', kind: 'expr', expr: 'n / 100' },
-      { name: 'p', kind: 'pick', from: [10, 100] },
-      // How far the third place-value slip goes: not shifting at all, or
-      // shifting two places too far. Every distractor used to land above the
-      // answer bar one, which pinned it at rank 2; alternating this one keeps
-      // all three options place-value errors and lets the answer move.
-      { name: 'q', kind: 'pick', from: [1, 10000] },
+      // Three multipliers rather than two, for the reason
+      // `divide-by-powers-of-ten` below gives: the answer has to be able to sit
+      // at more than one place in the run, or the run names it.
+      { name: 'p', kind: 'pick', from: [10, 100, 1000] },
     ],
     constraints: ['mod(n, 10) != 0'],
+    // **Typed, because no set of powers of ten can avoid naming its answer.**
+    // The errors worth offering here are all the same digits at another place
+    // value, so any option set is the answer multiplied by powers of ten - and
+    // a set built as a fixed function of the answer is a signature of it,
+    // whatever rank the answer is moved to. Measured, the option set alone
+    // answered these without the prompt. Widening the run only widens the
+    // signature. See `maths.4.decimals.tenths` for the same finding a year
+    // earlier and the pad's decimal point, which is what makes typing this
+    // possible at all.
     answer: 'n * p / 100',
-    answerType: 'choice',
-    // Kept clear of each other at both p values: at p = 10, `n * p / 1000` and
-    // `n / 100` would be the same number.
-    choices: { count: 4, distractors: ['n * p / 1000', 'n * p / 10', 'n * p / q'] },
     hint: 'Every digit moves left one place for each zero.',
     tags: ['AC9M6N06', 'MA3-MR-01'],
   },
@@ -197,19 +230,33 @@ export const year6: QuestionTemplate[] = [
     subject: 'maths',
     topic: 'decimals',
     level: '6',
-    prompt: 'What is {a} ÷ 10?',
+    // **The answer is drawn and the dividend follows from it**, rather than the
+    // other way round. Dividing a drawn number by a drawn power of ten runs
+    // past two decimal places as soon as the divisor is a hundred, and a typed
+    // answer is capped at two - `catalog.test.ts`, because the display has to
+    // read back. Fixing the divisor at ten instead would answer the cap and
+    // give up two thirds of what AC9M6N06 asks for. So `n` is the answer's own
+    // hundredths and the prompt is built backwards from it: the same three
+    // digits divided by ten, a hundred or a thousand, always landing two places
+    // after the point.
+    prompt: 'What is {a} ÷ {p}?',
     vars: [
       { name: 'n', kind: 'int', min: '11', max: '999' },
-      { name: 'a', kind: 'expr', expr: 'n / 10' },
-      // How far the third slip goes: not dividing at all, or dividing three
-      // places too far. Both are place-value errors, and alternating them is
-      // what moves the answer off a fixed rank.
-      { name: 'q', kind: 'pick', from: [1, 10000] },
+      { name: 'p', kind: 'pick', from: [10, 100, 1000] },
+      { name: 'a', kind: 'expr', expr: 'n * p / 100' },
     ],
+    // No trailing nought, so the answer really does use both decimal places.
     constraints: ['mod(n, 10) != 0'],
+    // **Typed, because no set of powers of ten can avoid naming its answer.**
+    // The errors worth offering here are all the same digits at another place
+    // value, so any option set is the answer multiplied by powers of ten - and
+    // a set built as a fixed function of the answer is a signature of it,
+    // whatever rank the answer is moved to. Measured, the option set alone
+    // answered these without the prompt. Widening the run only widens the
+    // signature. See `maths.4.decimals.tenths` for the same finding a year
+    // earlier and the pad's decimal point, which is what makes typing this
+    // possible at all.
     answer: 'n / 100',
-    answerType: 'choice',
-    choices: { count: 4, distractors: ['n / 10', 'n / 1000', 'n / q'] },
     hint: 'Every digit moves one place to the right.',
     tags: ['AC9M6N06', 'MA3-MR-01'],
   },
@@ -392,15 +439,11 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'n', kind: 'int', min: '3', max: '199' },
       { name: 'cm', kind: 'expr', expr: 'n * 5' },
-      // Not converting at all, or shifting two places too far. Both are mistakes
-      // worth offering, and alternating them is what stops the answer being the
-      // second-smallest option every time.
-      { name: 'q', kind: 'pick', from: [1, 10000] },
     ],
     constraints: ['mod(n * 5, 100) != 0'],
+    // Typed, and `grams-to-kilograms` below is the same question and the same
+    // reasoning; read it there.
     answer: 'n * 5 / 100',
-    answerType: 'choice',
-    choices: { count: 4, distractors: ['n * 5 / 10', 'n * 5 / 1000', 'n * 5 / q'] },
     hint: 'There are 100 centimetres in a metre.',
     tags: ['AC9M6M01', 'MA3-GM-02'],
   },
@@ -413,14 +456,16 @@ export const year6: QuestionTemplate[] = [
     vars: [
       { name: 'n', kind: 'int', min: '3', max: '199' },
       { name: 'g', kind: 'expr', expr: 'n * 50' },
-      // Not converting at all, or shifting two places too far. Alternating them
-      // is what stops the answer being the second-smallest option every time.
-      { name: 'q', kind: 'pick', from: [1, 100000] },
     ],
     constraints: ['mod(n * 5, 100) != 0'],
+    // Typed, for the reason the two `decimals` templates above give in full: a
+    // conversion's wrong answers are the same digits at another place value, so
+    // every option set is powers of ten of the answer and names it. This one
+    // named it hardest - 96% off the option set alone against a 25% blind
+    // guess - because a weight in kilograms sits in a narrow band while its
+    // powers of ten do not, so "pick the one that looks like a number of
+    // kilograms" was the whole of the method.
     answer: 'n * 50 / 1000',
-    answerType: 'choice',
-    choices: { count: 4, distractors: ['n * 50 / 100', 'n * 50 / 10000', 'n * 50 / q'] },
     hint: 'There are 1000 grams in a kilogram.',
     tags: ['AC9M6M01', 'MA3-NSM-01'],
   },

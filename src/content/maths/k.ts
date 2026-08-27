@@ -274,13 +274,23 @@ export const yearK: QuestionTemplate[] = [
     topic: 'patterns',
     level: 'K',
     prompt: 'What comes next? {a}, {b}, {a}, {b}, {a}, ?',
+    // Both colours from one list, kept apart by a constraint - the fix
+    // `repeating-three` below already carried, and this one was left with the
+    // two disjoint lists it describes. Drawn that way the answer was always the
+    // yellow-or-orange-or-purple one and never the red-or-blue-or-green one, so
+    // three named colours were two the answer could be and one it could not.
+    // Worth 34 points over guessing with the pattern unread, and a third colour
+    // from the same list is what closes it: `c` is a distractor the answer could
+    // just as well have been.
     vars: [
-      { name: 'a', kind: 'pick', from: ['red', 'blue', 'green'] },
-      { name: 'b', kind: 'pick', from: ['yellow', 'orange', 'purple'] },
+      { name: 'a', kind: 'pick', from: PATTERN_COLOURS },
+      { name: 'b', kind: 'pick', from: PATTERN_COLOURS },
+      { name: 'c', kind: 'pick', from: PATTERN_COLOURS },
     ],
+    constraints: ['a != b', 'b != c', 'a != c'],
     answer: 'b',
     answerType: 'choice',
-    choices: { count: 3, distractors: ['a', "'yellow'", "'orange'", "'purple'"] },
+    choices: { count: 3, distractors: ['a', 'c'] },
     hint: 'The pattern goes {a}, {b}, over and over.',
     tags: ['AC9MFA01', 'MAE-FG-01'],
   },
@@ -447,25 +457,28 @@ export const yearK: QuestionTemplate[] = [
     topic: 'time',
     level: 'K',
     prompt: 'What time is this?',
+    // **The four hours are a run and the answer is drawn from inside it**, which
+    // is the third go at these buttons and the first that measures clean.
+    //
+    // Two near hours and one further off is the right *kind* of distractor - a
+    // misread hour hand lands next door, not across the dial. Drawn as -1, +1
+    // and +4 the answer was the middle of three consecutive hours every time,
+    // so the second go gave each offset a drawn sign. That moved the answer's
+    // rank and left the shape: two hours within two of the answer and one three
+    // to five away is a signature, and "the hour with two close neighbours"
+    // still named the answer 59 times in a hundred against a 25 in a hundred
+    // guess. A run has no such shape - every hour on screen has the same
+    // neighbours as every other - so there is nothing left to read off.
+    //
+    // The hours wrap, so the run is drawn as its first hour and the answer as a
+    // place inside it. Drawing the *answer* first and building the run around it
+    // would leave the hours near 1 and 12 unable to sit at every place, and an
+    // uneven answer is the thing being fixed.
     vars: [
-      { name: 'h', kind: 'int', min: '1', max: '12' },
-      // **The offsets carry a sign, and that is the whole point of them.** Two
-      // near hours and one further off is the right *kind* of distractor - a
-      // misread hour hand lands next door, not across the dial - but drawn as
-      // -1, +1 and +4 the answer was the middle of three consecutive hours in
-      // every single draw, with one outlier that could never join the run. That
-      // is a question answered by looking at the four buttons. Neither leak
-      // check would have said so: the rank check stands down because an option
-      // reads "3 o’clock" rather than 3, and the closed-set check stands down
-      // because twelve answers is past `CLOSED_SET_MAX`. So the spread is the
-      // content's job here, and drawing each offset's direction is what does it.
-      { name: 'near', kind: 'pick', from: [-2, -1, 1, 2] },
-      { name: 'alsoNear', kind: 'pick', from: [-2, -1, 1, 2] },
-      { name: 'far', kind: 'pick', from: [-5, -4, -3, 3, 4, 5] },
+      { name: 'lo', kind: 'int', min: '1', max: '12' },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'h', kind: 'expr', expr: 'mod(lo + k - 1, 12) + 1' },
     ],
-    // Only the two near offsets can collide; `far` is never within two hours of
-    // the answer, so all four options are always distinct.
-    constraints: ['near != alsoNear'],
     // O'clock only. Early Stage 1 reads the hour and Stage 1 adds half past,
     // and a time is not a thing the number pad can type - so the hours are
     // written out and tapped.
@@ -473,10 +486,13 @@ export const yearK: QuestionTemplate[] = [
     answerType: 'choice',
     choices: {
       count: 4,
+      // Four, one of which is the answer on every draw and is dropped as a
+      // duplicate - which is what leaves exactly three wrong hours.
       distractors: [
-        "(mod(h + near - 1, 12) + 1) + ' o’clock'",
-        "(mod(h + alsoNear - 1, 12) + 1) + ' o’clock'",
-        "(mod(h + far - 1, 12) + 1) + ' o’clock'",
+        "(mod(lo - 1, 12) + 1) + ' o’clock'",
+        "(mod(lo, 12) + 1) + ' o’clock'",
+        "(mod(lo + 1, 12) + 1) + ' o’clock'",
+        "(mod(lo + 2, 12) + 1) + ' o’clock'",
       ],
     },
     hint: 'The short hand tells you the hour.',
@@ -693,7 +709,17 @@ export const yearK: QuestionTemplate[] = [
     // above draws from four solids and this one from five, so the two do not
     // read as the same question twice when a session puts them near each other.
     vars: [
-      { name: 'shape', kind: 'pick', from: ['cube', 'cuboid', 'sphere', 'cone', 'cylinder'] },
+      // **Weighted, because five solids are four answers.** A cube and a
+      // cuboid are both a box, so drawn flat "a box" was right two draws in
+      // five and tapping it beat guessing by 15 points without the picture. A
+      // weight each to the two that share an answer and two to the rest puts
+      // all four buttons on a quarter of draws.
+      {
+        name: 'shape',
+        kind: 'pick',
+        from: ['cube', 'cuboid', 'sphere', 'cone', 'cylinder'],
+        weights: [1, 1, 2, 2, 2],
+      },
     ],
     answer:
       "shape == 'sphere' ? 'a ball' : shape == 'cube' || shape == 'cuboid' ? 'a box' : " +

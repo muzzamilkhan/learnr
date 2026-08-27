@@ -1,5 +1,5 @@
 {
-  "version": "2e22d6589f84",
+  "version": "fa814ceea8f0",
   "subject": "maths",
   "level": "3",
   "templates": [
@@ -1355,67 +1355,6 @@
       "prompt": "Which square is {dir} the dot?",
       "vars": [
         {
-          "name": "c0",
-          "kind": "int",
-          "min": "1",
-          "max": "2"
-        },
-        {
-          "name": "r0",
-          "kind": "int",
-          "min": "1",
-          "max": "2"
-        },
-        {
-          "name": "across",
-          "kind": "pick",
-          "from": [
-            1,
-            -1
-          ]
-        },
-        {
-          "name": "up",
-          "kind": "pick",
-          "from": [
-            1,
-            -1
-          ]
-        },
-        {
-          "name": "c",
-          "kind": "expr",
-          "expr": "across == 1 ? c0 : c0 + 1"
-        },
-        {
-          "name": "cn",
-          "kind": "expr",
-          "expr": "c + across"
-        },
-        {
-          "name": "r",
-          "kind": "expr",
-          "expr": "up == 1 ? r0 : r0 + 1"
-        },
-        {
-          "name": "rn",
-          "kind": "expr",
-          "expr": "r + up"
-        },
-        {
-          "name": "axis",
-          "kind": "pick",
-          "from": [
-            1,
-            0
-          ]
-        },
-        {
-          "name": "dir",
-          "kind": "expr",
-          "expr": "axis == 1 ? (up == 1 ? 'directly above' : 'directly below') : (across == 1 ? 'directly to the right of' : 'directly to the left of')"
-        },
-        {
           "name": "cols",
           "kind": "int",
           "min": "3",
@@ -1426,16 +1365,91 @@
           "kind": "int",
           "min": "3",
           "max": "5"
+        },
+        {
+          "name": "bx",
+          "kind": "pick",
+          "from": [
+            0,
+            1
+          ]
+        },
+        {
+          "name": "by",
+          "kind": "pick",
+          "from": [
+            0,
+            1
+          ]
+        },
+        {
+          "name": "ac",
+          "kind": "int",
+          "min": "1 + bx",
+          "max": "cols - 1 + bx"
+        },
+        {
+          "name": "ar",
+          "kind": "int",
+          "min": "1 + by",
+          "max": "rws - 1 + by"
+        },
+        {
+          "name": "oc",
+          "kind": "expr",
+          "expr": "bx == 1 ? ac - 1 : ac + 1"
+        },
+        {
+          "name": "orw",
+          "kind": "expr",
+          "expr": "by == 1 ? ar - 1 : ar + 1"
+        },
+        {
+          "name": "axis",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "sgn",
+          "kind": "pick",
+          "from": [
+            1,
+            -1
+          ]
+        },
+        {
+          "name": "c",
+          "kind": "expr",
+          "expr": "axis == 1 ? ac : ac - sgn"
+        },
+        {
+          "name": "r",
+          "kind": "expr",
+          "expr": "axis == 1 ? ar - sgn : ar"
+        },
+        {
+          "name": "dir",
+          "kind": "expr",
+          "expr": "axis == 1 ? (sgn == 1 ? 'directly above' : 'directly below') : (sgn == 1 ? 'directly to the right of' : 'directly to the left of')"
         }
       ],
-      "answer": "axis == 1 ? (c == 1 ? 'A' : c == 2 ? 'B' : c == 3 ? 'C' : c == 4 ? 'D' : 'E') + rn : (cn == 1 ? 'A' : cn == 2 ? 'B' : cn == 3 ? 'C' : cn == 4 ? 'D' : 'E') + r",
+      "constraints": [
+        "c >= 1",
+        "c <= cols",
+        "r >= 1",
+        "r <= rws"
+      ],
+      "answer": "(ac == 1 ? 'A' : ac == 2 ? 'B' : ac == 3 ? 'C' : ac == 4 ? 'D' : 'E') + ar",
       "answerType": "choice",
       "choices": {
         "count": 4,
         "distractors": [
-          "(c == 1 ? 'A' : c == 2 ? 'B' : c == 3 ? 'C' : c == 4 ? 'D' : 'E') + r",
-          "(cn == 1 ? 'A' : cn == 2 ? 'B' : cn == 3 ? 'C' : cn == 4 ? 'D' : 'E') + rn",
-          "axis == 1 ? (cn == 1 ? 'A' : cn == 2 ? 'B' : cn == 3 ? 'C' : cn == 4 ? 'D' : 'E') + r : (c == 1 ? 'A' : c == 2 ? 'B' : c == 3 ? 'C' : c == 4 ? 'D' : 'E') + rn"
+          "(oc == 1 ? 'A' : oc == 2 ? 'B' : oc == 3 ? 'C' : oc == 4 ? 'D' : 'E') + ar",
+          "(ac == 1 ? 'A' : ac == 2 ? 'B' : ac == 3 ? 'C' : ac == 4 ? 'D' : 'E') + orw",
+          "(oc == 1 ? 'A' : oc == 2 ? 'B' : oc == 3 ? 'C' : oc == 4 ? 'D' : 'E') + orw"
         ]
       },
       "hint": "Find the square the dot is in first, then move one square from it.",

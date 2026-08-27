@@ -40,37 +40,25 @@ export const year4: QuestionTemplate[] = [
     // One tenth is one tenth, not "1 tenths" - the same hole `angles.is-acute`
     // uses further down, and the one draw in nine that needed it.
     prompt: "Write {n} tenth{n == 1 ? '' : 's'} as a decimal.",
-    vars: [
-      { name: 'n', kind: 'int', min: '1', max: '9' },
-      // Which side the near-miss falls on. The place-value errors sit below the
-      // answer and above it by construction, so without this the answer is the
-      // second-smallest option every single draw.
-      { name: 'k', kind: 'pick', from: [-1, 1] },
-      { name: 'm', kind: 'expr', expr: 'n + k' },
-      // Which of the two tenths on screen the place-value errors are built
-      // from - the answer's own digit, or the near-miss's.
-      { name: 'p', kind: 'pick', from: [0, 1] },
-      { name: 'v', kind: 'expr', expr: 'p == 0 ? n : m' },
-    ],
-    // `n + k` is kept a single digit at both ends, so the near-miss is another
-    // tenth rather than a bare 1 beside a 10.
-    constraints: ['n + k >= 1', 'n + k <= 9'],
-    answer: 'n / 10',
-    // Tapped, not typed: the number pad has no decimal point.
-    answerType: 'choice',
-    // The two place-value errors - the digit a place too far right, and the
-    // digit with the point forgotten - plus a near-miss tenth.
+    vars: [{ name: 'n', kind: 'int', min: '1', max: '9' }],
+    // **Typed, and the buttons it replaces were never four.** The answer is
+    // always a tenth, and the two place-value errors worth offering - the digit
+    // a place too far right and the digit with the point forgotten - are a
+    // hundredth and a whole number. So `0.06` and `6` beside `0.6` were ruled
+    // out on shape without the prompt being read, leaving a coin toss between
+    // the two tenths on screen: measured, the option set alone answered this
+    // 51% of the time against a 25% blind guess. No four-option set fixes that
+    // while keeping the misconception, because the misconception *is* a change
+    // of shape.
     //
-    // **`v` is what keeps the buttons quiet.** Anchoring both errors on `n`
-    // put `n / 100`, `n / 10` and `n` on screen together every draw, so the
-    // answer was always the middle of a run of three each ten times the last:
-    // spot that and the prompt need never be read. Seventeen option sets, one
-    // answer apiece, 100% off the option set alone against a 25% blind guess,
-    // measured over 600 draws. Anchoring them on either tenth leaves the same
-    // three misconceptions on screen and makes the run of three centre on the
-    // answer only half the time - so the set narrows the answer to the two
-    // tenths and the child still has to read which one was asked for.
-    choices: { count: 4, distractors: ['v / 100', 'v', 'm / 10'] },
+    // Typing it costs nothing and tests more. The pad on the play screen has a
+    // decimal point - it is the *speed run's* pad that has none, which is what
+    // the note that used to sit here had confused - and `gradeAnswer` compares
+    // numerically within an epsilon, so `.7` and `0.70` are both right. A child
+    // who writes `0.07` is now wrong in their own hand, which the parent's
+    // report shows them, where a tapped distractor only ever said which button
+    // was pressed.
+    answer: 'n / 10',
     hint: 'Tenths go in the first place after the decimal point.',
     tags: ['AC9M4N01', 'MA2-RN-02'],
   },
@@ -80,36 +68,16 @@ export const year4: QuestionTemplate[] = [
     topic: 'decimals',
     level: '4',
     prompt: 'Write {n} hundredths as a decimal.',
-    vars: [
-      { name: 'n', kind: 'int', min: '11', max: '99' },
-      // The near-miss straddles: above the answer half the time and below it the
-      // other half, so the two place-value errors cannot fix the answer's rank.
-      { name: 'k', kind: 'pick', from: [-1, 1] },
-      { name: 'm', kind: 'expr', expr: 'n + k' },
-      // Which of the two hundredths on screen the place-value errors are built
-      // from - the answer's own digits, or the near-miss's. `tenths` above
-      // carries the identical var for the identical reason; read it there.
-      { name: 'p', kind: 'pick', from: [0, 1] },
-      { name: 'v', kind: 'expr', expr: 'p == 0 ? n : m' },
-    ],
-    // Neither hundredth ends in a nought, so both read as two decimal places
-    // rather than one of them collapsing to a tenth.
-    constraints: ['mod(n, 10) != 0', 'mod(n + k, 10) != 0'],
+    vars: [{ name: 'n', kind: 'int', min: '11', max: '99' }],
+    // Ends in no nought, so the answer is two decimal places and the question
+    // is about the hundredths place rather than collapsing to a tenth.
+    constraints: ['mod(n, 10) != 0'],
+    // Typed, for the reason `tenths` above sets out at length: the answer is
+    // always a hundredth and the errors worth offering are not, so two of the
+    // four buttons were ruled out on shape and the set alone answered this 47%
+    // of the time against a 25% blind guess.
     answer: 'n / 100',
-    answerType: 'choice',
-    // **`v` is what keeps the buttons quiet, exactly as in `tenths` above.**
-    // Anchoring both place-value errors on `n` put `n / 100`, `n / 10` and `n`
-    // on screen together every draw, so the answer was always the middle of a
-    // run of three each ten times the last - and "pick the hundredth that is a
-    // tenth of another option" beats the question with the prompt unread. 162
-    // option sets, one answer apiece, 100% off the option set alone against a
-    // 25% blind guess, measured over 8000 draws.
-    //
-    // **The prediction check could not have caught this one**, and that is its
-    // stated bound rather than a hole: 162 sets over 40 draws never repeat, so
-    // `OPTION_SET_REPEATS` silences it. A leak with many option sets is still a
-    // leak, and measuring is the only thing that finds it.
-    choices: { count: 4, distractors: ['v / 10', 'v', 'm / 100'] },
+    hint: 'Hundredths go in the second place after the decimal point.',
     tags: ['AC9M4N01', 'MA2-RN-02'],
   },
   {
@@ -142,17 +110,21 @@ export const year4: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '11', max: '99' },
       { name: 'nb', kind: 'int', min: '11', max: '99' },
-      // Which side the whole-number slip falls on. With it always above, the two
-      // tenth-sized near-misses left the answer second-smallest every draw.
-      { name: 's', kind: 'pick', from: [-10, 10] },
+      // The size of the slip the wrong buttons are - a tenth or a whole number -
+      // and where in the run of four the answer sits.
+      { name: 'u', kind: 'pick', from: [1, 10] },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'lo', kind: 'expr', expr: 'na + nb - k * u' },
       { name: 'a', kind: 'expr', expr: 'na / 10' },
       { name: 'b', kind: 'expr', expr: 'nb / 10' },
     ],
     answer: '(na + nb) / 10',
     answerType: 'choice',
+    // An evenly spaced run with the answer at a drawn position, the shape
+    // `maths.4.decimals.tenths` explains above.
     choices: {
       count: 4,
-      distractors: ['(na + nb + 1) / 10', '(na + nb - 1) / 10', '(na + nb + s) / 10'],
+      distractors: ['lo / 10', '(lo + u) / 10', '(lo + 2 * u) / 10', '(lo + 3 * u) / 10'],
     },
     hint: 'Add the whole numbers, then add the tenths.',
     tags: ['AC9M4N01', 'MA2-RN-02'],
@@ -628,7 +600,13 @@ export const year4: QuestionTemplate[] = [
     prompt: 'A film starts at {h} o’clock in the {part}. Is that am or pm?',
     vars: [
       { name: 'h', kind: 'int', min: '1', max: '11' },
-      { name: 'part', kind: 'pick', from: ['morning', 'afternoon', 'evening'] },
+      // Two of the three parts of the day are pm, so drawn flat "always tap
+      // pm" answered this two draws in three - on a two-button question, which
+      // is as close to free as an answer gets. The morning is weighted to make
+      // the two buttons equally often right; naming three parts and meaning two
+      // answers is what needs the correction, and it belongs here rather than
+      // in a fourth part of the day nobody says.
+      { name: 'part', kind: 'pick', from: ['morning', 'afternoon', 'evening'], weights: [2, 1, 1] },
     ],
     answer: "part == 'morning' ? 'am' : 'pm'",
     answerType: 'choice',

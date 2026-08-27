@@ -1,5 +1,5 @@
 {
-  "version": "35220d53ebf3",
+  "version": "b3c43dd55e65",
   "subject": "maths",
   "level": "1",
   "templates": [
@@ -624,6 +624,12 @@
             1,
             2,
             3
+          ],
+          "weights": [
+            1,
+            2,
+            1,
+            2
           ]
         },
         {
@@ -894,49 +900,25 @@
           ]
         },
         {
-          "name": "near",
-          "kind": "pick",
-          "from": [
-            -2,
-            -1,
-            1,
-            2
-          ]
-        },
-        {
-          "name": "far",
+          "name": "off",
           "kind": "pick",
           "from": [
             -5,
             -4,
             -3,
+            -2,
+            -1,
+            1,
+            2,
             3,
             4,
             5
           ]
         },
         {
-          "name": "hn",
+          "name": "g",
           "kind": "expr",
-          "expr": "mod(h + near - 1, 12) + 1"
-        },
-        {
-          "name": "hf",
-          "kind": "expr",
-          "expr": "mod(h + far - 1, 12) + 1"
-        },
-        {
-          "name": "flip",
-          "kind": "pick",
-          "from": [
-            1,
-            0
-          ]
-        },
-        {
-          "name": "hd",
-          "kind": "expr",
-          "expr": "flip == 1 ? h : hn"
+          "expr": "mod(h + off - 1, 12) + 1"
         }
       ],
       "answer": "half == 1 ? 'half past ' + h : h + ' o’clock'",
@@ -944,9 +926,9 @@
       "choices": {
         "count": 4,
         "distractors": [
-          "half == 1 ? hd + ' o’clock' : 'half past ' + hd",
-          "half == 1 ? 'half past ' + hn : hn + ' o’clock'",
-          "half == 1 ? hf + ' o’clock' : 'half past ' + hf"
+          "half == 1 ? h + ' o’clock' : 'half past ' + h",
+          "half == 1 ? 'half past ' + g : g + ' o’clock'",
+          "half == 1 ? g + ' o’clock' : 'half past ' + g"
         ]
       },
       "hint": "The long hand points straight down when it is half past.",
@@ -1721,11 +1703,10 @@
       "answer": "asked == 1 ? (s == n ? 'It will' : 'It might') : (s == n ? 'It will not' : 'It might')",
       "answerType": "choice",
       "choices": {
-        "count": 3,
+        "count": 2,
         "distractors": [
-          "'It will'",
           "'It might'",
-          "'It will not'"
+          "asked == 1 ? 'It will' : 'It will not'"
         ]
       },
       "figure": {

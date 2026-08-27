@@ -376,7 +376,13 @@ export const year1: QuestionTemplate[] = [
     // parts and once as two of four. That pairing is the point of the
     // question, and it is why the parts are enumerated rather than drawn.
     vars: [
-      { name: 'which', kind: 'pick', from: [0, 1, 2, 3] },
+      // **Weighted, because the four drawings are three answers.** A half is
+      // drawn twice over, so flat picks made it the answer half the time and
+      // tapping it beat guessing by 16 points with the shape unseen. One and
+      // two are the two halves and get a weight each; the quarter and the three
+      // quarters get two apiece, which puts each of the three answers on a
+      // third of draws while leaving the pairing the question is for intact.
+      { name: 'which', kind: 'pick', from: [0, 1, 2, 3], weights: [1, 2, 1, 2] },
       { name: 'd', kind: 'expr', expr: 'which == 0 ? 2 : 4' },
       { name: 'n', kind: 'expr', expr: 'which == 2 ? 2 : which == 3 ? 3 : 1' },
     ],
@@ -502,74 +508,48 @@ export const year1: QuestionTemplate[] = [
     topic: 'time',
     level: '1',
     prompt: 'What time is this?',
+    // **Two hours and two forms, so the four buttons are a 2x2 and neither
+    // hand answers the question alone.** An earlier shape put three hours on
+    // four buttons, one of them written twice, with the two wrong hours drawn
+    // at deliberately different distances - one next door, one further off.
+    // That spread was meant to stop the answer sitting in the middle of a run
+    // of consecutive hours, and it did; what it also did was mark the far hour
+    // as the odd one out, which named the answer's *form* and left a coin toss
+    // between two buttons. Measured over 3,000 draws it answered 64% of these
+    // with the clock unseen, against a 25% blind guess, and no reshuffling of
+    // three hours across four buttons gets below the narrowing that structure
+    // creates.
+    //
+    // Two hours crossed with two forms has no odd one out to find. The three
+    // wrong buttons are the three ways to be wrong - right hour read with the
+    // wrong hand, wrong hour read with the right one, and both wrong - which
+    // is the misconception grid this question is for, and every one of the
+    // four is equally often the answer. Reading the minute hand narrows it to
+    // two and reading the hour hand narrows it to two, so only reading both
+    // gets there: the buttons now ask for exactly what the dial shows.
     vars: [
       { name: 'h', kind: 'int', min: '1', max: '12' },
       { name: 'half', kind: 'pick', from: [1, 0] },
-      // **The offsets carry a sign, and that is the whole point of them.** Two
-      // near hours and one further off is the right *kind* of wrong answer - a
-      // misread hour hand lands next door - but drawn as -1, +1 and +4 the
-      // answer would be the middle of a run of consecutive hours in every
-      // draw, which is a question answered by looking at the buttons. Neither
-      // leak check would say so: the rank check stands down because an option
-      // reads "half past 3" rather than 3, and the closed-set check stands
-      // down because two dozen answers is past `CLOSED_SET_MAX`. So the spread
-      // is the content's job, and drawing each offset's direction is what does
-      // it.
-      { name: 'near', kind: 'pick', from: [-2, -1, 1, 2] },
-      { name: 'far', kind: 'pick', from: [-5, -4, -3, 3, 4, 5] },
-      { name: 'hn', kind: 'expr', expr: 'mod(h + near - 1, 12) + 1' },
-      { name: 'hf', kind: 'expr', expr: 'mod(h + far - 1, 12) + 1' },
-      // **Which hour gets written twice, and it must not always be the
-      // answer's.** Four options over three hours means one hour is always
-      // shown twice - once as "half past", once as "o'clock" - and with the
-      // form-flip distractor nailed to `h`, that doubled hour *was* the
-      // answer's in every single draw. Both leak checks are blind to it, for
-      // the reasons the comment above gives.
-      //
-      // That was worth 100%, not a hint. The two options carrying the answer's
-      // form are always `h` and `hn` - enumerate the four cases of `half` and
-      // `flip` and see - so a child who read the minute hand, straight up or
-      // straight down, which is what this template's own hint teaches, and
-      // then took the hour written twice had the answer every time, without
-      // ever looking at the hour hand. `flip` moves the doubled hour onto `hn`
-      // half the time, and because it is drawn independently of everything
-      // else, the doubled hour then carries **no information at all** once the
-      // form is known: `h` when `flip` is 1, `hn` when it is 0, fifty-fifty.
-      // Measured at 49% of 4000 draws, and exactly a half by construction.
-      //
-      // **What is left is 50%, and it is structural rather than a leak for the
-      // next author to close.** Reading the minute hand always narrows four
-      // options to the two in that form, and those two differ only in the
-      // hour - which is the hour-hand question, asked cleanly. The narrowing
-      // cannot be designed away: both forms have to be on the buttons or the
-      // question stops asking which hand is which, and they have to split two
-      // and two or the count is itself the tell. Putting all four options in
-      // one form would reach 25%, by dropping the o'clock versus half past
-      // discrimination that is exactly what Stage 1 adds this year.
-      //
-      // And it should not be designed away, because it is not a shortcut. The
-      // leak checks exist to catch a child beating a question *without doing
-      // the maths*; reading the minute hand is doing half the maths and being
-      // paid for half of it. What the flip fixed was the other thing - a tell
-      // that paid without reading either hand.
-      { name: 'flip', kind: 'pick', from: [1, 0] },
-      { name: 'hd', kind: 'expr', expr: 'flip == 1 ? h : hn' },
+      // Symmetric about nought and never nought, so the other hour is as
+      // likely to sit below the answer's as above it. Any asymmetry here would
+      // put the answer back in a findable place among the two.
+      { name: 'off', kind: 'pick', from: [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5] },
+      { name: 'g', kind: 'expr', expr: 'mod(h + off - 1, 12) + 1' },
     ],
     // O'clock and half past, which is the whole of what Stage 1 reads off a
     // dial - and a time is not something the number pad can type, so the
     // options are written out and tapped.
     answer: "half == 1 ? 'half past ' + h : h + ' o’clock'",
     answerType: 'choice',
-    // Two options in each form, always, so "the odd one out is the answer"
-    // never works. The first distractor is an hour read with the wrong hand -
-    // the mistake this question is really about - and `hd` is what decides
-    // whether it lands on the answer's hour or on the near one.
     choices: {
       count: 4,
       distractors: [
-        "half == 1 ? hd + ' o’clock' : 'half past ' + hd",
-        "half == 1 ? 'half past ' + hn : hn + ' o’clock'",
-        "half == 1 ? hf + ' o’clock' : 'half past ' + hf",
+        // The answer's hour, read with the wrong hand.
+        "half == 1 ? h + ' o’clock' : 'half past ' + h",
+        // The other hour, read with the right hand.
+        "half == 1 ? 'half past ' + g : g + ' o’clock'",
+        // Both wrong.
+        "half == 1 ? g + ' o’clock' : 'half past ' + g",
       ],
     },
     hint: 'The long hand points straight down when it is half past.',
@@ -1098,8 +1078,20 @@ export const year1: QuestionTemplate[] = [
     ],
     answer: "asked == 1 ? (s == n ? 'It will' : 'It might') : (s == n ? 'It will not' : 'It might')",
     answerType: 'choice',
-    // The same three buttons every time, so the option set says nothing.
-    choices: { count: 3, distractors: ["'It will'", "'It might'", "'It will not'"] },
+    // **Two buttons, not three, and which two follows the question.** A button
+    // that can never be right is not a distractor, it is a tell: asked about a
+    // shaded part the answer is never "It will not", because a disc with no
+    // shaded parts cannot be drawn (`shadedFills` - one group is the shaded
+    // group), and asked about a plain part it is never "It will". The third
+    // button was dead on every draw, so guessing between the two that could
+    // happen answered half of these with the spinner unseen against a
+    // one-in-three baseline. Both words still come up, on the question that
+    // can produce them, and `whole` above already splits the two live answers
+    // evenly - so what is left is a genuine coin toss the picture settles.
+    choices: {
+      count: 2,
+      distractors: ["'It might'", "asked == 1 ? 'It will' : 'It will not'"],
+    },
     figure: {
       kind: 'spinner',
       sectors: equalSectors('n', SPINNER_PARTS),

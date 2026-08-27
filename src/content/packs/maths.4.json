@@ -1,5 +1,5 @@
 {
-  "version": "26c832dc804d",
+  "version": "3eb161628455",
   "subject": "maths",
   "level": "4",
   "templates": [
@@ -15,48 +15,9 @@
           "kind": "int",
           "min": "1",
           "max": "9"
-        },
-        {
-          "name": "k",
-          "kind": "pick",
-          "from": [
-            -1,
-            1
-          ]
-        },
-        {
-          "name": "m",
-          "kind": "expr",
-          "expr": "n + k"
-        },
-        {
-          "name": "p",
-          "kind": "pick",
-          "from": [
-            0,
-            1
-          ]
-        },
-        {
-          "name": "v",
-          "kind": "expr",
-          "expr": "p == 0 ? n : m"
         }
       ],
-      "constraints": [
-        "n + k >= 1",
-        "n + k <= 9"
-      ],
       "answer": "n / 10",
-      "answerType": "choice",
-      "choices": {
-        "count": 4,
-        "distractors": [
-          "v / 100",
-          "v",
-          "m / 10"
-        ]
-      },
       "hint": "Tenths go in the first place after the decimal point.",
       "tags": [
         "AC9M4N01",
@@ -75,48 +36,13 @@
           "kind": "int",
           "min": "11",
           "max": "99"
-        },
-        {
-          "name": "k",
-          "kind": "pick",
-          "from": [
-            -1,
-            1
-          ]
-        },
-        {
-          "name": "m",
-          "kind": "expr",
-          "expr": "n + k"
-        },
-        {
-          "name": "p",
-          "kind": "pick",
-          "from": [
-            0,
-            1
-          ]
-        },
-        {
-          "name": "v",
-          "kind": "expr",
-          "expr": "p == 0 ? n : m"
         }
       ],
       "constraints": [
-        "mod(n, 10) != 0",
-        "mod(n + k, 10) != 0"
+        "mod(n, 10) != 0"
       ],
       "answer": "n / 100",
-      "answerType": "choice",
-      "choices": {
-        "count": 4,
-        "distractors": [
-          "v / 10",
-          "v",
-          "m / 100"
-        ]
-      },
+      "hint": "Hundredths go in the second place after the decimal point.",
       "tags": [
         "AC9M4N01",
         "MA2-RN-02"
@@ -182,12 +108,27 @@
           "max": "99"
         },
         {
-          "name": "s",
+          "name": "u",
           "kind": "pick",
           "from": [
-            -10,
+            1,
             10
           ]
+        },
+        {
+          "name": "k",
+          "kind": "pick",
+          "from": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "lo",
+          "kind": "expr",
+          "expr": "na + nb - k * u"
         },
         {
           "name": "a",
@@ -205,9 +146,10 @@
       "choices": {
         "count": 4,
         "distractors": [
-          "(na + nb + 1) / 10",
-          "(na + nb - 1) / 10",
-          "(na + nb + s) / 10"
+          "lo / 10",
+          "(lo + u) / 10",
+          "(lo + 2 * u) / 10",
+          "(lo + 3 * u) / 10"
         ]
       },
       "hint": "Add the whole numbers, then add the tenths.",
@@ -1033,6 +975,11 @@
             "morning",
             "afternoon",
             "evening"
+          ],
+          "weights": [
+            2,
+            1,
+            1
           ]
         }
       ],

@@ -1,5 +1,5 @@
 {
-  "version": "b5f2fb49fb42",
+  "version": "dd9a019c071c",
   "subject": "maths",
   "level": "5",
   "templates": [
@@ -102,12 +102,28 @@
           "max": "995"
         },
         {
-          "name": "s",
+          "name": "u",
           "kind": "pick",
           "from": [
-            -100,
+            1,
+            10,
             100
           ]
+        },
+        {
+          "name": "k",
+          "kind": "pick",
+          "from": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "lo",
+          "kind": "expr",
+          "expr": "na + nb - k * u"
         },
         {
           "name": "a",
@@ -125,9 +141,10 @@
       "choices": {
         "count": 4,
         "distractors": [
-          "(na + nb + 10) / 100",
-          "(na + nb - 1) / 100",
-          "(na + nb + s) / 100"
+          "lo / 100",
+          "(lo + u) / 100",
+          "(lo + 2 * u) / 100",
+          "(lo + 3 * u) / 100"
         ]
       },
       "hint": "Line up the decimal points.",
@@ -1231,16 +1248,31 @@
       "prompt": "Is an angle of {d} degrees acute, obtuse or reflex?",
       "vars": [
         {
+          "name": "band",
+          "kind": "pick",
+          "from": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "lo",
+          "kind": "expr",
+          "expr": "band == 0 ? 5 : band == 1 ? 95 : 185"
+        },
+        {
+          "name": "hi",
+          "kind": "expr",
+          "expr": "band == 0 ? 85 : band == 1 ? 175 : 355"
+        },
+        {
           "name": "d",
           "kind": "int",
-          "min": "5",
-          "max": "355",
+          "min": "lo",
+          "max": "hi",
           "step": 5
         }
-      ],
-      "constraints": [
-        "d != 90",
-        "d != 180"
       ],
       "answer": "d < 90 ? 'acute' : d < 180 ? 'obtuse' : 'reflex'",
       "answerType": "choice",

@@ -75,17 +75,20 @@ export const year5: QuestionTemplate[] = [
     vars: [
       { name: 'na', kind: 'int', min: '105', max: '995' },
       { name: 'nb', kind: 'int', min: '105', max: '995' },
-      // Which side the whole-number slip falls on, so the answer is not for ever
-      // second-smallest behind a lone hundredth below it.
-      { name: 's', kind: 'pick', from: [-100, 100] },
+      { name: 'u', kind: 'pick', from: [1, 10, 100] },
+      { name: 'k', kind: 'pick', from: [0, 1, 2, 3] },
+      { name: 'lo', kind: 'expr', expr: 'na + nb - k * u' },
       { name: 'a', kind: 'expr', expr: 'na / 100' },
       { name: 'b', kind: 'expr', expr: 'nb / 100' },
     ],
     answer: '(na + nb) / 100',
     answerType: 'choice',
+    // An evenly spaced run with the answer at a drawn position, the shape
+    // `maths.4.decimals.tenths` explains; `maths.6.decimals.add` is the same
+    // template a year on.
     choices: {
       count: 4,
-      distractors: ['(na + nb + 10) / 100', '(na + nb - 1) / 100', '(na + nb + s) / 100'],
+      distractors: ['lo / 100', '(lo + u) / 100', '(lo + 2 * u) / 100', '(lo + 3 * u) / 100'],
     },
     hint: 'Line up the decimal points.',
     tags: ['AC9M5N01', 'MA3-AR-01'],
@@ -674,8 +677,19 @@ export const year5: QuestionTemplate[] = [
     topic: 'angles',
     level: '5',
     prompt: 'Is an angle of {d} degrees acute, obtuse or reflex?',
-    vars: [{ name: 'd', kind: 'int', min: '5', max: '355', step: 5 }],
-    constraints: ['d != 90', 'd != 180'],
+    // **The name is drawn first and the angle inside it**, because the three
+    // names are not equally wide in degrees: acute and obtuse span 85 each and
+    // reflex spans 175. Drawing the angle flat across the whole turn made
+    // "reflex" right half the time, so tapping it beat guessing by 17 points
+    // with the number unread. Choosing the band first makes the three buttons
+    // equally often right, and it retires the two constraints with it - a band
+    // that starts at 95 cannot produce 90.
+    vars: [
+      { name: 'band', kind: 'pick', from: [0, 1, 2] },
+      { name: 'lo', kind: 'expr', expr: 'band == 0 ? 5 : band == 1 ? 95 : 185' },
+      { name: 'hi', kind: 'expr', expr: 'band == 0 ? 85 : band == 1 ? 175 : 355' },
+      { name: 'd', kind: 'int', min: 'lo', max: 'hi', step: 5 },
+    ],
     answer: "d < 90 ? 'acute' : d < 180 ? 'obtuse' : 'reflex'",
     answerType: 'choice',
     choices: { count: 3, distractors: ["'acute'", "'obtuse'", "'reflex'"] },

@@ -1,5 +1,5 @@
 {
-  "version": "28a7a43c6193",
+  "version": "0146d28f52a6",
   "subject": "maths",
   "level": "2",
   "templates": [
@@ -956,49 +956,25 @@
           ]
         },
         {
-          "name": "near",
-          "kind": "pick",
-          "from": [
-            -2,
-            -1,
-            1,
-            2
-          ]
-        },
-        {
-          "name": "far",
+          "name": "off",
           "kind": "pick",
           "from": [
             -5,
             -4,
             -3,
+            -2,
+            -1,
+            1,
+            2,
             3,
             4,
             5
           ]
         },
         {
-          "name": "an",
+          "name": "g",
           "kind": "expr",
-          "expr": "mod(a + near - 1, 12) + 1"
-        },
-        {
-          "name": "af",
-          "kind": "expr",
-          "expr": "mod(a + far - 1, 12) + 1"
-        },
-        {
-          "name": "flip",
-          "kind": "pick",
-          "from": [
-            1,
-            0
-          ]
-        },
-        {
-          "name": "ad",
-          "kind": "expr",
-          "expr": "flip == 1 ? a : an"
+          "expr": "mod(a + off - 1, 12) + 1"
         },
         {
           "name": "h",
@@ -1011,9 +987,9 @@
       "choices": {
         "count": 4,
         "distractors": [
-          "past == 1 ? 'quarter to ' + ad : 'quarter past ' + ad",
-          "past == 1 ? 'quarter past ' + an : 'quarter to ' + an",
-          "past == 1 ? 'quarter to ' + af : 'quarter past ' + af"
+          "past == 1 ? 'quarter to ' + a : 'quarter past ' + a",
+          "past == 1 ? 'quarter past ' + g : 'quarter to ' + g",
+          "past == 1 ? 'quarter to ' + g : 'quarter past ' + g"
         ]
       },
       "hint": "The long hand points to 3 for quarter past and to 9 for quarter to.",
@@ -1857,12 +1833,11 @@
       "answer": "share == n ? 'certain' : share == 0 ? 'impossible' : share * 2 > n ? 'likely' : 'unlikely'",
       "answerType": "choice",
       "choices": {
-        "count": 4,
+        "count": 3,
         "distractors": [
-          "'certain'",
           "'likely'",
           "'unlikely'",
-          "'impossible'"
+          "asked == 1 ? 'certain' : 'impossible'"
         ]
       },
       "figure": {

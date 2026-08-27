@@ -873,46 +873,58 @@ export const year3: QuestionTemplate[] = [
     topic: 'position',
     level: '3',
     prompt: 'Which square is {dir} the dot?',
-    // **The four options are the two-by-two block the dot sits in**, which is
-    // what keeps the option set from answering the question: the dot's own
-    // square, the one above or below it, the one beside it, and the one across
-    // the corner. Which of those is right depends on the word in the sentence
-    // *and* on where the dot is, so neither alone is enough.
+    // **The four options are a two-by-two block around the *answer*, not around
+    // the dot.** Around the dot they were the dot's own square, the one above
+    // or below, the one beside and the one across the corner - and the word in
+    // the sentence then halved them on its own: told "directly above", two of
+    // the four are above something and two are not, whichever square the dot
+    // turns out to be in. Measured over 3,000 draws that answered 51% of these
+    // with the grid unseen, against a 25% blind guess, and no reshuffling of a
+    // block built on the dot escapes it.
     //
-    // The block is built out of a pair of adjacent columns and a pair of
-    // adjacent rows, with the dot at one corner of it - `across` and `up` say
-    // which corner, and they are also what the direction word is read off, so
-    // the answer is above the dot as often as below it and left as often as
-    // right. Every square in the block lies inside three by three, so all four
-    // options exist on the smallest grid the band can draw.
+    // Hung on the answer instead, the block's own position is drawn - `bx` and
+    // `by` say which of its four corners the answer sits at - so each of the
+    // four squares is the answer equally often and the direction word settles
+    // nothing by itself. The distractors are still the squares next door, which
+    // is what a wrong answer to this question looks like; what has gone is the
+    // fixed relationship between the block and the dot that made the sentence
+    // worth reading on its own.
     vars: [
-      { name: 'c0', kind: 'int', min: '1', max: '2' },
-      { name: 'r0', kind: 'int', min: '1', max: '2' },
-      { name: 'across', kind: 'pick', from: [1, -1] },
-      { name: 'up', kind: 'pick', from: [1, -1] },
-      { name: 'c', kind: 'expr', expr: 'across == 1 ? c0 : c0 + 1' },
-      { name: 'cn', kind: 'expr', expr: 'c + across' },
-      { name: 'r', kind: 'expr', expr: 'up == 1 ? r0 : r0 + 1' },
-      { name: 'rn', kind: 'expr', expr: 'r + up' },
+      { name: 'cols', kind: 'int', min: '3', max: '5' },
+      { name: 'rws', kind: 'int', min: '3', max: '5' },
+      // Which corner of its own option block the answer sits at.
+      { name: 'bx', kind: 'pick', from: [0, 1] },
+      { name: 'by', kind: 'pick', from: [0, 1] },
+      // The answer's square, bounded so the block's other column and row are
+      // on the grid whichever corner was drawn.
+      { name: 'ac', kind: 'int', min: '1 + bx', max: 'cols - 1 + bx' },
+      { name: 'ar', kind: 'int', min: '1 + by', max: 'rws - 1 + by' },
+      { name: 'oc', kind: 'expr', expr: 'bx == 1 ? ac - 1 : ac + 1' },
+      { name: 'orw', kind: 'expr', expr: 'by == 1 ? ar - 1 : ar + 1' },
       { name: 'axis', kind: 'pick', from: [1, 0] },
+      { name: 'sgn', kind: 'pick', from: [1, -1] },
+      // The dot is one square from the answer, opposite the way the sentence
+      // points. It is not required to be inside the block, and often is not.
+      { name: 'c', kind: 'expr', expr: 'axis == 1 ? ac : ac - sgn' },
+      { name: 'r', kind: 'expr', expr: 'axis == 1 ? ar - sgn : ar' },
       {
         name: 'dir',
         kind: 'expr',
         expr:
-          "axis == 1 ? (up == 1 ? 'directly above' : 'directly below') : " +
-          "(across == 1 ? 'directly to the right of' : 'directly to the left of')",
+          "axis == 1 ? (sgn == 1 ? 'directly above' : 'directly below') : " +
+          "(sgn == 1 ? 'directly to the right of' : 'directly to the left of')",
       },
-      { name: 'cols', kind: 'int', min: '3', max: '5' },
-      { name: 'rws', kind: 'int', min: '3', max: '5' },
     ],
-    answer: `axis == 1 ? (${columnLetter('c')}) + rn : (${columnLetter('cn')}) + r`,
+    // The dot has to be on the grid; the answer and its block already are.
+    constraints: ['c >= 1', 'c <= cols', 'r >= 1', 'r <= rws'],
+    answer: `(${columnLetter('ac')}) + ar`,
     answerType: 'choice',
     choices: {
       count: 4,
       distractors: [
-        `(${columnLetter('c')}) + r`,
-        `(${columnLetter('cn')}) + rn`,
-        `axis == 1 ? (${columnLetter('cn')}) + r : (${columnLetter('c')}) + rn`,
+        `(${columnLetter('oc')}) + ar`,
+        `(${columnLetter('ac')}) + orw`,
+        `(${columnLetter('oc')}) + orw`,
       ],
     },
     hint: 'Find the square the dot is in first, then move one square from it.',
