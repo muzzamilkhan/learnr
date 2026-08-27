@@ -1550,6 +1550,40 @@ Every record set before the table existed is backfilled as **one** run each,
 carrying the record's own `achievedAt` - one run is all that can honestly be
 recovered.
 
+**A run belongs to when it was *played*, not when it was received.** `POST
+/speed/runs` takes an optional `playedAt` and `SpeedAttempt.playedAt` no longer
+means the receipt time; a run that set a best dates its `SpeedRecord.achievedAt`
+by the same stamp. This matters only for a client with an offline queue, which
+is the iOS app: without it a child's afternoon of offline runs all land in one
+minute that evening, in whatever order the queue drained, under a "latest run" a
+parent reads as when their child played. The stamp has to be fixed when the run
+ends and held across every flush of it - the same property `SpeedAttempt.id`
+needs, for the same reason.
+
+**It is bounded by `parsePlayedAt` (`src/lib/day.ts`), beside
+`parseOffsetMinutes` and for its reason**: a client-supplied timestamp now
+reaches a path that orders the cabinet, the report table and the family board
+and tie-breaks which run gets starred. **The two bounds are deliberately not
+symmetric**, because the two mistakes are not - a stamp too far in the past
+sorts itself to the bottom and harms nothing but its own row, while one in the
+future sits at the *top* of every ordering and stays there until real time
+catches up. So forward is five minutes of ordinary clock skew and backward is
+thirty days, the far side of any offline queue worth believing.
+
+**A refused stamp is not a refused run.** The field is optional and the schema
+takes a loose string, so an unparseable stamp falls back to the server's clock -
+which is exactly what happened before any client sent one. That is the
+difference between it and `mode`, where an unparseable value is a run that never
+happened and earns the 400: a client bug in the stamp must not be able to
+destroy every run a build submits. The contract still advertises `format:
+date-time`, since being lenient about what arrives is not the same as being
+vague about what is wanted. `ISO_TIMESTAMP` is exported from `src/lib/revive.ts`
+rather than written twice, so the stamps going out and the one coming in cannot
+disagree about what a timestamp is.
+
+The column keeps its `@default(now())` as the fallback for a client that sends
+nothing, so this needed no migration and an older build is unchanged.
+
 **A parent's report gets a table instead of the cards** (`SpeedTable`, in the
 `Speed runs` well on `/progress`). The cards are collectibles built for the player;
 a parent skimming is reading down a column, so the same data is one row a mode: the

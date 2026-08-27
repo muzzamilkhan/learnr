@@ -2405,6 +2405,13 @@ paths:
                   type: integer
                   minimum: 0
                   maximum: 10000
+                playedAt:
+                  type: string
+                  format: date-time
+                  description: >-
+                    When the run was played, ISO 8601. Omit it and the server
+                    stamps receipt. Hold one stamp per run across every flush of
+                    it, as with `id`.
               required:
                 - id
                 - mode

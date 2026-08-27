@@ -11,6 +11,7 @@ import {
   summaryRunSchema,
 } from '../schemas/dto.js';
 import { MODES, modeKey, parseMode } from '@learnr/core/speedrun/modes';
+import { parsePlayedAt } from '@learnr/core/day';
 import { householdId } from '@learnr/core/children';
 import { readAccount } from '../data/accounts.js';
 import {
@@ -31,12 +32,43 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
     schema: { response: { 200: z.array(modeListingSchema) } },
   }, async () => MODES.map((mode) => ({ key: modeKey(mode), ...mode })));
 
+  /**
+   * Bank a finished run.
+   *
+   * **`playedAt` says when the run was played, and the server no longer
+   * assumes that is now.** A client with an offline queue flushes a run
+   * whenever connectivity returns, and the stamp orders the cabinet, the report
+   * table and the family board and tie-breaks which run gets starred - so an
+   * afternoon of offline runs used to land in one minute that evening, in
+   * whatever order the queue drained, under a "latest run" a parent reads as
+   * when their child played.
+   *
+   * It is **optional and loosely typed on purpose**, which is the difference
+   * between it and `mode`. An unparseable mode is a run that never happened and
+   * earns the 400; an unparseable stamp costs nothing but itself, so
+   * `parsePlayedAt` bounds it and the run falls back to the server's clock -
+   * exactly what happened before any client sent one. A client bug in the stamp
+   * must not be able to destroy every run a build submits.
+   *
+   * The contract still advertises `format: date-time`, because that is what a
+   * client should send and what a generated model should carry. Being lenient
+   * about what arrives is not the same as being vague about what is wanted.
+   */
   app.post('/speed/runs', {
     schema: {
       body: z.object({
         id: z.uuid(),
         mode: z.string().min(1),
         correct: z.number().int().min(0).max(MAX_SCORE),
+        playedAt: z
+          .string()
+          .meta({
+            format: 'date-time',
+            description:
+              'When the run was played, ISO 8601. Omit it and the server stamps receipt. '
+              + 'Hold one stamp per run across every flush of it, as with `id`.',
+          })
+          .optional(),
       }),
       response: { 200: speedOutcomeSchema, 400: errorSchema, 503: errorSchema },
     },
@@ -45,7 +77,11 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
     const mode = parseMode(request.body.mode);
     if (!mode) return reply.code(400).send({ error: 'No such mode' });
 
-    const outcome = await submitSpeedRun(userId, { id: request.body.id, mode, correct: request.body.correct });
+    const playedAt = parsePlayedAt(request.body.playedAt, Date.now()) ?? new Date();
+
+    const outcome = await submitSpeedRun(userId, {
+      id: request.body.id, mode, correct: request.body.correct, playedAt,
+    });
     if (!outcome) return reply.code(503).send({ error: 'Could not record the run' });
 
     return reply.send(outcome);

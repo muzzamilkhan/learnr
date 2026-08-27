@@ -169,7 +169,7 @@ describe('GET /children/:id/record', () => {
   it('fetches the speed runs only when asked for them', async () => {
     const parentId = await makeParent();
     const childId = await makeChild(parentId);
-    await submitSpeedRun(childId, { id: randomUUID(), mode: { op: 'multiply', tables: 7 }, correct: 12 });
+    await submitSpeedRun(childId, { id: randomUUID(), mode: { op: 'multiply', tables: 7 }, correct: 12, playedAt: new Date() });
     const token = await signIn(parentId);
 
     const without = await app.inject({

@@ -266,7 +266,7 @@ export const api = {
 
   /* Speed runs ----------------------------------------------------------- */
 
-  submitSpeedRun: (body: { id: string; mode: string; correct: number }) =>
+  submitSpeedRun: (body: { id: string; mode: string; correct: number; playedAt?: string }) =>
     request<SpeedOutcome>('/speed/runs', post(body)),
 
   speedRecords: () => request<SpeedRecordsRead>('/speed/records'),

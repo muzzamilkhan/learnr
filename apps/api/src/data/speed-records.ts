@@ -120,10 +120,10 @@ const isUniqueViolation = (error: unknown): boolean =>
  */
 export async function submitSpeedRun(
   userId: string,
-  run: { id: string; mode: Mode; correct: number },
+  run: { id: string; mode: Mode; correct: number; playedAt: Date },
 ): Promise<SpeedOutcome | null> {
   if (!prisma) return null;
-  const { id, mode, correct } = run;
+  const { id, mode, correct, playedAt } = run;
 
   // Two independent writes, so they go together rather than one after the
   // other: the record is the maximum and the attempt is the history behind it,
@@ -131,8 +131,8 @@ export async function submitSpeedRun(
   // the cabinet's table; a failed record costs the outcome this returns, which
   // is why only one of the two can decide what the result screen says.
   const [, banked] = await Promise.all([
-    recordAttempt(id, userId, modeKey(mode), correct),
-    bankRecord(userId, modeKey(mode), correct),
+    recordAttempt(id, userId, modeKey(mode), correct, playedAt),
+    bankRecord(userId, modeKey(mode), correct, playedAt),
   ]);
   if (banked === null) return null;
 
@@ -206,26 +206,41 @@ async function readStanding(
  * Two runs that scored the same are still two runs. Only a repeat of the same
  * id collapses, which is why the id has to be minted once per *run* on the
  * client and reused across every flush of it - not minted per request.
+ *
+ * `playedAt` is written explicitly rather than left to the column's default,
+ * and the same argument applies to it: it belongs to the run, so it has to be
+ * fixed when the run ends and carried across every flush, not taken from
+ * whenever the row happened to land.
  */
 async function recordAttempt(
   id: string,
   userId: string,
   mode: string,
   correct: number,
+  playedAt: Date,
 ): Promise<void> {
   if (!prisma) return;
   try {
-    await prisma.speedAttempt.create({ data: { id, userId, mode, correct } });
+    await prisma.speedAttempt.create({ data: { id, userId, mode, correct, playedAt } });
   } catch (error) {
     if (isUniqueViolation(error)) return;
     console.error('Failed to record speed attempt', error);
   }
 }
 
+/**
+ * `achievedAt` takes the run's own stamp for the reason `playedAt` does: a run
+ * flushed at five o'clock that set its best at eight in the morning was
+ * achieved at eight. The cabinet stars the run `achievedAt` names, so a receipt
+ * time here would star the right score at the wrong moment - and would order
+ * the family board, which sorts on the newest `achievedAt` among a card's
+ * places, by when a queue drained.
+ */
 async function bankRecord(
   userId: string,
   key: string,
   correct: number,
+  playedAt: Date,
 ): Promise<BankedRecord | null> {
   if (!prisma) return null;
   const db = prisma;
@@ -250,7 +265,7 @@ async function bankRecord(
     const guardedUpdate = () =>
       db.speedRecord.updateMany({
         where: { userId, mode: key, best: { lt: correct } },
-        data: { best: correct, achievedAt: new Date(), seen: !beatsPreviousBest },
+        data: { best: correct, achievedAt: playedAt, seen: !beatsPreviousBest },
       });
 
     let updated = await guardedUpdate();
@@ -258,7 +273,7 @@ async function bankRecord(
     if (updated.count === 0 && initial === null) {
       try {
         await db.speedRecord.create({
-          data: { userId, mode: key, best: correct, seen: true },
+          data: { userId, mode: key, best: correct, achievedAt: playedAt, seen: true },
         });
         // A first-ever run is never a record - see `isRecord`.
         return { previousBest: null, best: correct, isRecord: false };

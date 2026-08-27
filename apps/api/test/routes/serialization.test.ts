@@ -229,7 +229,7 @@ describe('nothing is dropped on the way out', () => {
     const parentId = await makeParent({ name: 'Grown-up' });
     const childId = await makeChild(parentId, { name: 'Ada', avatar: 'frog' });
     await testPrisma().childPhoto.create({ data: { childId, dataUrl: PHOTO } });
-    await submitSpeedRun(childId, { id: randomUUID(), mode: { op: 'multiply', tables: 7 }, correct: 12 });
+    await submitSpeedRun(childId, { id: randomUUID(), mode: { op: 'multiply', tables: 7 }, correct: 12, playedAt: new Date() });
 
     const response = await app.inject({
       method: 'GET', url: '/speed/records', headers: as(await signIn(childId)),
