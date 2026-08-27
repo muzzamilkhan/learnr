@@ -2063,6 +2063,14 @@ Copy `.env.example` to `.env` and fill in:
   entry. Production points at `https://learnr-api-syd.fly.dev`.
 - `DATABASE_URL` - Neon Postgres via the Vercel Marketplace. **For Auth.js
   alone** - see `src/auth-db.ts`. Everything else goes through the API.
+  **It ends `sslmode=verify-full`, and that is the current behaviour written
+  down rather than a tightening.** `pg-connection-string` treats `prefer`,
+  `require` and `verify-ca` as aliases for `verify-full` already and warns that
+  it does; what changes at pg v9 is that they stop being aliases and take
+  libpq's weaker semantics instead. So a URL saying `require` is one that
+  silently loosens on a major version bump, and one saying `verify-full` keeps
+  verifying. Both `PrismaPg` clients parse the string through that library, so
+  it is the web app's connection and the API's alike.
 - `AUTH_SECRET` - `npx auth secret`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
   `http://localhost:3000/api/auth/callback/google`

@@ -332,5 +332,15 @@ Without it the web app falls back to `http://localhost:3001` and every read come
 back null - which renders as "couldn't load" rather than an error page, so it
 will not announce itself loudly.
 
-Neon warns that `sslmode=require` is deprecated in favour of `verify-full`.
-Harmless today; worth fixing when the connection string is next touched.
+**That warning is dealt with, and it was not what it looked like.** Neon's
+notice about `sslmode=require` is `pg-connection-string`'s: without
+`uselibpqcompat=true` it treats `prefer`, `require` and `verify-ca` as aliases
+for `verify-full`, so both clients were verifying fully all along and the string
+was merely describing itself wrongly. What made it worth changing rather than
+ignoring is the other half of the warning - at `pg` v9 those modes stop being
+aliases and adopt libpq's semantics, where `require` encrypts without verifying
+anything. A URL saying `require` was therefore one that would quietly weaken on
+a dependency bump, with nothing to notice it. Every copy now says
+`verify-full`: the two `.env.example` files, the two local `.env` files, the
+Vercel variable and the Fly secret. Checked against the production instance
+before it was changed anywhere - both modes connect, and only `require` warns.
