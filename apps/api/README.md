@@ -40,8 +40,22 @@ into a URL is refused by the query, not by a check somebody remembered to write.
 | | Why |
 | --- | --- |
 | `GET /speed/modes` | Static content. A child has to see what to play before signing in. |
-| `POST /auth/redeem` | The code *is* the credential, spent in the statement that reads it. |
+| `POST /auth/redeem` | The code *is* the credential, spent in the statement that reads it. Throttled - see below. |
 | `GET /shares/:token` | A share link's point is reaching somebody with no account here; signing in is the acceptance. It is read-only and spends nothing. |
+
+**`POST /auth/redeem` is throttled, because it is open and the code is the
+credential.** 31^4 is 923,521 codes, `redeemLoginCode` matches any live code
+rather than one child's, and a hit buys a session that does not expire - so an
+unbounded number of guesses is the one thing that turns a deliberately short
+code into a hole. `REDEEM_BACKSTOP_LIMIT` (120) failures per caller per 15
+minutes, keyed on `fly-client-ip` (set by Fly's proxy, so it cannot be spoofed)
+and answering **429** with a `Retry-After`.
+
+**This is the backstop and not the primary control.** A web-app request arrives
+from Vercel, so every browser shares one key here - which is why the number is
+generous, and why the tight per-browser limit (`REDEEM_FAILURE_LIMIT`, 10) lives
+in the web app's own server action where the child's real address is visible.
+Only failures count and a success clears the caller.
 
 **`null` is a read that failed and `[]` is nothing there**, and the callers draw
 them differently - `[]` from `readObservations` renders as "your child has never

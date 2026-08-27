@@ -10,6 +10,7 @@
     "./avatars": "./src/lib/avatars.ts",
     "./children": "./src/lib/children.ts",
     "./login-code": "./src/lib/login-code.ts",
+    "./throttle": "./src/lib/throttle.ts",
     "./share-link": "./src/lib/share-link.ts",
     "./photo/photo": "./src/lib/photo/photo.ts",
     "./figures/types": "./src/lib/figures/types.ts",

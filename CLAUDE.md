@@ -1803,6 +1803,36 @@ schedule. Two halves of one decision: the window protects the handoff, and once 
 child is in they stay in. `Session.expires` is not nullable, so "does not expire"
 is a date far enough out never to arrive.
 
+**Guessing a code is throttled in both halves, and they are not the same limit.**
+The charset is 31 characters and the code is 4, which is 923,521 codes;
+`redeemLoginCode` matches **any** live code rather than one child's, so a guesser
+is attacking the pool of every code out at that moment; and a hit buys a session
+that never expires. The window and single-use redemption were always the argument
+for why four characters was safe, and an unbounded number of guesses is what
+would have retired it.
+
+`src/lib/throttle.ts` is the pure half - a fixed window of failures per caller,
+`now` injected, shared through `@learnr/core/throttle` because **both halves need
+it and neither can do the other's job**:
+
+- **The web app's action is the primary limit**, `REDEEM_FAILURE_LIMIT` (10) per
+  browser per 15 minutes. It is here because this is the only place the child's
+  own address is visible - `api.redeem` is called server-side, so a browser-typed
+  code reaches the API from Vercel. It is **best-effort**: a Vercel Function's
+  memory is per-instance and a cold start forgets, so it raises the cost of
+  guessing by a large factor without being a wall.
+- **The API's is the backstop**, `REDEEM_BACKSTOP_LIMIT` (120) per caller, and
+  generous on purpose: one key there is a real device (iOS calls it directly) and
+  another is *every browser at once*. A number tight enough to matter for the
+  first would lock out the second. It answers **429** with a `Retry-After`.
+
+**Only failures count and a success clears the caller**, so a child mistyping and
+then getting it right spends nothing, and a guesser has no success to clear with.
+**A global ceiling across all callers was rejected**: it hands an attacker a way
+to lock every child in the service out of signing in, which is worse than the
+guessing it prevents. Lengthening the code is the other lever and is a product
+decision - four characters is short enough for a child to carry across the room.
+
 **Showing a code and issuing one are different actions.** One button carries three
 states: "Get code", "Show code" (revealing what is already stored - a child may be
 halfway through typing it), and "Hide code". Regenerating is its own button under

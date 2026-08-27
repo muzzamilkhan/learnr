@@ -1,6 +1,6 @@
 'use server';
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { auth, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/auth';
 import { api, type ChildBody } from '@/api';
@@ -8,6 +8,8 @@ import { readViewer } from '@/app/viewer';
 import { parseYearLevel } from '@/lib/curriculum';
 import { parseAvatar } from '@/lib/avatars';
 import { parseTarget } from '@/lib/rewards/target';
+import { browserIp, createThrottle } from '@/lib/throttle';
+import { REDEEM_FAILURE_LIMIT, REDEEM_FAILURE_WINDOW_MS } from '@/lib/login-code';
 import { parsePhoto } from '@/lib/photo/photo';
 import type { AcceptResult } from '@/lib/dto';
 
@@ -144,6 +146,29 @@ export async function issueLoginCodeAction(childId: string): Promise<string | nu
 }
 
 /**
+ * Failed redemptions, per browser.
+ *
+ * **This is the primary limit on guessing a login code**, and it lives here
+ * rather than in the API because this is the only place the child's own address
+ * is visible: `api.redeem` is called server-side, so every browser-typed code
+ * reaches the API from Vercel and shares one key there. The API's
+ * `REDEEM_BACKSTOP_LIMIT` is the backstop behind this, deliberately generous
+ * for that reason.
+ *
+ * **Best-effort, and the cost is written down rather than hidden.** This module
+ * runs in a Vercel Function, so the map is per-instance and per-lifetime: a
+ * guesser spread across instances gets more than `REDEEM_FAILURE_LIMIT` tries
+ * per window, and a cold start forgets. It raises the cost of guessing by a
+ * large factor without being a wall, which against a 923,521-code space and an
+ * hour-long window is the trade being made. A shared store is what would make
+ * it a wall, and it is not worth a dependency at this size.
+ */
+const redeemFailures = createThrottle({
+  limit: REDEEM_FAILURE_LIMIT,
+  windowMs: REDEEM_FAILURE_WINDOW_MS,
+});
+
+/**
  * The child's way in. The API writes the same `Session` row the Prisma adapter
  * would and this sets the same cookie, so `auth()` cannot tell the two paths
  * apart - which is the whole reason `SESSION_COOKIE_NAME` is pinned in
@@ -157,10 +182,24 @@ export async function issueLoginCodeAction(childId: string): Promise<string | nu
  * not an error, and the child needs to read something they can act on.
  */
 export async function redeemLoginCodeAction(code: string): Promise<{ error: string } | null> {
+  const bag = await headers();
+  const browser = browserIp(bag.get('x-real-ip'), bag.get('x-forwarded-for'));
+  const now = Date.now();
+
+  // An unattributable request is let through rather than sharing a key with
+  // every other one: a single key here is not a throttle, it is a lockout of
+  // every child at once. The API's own backstop still covers that case.
+  if (browser && redeemFailures.blocked(browser, now)) {
+    return { error: 'Too many tries - wait a few minutes and have another go.' };
+  }
+
   const redeemed = await api.redeem(code);
   if (!redeemed) {
+    if (browser) redeemFailures.fail(browser, now);
     return { error: "That code doesn't work - ask your grown-up for a new one." };
   }
+
+  if (browser) redeemFailures.clear(browser);
 
   const store = await cookies();
   store.set(SESSION_COOKIE_NAME, redeemed.token, {

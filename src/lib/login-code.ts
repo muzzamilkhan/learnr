@@ -30,6 +30,49 @@ export const CODE_LENGTH = 4;
 export const CODE_TTL_MS = 60 * 60 * 1000;
 
 /**
+ * How long a run of failed redemptions is remembered.
+ *
+ * The code is the credential and `POST /auth/redeem` is deliberately open, so
+ * the guess space is the only thing between somebody trying codes and a child's
+ * account - and it is smaller than it looks. `CODE_CHARSET` is 31 characters
+ * and `CODE_LENGTH` is 4, which is 923,521 codes; `redeemLoginCode` matches
+ * **any** live code rather than one child's, so a guesser is not attacking one
+ * account but the pool of every code out at that moment; and what a hit buys is
+ * a session that does not expire on a schedule.
+ *
+ * Lengthening the code would be the other lever and is not this one's to pull:
+ * four characters is a product decision - short enough for a child to carry
+ * across the room - and the window plus single-use redemption were always the
+ * argument for why four was safe.
+ */
+export const REDEEM_FAILURE_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Failed redemptions allowed per browser, per window.
+ *
+ * The primary control, applied where the child's own IP is visible - which is
+ * the web app's server action, since a request reaches the API from Vercel
+ * rather than from the child. Ten is far more than a child mistyping a
+ * four-character code needs and far less than a guesser wants.
+ */
+export const REDEEM_FAILURE_LIMIT = 10;
+
+/**
+ * Failed redemptions allowed per caller at the API, per window.
+ *
+ * The backstop, and generous on purpose: at the API one key is a real device
+ * (iOS, which calls it directly) and another is *every* browser at once (the
+ * web app, arriving from Vercel's egress). A number tight enough to matter for
+ * the first would lock out the second, so this bounds a direct attacker and
+ * leaves the per-browser work to `REDEEM_FAILURE_LIMIT`.
+ *
+ * A global ceiling across all callers was considered and rejected: it would
+ * hand an attacker a way to lock every child in the service out of signing in,
+ * which is a worse outcome than the guessing it would prevent.
+ */
+export const REDEEM_BACKSTOP_LIMIT = 120;
+
+/**
  * `randomInt(max)` must return a whole number in `[0, max)` - the contract of
  * `crypto.randomInt`, which is what production passes.
  */

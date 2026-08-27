@@ -51,6 +51,18 @@ paths:
                 required:
                   - error
                 additionalProperties: false
+        '429':
+          description: Default Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                required:
+                  - error
+                additionalProperties: false
   /me/claim-parent:
     post:
       responses:
