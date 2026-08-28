@@ -140,14 +140,8 @@ describe('the OpenAPI document', () => {
    * `Account.role` and `Account.parentId` are simply absent from the generated
    * type with nothing to read. `collapseNullableUnions` rewrites them; this is
    * what says it still runs and still reaches everything.
-   *
-   * **Asserted as a set equality, not an emptiness.** The seven survivors are
-   * nullable `$ref`s, which have no 3.1 encoding to collapse into - a keyword
-   * beside `$ref` is ignored by design. Listing them means a new one fails here
-   * rather than joining them quietly: it is a property iOS cannot read, and the
-   * decision about how to encode it is one to take deliberately.
    */
-  it('leaves no collapsible nullable union, and names the seven that cannot be', () => {
+  it('leaves no nullable union a generator would drop', async () => {
     const document = app.swagger();
 
     const unions = (value: unknown, path: string): string[] => {
@@ -167,7 +161,42 @@ describe('the OpenAPI document', () => {
       ];
     };
 
-    expect(unions(document, '').sort()).toEqual([
+    expect(unions(document, '')).toEqual([]);
+  });
+
+  /**
+   * **The nullable `$ref`s, named, because their rewrite loses the null.**
+   *
+   * The other thirty-eight collapse to `type: [X, 'null']` and say everything
+   * they said before. These seven cannot: a keyword beside `$ref` is ignored by design,
+   * so `allOf: [{$ref}]` is the only form the generator keeps, and it asserts
+   * the referent where the truth is "that, or null". The `description` is what
+   * carries the difference, and it is the whole of what a reader gets.
+   *
+   * **Asserted as a set equality, not an emptiness**, for the reason the
+   * divergence lists in `catalog.test.ts` are: a new nullable `$ref` is a new
+   * property whose null a client cannot see, and it should have to be looked at
+   * rather than joining these quietly.
+   */
+  it('names every nullable $ref, whose null the encoding cannot carry', () => {
+    const document = app.swagger();
+
+    const wrapped = (value: unknown, path: string): string[] => {
+      if (Array.isArray(value)) return value.flatMap((child, i) => wrapped(child, `${path}/${i}`));
+      if (value === null || typeof value !== 'object') return [];
+
+      const here =
+        'allOf' in value && Array.isArray(value.allOf)
+          ? [path]
+          : [];
+
+      return [
+        ...here,
+        ...Object.entries(value).flatMap(([key, child]) => wrapped(child, `${path}/${key}`)),
+      ];
+    };
+
+    expect(wrapped(document, '').sort()).toEqual([
       '/components/schemas/Account/properties/avatar',
       '/components/schemas/Account/properties/role',
       '/components/schemas/ChildProfile/properties/target',
@@ -176,6 +205,15 @@ describe('the OpenAPI document', () => {
       '/components/schemas/SpeedOutcome/properties/standing',
       '/components/schemas/ViewableChild/properties/target',
     ]);
+
+    const { Account } = (document as unknown as {
+      components: { schemas: Record<string, { properties: Record<string, unknown> }> };
+    }).components.schemas;
+
+    expect(Account.properties.role).toEqual({
+      description: expect.stringContaining('May be null'),
+      allOf: [{ $ref: '#/components/schemas/Role' }],
+    });
   });
 
   // The contract is the artifact the web client and the Swift Codable types are

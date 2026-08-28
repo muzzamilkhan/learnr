@@ -46,16 +46,23 @@ export const transformObject: SwaggerTransformObject = (input) => {
 const NULL_SCHEMA = 'null';
 
 /**
- * Every `anyOf: [X, {type: 'null'}]` rewritten as `type: [X, 'null']`.
+ * What is said about a nullable `$ref` in place of the null the encoding cannot
+ * carry. Prose because there is nowhere else to put it: see below.
+ */
+const NULLABLE_REF_NOTE =
+  'May be null. The null is not expressible beside a $ref in OpenAPI 3.1, so it is said here instead.';
+
+/**
+ * Every nullable union rewritten into a form a generator does not throw away.
  *
- * **This is for the generator alone, and nothing else can see it.** The two
- * forms are exactly equivalent in JSON Schema, and validation and serialization
- * here run off the zod schemas rather than off this document - so no request is
- * accepted or refused differently, and no response changes shape. What changes
- * is what `swift-openapi-generator` makes of it: handed the union it **silently
- * drops the property**, so `Account.role` and `Account.parentId` simply do not
- * appear on the generated Swift type, with no warning and nothing red. 45 of
- * them, across 16 component schemas, `learnr-ios`'s `L18`.
+ * **This is for the generator alone, and nothing else can see it.** Validation
+ * and serialization here run off the zod schemas rather than off this document
+ * - so no request is accepted or refused differently, and no response changes
+ * shape. What changes is what `swift-openapi-generator` makes of it: handed
+ * `anyOf: [X, {type: 'null'}]` it **silently drops the property**, so
+ * `Account.role` and `Account.parentId` simply do not appear on the generated
+ * Swift type, with no warning and nothing red. 45 of them, across 16 component
+ * schemas, `learnr-ios`'s `L18`.
  *
  * The union is not a mistake on the way in - it is what
  * `fastify-type-provider-zod` must emit, because `server.ts` declares
@@ -71,12 +78,28 @@ const NULL_SCHEMA = 'null';
  * figure is drawn from. That trades a dropped null for droppable geometry, on
  * the one shape a parent's report draws a picture out of.
  *
- * Seven nullable `$ref`s are left as they are (`Account.role`, two `Avatar`s,
- * three `DailyTarget`s, `SpeedOutcome.standing`): a keyword beside `$ref` is
- * ignored by design, so there is no 3.1 encoding to collapse them into. That is
- * a fact about the spec rather than about this repo, and what to do instead -
- * inline the shape, or hand-write the Swift - depends on a measurement only the
- * Mac can take.
+ * **There are two rewrites, because the two halves have different remedies**,
+ * and both were measured on the Mac against the generator itself rather than
+ * argued from the spec (`L18`, `L19`):
+ *
+ * - **`X` is a type**: `type: [X, 'null']`, the canonical 3.1 spelling and
+ *   exactly equivalent. `null` still decodes to `nil`, and nothing warns.
+ * - **`X` is a `$ref`**: `allOf: [{$ref}]`, the ref alone, with the null member
+ *   **dropped**. A keyword beside `$ref` is ignored by design, so there is no
+ *   3.1 encoding that keeps the null *and* the reference - `oneOf`, `anyOf` and
+ *   3.0's `nullable: true` were each measured and each lose the property or the
+ *   shared type. The lone-member `allOf` is the one form that generates
+ *   `role: rolePayload?` - optional, decoding an explicit `null` to `nil`, and
+ *   wrapping the **shared** `Role` rather than a per-site copy of it.
+ *
+ * **The second rewrite drops something true, which is why it says so in
+ * prose.** `allOf: [{$ref: Role}]` asserts a `Role`, and a validator reading
+ * this document would refuse the `null` that `viewerKind`'s fourth answer is
+ * made of. Nothing here validates against the document, so the cost is to a
+ * reader rather than to a request - and a reader is exactly who a `description`
+ * is for. It rides into the generated Swift as a doc comment, which is where
+ * the person who needs it is looking. An authored description outranks it, so
+ * this can never overwrite something someone meant.
  */
 export function collapseNullableUnions<T>(value: T): T {
   if (Array.isArray(value)) return value.map(collapseNullableUnions) as T;
@@ -89,6 +112,15 @@ export function collapseNullableUnions<T>(value: T): T {
   const { anyOf, ...rest } = walked as { anyOf?: unknown };
   const other = nullableMember(anyOf);
   if (!other) return walked as T;
+
+  if ('$ref' in other) {
+    return {
+      description: NULLABLE_REF_NOTE,
+      // Whatever sat beside the union outranks what is invented here.
+      ...rest,
+      allOf: [other],
+    } as T;
+  }
 
   return {
     ...other,
@@ -105,16 +137,16 @@ export function collapseNullableUnions<T>(value: T): T {
 
 /**
  * The non-null half of `anyOf: [X, {type: 'null'}]`, where that is what this
- * is and `X` is collapsible.
+ * is and `X` is one of the two shapes with a remedy.
  *
- * Deliberately narrow. A third member, a null member carrying anything else, or
- * an `X` that is a `$ref` or already a type array all mean this is not the
- * shape zod's nullable emits, and guessing at those is how a transform for a
- * generator starts changing what the document says.
+ * Deliberately narrow. A third member, a null member carrying anything else, a
+ * `$ref` with a sibling keyword, or an `X` that is already a type array all
+ * mean this is not the shape zod's nullable emits, and guessing at those is how
+ * a transform for a generator starts changing what the document says.
  */
 function nullableMember(
   anyOf: unknown,
-): ({ type: string } & Record<string, unknown>) | undefined {
+): ({ type: string } & Record<string, unknown>) | { $ref: string } | undefined {
   if (!Array.isArray(anyOf) || anyOf.length !== 2) return undefined;
 
   const isNull = (member: unknown) =>
@@ -127,7 +159,14 @@ function nullableMember(
   if (nulls.length !== 1) return undefined;
 
   const other = anyOf.find((member) => !isNull(member));
-  return typeof other === 'object' && other !== null && typeof (other as { type?: unknown }).type === 'string'
+  if (typeof other !== 'object' || other === null) return undefined;
+
+  const keys = Object.keys(other);
+  if (keys.length === 1 && typeof (other as { $ref?: unknown }).$ref === 'string') {
+    return other as { $ref: string };
+  }
+
+  return typeof (other as { type?: unknown }).type === 'string'
     ? (other as { type: string } & Record<string, unknown>)
     : undefined;
 }
