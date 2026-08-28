@@ -20,6 +20,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.get('/shares', {
     schema: {
+      operationId: 'readShares',
       response: {
         200: sharesSchema,
         503: errorSchema,
@@ -41,6 +42,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/shares', {
     schema: {
+      operationId: 'createShareInvite',
       body: z.object({ childIds: z.array(z.string()).min(1) }),
       response: {
         201: z.object({ token: z.string(), expiresAt: z.string() }),
@@ -73,6 +75,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.get('/shares/:token', {
     schema: {
+      operationId: 'readShareInvite',
       params: z.object({ token: z.string() }),
       response: { 200: inviteDetailsSchema, 404: errorSchema },
     },
@@ -84,6 +87,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.delete('/shares/:id', {
     schema: {
+      operationId: 'cancelShareInvite',
       params: z.object({ id: z.string() }),
       response: { 204: z.null(), 404: errorSchema },
     },
@@ -99,7 +103,11 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
    * exceptions to ownership-as-where: the caller need only be signed in.
    */
   app.post('/shares/:token/accept', {
-    schema: { params: z.object({ token: z.string() }), response: { 200: acceptResultSchema } },
+    schema: {
+      operationId: 'acceptShareInvite',
+      params: z.object({ token: z.string() }),
+      response: { 200: acceptResultSchema },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const result = await acceptShareInvite(request.params.token, userId);
@@ -108,6 +116,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.delete('/shares/viewers/:viewerId', {
     schema: {
+      operationId: 'revokeShare',
       params: z.object({ viewerId: z.string() }),
       querystring: z.object({ childId: z.string().optional() }),
       response: { 204: z.null(), 404: errorSchema },
@@ -121,6 +130,7 @@ export const shareRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.delete('/shares/mine/:childId', {
     schema: {
+      operationId: 'leaveShare',
       params: z.object({ childId: z.string() }),
       response: { 204: z.null(), 404: errorSchema },
     },

@@ -36,6 +36,33 @@ describe('the OpenAPI document', () => {
     );
   });
 
+  /**
+   * **Every operation is named, and no two share a name.**
+   *
+   * `operationId` is what a generator turns into a method name.
+   * `swift-openapi-generator` synthesises one from the path when it is missing,
+   * so `POST /sessions/{id}/attempts` becomes
+   * `post_sol_sessions_sol__lcub_id_rcub__sol_attempts` - which compiles, reads
+   * as line noise, and moves the moment a path does. Naming them here means the
+   * iOS client's call sites are stable against a path change and legible
+   * without one.
+   *
+   * Uniqueness is the half a generator cannot recover from: two operations
+   * sharing an id collide into one method, and which one survives is the
+   * generator's business rather than ours.
+   */
+  it('names every operation, uniquely', async () => {
+    const paths = app.swagger().paths ?? {};
+    const ids = Object.entries(paths).flatMap(([path, item]) =>
+      Object.entries(item as Record<string, { operationId?: string }>).map(
+        ([method, operation]) => ({ where: `${method.toUpperCase()} ${path}`, id: operation.operationId }),
+      ),
+    );
+
+    expect(ids.filter((o) => !o.id).map((o) => o.where)).toEqual([]);
+    expect(new Set(ids.map((o) => o.id)).size).toBe(ids.length);
+  });
+
   // The contract is the artifact the web client and the Swift Codable types are
   // generated from. A committed copy that has drifted from the routes is worse
   // than none: every client would be generated against a shape the server no

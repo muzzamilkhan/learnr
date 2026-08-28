@@ -29,7 +29,10 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   app.get('/speed/modes', {
-    schema: { response: { 200: z.array(modeListingSchema) } },
+    schema: {
+      operationId: 'listSpeedModes',
+      response: { 200: z.array(modeListingSchema) },
+    },
   }, async () => MODES.map((mode) => ({ key: modeKey(mode), ...mode })));
 
   /**
@@ -56,6 +59,7 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.post('/speed/runs', {
     schema: {
+      operationId: 'submitSpeedRun',
       body: z.object({
         id: z.uuid(),
         mode: z.string().min(1),
@@ -104,7 +108,10 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
    * moment".
    */
   app.get('/speed/records', {
-    schema: { response: { 200: speedRecordsSchema, 503: errorSchema } },
+    schema: {
+      operationId: 'readFamilyRecords',
+      response: { 200: speedRecordsSchema, 503: errorSchema },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
 
@@ -125,7 +132,10 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
 
   /** One line per mode this player has run - the cabinet's table. */
   app.get('/speed/summaries', {
-    schema: { response: { 200: z.array(summaryRunSchema), 503: errorSchema } },
+    schema: {
+      operationId: 'readSpeedSummaries',
+      response: { 200: z.array(summaryRunSchema), 503: errorSchema },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const summaries = await readSpeedSummaries(userId);
@@ -134,7 +144,10 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   app.get('/speed/unseen', {
-    schema: { response: { 200: z.array(childRecordSchema), 503: errorSchema } },
+    schema: {
+      operationId: 'readUnseenRecords',
+      response: { 200: z.array(childRecordSchema), 503: errorSchema },
+    },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const records = await readUnseenRecords(parentId);
@@ -143,7 +156,11 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   app.delete('/speed/unseen/:childId', {
-    schema: { params: z.object({ childId: z.string() }), response: { 204: z.null() } },
+    schema: {
+      operationId: 'dismissSpeedRecords',
+      params: z.object({ childId: z.string() }),
+      response: { 204: z.null() },
+    },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     await dismissSpeedRecords(parentId, request.params.childId);

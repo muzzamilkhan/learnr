@@ -46,6 +46,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.get('/children/:id/report', {
     schema: {
+      operationId: 'readReport',
       params: z.object({ id: z.string() }),
       querystring: z.object({ subject: z.string().default('maths') }),
       response: { 200: reportSchema, 404: errorSchema, 503: errorSchema },
@@ -104,6 +105,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.get('/children/:id/record', {
     schema: {
+      operationId: 'readChildRecord',
       params: z.object({ id: z.string() }),
       querystring: z.object({
         subject: z.string().default('maths'),
@@ -147,6 +149,7 @@ export const reportRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.get('/children/:id/answers', {
     schema: {
+      operationId: 'readAnsweredQuestions',
       params: z.object({ id: z.string() }),
       querystring: z.object({
         subject: z.string().default('maths'),

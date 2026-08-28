@@ -30,6 +30,7 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.post('/sessions', {
     schema: {
+      operationId: 'startSession',
       body: createSessionSchema,
       response: { 200: sessionSchema, 201: sessionSchema, 503: errorSchema },
     },
@@ -52,6 +53,7 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/sessions/:id/attempts', {
     schema: {
+      operationId: 'recordAttempt',
       params: z.object({ id: z.string() }),
       body: attemptsBodySchema,
       response: { 200: attemptResultSchema, 404: errorSchema },
@@ -76,6 +78,7 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/sessions/:id/award-round', {
     schema: {
+      operationId: 'awardRound',
       params: z.object({ id: z.string() }),
       response: { 200: z.object({ stars: z.number().int().nullable() }) },
     },
@@ -87,6 +90,7 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/sessions/:id/award-target', {
     schema: {
+      operationId: 'awardDailyTarget',
       params: z.object({ id: z.string() }),
       body: z.object({ offsetMinutes: z.number().int().min(-840).max(840) }),
       response: { 200: z.object({ awarded: z.boolean() }) },
@@ -101,7 +105,11 @@ export const sessionRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   app.post('/sessions/:id/end', {
-    schema: { params: z.object({ id: z.string() }), response: { 204: z.null() } },
+    schema: {
+      operationId: 'endSession',
+      params: z.object({ id: z.string() }),
+      response: { 204: z.null() },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     await recordSessionEnd(userId, request.params.id);

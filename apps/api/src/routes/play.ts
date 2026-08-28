@@ -41,7 +41,10 @@ export const playRoutes: FastifyPluginAsync = async (fastify) => {
    * renders; this is the same shape minus what the play screen alone needs.
    */
   app.get('/me/player', {
-    schema: { response: { 200: playerReadSchema } },
+    schema: {
+      operationId: 'readPlayerState',
+      response: { 200: playerReadSchema },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const player = await readPlayerState(userId);
@@ -70,6 +73,7 @@ export const playRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.get('/play/state', {
     schema: {
+      operationId: 'readPlayState',
       querystring: z.object({
         subject: z.string().min(1).default('maths'),
         level: yearLevelSchema.optional(),
@@ -99,6 +103,7 @@ export const playRoutes: FastifyPluginAsync = async (fastify) => {
   /** The level a child chose for themselves. A managed child's is their parent's. */
   app.put('/me/level', {
     schema: {
+      operationId: 'writeSelectedLevel',
       body: z.object({ level: yearLevelSchema }),
       response: { 204: z.null(), 400: errorSchema },
     },

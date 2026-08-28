@@ -31,6 +31,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
     // declaration is what lets that no-argument call typecheck at all,
     // since a code absent from `response` isn't one `reply.code()` accepts.
     schema: {
+      operationId: 'readContentManifest',
       headers: z.object({ 'if-none-match': z.string().optional() }),
       response: { 200: contentManifestSchema, 304: z.undefined() },
     },
@@ -48,6 +49,7 @@ export const contentRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.get('/content/:subject/:level', {
     schema: {
+      operationId: 'readContentPack',
       params: z.object({ subject: z.string(), level: z.string() }),
       headers: z.object({ 'if-none-match': z.string().optional() }),
       response: { 200: contentPackSchema, 304: z.undefined(), 404: errorSchema },

@@ -49,7 +49,10 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
   const app = fastify.withTypeProvider<ZodTypeProvider>();
 
   app.get('/children', {
-    schema: { response: { 200: z.array(childProfileSchema), 503: errorSchema } },
+    schema: {
+      operationId: 'listChildren',
+      response: { 200: z.array(childProfileSchema), 503: errorSchema },
+    },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const children = await listChildren(parentId);
@@ -72,7 +75,10 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
    * drop a shared child from every screen that reads it.
    */
   app.get('/children/viewable', {
-    schema: { response: { 200: z.array(viewableChildSchema), 503: errorSchema } },
+    schema: {
+      operationId: 'listViewableChildren',
+      response: { 200: z.array(viewableChildSchema), 503: errorSchema },
+    },
   }, async (request, reply) => {
     const parentId = await requireParent(request);
     const children = await readViewableChildren(parentId);
@@ -84,6 +90,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/children', {
     schema: {
+      operationId: 'addChild',
       body: childInputSchema,
       response: { 201: z.object({ id: z.string() }), 400: errorSchema },
     },
@@ -100,6 +107,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.patch('/children/:id', {
     schema: {
+      operationId: 'updateChild',
       params: z.object({ id: z.string() }),
       body: childInputSchema,
       response: { 204: z.null(), 400: errorSchema, 404: errorSchema },
@@ -117,6 +125,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.delete('/children/:id', {
     schema: {
+      operationId: 'removeChild',
       params: z.object({ id: z.string() }),
       response: { 204: z.null(), 404: errorSchema },
     },
@@ -129,6 +138,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
 
   app.post('/children/:id/login-code', {
     schema: {
+      operationId: 'issueLoginCode',
       params: z.object({ id: z.string() }),
       response: { 200: loginCodeSchema, 404: errorSchema },
     },

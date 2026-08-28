@@ -53,6 +53,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
    */
   app.post('/auth/redeem', {
     schema: {
+      operationId: 'redeemLoginCode',
       body: z.object({ code: z.string().min(1).max(16) }),
       response: {
         200: z.object({
@@ -97,14 +98,20 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
    * child can never be promoted by a stray sign-in.
    */
   app.post('/me/claim-parent', {
-    schema: { response: { 200: z.object({ claimed: z.boolean() }) } },
+    schema: {
+      operationId: 'claimParentRole',
+      response: { 200: z.object({ claimed: z.boolean() }) },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     return reply.send({ claimed: await claimParentRole(userId) });
   });
 
   app.get('/me', {
-    schema: { response: { 200: accountSchema, 503: errorSchema } },
+    schema: {
+      operationId: 'readAccount',
+      response: { 200: accountSchema, 503: errorSchema },
+    },
   }, async (request, reply) => {
     const userId = requireUser(request);
     const account = await readAccount(userId);

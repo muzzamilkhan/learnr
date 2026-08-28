@@ -7,6 +7,7 @@ components:
 paths:
   /auth/redeem:
     post:
+      operationId: redeemLoginCode
       requestBody:
         required: true
         content:
@@ -65,6 +66,7 @@ paths:
                 additionalProperties: false
   /me/claim-parent:
     post:
+      operationId: claimParentRole
       responses:
         '200':
           description: Default Response
@@ -80,6 +82,7 @@ paths:
                 additionalProperties: false
   /me:
     get:
+      operationId: readAccount
       responses:
         '200':
           description: Default Response
@@ -149,6 +152,7 @@ paths:
                 additionalProperties: false
   /sessions:
     post:
+      operationId: startSession
       requestBody:
         required: true
         content:
@@ -224,6 +228,7 @@ paths:
                 additionalProperties: false
   /sessions/{id}/attempts:
     post:
+      operationId: recordAttempt
       requestBody:
         required: true
         content:
@@ -335,6 +340,7 @@ paths:
                 additionalProperties: false
   /sessions/{id}/award-round:
     post:
+      operationId: awardRound
       parameters:
         - schema:
             type: string
@@ -360,6 +366,7 @@ paths:
                 additionalProperties: false
   /sessions/{id}/award-target:
     post:
+      operationId: awardDailyTarget
       requestBody:
         required: true
         content:
@@ -394,6 +401,7 @@ paths:
                 additionalProperties: false
   /sessions/{id}/end:
     post:
+      operationId: endSession
       parameters:
         - schema:
             type: string
@@ -405,6 +413,7 @@ paths:
           description: Default Response
   /children:
     get:
+      operationId: listChildren
       responses:
         '200':
           description: Default Response
@@ -488,6 +497,7 @@ paths:
                   - error
                 additionalProperties: false
     post:
+      operationId: addChild
       requestBody:
         required: true
         content:
@@ -563,6 +573,7 @@ paths:
                 additionalProperties: false
   /children/viewable:
     get:
+      operationId: listViewableChildren
       responses:
         '200':
           description: Default Response
@@ -658,6 +669,7 @@ paths:
                 additionalProperties: false
   /children/{id}:
     patch:
+      operationId: updateChild
       requestBody:
         required: true
         content:
@@ -740,6 +752,7 @@ paths:
                   - error
                 additionalProperties: false
     delete:
+      operationId: removeChild
       parameters:
         - schema:
             type: string
@@ -763,6 +776,7 @@ paths:
                 additionalProperties: false
   /children/{id}/login-code:
     post:
+      operationId: issueLoginCode
       parameters:
         - schema:
             type: string
@@ -799,6 +813,7 @@ paths:
                 additionalProperties: false
   /children/{id}/report:
     get:
+      operationId: readReport
       parameters:
         - schema:
             default: maths
@@ -1468,6 +1483,7 @@ paths:
                 additionalProperties: false
   /children/{id}/record:
     get:
+      operationId: readChildRecord
       parameters:
         - schema:
             default: maths
@@ -1813,6 +1829,7 @@ paths:
                 additionalProperties: false
   /children/{id}/answers:
     get:
+      operationId: readAnsweredQuestions
       parameters:
         - schema:
             default: maths
@@ -2008,6 +2025,7 @@ paths:
                 additionalProperties: false
   /shares:
     get:
+      operationId: readShares
       responses:
         '200':
           description: Default Response
@@ -2098,6 +2116,7 @@ paths:
                   - error
                 additionalProperties: false
     post:
+      operationId: createShareInvite
       requestBody:
         required: true
         content:
@@ -2142,6 +2161,7 @@ paths:
                 additionalProperties: false
   /shares/{token}:
     get:
+      operationId: readShareInvite
       parameters:
         - schema:
             type: string
@@ -2223,6 +2243,7 @@ paths:
                 additionalProperties: false
   /shares/{id}:
     delete:
+      operationId: cancelShareInvite
       parameters:
         - schema:
             type: string
@@ -2246,6 +2267,7 @@ paths:
                 additionalProperties: false
   /shares/{token}/accept:
     post:
+      operationId: acceptShareInvite
       parameters:
         - schema:
             type: string
@@ -2291,6 +2313,7 @@ paths:
                     additionalProperties: false
   /shares/viewers/{viewerId}:
     delete:
+      operationId: revokeShare
       parameters:
         - schema:
             type: string
@@ -2319,6 +2342,7 @@ paths:
                 additionalProperties: false
   /shares/mine/{childId}:
     delete:
+      operationId: leaveShare
       parameters:
         - schema:
             type: string
@@ -2342,6 +2366,7 @@ paths:
                 additionalProperties: false
   /speed/modes:
     get:
+      operationId: listSpeedModes
       responses:
         '200':
           description: Default Response
@@ -2399,6 +2424,7 @@ paths:
                       additionalProperties: false
   /speed/runs:
     post:
+      operationId: submitSpeedRun
       requestBody:
         required: true
         content:
@@ -2504,6 +2530,7 @@ paths:
                 additionalProperties: false
   /speed/records:
     get:
+      operationId: readFamilyRecords
       responses:
         '200':
           description: Default Response
@@ -2597,6 +2624,7 @@ paths:
                 additionalProperties: false
   /speed/summaries:
     get:
+      operationId: readSpeedSummaries
       responses:
         '200':
           description: Default Response
@@ -2635,6 +2663,7 @@ paths:
                 additionalProperties: false
   /speed/unseen:
     get:
+      operationId: readUnseenRecords
       responses:
         '200':
           description: Default Response
@@ -2679,6 +2708,7 @@ paths:
                 additionalProperties: false
   /speed/unseen/{childId}:
     delete:
+      operationId: dismissSpeedRecords
       parameters:
         - schema:
             type: string
@@ -2690,6 +2720,7 @@ paths:
           description: Default Response
   /me/player:
     get:
+      operationId: readPlayerState
       responses:
         '200':
           description: Default Response
@@ -2780,6 +2811,7 @@ paths:
                 additionalProperties: false
   /play/state:
     get:
+      operationId: readPlayState
       parameters:
         - schema:
             default: maths
@@ -2973,6 +3005,7 @@ paths:
                 additionalProperties: false
   /me/level:
     put:
+      operationId: writeSelectedLevel
       requestBody:
         required: true
         content:
@@ -3009,6 +3042,7 @@ paths:
                 additionalProperties: false
   /content/manifest:
     get:
+      operationId: readContentManifest
       parameters:
         - schema:
             type: string
@@ -3075,6 +3109,7 @@ paths:
           description: Default Response
   /content/{subject}/{level}:
     get:
+      operationId: readContentPack
       parameters:
         - schema:
             type: string
