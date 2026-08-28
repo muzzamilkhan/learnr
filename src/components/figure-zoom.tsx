@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Figure } from '@/lib/figures/types';
 import { ZOOM_LABEL_SIZE } from '@/lib/figures/labels';
 import { Diagram } from './diagram';
+import { FOCUS_STOPS, nextFocusIndex } from './focus-trap';
 import { MathsText } from './maths-text';
 
 /**
@@ -42,8 +43,17 @@ export function FigureZoom({
   onRepeat: () => void;
   repeatable: boolean;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   // Escape closes it for whoever is on a keyboard. A tap anywhere is the
   // child's way out and needs nothing here.
+  //
+  // On `window` rather than on the dialog, even now that focus is moved into
+  // it: the two are not the same guarantee. A tap on the overlay can leave
+  // focus on the `<body>` in browsers that do not focus what was clicked, and
+  // Escape has to work from there too. `onClose` is a `useCallback` at the call
+  // site, so this subscribes once rather than once a second behind a ticking
+  // minutes target.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
@@ -52,12 +62,60 @@ export function FigureZoom({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  /**
+   * Focus moves into the overlay on open and back to whatever opened it on
+   * close - the figure, for anyone who got here from a keyboard, so Tab carries
+   * on from where they were rather than from the top of the document.
+   *
+   * The dialog takes the focus itself rather than handing it to the prompt
+   * inside: it is what carries the `aria-label`, so focusing it is what
+   * announces the overlay, and the prompt is not always a control.
+   *
+   * Restoring on unmount rather than in `onClose` covers the way this usually
+   * closes: `advance` clears the zoom when the child answers, which never goes
+   * through `onClose` at all. `isConnected` because the question behind may
+   * have changed to one with no figure, taking the opener out of the document
+   * with it - `focus()` on a detached node is a no-op, but asking first says
+   * that is expected.
+   */
+  useEffect(() => {
+    const opener = document.activeElement;
+    dialogRef.current?.focus();
+    return () => {
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
+    };
+  }, []);
+
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal
       aria-label="The picture, larger"
+      // Focusable, and not a tab stop: it holds focus so the overlay is
+      // announced, and Tab moves between the stops *inside* it.
+      tabIndex={-1}
       onClick={onClose}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        // Read the stops on the keystroke rather than on open: whether the
+        // prompt is one of them depends on `repeatable`, which can change while
+        // this is open if narration is turned off behind it.
+        const stops = [...dialog.querySelectorAll<HTMLElement>(FOCUS_STOPS)];
+        const next = nextFocusIndex(
+          stops.length,
+          stops.indexOf(document.activeElement as HTMLElement),
+          event.shiftKey,
+        );
+        // Prevented either way. With somewhere to go this is the trap doing its
+        // work; with nowhere - a figure whose prompt is not repeatable, which is
+        // most of them - it is the whole of the trap, since the alternative is
+        // Tab landing on the play screen underneath an opaque overlay.
+        event.preventDefault();
+        stops[next]?.focus();
+      }}
       // z-20, not the highest value in the file: `RoundReward` and
       // `TargetReward` are z-30 and `StreakFlash` is z-40 (see those three
       // components), and a round can close on the same answer that had the
@@ -83,7 +141,20 @@ export function FigureZoom({
               }
             : undefined
         }
+        // The keyboard half of the same tap. No `stopPropagation` needed: what
+        // the click has to be kept from is the overlay's own `onClick`, and the
+        // dialog's `onKeyDown` above reads Tab alone.
+        onKeyDown={
+          repeatable
+            ? (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                onRepeat();
+              }
+            : undefined
+        }
         role={repeatable ? 'button' : undefined}
+        tabIndex={repeatable ? 0 : undefined}
         aria-label={repeatable ? 'Read the question again' : undefined}
         className="w-full max-w-3xl shrink-0 text-center text-[clamp(1rem,2.6vh,1.5rem)] leading-snug font-semibold text-balance text-(--color-ink)"
       >

@@ -299,7 +299,9 @@ after any change to this layout.
   pad uncovered, which is the layout that was measured and rejected.
 
 Two gaps were raised in review and deliberately left, so they are written down
-rather than forgotten:
+rather than forgotten. **Both are closed now** (`learnr#7`, `learnr#8`), in the
+pass of their own this section asked for - what they said is kept below, with
+what shipped under each:
 
 - **The zoom cannot be opened from a keyboard.** The tappable figure is a
   `role="button"` with no `tabIndex`, which is exactly what `Prompt`'s
@@ -307,8 +309,32 @@ rather than forgotten:
   the other would leave the same screen inconsistent in the opposite direction,
   so both want doing together, with focus handling for the overlay, in a pass of
   their own.
+
+  *Shipped as one change, as predicted.* Both take `tabIndex` and Enter/Space,
+  and the prompt's stop appears and goes with `repeatable` exactly as its tap
+  does. The overlay's `aria-modal` is now true: focus moves to the dialog itself
+  on open, since it carries the `aria-label` and focusing it is what announces
+  the overlay; Tab cycles the stops inside and is prevented even when there are
+  none, which is the usual case - a figure whose prompt is not repeatable has no
+  stop in it at all, and the alternative is Tab landing on the play screen under
+  an opaque overlay. Focus returns to the figure on unmount rather than in
+  `onClose`, because the way the zoom usually closes is the child answering,
+  which `advance` handles without going near `onClose`.
+
+  The section above is right that this is browser behaviour and untestable here,
+  with one exception it also names the shape of: which stop Tab lands on is
+  arithmetic, so it is `src/components/focus-trap.ts` with a test beside it -
+  the same split `diagram.ts`'s `arcPath` already has. The wrapping cases and
+  entering from focus that is not a stop are what it holds.
+
 - **`figure-zoom.tsx`'s Escape effect depends on `[onClose]`**, which arrives as
   a fresh inline arrow, so with a minutes-style daily target ticking the window
   listener is torn down and re-added about once a second while the zoom is open.
   Harmless - the cleanup always runs and there is only ever one listener - but a
   `useCallback` at the call site would avoid it.
+
+  *Fixed at the call site*, which is where the fresh identity was minted:
+  `openZoom` and `closeZoom` are `useCallback`s in `PlaySession`. The listener
+  stays on `window` rather than moving onto the now-focused dialog, because the
+  two are not the same guarantee - a tap can leave focus on the `<body>`, and
+  Escape has to work from there too.

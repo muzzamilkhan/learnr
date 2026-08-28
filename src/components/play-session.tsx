@@ -281,6 +281,20 @@ export function PlaySession({
     if (narrating) speak(questionNarration(question));
   }, [narrating, question]);
 
+  /**
+   * Opening and closing the picture, as stable identities rather than fresh
+   * inline arrows.
+   *
+   * `closeZoom` is the one that has to be: `FigureZoom` subscribes its Escape
+   * handler to the window over `[onClose]`, and this screen re-renders about
+   * once a second behind a minutes-style daily target, so an arrow minted here
+   * tore that listener down and re-added it a second at a time for as long as
+   * the picture was open. `openZoom` is a pair with it rather than a fix for
+   * anything.
+   */
+  const openZoom = useCallback(() => setZoomed(true), []);
+  const closeZoom = useCallback(() => setZoomed(false), []);
+
   /** Asking for the hint is a tap, so it is also the gesture that may say it. */
   const showHint = useCallback(() => {
     setHintShown(true);
@@ -708,8 +722,31 @@ export function PlaySession({
                 all facts about the space this element occupies, unchanged by
                 the fact that it now wraps the drawing instead of being it. */}
             <div
-              onClick={() => setZoomed(true)}
+              onClick={openZoom}
+              // Announced as a button and now reachable as one. It is the only
+              // interactive thing on this screen that a keyboard could not get
+              // to: every answer is given on the pad, which is real buttons, and
+              // the door, the speaker and the hint are all `<button>`s. A child
+              // on a switch or an external keyboard is who this is for.
+              //
+              // Tab order is DOM order - prompt then figure - which matches the
+              // eye from `sm` up and not below it, where `order-1`/`order-2`
+              // put the picture on top. Left as it is: the two stops are the
+              // same control worded twice, so which comes first is not
+              // information, and reordering the DOM would mean unpicking the
+              // row/column split documented above to fix nothing.
+              //
+              // `preventDefault` on Space, which would otherwise scroll - it
+              // cannot here, the screen being `overflow-hidden` by design, but a
+              // key that means "press this button" must not also mean anything
+              // else.
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                openZoom();
+              }}
               role="button"
+              tabIndex={0}
               aria-label="See the picture larger"
               // `64px` is the floor documented above, written out rather than
               // read from a constant: a class built by interpolating a JS
@@ -843,7 +880,7 @@ export function PlaySession({
         <FigureZoom
           figure={question.figure}
           prompt={question.prompt}
-          onClose={() => setZoomed(false)}
+          onClose={closeZoom}
           onRepeat={repeatQuestion}
           repeatable={narrating}
         />
@@ -1066,7 +1103,23 @@ function Prompt({
       // child aiming at a short question would otherwise be aiming at very
       // little.
       onClick={repeatable ? onRepeat : undefined}
+      // The keyboard half, and the reason it lands in the same pass as the
+      // figure's: the two sit side by side and are the same control worded
+      // twice, so giving one a tab stop and not the other would leave the
+      // screen inconsistent in the opposite direction. It appears and goes with
+      // narration, exactly as the tap does - a stop that does nothing is worse
+      // than no stop.
+      onKeyDown={
+        repeatable
+          ? (event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              onRepeat();
+            }
+          : undefined
+      }
       role={repeatable ? 'button' : undefined}
+      tabIndex={repeatable ? 0 : undefined}
       aria-label={repeatable ? 'Read the question again' : undefined}
       className="relative flex min-h-0 w-full flex-1 items-center justify-center [--prompt-max:clamp(1.375rem,4.5vh,3rem)] sm:[--prompt-max:6rem]"
     >

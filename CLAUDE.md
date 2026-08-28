@@ -856,8 +856,25 @@ rides along**, small along the top, because the questions this exists for are th
 ones where the picture carries the data. The overlay draws at `ZOOM_LABEL_SIZE`,
 smaller than either size a figure was already drawn at, which needed no change to
 any kind: `labels.ts` makes a kind leave room for the *larger* of the sizes it will
-be drawn at. It is a tap and not yet a keyboard target - a `role="button"` with no
-`tabIndex`, exactly as the prompt's own tap-to-repeat beside it.
+be drawn at.
+
+**It is a tap and a tab stop, and so is the prompt's tap-to-repeat beside it** -
+the two moved together, because they are the same control worded twice and a tab
+stop on one alone leaves the screen inconsistent in the opposite direction. Both
+take Enter and Space, and the prompt's stop appears and goes with narration, since
+a stop that does nothing is worse than no stop. The figure was the only
+interactive thing on the play screen a keyboard could not reach: every answer is
+given on the pad, and the door, the speaker and the hint are `<button>`s.
+`aria-modal` on the overlay is a promise the rest of the page is inert, so it is
+kept - focus moves to the dialog itself on open (it carries the `aria-label`, so
+focusing it is what announces the overlay), Tab cycles the stops inside it and is
+prevented even when there are none, and focus returns to the figure on close.
+Restoring happens on unmount rather than in `onClose`, because the way this
+usually closes is the child answering, which `advance` handles without going
+near `onClose`. `focus-trap.ts` is the arithmetic half, tested beside the
+component the way `diagram.ts`'s `arcPath` is; the DOM half is the one call site.
+Nothing here declares a focus style - the app has never had one, and the browser
+ring is what every other control uses.
 
 **The figure sits beside the question rather than above it**, from `sm` up: a row,
 prompt left and figure right, split 40/60 in the figure's favour. **A portrait
