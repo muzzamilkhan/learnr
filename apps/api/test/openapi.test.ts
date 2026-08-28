@@ -177,6 +177,14 @@ describe('the OpenAPI document', () => {
    * divergence lists in `catalog.test.ts` are: a new nullable `$ref` is a new
    * property whose null a client cannot see, and it should have to be looked at
    * rather than joining these quietly.
+   *
+   * **And none of them may be in its object's `required`**, which is the other
+   * half of the same remedy and the half that fails loudly. `allOf: [{$ref}]`
+   * plus `required` generates a *non-optional* property, so a real null throws
+   * at decode instead of landing as `nil` - worse than the drop it replaced,
+   * because it fails the whole response rather than one field. The two are
+   * asserted together, off the one list, so neither can be true without the
+   * other.
    */
   it('names every nullable $ref, whose null the encoding cannot carry', () => {
     const document = app.swagger();
@@ -214,6 +222,17 @@ describe('the OpenAPI document', () => {
       description: expect.stringContaining('May be null'),
       allOf: [{ $ref: '#/components/schemas/Role' }],
     });
+
+    const schemas = (document as unknown as {
+      components: { schemas: Record<string, { required?: string[] }> };
+    }).components.schemas;
+
+    const stillRequired = wrapped(document, '')
+      .map((path) => path.slice('/components/schemas/'.length).split('/properties/'))
+      .filter(([schema, property]) => schemas[schema]?.required?.includes(property))
+      .map(([schema, property]) => `${schema}.${property}`);
+
+    expect(stillRequired).toEqual([]);
   });
 
   // The contract is the artifact the web client and the Swift Codable types are

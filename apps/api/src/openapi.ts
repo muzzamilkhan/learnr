@@ -100,6 +100,27 @@ const NULLABLE_REF_NOTE =
  * is for. It rides into the generated Swift as a doc comment, which is where
  * the person who needs it is looking. An authored description outranks it, so
  * this can never overwrite something someone meant.
+ *
+ * **And the second rewrite is only half a remedy on its own, which is the third
+ * thing this does**: a rewritten `$ref` is dropped from its object's `required`
+ * as well. Having just asserted a `Role` where a null can arrive, leaving the
+ * name in `required` makes the generator emit a **non-optional** property, and
+ * a real `null` then throws at decode rather than landing as `nil` - the same
+ * property lost as before, now noisily and on a device. The two are one change
+ * and are written as one, in the same walk off the same test, because a
+ * document carrying the `allOf` without the drop is strictly worse than the
+ * `anyOf` it replaced: `swift-openapi-generator` at least *dropped* the
+ * property quietly, where this would fail the whole response. `learnr-ios`'s
+ * `L24` measured all three cases against the generator - an explicit `null`, a
+ * value, and an absent key - and only this pair passes all three.
+ *
+ * **It widens the document by exactly one case the server never produces.**
+ * `required` is what says a key is always sent, and these six always are: the
+ * zod schemas are untouched and still declare them `.nullable()` rather than
+ * `.optional()`, so Fastify still refuses to serialize a response missing one.
+ * That is the reason this lives here and not in `dto.ts` - as a zod change it
+ * would have loosened the serializer, which is the one thing `Mirrored` exists
+ * to keep exact, and the compiler said so.
  */
 export function collapseNullableUnions<T>(value: T): T {
   if (Array.isArray(value)) return value.map(collapseNullableUnions) as T;
@@ -109,9 +130,11 @@ export function collapseNullableUnions<T>(value: T): T {
     Object.entries(value).map(([key, child]) => [key, collapseNullableUnions(child)]),
   );
 
-  const { anyOf, ...rest } = walked as { anyOf?: unknown };
+  const pruned = withoutNullableRefsInRequired(value, walked);
+
+  const { anyOf, ...rest } = pruned as { anyOf?: unknown };
   const other = nullableMember(anyOf);
-  if (!other) return walked as T;
+  if (!other) return pruned as T;
 
   if ('$ref' in other) {
     return {
@@ -133,6 +156,36 @@ export function collapseNullableUnions<T>(value: T): T {
     // - the same silent narrowing, wearing the fix's clothes.
     ...(Array.isArray(other.enum) ? { enum: [...other.enum, null] } : {}),
   } as T;
+}
+
+/**
+ * The object's `required` with every property this walk rewrote into a nullable
+ * `$ref` taken out of it - see the third bullet on `collapseNullableUnions`.
+ *
+ * Decided off the **original** property rather than off the rewritten one, so
+ * the test is "zod emitted a nullable `$ref` here" rather than "this ended up
+ * looking like one". An authored `allOf` of a single `$ref` is a thing someone
+ * may legitimately write, and it is not this and must keep its `required`.
+ */
+function withoutNullableRefsInRequired(
+  original: object,
+  walked: Record<string, unknown>,
+): Record<string, unknown> {
+  const { properties, required } = original as {
+    properties?: Record<string, unknown>;
+    required?: unknown;
+  };
+  if (!properties || typeof properties !== 'object' || !Array.isArray(required)) return walked;
+
+  const isNullableRef = (name: unknown) => {
+    if (typeof name !== 'string') return false;
+    const property = properties[name] as { anyOf?: unknown } | undefined;
+    const other = property ? nullableMember(property.anyOf) : undefined;
+    return other !== undefined && '$ref' in other;
+  };
+
+  const kept = required.filter((name) => !isNullableRef(name));
+  return kept.length === required.length ? walked : { ...walked, required: kept };
 }
 
 /**
