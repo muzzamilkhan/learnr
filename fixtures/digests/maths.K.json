@@ -1,5 +1,5 @@
 {
-  "version": "cab76f178484",
+  "version": "8ac55b6f7266",
   "set": "maths.K",
   "draws": 100,
   "groups": {
@@ -24,8 +24,8 @@
     "maths.K.even-and-odd.next-even": "8b9068d885bd",
     "maths.K.measurement.heavier": "2aa5c0b2c855",
     "maths.K.measurement.holds-more": "81efa9520225",
-    "maths.K.measurement.lightest": "22d408010e3e",
-    "maths.K.measurement.longer": "4e40db08334a",
+    "maths.K.measurement.lightest": "20914a76a9ca",
+    "maths.K.measurement.longer": "912b630a7f1e",
     "maths.K.patterns.repeating-three": "0160b9dfc05e",
     "maths.K.patterns.repeating-two": "c8d56b4ea895",
     "maths.K.shapes.is-a-triangle": "d231439a5eec",
