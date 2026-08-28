@@ -1,5 +1,5 @@
 {
-  "version": "461867da385e",
+  "version": "af9986462fd3",
   "subject": "maths",
   "level": "K",
   "templates": [
@@ -607,7 +607,7 @@
       "subject": "maths",
       "topic": "measurement",
       "level": "K",
-      "prompt": "A red ribbon is {a} blocks long. A blue ribbon is {b} blocks long. Which ribbon is longer, red or blue?",
+      "prompt": "A red ribbon is {a} blocks long and a blue one is {b}. Which is longer, red or blue?",
       "vars": [
         {
           "name": "a",
@@ -718,7 +718,7 @@
       "subject": "maths",
       "topic": "measurement",
       "level": "K",
-      "prompt": "The red bag balances {a} blocks, the blue bag {b} blocks and the green bag {c} blocks. Which bag is the lightest?",
+      "prompt": "The red bag balances {a} blocks, the blue {b} and the green {c}. Which bag is the lightest?",
       "vars": [
         {
           "name": "a",

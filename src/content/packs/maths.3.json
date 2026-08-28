@@ -1,5 +1,5 @@
 {
-  "version": "fa814ceea8f0",
+  "version": "e61e91dcbd1e",
   "subject": "maths",
   "level": "3",
   "templates": [
@@ -1471,7 +1471,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "3",
-      "prompt": "A bag holds {r} red counters and {b} blue counters. True or false: you are more likely to pull out a red one.",
+      "prompt": "A bag holds {r} red and {b} blue counters. True or false: you are more likely to pull out red.",
       "vars": [
         {
           "name": "r",
@@ -1603,7 +1603,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "3",
-      "prompt": "A dice was rolled {t} times. It landed on an even number {e} times. How many times did it land on an odd number?",
+      "prompt": "A dice was rolled {t} times. It landed on an even number {e} times. How many were odd?",
       "vars": [
         {
           "name": "t",
@@ -1631,7 +1631,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "3",
-      "prompt": "A bag holds {r} red, {b} blue and {g} green counters. You take one without looking. Which colour are you most likely to take?",
+      "prompt": "A bag holds {r} red, {b} blue and {g} green counters. Which colour are you most likely to take?",
       "vars": [
         {
           "name": "r",
@@ -1678,7 +1678,7 @@
       "subject": "maths",
       "topic": "data",
       "level": "3",
-      "prompt": "In a survey, {a} children chose apples, {b} chose bananas and {c} chose cherries. How many children were surveyed?",
+      "prompt": "In a survey {a} children chose apples, {b} bananas and {c} cherries. How many were surveyed?",
       "vars": [
         {
           "name": "a",

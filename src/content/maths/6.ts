@@ -422,7 +422,7 @@ export const year6: QuestionTemplate[] = [
     topic: 'number patterns',
     level: '6',
     prompt:
-      'A growing pattern starts at {a} and the gaps grow: it adds {d}, then {2 * d}, then {3 * d}. What is the 4th number?',
+      'A pattern starts at {a} and adds {d}, then {2 * d}, then {3 * d}. What is the 4th number?',
     vars: [
       { name: 'a', kind: 'int', min: '1', max: '20' },
       { name: 'd', kind: 'int', min: '2', max: '9' },
@@ -613,7 +613,7 @@ export const year6: QuestionTemplate[] = [
     topic: 'angles',
     level: '6',
     prompt:
-      'Three angles meet at a point. Two of them are {a} degrees and {b} degrees. What is the third, in degrees?',
+      'Three angles meet at a point. Two are {a} and {b} degrees. What is the third, in degrees?',
     vars: [
       { name: 'a', kind: 'int', min: '20', max: '170', step: 5 },
       { name: 'b', kind: 'int', min: '20', max: '170', step: 5 },
@@ -629,7 +629,7 @@ export const year6: QuestionTemplate[] = [
     topic: 'angles',
     level: '6',
     prompt:
-      'Two straight lines cross. One of the angles is {a} degrees. What is the angle opposite it, in degrees?',
+      'Two lines cross. One angle is {a} degrees. What is the angle opposite it, in degrees?',
     vars: [{ name: 'a', kind: 'int', min: '15', max: '165', step: 5 }],
     answer: 'a',
     hint: 'Vertically opposite angles are equal.',
@@ -667,7 +667,7 @@ export const year6: QuestionTemplate[] = [
     // figure kind for one template. "Would be" is what the drawing can honestly
     // support - the angle is there, the line is the thing being imagined.
     prompt:
-      'One more angle beside the marked one would make a straight line. Would that other angle be bigger or smaller than this one?',
+      'Another angle beside this one would make a straight line. Is it bigger or smaller than this one?',
     vars: [{ name: 'd', kind: 'int', min: '20', max: '160', step: 5 }],
     constraints: ['abs(d - 90) >= 25'],
     answer: "d < 90 ? 'bigger' : 'smaller'",

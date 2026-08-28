@@ -461,7 +461,7 @@ export const year1: QuestionTemplate[] = [
     topic: 'measurement',
     level: '1',
     prompt:
-      'A pear weighs the same as {a} marbles, an apple {b} marbles and a lime {c} marbles. Which is the heaviest?',
+      'A pear balances {a} marbles, an apple {b} and a lime {c}. Which is the heaviest?',
     vars: [
       { name: 'a', kind: 'int', min: '3', max: '15' },
       { name: 'b', kind: 'int', min: '3', max: '15' },

@@ -583,7 +583,7 @@ export const year4: QuestionTemplate[] = [
     // that way rather than drawn and checked, so there is nothing for rejection
     // sampling to reject.
     prompt:
-      'A {l} litre bottle of juice is shared equally between {c} glasses. How many millilitres are in each glass?',
+      'A {l} litre bottle is shared equally between {c} glasses. How many millilitres in each?',
     vars: [
       { name: 'l', kind: 'int', min: '1', max: '4' },
       { name: 'c', kind: 'pick', from: [2, 4, 5, 8, 10] },
@@ -1421,7 +1421,7 @@ export const year4: QuestionTemplate[] = [
     // with "Is it more likely or less likely?" - the same words twice, before a
     // child who cannot read gets to the buttons.
     prompt:
-      'A bag holds {r} red and {b} blue counters. You take out a {c} one and keep it. Is a red one now more likely or less likely?',
+      'A bag holds {r} red and {b} blue counters. You take out a {c} one. Is red now more or less likely?',
     // Which colour is taken is a free pick, so the answer is 50/50 exactly.
     vars: [
       { name: 'r', kind: 'int', min: '2', max: '9' },
@@ -1444,7 +1444,7 @@ export const year4: QuestionTemplate[] = [
     // outcomes is where "the rest" stops being a subtraction a child can do
     // without noticing.
     prompt:
-      'A spinner was spun {t} times. It stopped on red {r} times and on blue {b} times. The rest were green. How many were green?',
+      'A spinner was spun {t} times: red {r}, blue {b}, the rest green. How many were green?',
     vars: [
       { name: 't', kind: 'int', min: '30', max: '60', step: 10 },
       // Never fewer than five of anything: a run of forty spins with one green

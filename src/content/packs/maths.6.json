@@ -1,5 +1,5 @@
 {
-  "version": "6db1c5484a00",
+  "version": "e5a8dfc1203f",
   "subject": "maths",
   "level": "6",
   "templates": [
@@ -750,7 +750,7 @@
       "subject": "maths",
       "topic": "number patterns",
       "level": "6",
-      "prompt": "A growing pattern starts at {a} and the gaps grow: it adds {d}, then {2 * d}, then {3 * d}. What is the 4th number?",
+      "prompt": "A pattern starts at {a} and adds {d}, then {2 * d}, then {3 * d}. What is the 4th number?",
       "vars": [
         {
           "name": "a",
@@ -1060,7 +1060,7 @@
       "subject": "maths",
       "topic": "angles",
       "level": "6",
-      "prompt": "Three angles meet at a point. Two of them are {a} degrees and {b} degrees. What is the third, in degrees?",
+      "prompt": "Three angles meet at a point. Two are {a} and {b} degrees. What is the third, in degrees?",
       "vars": [
         {
           "name": "a",
@@ -1092,7 +1092,7 @@
       "subject": "maths",
       "topic": "angles",
       "level": "6",
-      "prompt": "Two straight lines cross. One of the angles is {a} degrees. What is the angle opposite it, in degrees?",
+      "prompt": "Two lines cross. One angle is {a} degrees. What is the angle opposite it, in degrees?",
       "vars": [
         {
           "name": "a",
@@ -1143,7 +1143,7 @@
       "subject": "maths",
       "topic": "angles",
       "level": "6",
-      "prompt": "One more angle beside the marked one would make a straight line. Would that other angle be bigger or smaller than this one?",
+      "prompt": "Another angle beside this one would make a straight line. Is it bigger or smaller than this one?",
       "vars": [
         {
           "name": "d",

@@ -323,7 +323,7 @@ export const yearK: QuestionTemplate[] = [
     topic: 'measurement',
     level: 'K',
     prompt:
-      'A red ribbon is {a} blocks long. A blue ribbon is {b} blocks long. Which ribbon is longer, red or blue?',
+      'A red ribbon is {a} blocks long and a blue one is {b}. Which is longer, red or blue?',
     vars: [
       { name: 'a', kind: 'int', min: '2', max: '12' },
       { name: 'b', kind: 'int', min: '2', max: '12' },
@@ -378,7 +378,7 @@ export const yearK: QuestionTemplate[] = [
     // Three bags told apart by colour alone, so nothing a child already knows
     // about how heavy things are can answer it for them.
     prompt:
-      'The red bag balances {a} blocks, the blue bag {b} blocks and the green bag {c} blocks. Which bag is the lightest?',
+      'The red bag balances {a} blocks, the blue {b} and the green {c}. Which bag is the lightest?',
     vars: [
       { name: 'a', kind: 'int', min: '2', max: '12' },
       { name: 'b', kind: 'int', min: '2', max: '12' },

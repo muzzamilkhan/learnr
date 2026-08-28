@@ -1,5 +1,5 @@
 {
-  "version": "0146d28f52a6",
+  "version": "0e7ce738fd0f",
   "subject": "maths",
   "level": "2",
   "templates": [
@@ -865,7 +865,7 @@
       "subject": "maths",
       "topic": "measurement",
       "level": "2",
-      "prompt": "A tin weighs the same as {a} blocks. A jar weighs the same as {b} blocks. How many more blocks does the tin weigh?",
+      "prompt": "A tin balances {a} blocks and a jar balances {b} blocks. How many more blocks is the tin?",
       "vars": [
         {
           "name": "a",
@@ -1634,7 +1634,7 @@
       "subject": "maths",
       "topic": "data",
       "level": "2",
-      "prompt": "This graph shows our favourite colours. True or false: just as many children chose {a} as chose {b}.",
+      "prompt": "This graph shows our favourite colours. True or false: as many chose {a} as chose {b}.",
       "vars": [
         {
           "name": "same",
@@ -1898,7 +1898,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "2",
-      "prompt": "A bag holds {r} red counters and {b} blue counters. You take one without looking. Which colour are you more likely to take, red or blue?",
+      "prompt": "A bag holds {r} red and {b} blue counters. Without looking, are you more likely to take red or blue?",
       "vars": [
         {
           "name": "r",

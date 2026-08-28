@@ -1,5 +1,5 @@
 {
-  "version": "859d5cc54f2d",
+  "version": "09c054e3ebe2",
   "subject": "english",
   "level": "6",
   "templates": [
@@ -552,7 +552,7 @@
       "subject": "english",
       "topic": "figurative language",
       "level": "6",
-      "prompt": "What tells you this sentence uses figurative language? {sentence}",
+      "prompt": "What makes this sentence figurative? {sentence}",
       "vars": [
         {
           "name": "type",
@@ -708,7 +708,7 @@
       "subject": "english",
       "topic": "figurative language",
       "level": "6",
-      "prompt": "Which sentence uses the same kind of figurative language as this one? {sentence}",
+      "prompt": "Same figurative language as this one? {sentence}",
       "vars": [
         {
           "name": "type",

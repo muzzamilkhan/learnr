@@ -1,5 +1,5 @@
 {
-  "version": "dd9a019c071c",
+  "version": "fc78e674ddbc",
   "subject": "maths",
   "level": "5",
   "templates": [
@@ -1027,7 +1027,7 @@
       "subject": "maths",
       "topic": "perimeter and area",
       "level": "5",
-      "prompt": "A rectangle has an area of {area} square centimetres and is {w} cm wide. How long is it, in centimetres?",
+      "prompt": "A rectangle has an area of {area} square cm and is {w} cm wide. How long is it, in centimetres?",
       "vars": [
         {
           "name": "w",
@@ -2168,7 +2168,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "5",
-      "prompt": "A spinner was spun many times. It stopped on red {r} times, blue {b} times and green {g} times. Which colour is it most likely to stop on?",
+      "prompt": "A spinner stopped on red {r} times, blue {b} and green {g}. Which colour is it most likely to stop on?",
       "vars": [
         {
           "name": "r",

@@ -944,7 +944,7 @@ export const year3: QuestionTemplate[] = [
     topic: 'chance',
     level: '3',
     prompt:
-      'A bag holds {r} red counters and {b} blue counters. True or false: you are more likely to pull out a red one.',
+      'A bag holds {r} red and {b} blue counters. True or false: you are more likely to pull out red.',
     // From 2, so the prompt never reads "1 blue counters".
     vars: [
       { name: 'r', kind: 'int', min: '2', max: '12' },
@@ -1045,7 +1045,7 @@ export const year3: QuestionTemplate[] = [
     // what is being described is a run of results rather than a thing to look
     // at - and with nothing drawn, naming the outcomes in words is honest.
     prompt:
-      'A dice was rolled {t} times. It landed on an even number {e} times. How many times did it land on an odd number?',
+      'A dice was rolled {t} times. It landed on an even number {e} times. How many were odd?',
     vars: [
       { name: 't', kind: 'int', min: '20', max: '60', step: 10 },
       // Never all of them and never none: a run of twenty rolls with no even
@@ -1067,7 +1067,7 @@ export const year3: QuestionTemplate[] = [
     // which is the step Stage 2 asks for: ordering likelihoods rather than
     // picking between a pair. Year 4 asks the same bag for its *least* likely.
     prompt:
-      'A bag holds {r} red, {b} blue and {g} green counters. You take one without looking. Which colour are you most likely to take?',
+      'A bag holds {r} red, {b} blue and {g} green counters. Which colour are you most likely to take?',
     vars: [
       { name: 'r', kind: 'int', min: '2', max: '15' },
       { name: 'b', kind: 'int', min: '2', max: '15' },
@@ -1088,7 +1088,7 @@ export const year3: QuestionTemplate[] = [
     topic: 'data',
     level: '3',
     prompt:
-      'In a survey, {a} children chose apples, {b} chose bananas and {c} chose cherries. How many children were surveyed?',
+      'In a survey {a} children chose apples, {b} bananas and {c} cherries. How many were surveyed?',
     vars: [
       { name: 'a', kind: 'int', min: '3', max: '25' },
       { name: 'b', kind: 'int', min: '3', max: '25' },

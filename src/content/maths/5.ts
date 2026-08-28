@@ -548,7 +548,7 @@ export const year5: QuestionTemplate[] = [
     topic: 'perimeter and area',
     level: '5',
     prompt:
-      'A rectangle has an area of {area} square centimetres and is {w} cm wide. How long is it, in centimetres?',
+      'A rectangle has an area of {area} square cm and is {w} cm wide. How long is it, in centimetres?',
     vars: [
       { name: 'w', kind: 'int', min: '3', max: '12' },
       { name: 'l', kind: 'int', min: '4', max: '20' },
@@ -1403,7 +1403,7 @@ export const year5: QuestionTemplate[] = [
     // the rule about a prompt naming only what the figure draws binds a
     // template that *has* one.
     prompt:
-      'A spinner was spun many times. It stopped on red {r} times, blue {b} times and green {g} times. Which colour is it most likely to stop on?',
+      'A spinner stopped on red {r} times, blue {b} and green {g}. Which colour is it most likely to stop on?',
     // All three different, so the question has one answer, and the rejection is
     // symmetric in the three colours, so each of them wins equally often.
     vars: [

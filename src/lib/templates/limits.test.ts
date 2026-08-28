@@ -6,7 +6,7 @@ describe('the prompt-length cap', () => {
     // The measured worst case is 135 characters
     // (`maths.5.chance.most-likely-from-trials`). The cap sits above it so a
     // number growing a digit inside an existing template is not a red suite.
-    expect(MAX_PROMPT_CHARS).toBe(140);
+    expect(MAX_PROMPT_CHARS).toBe(105);
   });
 });
 

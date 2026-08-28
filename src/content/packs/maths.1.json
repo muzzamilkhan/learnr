@@ -1,5 +1,5 @@
 {
-  "version": "b3c43dd55e65",
+  "version": "e3bf78b1d395",
   "subject": "maths",
   "level": "1",
   "templates": [
@@ -794,7 +794,7 @@
       "subject": "maths",
       "topic": "measurement",
       "level": "1",
-      "prompt": "A pear weighs the same as {a} marbles, an apple {b} marbles and a lime {c} marbles. Which is the heaviest?",
+      "prompt": "A pear balances {a} marbles, an apple {b} and a lime {c}. Which is the heaviest?",
       "vars": [
         {
           "name": "a",

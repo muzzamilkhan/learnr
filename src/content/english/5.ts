@@ -640,7 +640,7 @@ export const year5: QuestionTemplate[] = [
     // generalised to a choice question whose own prompt hands over the
     // answer - a leak the options-only measurement cannot see, because the
     // option set itself is genuinely fine.
-    prompt: 'What tells you this sentence uses figurative language? {sentence}',
+    prompt: 'What makes this sentence figurative? {sentence}',
     vars: [
       { name: 'type', kind: 'pick', from: [0, 1, 2] },
       { name: 'i', kind: 'int', min: '0', max: '4' },
@@ -693,7 +693,7 @@ export const year5: QuestionTemplate[] = [
     subject: 'english',
     topic: 'figurative language',
     level: '5',
-    prompt: 'Which sentence uses the same kind of figurative language as this one? {sentence}',
+    prompt: 'Same figurative language as this one? {sentence}',
     vars: [
       { name: 'type', kind: 'pick', from: [0, 1, 2] },
       { name: 'i0', kind: 'int', min: '0', max: '4' },

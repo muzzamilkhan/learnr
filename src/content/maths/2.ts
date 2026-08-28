@@ -491,7 +491,7 @@ export const year2: QuestionTemplate[] = [
     topic: 'measurement',
     level: '2',
     prompt:
-      'A tin weighs the same as {a} blocks. A jar weighs the same as {b} blocks. How many more blocks does the tin weigh?',
+      'A tin balances {a} blocks and a jar balances {b} blocks. How many more blocks is the tin?',
     vars: [
       { name: 'a', kind: 'int', min: '6', max: '20' },
       { name: 'b', kind: 'int', min: '2', max: '5' },
@@ -1009,7 +1009,7 @@ export const year2: QuestionTemplate[] = [
     topic: 'data',
     level: '2',
     prompt:
-      'This graph shows our favourite colours. True or false: just as many children chose {a} as chose {b}.',
+      'This graph shows our favourite colours. True or false: as many chose {a} as chose {b}.',
     // Right half the time exactly, and with nothing rejected: `same` is drawn
     // freely and the second column is either the first over again or one of
     // the four other heights, stepped round rather than redrawn until it
@@ -1184,7 +1184,7 @@ export const year2: QuestionTemplate[] = [
     // colours are offered in the prompt, so a narrator does not read the two
     // buttons out after it.
     prompt:
-      'A bag holds {r} red counters and {b} blue counters. You take one without looking. Which colour are you more likely to take, red or blue?',
+      'A bag holds {r} red and {b} blue counters. Without looking, are you more likely to take red or blue?',
     // Two of each at least, so the sentence never reads "1 red counters", and
     // two apart at least: equal numbers leave this question no answer, and one
     // apart makes it a technicality rather than a comparison - six against five

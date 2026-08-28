@@ -1,5 +1,5 @@
 {
-  "version": "3eb161628455",
+  "version": "69e10b9a064c",
   "subject": "maths",
   "level": "4",
   "templates": [
@@ -928,7 +928,7 @@
       "subject": "maths",
       "topic": "measurement",
       "level": "4",
-      "prompt": "A {l} litre bottle of juice is shared equally between {c} glasses. How many millilitres are in each glass?",
+      "prompt": "A {l} litre bottle is shared equally between {c} glasses. How many millilitres in each?",
       "vars": [
         {
           "name": "l",
@@ -2126,7 +2126,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "4",
-      "prompt": "A bag holds {r} red and {b} blue counters. You take out a {c} one and keep it. Is a red one now more likely or less likely?",
+      "prompt": "A bag holds {r} red and {b} blue counters. You take out a {c} one. Is red now more or less likely?",
       "vars": [
         {
           "name": "r",
@@ -2169,7 +2169,7 @@
       "subject": "maths",
       "topic": "chance",
       "level": "4",
-      "prompt": "A spinner was spun {t} times. It stopped on red {r} times and on blue {b} times. The rest were green. How many were green?",
+      "prompt": "A spinner was spun {t} times: red {r}, blue {b}, the rest green. How many were green?",
       "vars": [
         {
           "name": "t",

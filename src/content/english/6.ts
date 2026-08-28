@@ -692,7 +692,7 @@ export const year6: QuestionTemplate[] = [
     // own answer buttons - because `FIG_SIGNAL_LIST` is a fixed one-to-one
     // mapping off `type`. Naming the device here would let a child answer
     // from the label alone without reading `{sentence}` at all.
-    prompt: 'What tells you this sentence uses figurative language? {sentence}',
+    prompt: 'What makes this sentence figurative? {sentence}',
     vars: [
       { name: 'type', kind: 'int', min: '0', max: '4' },
       { name: 'i', kind: 'int', min: '0', max: '4' },
@@ -753,7 +753,7 @@ export const year6: QuestionTemplate[] = [
     subject: 'english',
     topic: 'figurative language',
     level: '6',
-    prompt: 'Which sentence uses the same kind of figurative language as this one? {sentence}',
+    prompt: 'Same figurative language as this one? {sentence}',
     vars: [
       { name: 'type', kind: 'int', min: '0', max: '4' },
       { name: 'i0', kind: 'int', min: '0', max: '4' },
