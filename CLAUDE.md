@@ -549,17 +549,25 @@ templates per year, and no typed answer the number pad cannot enter. A template
 carrying a `figure` is drawn fifty times and made to prove it never draws one
 answer the same way twice.
 
-**A rendered prompt may be no longer than `MAX_PROMPT_CHARS` (140)**
+**A rendered prompt may be no longer than `MAX_PROMPT_CHARS` (105)**
 (`src/lib/templates/limits.ts`). This is the only lever on how big every question
 on the play screen is drawn: the screen sets one size for all of them and that size
 is the worst case's, so a template past the cap makes every *other* question
-smaller. 140 is measured - over 300 draws of each of the 350 shipped templates the
-longest prompt is 135 chars (`maths.5.chance.most-likely-from-trials`), median 45,
-shortest 14 - with five characters of slack so a growing digit inside a template
-doesn't redden the suite. `catalog.test.ts` draws every template fifty times
-against it (fifty rather than the usual twenty-five because this is a maximum over
-a distribution). Shortening the thirty templates already over 90 characters would
-buy a larger size for everything, and is its own content pass.
+smaller. 105 is measured - over 300 draws of each of the 507 shipped templates the
+longest prompt is 100 chars, median 46, shortest 14 - with five characters of slack
+so a growing digit inside a template doesn't redden the suite. `catalog.test.ts`
+draws every template fifty times against it (fifty rather than the usual
+twenty-five because this is a maximum over a distribution).
+
+**It was 140, and the 35 characters came off the content rather than off the cap** -
+twenty-three templates reworded, mostly chance and measurement word problems that
+named a quantity twice. **That pass is done, and stopping where it did was the
+point.** A fixed box takes area proportional to the character count times the
+square of the size, so the size a fit lands on goes as `1/sqrt(cap)`: 140 to 105
+bought about 15% bigger type, and grinding on to 95 would buy 5% more for twice
+the rewriting and real damage to the prose. The median prompt is 46 characters and
+was never the problem. `limits.ts` carries the full derivation - **read it before
+reopening this**, because the tail is the whole of the gain and it has been taken.
 
 ### Shape of the content
 
@@ -1176,13 +1184,13 @@ above it.
 committed beside it, so the derived files are what the app loads and the original
 stays the thing to re-cut from:
 
-- `public/logo-mark.png` - the badge alone, for headers.
+- `public/logo-mark.png` - the badge alone, for headers. `scripts/logo-mark.sh`.
 - `public/logo-lockup.png` - the whole thing, for the landing hero.
-- `public/app-icon-1024.png` - the iOS App Store icon, cut by
-  `scripts/app-icon.sh`. **The only derived file with a script**, and the only one
-  reproducible by tooling.
+- `public/app-icon-1024.png` - the iOS App Store icon. `scripts/app-icon.sh`.
 - `src/app/icon.png`, `apple-icon.png`, `favicon.ico`, `opengraph-image.png` - Next
   wires these up by filename, so `layout.tsx` adds only a `metadataBase`.
+  `icon.png` comes out of `scripts/logo-mark.sh`; the other three are still
+  hand-cuts with no script, which is what let the defect below go unnoticed.
 
 **The white page is flood-filled to transparency from the edges inwards**, not
 keyed off luminance: the white *inside* the mark - the book's pages, the pencil's
@@ -1191,15 +1199,32 @@ eyes, the sparkles - has to survive. Without it the mark would sit on
 background, because iOS composites its own mask and a transparent one comes out
 black.
 
-**That survival rule is broken in `public/logo-mark.png` itself, and the master is
-clean.** The book's right-hand page is chewed through - a ragged bite where the
-flood reached in. The two whites *touch*, at the book's outer tips where a page
-edge meets the page behind it, so a flood loose enough to clear the background
-runs straight into the pages; measured here, it holds to 3% fuzz and is gone by
-4%. It has never shown because the mark is only ever drawn on `--color-paper`,
-where a hole in a white page is a hole onto near-white. On any coloured ground it
-is obvious. **Nothing renders it on one today**, which is why this is recorded
-rather than fixed: re-cutting the mark changes an asset the whole web app draws.
+**That survival rule was broken in `public/logo-mark.png` itself, and the fix is
+`scripts/logo-mark.sh`.** The flood ate the book's right-hand leaf - about 9,900
+pixels, including part of the dark wedge inside the open book. The two whites
+*touch*, at the book's outer tips where a page edge meets the page behind it, so
+a fill loose enough to clear the background runs straight into the pages; measured
+on the master, it holds to 3% fuzz and is gone by 4%. **It was visible on
+`--color-paper` too**, not merely latent on a coloured ground: the missing wedge is
+dark, so the header mark had a notch out of its book the whole time.
+
+**The repair is a union, not a re-cut**, and that distinction is the reason it was
+safe to make. The mark's silhouette and a clean cut from the master agree to within
+**108 pixels**, so a new outline buys nothing - but the mark's edge pixels carry
+their own antialiasing against the page they were lifted off, and a fresh binary cut
+would swap that for a hard edge on every header in the app. So the alpha is the union
+of what the mark had and what a clean cut keeps: the boundary is untouched and only
+the hole is filled. The master is taken across a 1px ring around the wound as well,
+since the pixels bordering it are the flood's own contaminated antialiasing. The
+script is idempotent, which is asserted by running it twice - without the binary
+selection it re-blends the edge a little more each run.
+
+**`src/app/apple-icon.png` and `favicon.ico` still carry the same defect, and are
+deliberately left.** At 180px and below it is not distinguishable, and neither file's
+framing is recoverable from the repo - `apple-icon.png` is the mark at 152 centred on
+paper, which reproduces to only ~18% RMSE, so re-cutting blind would change them more
+than the bug does. `src/app/icon.png` *is* regenerated, because at 192 the hole shows
+and its recipe was confirmed: the mark at 180, centred, to within ~1% RMSE.
 
 **So the App Store icon is cut from the master, not from the mark**, and separates
 the two whites by *connectivity at a tight threshold* rather than by fuzz. It is
