@@ -1,5 +1,5 @@
 {
-  "version": "7ad15df39bef",
+  "version": "6d8937a4550d",
   "set": "expr",
   "draws": 5,
   "groups": {
@@ -115,11 +115,11 @@
     "english.5.word-roots.which-comes-from-root": "b1c6df3ed19f",
     "english.5.word-roots.write-by-clue": "b3c9a8a14b0c",
     "english.5.word-roots.write-root": "2b8b5bb1e582",
-    "english.6.figurative-language.eliminate-one": "cdb1e1bc8592",
-    "english.6.figurative-language.identify": "ed039ad0bd4a",
-    "english.6.figurative-language.match-the-example": "b12298342afc",
-    "english.6.figurative-language.same-device": "d969713c1054",
-    "english.6.figurative-language.what-signals-it": "6ec76ba69c31",
+    "english.6.figurative-language.eliminate-one": "73a65f8256d0",
+    "english.6.figurative-language.identify": "4dba97b1a7f8",
+    "english.6.figurative-language.match-the-example": "dd3a74ac727e",
+    "english.6.figurative-language.same-device": "5dfef390064e",
+    "english.6.figurative-language.what-signals-it": "225798f20448",
     "english.6.punctuation.clause-issue": "7512bd113be0",
     "english.6.punctuation.compound-issue": "e424c5a38e33",
     "english.6.punctuation.identify-issue": "4f9d9cde15ab",

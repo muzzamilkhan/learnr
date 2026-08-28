@@ -1,5 +1,5 @@
 {
-  "version": "0a49fd1300bd",
+  "version": "bc61bcdf1a1c",
   "sets": [
     {
       "set": "english.K",
@@ -34,7 +34,7 @@
     {
       "set": "english.6",
       "groups": 22,
-      "version": "f07a0b98a86f"
+      "version": "64f1102666e8"
     },
     {
       "set": "maths.K",
@@ -74,12 +74,12 @@
     {
       "set": "expr",
       "groups": 506,
-      "version": "7ad15df39bef"
+      "version": "6d8937a4550d"
     },
     {
       "set": "grading",
       "groups": 505,
-      "version": "81d1cc257238"
+      "version": "d6553cda8d7e"
     },
     {
       "set": "profile",
