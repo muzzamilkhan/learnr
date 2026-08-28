@@ -16,7 +16,7 @@ dropdown and can't reach another year by typing a URL.
 
 Questions are generated, not stored. Each one comes from a **template** that
 declares its variables and an expression for the answer, so a single template
-produces an endless supply of questions at the same difficulty. 505 templates
+produces an endless supply of questions at the same difficulty. 507 templates
 ship - 350 maths and 155 English - covering Kindergarten to Year 6, written
 against both the Australian Curriculum and the NSW syllabus.
 

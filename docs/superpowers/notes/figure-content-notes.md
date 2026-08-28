@@ -413,6 +413,41 @@ paragraph exists to disown. **Trust the code over the word, in either file.**
   picture stands for, because the graph's own key draws an icon and a number and cannot say two
   *what*.
 
+### `timeline`
+- **Two or three events on a line of four-digit years, and that is the whole budget.** Four
+  events need three-digit years, five need one-digit ones, and six never draw at all. The
+  limit is the **letters**, not the ticks: two of them need about three ticks' worth of line
+  to stand apart at report scale, where two ticks need one. Measured across every combination
+  of count, spacing and division — `4-digit 4 events: NONE`, at every spacing tried.
+- **The line runs 3 to 10 divisions, and no further.** Below three there is nothing between
+  the ends to count; past ten a report row cannot tell the ticks apart, so a century at a
+  division of five is refused where the same century at twenty is clean. The number is the
+  same at every division, because what is being divided is the *line*, not the years.
+- **Two events must sit at least two divisions apart**, which is the same limit read the other
+  way. On a pinned line with them one division in from each end, the intervals that draw are
+  3 to 10; hold them two divisions apart and it is 3 to 7.
+- **The division is chosen from the gaps between the events, so equally spaced events can
+  refuse a line their neighbours accept.** The builder only offers divisions that put a tick
+  under every event, which means divisors of the gaps. Three events **25 apart** is refused —
+  a division of 25 puts them one apart and a division of 5 needs twelve divisions — while the
+  same three events 10, 20 or 50 apart all draw. If a timeline is refused and the years look
+  reasonable, this is nearly always why: **give the gaps a coarser common divisor.**
+- **An event's label is at most three characters, and it is a key rather than a name.** A word
+  beside a dot collides with its neighbour and pushes the rule's own bound, so `figure.labels`
+  reports anything longer and the prompt refers to the letters: "how many years between A and
+  B?". Omit `labels` and the events are lettered A, B, C **in the order the template gave
+  them**, which is the order to write the years in when the question is "which came first?" —
+  a template that lists them in date order has answered that question in its own alphabet.
+- **Pin `from`, `to` and `step` together, or leave all three open.** Open, the builder picks
+  the stretch and the division and a different pair on every seed, which is the anchoring
+  answer. Pinned, the drawing still varies — the tick lengths and the letter gap jitter, and
+  50 seeds gave 50 distinct figures either way — but the *question* is anchored, exactly as a
+  fully pinned `number-line` is. **Move the variation into the content**: a different century
+  every draw is what the two shipped templates do.
+- **A pinned end may sit on an event, and should not.** The builder always overshoots by at
+  least one division so an end label is never under a dot; pinning `from` to the first event's
+  own year gives that up and hands the child the answer to "what year was A?" in the axis.
+
 ---
 
 ## Answer types, unchanged by any of this

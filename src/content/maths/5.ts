@@ -1267,6 +1267,88 @@ export const year5: QuestionTemplate[] = [
     tags: ['AC9M5ST02', 'MA3-DATA-02'],
   },
 
+  // Timelines, the twelfth figure kind, and the one display in Stage 3 Data
+  // that is about **events** rather than about data somebody collected. The
+  // scale is the whole of it: the two ends carry a year each and everything
+  // between them is an unlabelled tick, so a gap is *counted* rather than read
+  // off two numbers printed beside the dots. A timeline that labelled its
+  // events with their years would make both questions below a subtraction with
+  // a picture over it.
+  //
+  // **Both cite NSW alone**, which `DIVERGENCE_NOTES` explains on the
+  // curriculum page: MA3-DATA-02 is where NSW files a timeline, and stretching
+  // an ACARA Statistics description written about collected data to cover one
+  // would put a guess into the field that exists to be checkable.
+  //
+  // **A timeline holds two, three or four events and no more**, and the letters
+  // are what limit it rather than the ticks: two of them need about three
+  // ticks' worth of line to stand apart at report scale. So both of these draw
+  // two events, kept at least two divisions apart, on a line whose ends are
+  // pinned - and the variation lives in the content, a different stretch of
+  // years every draw, exactly as `figure-content-notes.md` says it must when
+  // the ends and the division are all pinned.
+  {
+    id: 'maths.5.data.timeline-years-between',
+    subject: 'maths',
+    topic: 'data',
+    level: '5',
+    prompt: 'How many years are there between A and B?',
+    // The two events sit on ticks 1 to 4 of five, so neither is ever under an
+    // end label - a dot beneath the `1900` has its year read rather than
+    // counted. Held two divisions apart because two letters closer than that
+    // are drawn on top of one another, which the figure kind refuses outright.
+    // The starts stop where they do so the line's far end never runs past
+    // 2000: a timeline of events that have not happened yet reads as a mistake
+    // even where the arithmetic is the same.
+    vars: [
+      { name: 'start', kind: 'pick', from: [1800, 1850, 1900] },
+      { name: 'i', kind: 'int', min: '1', max: '2' },
+      { name: 'j', kind: 'int', min: '3', max: '4' },
+    ],
+    constraints: ['j - i >= 2'],
+    answer: '20 * (j - i)',
+    hint: 'Count the ticks from A to B. Each tick is worth 20 years.',
+    figure: {
+      kind: 'timeline',
+      years: "(start + 20 * i) + ',' + (start + 20 * j)",
+      labels: "'A,B'",
+      from: 'start',
+      to: 'start + 100',
+      step: '20',
+    },
+    tags: ['MA3-DATA-02'],
+  },
+  {
+    id: 'maths.5.data.timeline-read-year',
+    subject: 'maths',
+    topic: 'data',
+    level: '5',
+    prompt: 'In what year did B happen?',
+    // **Which letter sits on which event is picked, not fixed**, so B is the
+    // later event on about half the draws and the earlier one on the rest. A
+    // template that always lettered them left to right would let a child answer
+    // "the second one" without reading the line at all - the same reason the
+    // figure kind letters its events in the order the template gave them rather
+    // than by position.
+    vars: [
+      { name: 'start', kind: 'pick', from: [1800, 1820, 1840, 1860, 1880] },
+      { name: 'i', kind: 'int', min: '1', max: '2' },
+      { name: 'j', kind: 'int', min: '4', max: '5' },
+      { name: 'order', kind: 'pick', from: ['A,B', 'B,A'] },
+    ],
+    answer: "order == 'A,B' ? start + 20 * j : start + 20 * i",
+    hint: 'Start at the year on the left and count on 20 for every tick.',
+    figure: {
+      kind: 'timeline',
+      years: "(start + 20 * i) + ',' + (start + 20 * j)",
+      labels: 'order',
+      from: 'start',
+      to: 'start + 120',
+      step: '20',
+    },
+    tags: ['MA3-DATA-02'],
+  },
+
   // Chance, and **Stage 3 is where a likelihood stops being a word and becomes
   // a number.** Years 1 to 3 compare two outcomes; Year 4 names one on the
   // continuum from unlikely to certain. MA3-CHAN-01 and AC9M5P01 ask for the

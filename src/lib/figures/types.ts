@@ -79,6 +79,7 @@ export const FIGURE_KINDS = [
   'array',
   'fraction-shape',
   'grid',
+  'timeline',
 ] as const;
 export type FigureKind = (typeof FIGURE_KINDS)[number];
 
@@ -431,6 +432,54 @@ export type FigureSpec =
        * and a coordinate pair are both written `2,3`.
        */
       onLines?: Expr;
+    }
+  | {
+      kind: 'timeline';
+      /**
+       * The years the events happened, comma-joined, e.g. `"'1901,1926,1945'"`
+       * - the expression language has no arrays, so a list arrives as a string
+       * exactly as `bar`'s values and `pictograph`'s counts do, and
+       * `"a + ',' + b"` is how a template builds one from its own variables.
+       *
+       * **They are given in the order the letters run, not in date order.** A
+       * kind that lettered its events left to right would answer "which
+       * happened first?" off the alphabet, so which letter sits on which year
+       * is the template's to say and never the builder's.
+       */
+      years: Expr;
+      /**
+       * What each event is called, comma-joined and index-aligned with
+       * `years`. Omitted, they are lettered A, B, C in the order given.
+       *
+       * **One or two characters, and there is no room for a name.** At report
+       * scale a character costs `CHAR_SHARE` of the line, so a word beside a
+       * dot both collides with its neighbour and pushes the rule's own
+       * bound - the letter is a key the prompt refers to ("how many years
+       * between A and B?"), which is `bar`'s answer to the same problem.
+       */
+      labels?: Expr;
+      /**
+       * The years the two ends of the line are labelled with. Omitted, the
+       * builder picks a pair that reaches past the outermost events - and a
+       * *different* pair on a different seed, which is this kind's headline
+       * answer to the anchoring rule.
+       *
+       * **The line always overshoots the events by at least one division**, so
+       * an end label is never sitting on an event and reading its year off the
+       * label. Pinning both ends says exactly which stretch of history is
+       * drawn and gives that lever up, which is fine where the content moves
+       * instead - see the note in `figure-content-notes.md`.
+       */
+      from?: Expr;
+      to?: Expr;
+      /**
+       * Years per small tick - the scale the child counts along. Omitted, the
+       * builder takes the coarsest division that still puts a tick under every
+       * event, which is `number-line`'s rule and is there for its reason: the
+       * ticks are the only thing saying what the gap between two dots is
+       * worth, so an event floating between two of them cannot be read.
+       */
+      step?: Expr;
     };
 
 /** The resolved box is this square, in whatever units the renderer scales it to. */

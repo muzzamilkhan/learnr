@@ -13,6 +13,7 @@ import { pictographModule } from './pictograph-kind';
 import { polygonModule } from './polygon-kind';
 import { solidModule } from './solid-kind';
 import { spinnerModule } from './spinner-kind';
+import { timelineModule } from './timeline-kind';
 
 /**
  * Whether a kind can be drawn without one of its parameters. Two words rather
@@ -170,6 +171,7 @@ for (const kindModule of [
   arrayModule,
   fractionShapeModule,
   gridModule,
+  timelineModule,
 ]) {
   registerFigureKind(kindModule);
 }

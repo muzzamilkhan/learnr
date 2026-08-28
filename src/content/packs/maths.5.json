@@ -1,5 +1,5 @@
 {
-  "version": "fc78e674ddbc",
+  "version": "90f0f6ed850e",
   "subject": "maths",
   "level": "5",
   "templates": [
@@ -2009,6 +2009,105 @@
       },
       "tags": [
         "AC9M5ST02",
+        "MA3-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.5.data.timeline-years-between",
+      "subject": "maths",
+      "topic": "data",
+      "level": "5",
+      "prompt": "How many years are there between A and B?",
+      "vars": [
+        {
+          "name": "start",
+          "kind": "pick",
+          "from": [
+            1800,
+            1850,
+            1900
+          ]
+        },
+        {
+          "name": "i",
+          "kind": "int",
+          "min": "1",
+          "max": "2"
+        },
+        {
+          "name": "j",
+          "kind": "int",
+          "min": "3",
+          "max": "4"
+        }
+      ],
+      "constraints": [
+        "j - i >= 2"
+      ],
+      "answer": "20 * (j - i)",
+      "hint": "Count the ticks from A to B. Each tick is worth 20 years.",
+      "figure": {
+        "kind": "timeline",
+        "years": "(start + 20 * i) + ',' + (start + 20 * j)",
+        "labels": "'A,B'",
+        "from": "start",
+        "to": "start + 100",
+        "step": "20"
+      },
+      "tags": [
+        "MA3-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.5.data.timeline-read-year",
+      "subject": "maths",
+      "topic": "data",
+      "level": "5",
+      "prompt": "In what year did B happen?",
+      "vars": [
+        {
+          "name": "start",
+          "kind": "pick",
+          "from": [
+            1800,
+            1820,
+            1840,
+            1860,
+            1880
+          ]
+        },
+        {
+          "name": "i",
+          "kind": "int",
+          "min": "1",
+          "max": "2"
+        },
+        {
+          "name": "j",
+          "kind": "int",
+          "min": "4",
+          "max": "5"
+        },
+        {
+          "name": "order",
+          "kind": "pick",
+          "from": [
+            "A,B",
+            "B,A"
+          ]
+        }
+      ],
+      "answer": "order == 'A,B' ? start + 20 * j : start + 20 * i",
+      "hint": "Start at the year on the left and count on 20 for every tick.",
+      "figure": {
+        "kind": "timeline",
+        "years": "(start + 20 * i) + ',' + (start + 20 * j)",
+        "labels": "order",
+        "from": "start",
+        "to": "start + 120",
+        "step": "20"
+      },
+      "tags": [
         "MA3-DATA-02"
       ]
     },

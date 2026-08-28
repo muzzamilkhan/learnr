@@ -553,6 +553,11 @@ export const figureSpecSchema = z.discriminatedUnion('kind', [
     columns: exprSchema.optional(), rows: exprSchema.optional(),
     axisLabels: exprSchema.optional(), onLines: exprSchema.optional(),
   }),
+  z.object({
+    kind: z.literal('timeline'), years: exprSchema,
+    labels: exprSchema.optional(), from: exprSchema.optional(),
+    to: exprSchema.optional(), step: exprSchema.optional(),
+  }),
 ]);
 
 export const questionTemplateSchema = z.object({

@@ -33,7 +33,7 @@ const SCOPES_PER_TEMPLATE = 5;
  * them - which made swapping two lines in `src/content/maths/2.ts` a no-op for
  * the engine that moved that template's digest anyway. The port could not have
  * reproduced it in any case: a `Codable` `FigureSpec` has declared property
- * order and `JSONSerialization` has none, so 127 of the 505 groups here were
+ * order and `JSONSerialization` has none, so 129 of the 507 groups here were
  * pinned to something Swift cannot honestly compute. They are sorted by field
  * name now, by `canonical.ts`'s `byName` so they cannot sort differently from
  * the scope beside them.

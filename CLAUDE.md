@@ -235,7 +235,7 @@ LearnrEngine/   a Swift package - the ported engine
   Rng/          mulberry32 + FNV-1a, bit-exact with the web app
   Expr/         the sandboxed expression language
   Templates/    binding, constraints, {expr} holes
-  Figures/      all eleven kinds
+  Figures/      eleven kinds - `timeline` is the twelfth here and not yet ported
   Session/      the state machine, grading, the profile and the selector
   SpeedRun/     the second state machine, and the modes
   Api/          the client, the models and the offline sync queue
@@ -325,7 +325,7 @@ three are done and the fifth is in progress:
 
 1. **The API server** - done, cutover and all. The impure files are extracted,
    the endpoints stand up, and the web app reads and writes through them.
-2. **Content extraction** - done. The 505 templates ship as versioned JSON,
+2. **Content extraction** - done. The 507 templates ship as versioned JSON,
    consumed by the web app first so the format was proven before iOS depended on
    it; `GET /content/manifest` and `GET /content/:subject/:level` are what a
    Swift client fetches them from.
@@ -400,7 +400,7 @@ is in `apps/api/README.md`.
 
 ```
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
-src/lib/figures/     the questions that are a picture: eleven kinds, a registry
+src/lib/figures/     the questions that are a picture: twelve kinds, a registry
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine and grading
 src/lib/analytics/   the learner profile, and the report written from it
@@ -563,7 +563,7 @@ buy a larger size for everything, and is its own content pass.
 
 ### Shape of the content
 
-Maths ships K-6 as **350 templates, one file per school year** under
+Maths ships K-6 as **352 templates, one file per school year** under
 `src/content/maths/` (`k.ts`-`6.ts`, concatenated in school order by `index.ts`).
 The split is filing rather than structure: `mathsTemplates` is the same array in
 the same order, and `catalog.ts` never learned there is more than one file. What it
@@ -812,9 +812,14 @@ silently losing the tick that said a corner was square would draw a picture
 `buildFigure` never produced. `MAX_MARKS` caps the count for the reason
 `MAX_PHOTO_BYTES` does.
 
-**There are eleven kinds** (`FIGURE_KINDS`), each a module behind a registry:
+**There are twelve kinds** (`FIGURE_KINDS`), each a module behind a registry:
 `polygon`, `angle`, `bar`, `pictograph`, `spinner`, `solid`, `number-line`,
-`clock`, `array`, `fraction-shape`, `grid`. A `FigureKindModule` (`registry.ts`)
+`clock`, `array`, `fraction-shape`, `grid`, `timeline`. The twelfth is the
+Stage 3 Data display that is about **events** rather than about data somebody
+collected: a rule with a year at each end, unlabelled ticks between them, and a
+lettered dot per event, so a gap is counted along the scale rather than read off
+two numbers. It cost `Figure`, `Mark`, `fit`, `parseFigure` and the anchoring
+check nothing, which is the test the first pass set for adding one. A `FigureKindModule` (`registry.ts`)
 puts a kind's drawing and its validation in one file and reduces adding one to a
 file and a line. Two details are load bearing: the lookup is a `Map` and not a
 record literal because it is keyed by a string off untrusted content (the
@@ -2104,7 +2109,7 @@ The engine here is the **oracle** for the Swift port in `learnr-ios`, and
 `fixtures/` is where that is written down. `npm run fixtures:build` regenerates
 it; `npm run fixtures:emit` writes the full corpus for reading.
 
-**What is committed is a digest, not the corpus.** 505 templates drawn 100 times
+**What is committed is a digest, not the corpus.** 507 templates drawn 100 times
 is 37.7 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
 two spaces, because it exists to be read. Figures are 22 MB of that, where one
 `clock` drawing is 6.4 KB against a `polygon`'s 169 bytes. 110 MB cannot be
@@ -2150,7 +2155,7 @@ values a human wrote down - `round(-2.5)` is `-2`, `-2 ^ 2` is `-4`, `1 && 2` is
 `true`, `mod(-7, 3)` is `2` where `-7 % 3` is `-1`, and `"a" + 1 + 2` is `"a12"`
 where `1 + 2 + "a"` is `"3a"` - and its test asserts them against the engine. Everywhere else the engine
 is the oracle and a fixture proves *agreement*, so a bug here would be reproduced
-in Swift and both sides would stay green. Harvesting cannot reach these: the 505
+in Swift and both sides would stay green. Harvesting cannot reach these: the 507
 shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
 `sqrt` or `isInt`. When that file and the engine disagree, decide which is wrong.
 

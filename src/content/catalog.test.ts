@@ -379,9 +379,10 @@ describe('shipped content', () => {
     }
   });
 
-  // Two places where NSW teaches something a year or more before ACARA writes
-  // it down, so the template cites NSW alone rather than the nearest ACARA
-  // code that fits badly.
+  // Three places where the nearest ACARA description fits badly enough that the
+  // template cites NSW alone. Two of them are ACARA writing something down a
+  // year or more after NSW teaches it; the third is ACARA not writing it down
+  // in this subject at all.
   //
   // - **Reading an analog clock.** NSW puts o'clock at Early Stage 1 and half
   //   past at Stage 1; ACARA's read-a-clock-face description is AC9M2M04, at
@@ -394,6 +395,13 @@ describe('shipped content', () => {
   // - **Halves and quarters of a shape.** NSW puts them at Stage 1
   //   (MA1-GM-03); ACARA's first fraction description is AC9M2N03, at Year 2,
   //   and Year 1 has none to cite.
+  // - **Timelines.** NSW files them under Stage 3 Data (MA3-DATA-02). ACARA's
+  //   Year 5 and 6 Statistics descriptions are about data a child acquires and
+  //   represents, and a timeline displays events rather than collected data -
+  //   so rather than stretch one of them to reach it, these two cite NSW alone.
+  //   That is the conservative reading and it is deliberately the one taken: a
+  //   citation is offered to a parent as checkable, and a wrong one is worse
+  //   than an absent one.
   //
   // It is the Year 6 integer exception pointed the other way, and the
   // curriculum page renders the disagreement either way round. Naming them here
@@ -408,11 +416,12 @@ describe('shipped content', () => {
   // any of the other templates would otherwise pass green. So the exception is
   // also asserted as exhaustive - a template with no ACARA code has to be one
   // of the ids named here.
-  it('cites no ACARA description for the content ACARA places a year later than NSW', () => {
+  it('cites no ACARA description where none of them fits the content', () => {
     const nswOnly = [
       ...['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`),
       ...['half-past', 'half-past-claim'].map((v) => `maths.1.time.${v}`),
       ...['half-shaded', 'how-much-shaded'].map((v) => `maths.1.fractions.${v}`),
+      ...['timeline-years-between', 'timeline-read-year'].map((v) => `maths.5.data.${v}`),
     ];
 
     for (const id of nswOnly) {

@@ -333,6 +333,16 @@ export const DIVERGENCE_NOTES: readonly DivergenceNote[] = [
   },
   {
     cites: 'nsw',
+    level: '5',
+    topic: 'data',
+    reason:
+      'NSW files timelines under Stage 3 Data. ACARA’s Year 5 and 6 Statistics descriptions are ' +
+      'about data a child gathers and represents, and a timeline shows events rather than ' +
+      'collected data - so the two timeline questions cite NSW alone rather than stretch one of ' +
+      'them to reach it.',
+  },
+  {
+    cites: 'nsw',
     level: 'K',
     topic: 'time',
     reason:
