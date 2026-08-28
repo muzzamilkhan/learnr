@@ -6,7 +6,7 @@ import { parseTarget } from '@learnr/core/rewards/target';
 import { parsePhoto } from '@learnr/core/photo/photo';
 import { codeExpiry } from '@learnr/core/login-code';
 import { requireParent } from '../auth/plugin.js';
-import { childInputSchema, loginCodeSchema } from '../schemas/account.js';
+import { childDetailsSchema, loginCodeSchema } from '../schemas/account.js';
 import { errorSchema } from '../schemas/common.js';
 import { childProfileSchema, viewableChildSchema } from '../schemas/dto.js';
 import { readViewableChildren } from '../data/sharing.js';
@@ -27,7 +27,7 @@ import {
  * past - a request naming an avatar that does not exist is a bad request, not a
  * child with a broken face.
  */
-function toChildInput(body: z.infer<typeof childInputSchema>): ChildInput | null {
+function toChildInput(body: z.infer<typeof childDetailsSchema>): ChildInput | null {
   const avatar = parseAvatar(body.avatar);
   if (!avatar) return null;
 
@@ -91,7 +91,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
   app.post('/children', {
     schema: {
       operationId: 'addChild',
-      body: childInputSchema,
+      body: childDetailsSchema,
       response: { 201: z.object({ id: z.string() }), 400: errorSchema },
     },
   }, async (request, reply) => {
@@ -109,7 +109,7 @@ export const childRoutes: FastifyPluginAsync = async (fastify) => {
     schema: {
       operationId: 'updateChild',
       params: z.object({ id: z.string() }),
-      body: childInputSchema,
+      body: childDetailsSchema,
       response: { 204: z.null(), 400: errorSchema, 404: errorSchema },
     },
   }, async (request, reply) => {

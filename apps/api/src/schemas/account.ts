@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { yearLevelSchema } from './common.js';
 
-export const childInputSchema = z.object({
+export const childDetailsSchema = z.object({
   name: z.string().trim().min(1).max(40),
   avatar: z.string().min(1),
   level: yearLevelSchema,

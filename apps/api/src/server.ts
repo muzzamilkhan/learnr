@@ -6,6 +6,8 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from 'fastify-type-provider-zod';
+import { transformObject } from './openapi.js';
+import { registerComponents } from './schemas/register.js';
 import { authPlugin } from './auth/plugin.js';
 import { authRoutes } from './routes/auth.js';
 import { sessionRoutes } from './routes/sessions.js';
@@ -15,6 +17,8 @@ import { reportRoutes } from './routes/reports.js';
 import { shareRoutes } from './routes/shares.js';
 import { speedRoutes } from './routes/speed.js';
 import { playRoutes } from './routes/play.js';
+
+registerComponents();
 
 export function buildServer(): FastifyInstance {
   const app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
@@ -36,6 +40,7 @@ export function buildServer(): FastifyInstance {
       info: { title: 'LearnR API', version: '0.1.0' },
     },
     transform: jsonSchemaTransform,
+    transformObject,
   });
 
   app.register(authPlugin);
