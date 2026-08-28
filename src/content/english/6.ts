@@ -222,34 +222,34 @@ const SIMILE_EXAMPLES: readonly string[] = [
 
 const METAPHOR_EXAMPLES: readonly string[] = [
   'The library was a treasure chest of stories.',
-  'His words were daggers aimed at her pride.',
-  'The playground was a battlefield at lunchtime.',
-  'Her laughter was music drifting through the house.',
+  'His words were daggers to her pride.',
+  'The playground was a battlefield.',
+  'Her laughter was music in the house.',
   'The city streets were rivers of moving cars.',
 ];
 
 const PERSONIFICATION_EXAMPLES: readonly string[] = [
-  'The camera caught the moment the fireworks kissed the sky.',
+  'The fireworks kissed the night sky.',
   'The old clock coughed out its final chime.',
   'The waves raced each other onto the shore.',
-  'The garden gate creaked a complaint when it opened.',
+  'The garden gate creaked a complaint.',
   'The storm clouds argued loudly overhead.',
 ];
 
 const IDIOM_EXAMPLES: readonly string[] = [
-  'Grandpa always says it is raining cats and dogs outside.',
-  'Once the news broke, the cat was out of the bag.',
-  'She told him to break a leg before the concert.',
-  'After the long flight, he felt under the weather.',
-  'The whole class had to hit the books before the exam.',
+  'Grandpa says it is raining cats and dogs.',
+  'By lunchtime the cat was out of the bag.',
+  'She told him to break a leg on stage.',
+  'After the flight he felt under the weather.',
+  'Our class had to hit the books all week.',
 ];
 
 const HYPERBOLE_EXAMPLES: readonly string[] = [
-  'I have told you a million times to tidy your room.',
-  'This backpack weighs a tonne after a day at school.',
-  'I am so hungry I could eat an entire elephant.',
-  'Grandma is older than the mountains behind our house.',
-  'The queue for the roller coaster went on forever and ever.',
+  'I have told you a million times to tidy up.',
+  'This backpack weighs a tonne after school.',
+  'I am so hungry I could eat an elephant.',
+  'Grandma is older than the mountains.',
+  'The queue went on forever and ever.',
 ];
 
 const FIG_FAMILIES: readonly (readonly string[])[] = [
