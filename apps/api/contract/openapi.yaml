@@ -86,22 +86,23 @@ components:
         level:
           $ref: '#/components/schemas/YearLevelInput'
         targetKind:
-          anyOf:
-            - type: string
-              enum:
-                - questions
-                - minutes
-            - type: 'null'
+          type:
+            - string
+            - 'null'
+          enum:
+            - questions
+            - minutes
+            - null
         targetValue:
-          anyOf:
-            - type: integer
-              exclusiveMinimum: 0
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          exclusiveMinimum: 0
+          maximum: 9007199254740991
         photo:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
       required:
         - name
         - avatar
@@ -187,25 +188,25 @@ components:
             - $ref: '#/components/schemas/Role'
             - type: 'null'
         parentId:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         name:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         avatar:
           anyOf:
             - $ref: '#/components/schemas/Avatar'
             - type: 'null'
         image:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         photo:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
       required:
         - id
         - role
@@ -303,23 +304,23 @@ components:
           items:
             $ref: '#/components/schemas/Sitting'
         answers:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/AnsweredQuestion'
-            - type: 'null'
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/AnsweredQuestion'
         recentAnswers:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/TargetAnswer'
-            - type: 'null'
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/TargetAnswer'
         speedRuns:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/SummaryRun'
-            - type: 'null'
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/SummaryRun'
       required:
         - observations
         - sittings
@@ -339,26 +340,26 @@ components:
         avatar:
           $ref: '#/components/schemas/Avatar'
         photo:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         level:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         target:
           anyOf:
             - $ref: '#/components/schemas/DailyTarget'
             - type: 'null'
         code:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         codeExpiresAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type:
+            - string
+            - 'null'
+          format: date-time
       required:
         - id
         - name
@@ -580,17 +581,17 @@ components:
         playerName:
           type: string
         playerPhoto:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         playerAvatar:
           anyOf:
             - $ref: '#/components/schemas/Avatar'
             - type: 'null'
         playerImage:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         mode:
           type: string
         best:
@@ -833,9 +834,9 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         accuracy:
-          anyOf:
-            - type: number
-            - type: 'null'
+          type:
+            - number
+            - 'null'
         minutesDelta:
           type: integer
           minimum: -9007199254740991
@@ -845,9 +846,9 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         accuracyDelta:
-          anyOf:
-            - type: number
-            - type: 'null'
+          type:
+            - number
+            - 'null'
       required:
         - minutes
         - questions
@@ -870,9 +871,9 @@ components:
         ownerId:
           type: string
         ownerName:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         children:
           type: array
           items:
@@ -885,13 +886,13 @@ components:
               avatar:
                 $ref: '#/components/schemas/Avatar'
               photo:
-                anyOf:
-                  - type: string
-                  - type: 'null'
+                type:
+                  - string
+                  - 'null'
               level:
-                anyOf:
-                  - type: string
-                  - type: 'null'
+                type:
+                  - string
+                  - 'null'
             required:
               - id
               - name
@@ -1156,11 +1157,11 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         lastDay:
-          anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          minimum: -9007199254740991
+          maximum: 9007199254740991
       required:
         - days
         - lastDay
@@ -1186,9 +1187,9 @@ components:
       type: object
       properties:
         selectedLevel:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         streak:
           $ref: '#/components/schemas/PlayStreak'
         stars:
@@ -1200,11 +1201,11 @@ components:
             - $ref: '#/components/schemas/DailyTarget'
             - type: 'null'
         targetDay:
-          anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          minimum: -9007199254740991
+          maximum: 9007199254740991
       required:
         - selectedLevel
         - streak
@@ -1232,9 +1233,9 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         accuracy:
-          anyOf:
-            - type: number
-            - type: 'null'
+          type:
+            - number
+            - 'null'
       required:
         - start
         - unit
@@ -1366,17 +1367,17 @@ components:
         id:
           type: string
         name:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         email:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         image:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         children:
           type: array
           items:
@@ -1482,11 +1483,11 @@ components:
       type: object
       properties:
         previousBest:
-          anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         best:
           type: integer
           minimum: -9007199254740991
@@ -1513,11 +1514,11 @@ components:
           items:
             $ref: '#/components/schemas/SpeedAttempt'
         family:
-          anyOf:
-            - type: array
-              items:
-                $ref: '#/components/schemas/FamilyRecord'
-            - type: 'null'
+          type:
+            - array
+            - 'null'
+          items:
+            $ref: '#/components/schemas/FamilyRecord'
       required:
         - attempts
         - family
@@ -1532,11 +1533,11 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         previousPlace:
-          anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         rivals:
           type: integer
           minimum: -9007199254740991
@@ -1683,11 +1684,11 @@ components:
           minimum: -9007199254740991
           maximum: 9007199254740991
         lastCorrectDay:
-          anyOf:
-            - type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            - type: 'null'
+          type:
+            - integer
+            - 'null'
+          minimum: -9007199254740991
+          maximum: 9007199254740991
         totalTimeMs:
           type: integer
           minimum: -9007199254740991
@@ -1809,32 +1810,32 @@ components:
         avatar:
           $ref: '#/components/schemas/Avatar'
         photo:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         level:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         target:
           anyOf:
             - $ref: '#/components/schemas/DailyTarget'
             - type: 'null'
         code:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
         codeExpiresAt:
-          anyOf:
-            - type: string
-              format: date-time
-            - type: 'null'
+          type:
+            - string
+            - 'null'
+          format: date-time
         access:
           $ref: '#/components/schemas/ChildAccess'
         sharedBy:
-          anyOf:
-            - type: string
-            - type: 'null'
+          type:
+            - string
+            - 'null'
       required:
         - id
         - name
@@ -2013,11 +2014,11 @@ paths:
                 type: object
                 properties:
                   stars:
-                    anyOf:
-                      - type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                      - type: 'null'
+                    type:
+                      - integer
+                      - 'null'
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
                 required:
                   - stars
                 additionalProperties: false

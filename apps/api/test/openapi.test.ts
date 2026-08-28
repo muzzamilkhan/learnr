@@ -130,6 +130,54 @@ describe('the OpenAPI document', () => {
     expect(Object.keys(schemas).filter((name) => !reached.has(name))).toEqual([]);
   });
 
+  /**
+   * **No nullable is left as a union a generator will drop.**
+   *
+   * The third failure with the shape the two above have: nothing goes red when
+   * this breaks. `anyOf: [X, {type: 'null'}]` is what zod must emit under
+   * OpenAPI 3.1, it validates, it serializes, it describes the right shape -
+   * and `swift-openapi-generator` silently omits the property, so
+   * `Account.role` and `Account.parentId` are simply absent from the generated
+   * type with nothing to read. `collapseNullableUnions` rewrites them; this is
+   * what says it still runs and still reaches everything.
+   *
+   * **Asserted as a set equality, not an emptiness.** The seven survivors are
+   * nullable `$ref`s, which have no 3.1 encoding to collapse into - a keyword
+   * beside `$ref` is ignored by design. Listing them means a new one fails here
+   * rather than joining them quietly: it is a property iOS cannot read, and the
+   * decision about how to encode it is one to take deliberately.
+   */
+  it('leaves no collapsible nullable union, and names the seven that cannot be', () => {
+    const document = app.swagger();
+
+    const unions = (value: unknown, path: string): string[] => {
+      if (Array.isArray(value)) return value.flatMap((child, i) => unions(child, `${path}/${i}`));
+      if (value === null || typeof value !== 'object') return [];
+
+      const here =
+        'anyOf' in value &&
+        Array.isArray(value.anyOf) &&
+        value.anyOf.some((member) => (member as { type?: unknown })?.type === 'null')
+          ? [path]
+          : [];
+
+      return [
+        ...here,
+        ...Object.entries(value).flatMap(([key, child]) => unions(child, `${path}/${key}`)),
+      ];
+    };
+
+    expect(unions(document, '').sort()).toEqual([
+      '/components/schemas/Account/properties/avatar',
+      '/components/schemas/Account/properties/role',
+      '/components/schemas/ChildProfile/properties/target',
+      '/components/schemas/FamilyRecord/properties/playerAvatar',
+      '/components/schemas/PlayerState/properties/target',
+      '/components/schemas/SpeedOutcome/properties/standing',
+      '/components/schemas/ViewableChild/properties/target',
+    ]);
+  });
+
   // The contract is the artifact the web client and the Swift Codable types are
   // generated from. A committed copy that has drifted from the routes is worse
   // than none: every client would be generated against a shape the server no
