@@ -1178,6 +1178,9 @@ stays the thing to re-cut from:
 
 - `public/logo-mark.png` - the badge alone, for headers.
 - `public/logo-lockup.png` - the whole thing, for the landing hero.
+- `public/app-icon-1024.png` - the iOS App Store icon, cut by
+  `scripts/app-icon.sh`. **The only derived file with a script**, and the only one
+  reproducible by tooling.
 - `src/app/icon.png`, `apple-icon.png`, `favicon.ico`, `opengraph-image.png` - Next
   wires these up by filename, so `layout.tsx` adds only a `metadataBase`.
 
@@ -1187,6 +1190,32 @@ eyes, the sparkles - has to survive. Without it the mark would sit on
 `--color-paper` as a faintly paler square. The apple icon keeps an opaque
 background, because iOS composites its own mask and a transparent one comes out
 black.
+
+**That survival rule is broken in `public/logo-mark.png` itself, and the master is
+clean.** The book's right-hand page is chewed through - a ragged bite where the
+flood reached in. The two whites *touch*, at the book's outer tips where a page
+edge meets the page behind it, so a flood loose enough to clear the background
+runs straight into the pages; measured here, it holds to 3% fuzz and is gone by
+4%. It has never shown because the mark is only ever drawn on `--color-paper`,
+where a hole in a white page is a hole onto near-white. On any coloured ground it
+is obvious. **Nothing renders it on one today**, which is why this is recorded
+rather than fixed: re-cutting the mark changes an asset the whole web app draws.
+
+**So the App Store icon is cut from the master, not from the mark**, and separates
+the two whites by *connectivity at a tight threshold* rather than by fuzz. It is
+also the sharper source - the badge spans 544px inside the 1254px artwork, making
+1024 a 1.88x upscale against the mark's 2.0x on top of its own downscale. There is
+no vector master and no layered source; `public/logo.PNG` is the whole of it.
+
+**The icon bleeds the blob's own field to the full square**, because the badge
+carries a rounded silhouette of its own and Apple's mask would round it a second
+time, leaving a ring of background between the two. The field is *interpolated
+from colours sampled around the blob's perimeter* rather than filled flat: the
+blob is gently shaded and its edge is a hard cut, so a flat fill leaves a visible
+arc exactly where the two meet. `scripts/app-icon.sh` carries the rest of the
+reasoning, including why the last erode exists. Apple **rejects an icon carrying
+an alpha channel**, so the file is PNG colour type 2 and the script ends by saying
+so.
 
 **The mark alone is what goes in a header**, since "LearnR" is already there in
 type. **Not on the play screen** - a logo in the corner is exactly the sort of
