@@ -1,7 +1,12 @@
 # English content, Kindergarten to Year 6
 
 **Date:** 2026-08-23
-**Status:** approved, not yet implemented
+**Status:** shipped. 155 English templates under `src/content/english/`, with
+`leaks.test.ts` beside them - the measured check this design argued for, which
+found leaks the structural checks could not. What is *not* done is the NSW
+Stage 3 transcription gap this design named as a stop-and-ask: the CWT and
+handwriting codes were never sourced, and `ENGLISH_NSW_OUTCOMES.S3` still holds
+seven codes (`learnr#11`).
 
 ## What this is
 

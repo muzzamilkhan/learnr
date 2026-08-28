@@ -1,9 +1,14 @@
 # Fixture generation: the golden corpus
 
 **Date:** 2026-08-26
-**Status:** Approved design, not yet implemented
 **Scope:** This repository. Build-order step 3 of
 `docs/superpowers/specs/2026-08-26-ios-port-design.md`.
+**Status:** shipped. All four digest sets are in `fixtures/digests/` and
+`npm run fixtures:build` regenerates them; `npm run fixtures:emit` writes the
+full corpus for reading. This design supersedes the conformance-suite section
+of `2026-08-26-ios-port-design.md`, which asked for a corpus both suites load
+and compare field by field - what shipped is a digest, because 50,000 cases is
+37.7 MB and unreviewable as a diff.
 
 ## The change in one paragraph
 

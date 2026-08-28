@@ -1,8 +1,26 @@
 # LearnR: iOS port, API server, and web decoupling
 
 **Date:** 2026-08-26
-**Status:** Approved design, not yet implemented
 **Scope:** Three repositories and one shared contract artifact
+**Status:** largely shipped - steps 1 to 4 of the build order are done and step 5
+is in progress
+
+The build order below is marked up per step rather than summarised here. Two
+things this document says are no longer true of the repository, and are left in
+place rather than rewritten, because a design records what was decided and the
+notes say where reality went instead:
+
+- **Its conformance-suite section is superseded** by
+  `2026-08-26-fixture-generation-design.md`. This design asked for a corpus both
+  suites load and compare field by field; what shipped is a *digest*, because
+  50,000 cases is 37.7 MB and unreviewable as a diff. The cost of that trade is
+  real and lands on the port - a red digest names the template and not the
+  field - which is what `npm run fixtures:emit` exists for.
+- **`learnr-api` and `learnr-contract` are not separate repositories.** The API
+  was folded into `learnr`, which is where `apps/api/` and
+  `apps/api/contract/openapi.yaml` live now. The repository-layout table below
+  is the design as approved; CLAUDE.md's **Where everything lives** is what is
+  actually on disk. `learnr-ios` stayed separate, as designed.
 
 ## The change in one paragraph
 
@@ -374,17 +392,51 @@ CI fails on a template id present in content but absent from fixtures.
 
 ## Build order
 
+**Steps 1 to 4 are done and step 5 is in progress**, marked per step below. Step
+3 ran *after* 4 and 5 had started rather than before them, which the note under
+step 3 anticipated; what it unblocked is everything above `expr`, which had
+nothing to be verified against until it existed.
+
 1. **API server.** Extract the five impure files (`records.ts`, `accounts.ts`,
    `speed-records.ts`, `sharing.ts`, `db.ts`) plus the parent analytics; stand up
    the endpoints; point the web app at them. Web keeps working throughout. This is
    the riskiest step and the one with a live rollback.
+
+   *Done, cutover and all.* The five files are gone from `src/lib`, which is now
+   exactly the pure engine, and the web app reads and writes through `src/api.ts`.
+
 2. **Content extraction.** TypeScript literals to versioned JSON, consumed by web
    first. Proves the format before iOS depends on it.
+
+   *Done.* The 505 templates ship as generated packs under `src/content/packs/`,
+   and `catalog.ts` reads the artifact rather than its source, so a year file
+   edited without `npm run content:build` is a red suite rather than a stale
+   pack. `GET /content/manifest` and `GET /content/:subject/:level` are what a
+   Swift client fetches them from.
+
 3. **Fixture generation.** The oracle corpus, with the TypeScript engine passing
    its own suite. Must precede Swift, or there is nothing to port against.
+
+   *Done* - four digest sets over the shipped content. It ran **after** steps 4
+   and 5 had started rather than before them; what it unblocked is everything
+   above `expr`, which had nothing to be verified against until it existed. The
+   ordering rule held in substance rather than in sequence: no layer was called
+   green until there was an oracle to call it green against.
+
 4. **Swift engine.** Bottom-up: `rng`, `expr`, `generate`, figures, session. Each
    layer green against fixtures before the next begins.
+
+   *Done and green* (`learnr#6`): `rng`, `expr`, `generate`, all eleven figure
+   builders, the session, profile and selector, and the speed run. Figure
+   *rendering* is a SwiftUI `Canvas` rewrite judged by eye, as this design said
+   it would be.
+
 5. **iOS app.** UI, sync queue, offline store.
+
+   *In progress.* The shell, sync queue, code entry, play, diagram, speed picker,
+   speed run and its result are built. What remains beyond screens is the
+   generated client: the models are still hand-transcribed from the contract
+   rather than generated from it, which is the ledger's `L1`.
 
 Steps 1 to 3 ship value independently of iOS: the web app gets a real API, content
 becomes updatable without a deploy, and the engine gains a regression suite it does
@@ -408,10 +460,23 @@ better route to it.
 
 ## Open questions
 
-None blocking. Two to settle during implementation:
+None blocking. Two were to settle during implementation:
 
-- **Existing self-declared children** (`role = 'child' AND parentId IS NULL`),
+**Both are settled.**
+
+- ~~**Existing self-declared children**~~ (`role = 'child' AND parentId IS NULL`),
   if production has any. Grandfather or migrate; needs a query first. Tracked on
   `learnr#3`.
-- **Content update cadence on iOS** - whether the bundled copy refreshes on
+
+  *Ran it (2026-08-28): none.* Production holds three children, every one of them
+  with a `parentId`, and two parents. There are no null-role rows either. So
+  there is nothing to grandfather and nothing to migrate, and the shape CLAUDE.md
+  describes as one "the app no longer creates" was never created. `learnr#13`
+  carries the query and the result.
+- ~~**Content update cadence on iOS**~~ - whether the bundled copy refreshes on
   launch, daily, or only on manifest change. An `ETag` makes any of these cheap.
+
+  *Handed over rather than decided here*, since the content-extraction design
+  puts the choice with the client. It is the ledger's `L15`, open and with iOS;
+  both endpoints serve an `ETag` and answer 304, so all three options stay cheap
+  whichever they pick.
