@@ -1,5 +1,4 @@
 import { prisma } from './db';
-import { readAccount } from './accounts';
 import { SESSION_COOKIE_NAME } from '@/session-cookie';
 
 /**
@@ -71,12 +70,5 @@ export class Forbidden extends Error {}
 export async function requireUser(request: Request): Promise<string> {
   const userId = await userIdFrom(request);
   if (!userId) throw new Unauthorized();
-  return userId;
-}
-
-export async function requireParent(request: Request): Promise<string> {
-  const userId = await requireUser(request);
-  const account = await readAccount(userId);
-  if (account?.role !== 'parent') throw new Forbidden();
   return userId;
 }

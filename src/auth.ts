@@ -1,7 +1,8 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma, isDatabaseConfigured, claimParentRole } from '@/server/db';
+import { prisma, isDatabaseConfigured } from '@/server/db';
+import { claimParentRole } from '@/server/accounts';
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/session-cookie';
 
 /**
@@ -51,10 +52,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
      * `claimParentRole` is a compare-and-set, so every sign-in after the first
      * writes nothing.
      *
-     * The one caller of it that cannot go through the API: this runs during the
-     * OAuth callback, before the session cookie the API authenticates by exists.
-     * `/` calls `POST /me/claim-parent` for the healing case, where there is
-     * one.
+     * The one caller of it that cannot go through an ordinary page render: this
+     * runs during the OAuth callback, before the session cookie the rest of the
+     * app authenticates by exists. `/` calls the same function directly for the
+     * healing case, where there is one.
      */
     async signIn({ user }) {
       if (user.id) await claimParentRole(user.id);

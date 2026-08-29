@@ -44,28 +44,3 @@ export const prisma: PrismaClient | null = globalForPrisma.prisma ?? createClien
 
 // Avoid exhausting connections through hot reloads in dev.
 if (process.env.NODE_ENV !== 'production' && prisma) globalForPrisma.prisma = prisma;
-
-/**
- * A Google sign-in is a grown-up by definition, claimed on the sign-in event
- * itself. This is the same compare-and-set the API's own `claimParentRole`
- * writes, duplicated here because this one runs *during* the OAuth callback,
- * before the session cookie the rest of the app authenticates by exists - the
- * one caller that cannot go through an ordinary request.
- *
- * It stays safe to duplicate because it is a compare-and-set and says so:
- * `role IS NULL`. A role already set is never overwritten however many places
- * write it, so a managed child cannot be promoted by any path.
- */
-export async function claimParentRole(userId: string): Promise<boolean> {
-  if (!prisma) return false;
-  try {
-    const written = await prisma.user.updateMany({
-      where: { id: userId, role: null },
-      data: { role: 'parent' },
-    });
-    return written.count > 0;
-  } catch (error) {
-    console.error('Failed to claim the parent role', error);
-    return false;
-  }
-}

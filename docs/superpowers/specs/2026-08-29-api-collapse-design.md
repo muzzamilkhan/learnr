@@ -376,8 +376,9 @@ The collapse is done when all of these hold:
    Postgres in Testcontainers. The three concurrency guards are the parts most
    worth proving and mean nothing against a mock: `SELECT ... FOR UPDATE` on
    `TopicSkill` and on `roundsBanked`, and the compare-and-set on `targetDay`.
-2. `git grep -l "@learnr/core\|@/lib/revive\|@/lib/dto"` returns nothing, and
-   `git grep -l "from '@/api'"` returns nothing. `browser-api` still has its
+2. `git grep -l "@learnr/core\|@/lib/revive"` returns nothing, and
+   `git grep -l "from '@/api'"` returns nothing. `src/lib/dto.ts` stays and is
+   still imported throughout, per section 3 above. `browser-api` still has its
    three callers - `play-session.tsx`, `speed-run.tsx` and `speed/actions.ts` -
    and that is correct; only its `BASE` changes.
 3. A child can play a full sitting signed out, with no database configured, and

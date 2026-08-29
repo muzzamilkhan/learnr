@@ -3,10 +3,10 @@
  *
  * Pure in the sense the rest of `src/lib` is: `now` is passed in, nothing here
  * reads the clock, and a throttle owns only its own map - so a test can run a
- * window out in a line rather than waiting for one. It lives here rather than
- * in either application because **both halves need it and neither can do the
- * other's job**: the web app sees the browser's IP and the API sees whatever
- * called it, which for a web-app request is Vercel rather than the child.
+ * window out in a line rather than waiting for one. Its one caller is
+ * `redeemLoginCodeAction` in `src/app/actions.ts`, which throttles by the
+ * browser's own IP - the thing a server action can see that a login-code guess
+ * cannot fake by retrying.
  *
  * The window is fixed rather than sliding, counted from the first failure. A
  * sliding window is a list of timestamps per key where this is two numbers, and

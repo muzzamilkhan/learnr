@@ -45,21 +45,6 @@ export type { AttemptResult, PlayerState, Sitting };
  */
 export type IdentifiedAttempt = Attempt & { id?: string };
 
-/** The year the child last chose, as stored - the caller resolves it against content. */
-export async function readSelectedLevel(userId: string): Promise<string | null> {
-  if (!prisma) return null;
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { selectedLevel: true },
-    });
-    return user?.selectedLevel ?? null;
-  } catch (error) {
-    console.error('Failed to read selected level', error);
-    return null;
-  }
-}
-
 export async function writeSelectedLevel(userId: string, level: YearLevel): Promise<void> {
   if (!prisma) return;
   try {

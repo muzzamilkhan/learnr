@@ -12,9 +12,9 @@ import { dismissSpeedRecords } from '@/server/speed-records';
  * tapping a banner away on a screen with no clock running.
  *
  * **It reads the session, and it has to.** It used to skip that read and let
- * `requireParent` refuse the wrong caller on the far side of the wire instead.
- * There is no far side now: `dismissSpeedRecords` scopes its `where` by
- * `parentId`, so the parent has to be resolved here for that scope to exist at
+ * the API refuse the wrong caller on the far side of the wire instead. There is
+ * no far side now: `dismissSpeedRecords` scopes its `where` by `parentId`, so
+ * the parent has to be resolved here for that scope to exist at
  * all. An action is its own request, so `readViewer`'s `cache` buys nothing
  * across from the render - this genuinely costs the session lookup and the
  * account read. It is a grown-up tapping a banner away with no clock running,

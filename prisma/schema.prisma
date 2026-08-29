@@ -322,12 +322,11 @@ model SpeedAttempt {
   /// moves on a correct answer, so the two were always going to be one number.
   correct Int
 
-  /// When the run was *played*, which is not when it was received: an offline
-  /// queue flushes whenever connectivity returns, and this orders the cabinet,
-  /// the report table and the family board and tie-breaks the star. The client
-  /// sends it, bounded by `parsePlayedAt` on the way in. The default is the
-  /// fallback for a client that sends none, which is what every client did
-  /// before the field existed.
+  /// When the run was *played*, which orders the cabinet, the report table and
+  /// the family board and tie-breaks the star. No client here has an offline
+  /// queue, so nothing sends this - the server stamps it with its own clock the
+  /// moment a run is banked (`POST /api/v1/speed/runs`), and the column keeps
+  /// its `@default(now())` as that same fallback.
   playedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
