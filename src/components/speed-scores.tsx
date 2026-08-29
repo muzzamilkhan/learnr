@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { api, type SpeedRecordsRead } from '@/api';
 import { parseScoreTab, type ScoreTab } from '@/lib/speedrun/tabs';
 import { FamilyLeaderboard } from './family-leaderboard';
@@ -49,7 +50,7 @@ const SCALES = {
   parent: { gap: 'mt-3', empty: 'text-sm text-(--color-ink-soft)' },
 } as const;
 
-export async function SpeedScores({
+export function SpeedScores({
   tab,
   defaultTab,
   tabPath,
@@ -79,10 +80,21 @@ export async function SpeedScores({
   const style = SCALES[scale];
   const showing = parseScoreTab(tab, defaultTab);
 
-  // One read for both walls, made here rather than inside whichever half is
-  // drawn, so the two cannot end up reading twice on a screen that shows one.
-  const scores = signedIn ? await api.speedRecords() : null;
+  /*
+    The tabs draw before the scores are read, and that is the point of the
+    boundary below.
 
+    This screen is the child's home, and it used to be four sequential round
+    trips before a single byte of it left the server - the session, the account,
+    the player's own row, and then this. It was the last of them and the cheapest
+    to move: the tabs are built from the URL alone, and the wall under them is
+    the only part that needs the network. So the tabs, the headings and
+    everything above them flush while the read is still in flight.
+
+    `ScoreTabs` is also the half worth having first for its own sake. It is
+    navigation - each tab is a URL on the screen it sits on - and navigation
+    that appears late is navigation a child taps at and misses.
+  */
   return (
     <>
       <ScoreTabs
@@ -93,13 +105,65 @@ export async function SpeedScores({
         scale={scale}
       />
       <div className={style.gap}>
-        {showing === 'records' ? (
-          <Records signedIn={signedIn} scores={scores} basePath={runPath} scale={scale} />
-        ) : (
-          <Board signedIn={signedIn} scores={scores} basePath={runPath} scale={scale} />
-        )}
+        <Suspense fallback={<WallSkeleton scale={scale} />}>
+          <ScoreWall
+            showing={showing}
+            signedIn={signedIn}
+            runPath={runPath}
+            scale={scale}
+          />
+        </Suspense>
       </div>
     </>
+  );
+}
+
+/**
+ * The half that needs the network, kept apart so the boundary above has
+ * something to suspend on. A component only suspends where it awaits, so the
+ * read has to live below the boundary rather than beside it.
+ */
+async function ScoreWall({
+  showing,
+  signedIn,
+  runPath,
+  scale,
+}: {
+  showing: ScoreTab;
+  signedIn: boolean;
+  runPath: string;
+  scale: keyof typeof SCALES;
+}) {
+  // One read for both walls, made here rather than inside whichever half is
+  // drawn, so the two cannot end up reading twice on a screen that shows one.
+  const scores = signedIn ? await api.speedRecords() : null;
+
+  return showing === 'records' ? (
+    <Records signedIn={signedIn} scores={scores} basePath={runPath} scale={scale} />
+  ) : (
+    <Board signedIn={signedIn} scores={scores} basePath={runPath} scale={scale} />
+  );
+}
+
+/**
+ * What stands in while the wall is read.
+ *
+ * Sized to the cards it replaces rather than being a spinner, so the screen
+ * does not jump when they land - a child reaching for a card that moves under
+ * their finger is worse than a card that arrives a moment late.
+ */
+function WallSkeleton({ scale }: { scale: keyof typeof SCALES }) {
+  const height = scale === 'child' ? 'h-28' : 'h-20';
+
+  return (
+    <div aria-hidden className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          className={`${height} animate-pulse rounded-2xl border-2 border-(--color-line) bg-(--color-card)`}
+        />
+      ))}
+    </div>
   );
 }
 
