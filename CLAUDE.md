@@ -32,6 +32,7 @@ npm test --workspace apps/api        # Docker must be running - see below
 npm run typecheck --workspace apps/api
 npm run dev --workspace apps/api     # http://localhost:3001
 npm run contract --workspace apps/api  # regenerate contract/openapi.yaml
+npm run smoke --workspace apps/api     # build the bundle and check it boots
 fly deploy --ha=false                # from the repository root, and by hand
 ```
 
@@ -147,6 +148,22 @@ against a fake client, and they are the parts most worth proving.
 TypeScript with extensionless relative imports, which tsx and vitest resolve and
 plain `node` does not - so a `tsc` build alone produces a server that will not
 start. `tsc --noEmit` still does the typechecking.
+
+**Everything in `dependencies` is external to that bundle except `@learnr/core`,
+and the list is derived rather than written down** (`apps/api/scripts/bundle.ts`).
+It used to be a hand-kept array, so adding a dependency and not listing it made
+esbuild *bundle* it - harmless for an ES module, fatal for a CommonJS one, whose
+`require` calls become esbuild's `__require` shim and throw `Dynamic require of
+"x" is not supported` the moment they run.
+
+**Nothing but the machine could catch that, which is why `npm run smoke` exists.**
+`tsc`, vitest and tsx all resolve CommonJS perfectly well and none of them ever
+loads the bundle, so the artifact that boots on Fly was the one version of this
+server nothing had run. `@fastify/cors` proved the cost on 2026-08-29: a green
+suite, a green typecheck, and a crash loop that took the API down until it was
+rolled back to the previous image. `smoke` builds the bundle, boots it exactly as
+the Dockerfile does and asks it for `/health` - no database needed, since the
+server answers without one - and the deploy workflow gates on it.
 
 ### Deployed
 

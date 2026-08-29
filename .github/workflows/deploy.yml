@@ -106,6 +106,21 @@ jobs:
       - name: Test the API
         run: npm test --workspace apps/api
 
+      # Everything above this line looks at the *source*. `tsc` typechecks it
+      # and vitest runs it through tsx, both of which resolve module formats
+      # that plain `node` loading an esbuild bundle does not - so the artifact
+      # that actually boots on Fly was the one version of this server nothing
+      # here had ever run.
+      #
+      # `@fastify/cors` proved what that costs on 2026-08-29: bundled rather
+      # than externalised, its CommonJS `require` became esbuild's `__require`
+      # shim and threw on the first line that ran. Green suite, green
+      # typecheck, and a crash loop that took the API down until it was rolled
+      # back. This boots the built bundle and asks it for /health, which is
+      # seconds and would have caught it.
+      - name: Boot the API bundle
+        run: npm run smoke --workspace apps/api
+
   api:
     name: Deploy the API to Fly
     needs: [changes, test]
