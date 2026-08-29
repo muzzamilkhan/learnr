@@ -13,6 +13,15 @@
 # is what proves all 553 shipped templates still validate, still fit
 # `MAX_PROMPT_CHARS`, and still never anchor a figure to an answer. Nothing
 # else catches a broken template before it ships.
+#
+# **The schema goes first, so a column exists before the code that reads
+# it.** That was the API-goes-first rule's real content when there were two
+# artifacts, and it survives down to one: a Fly release used to run
+# `db:deploy` as its own release command, ahead of the web app that read
+# through the schema it left. Nothing took that over when Fly went - so the
+# `deploy` job below runs the migration itself, after the tests and before
+# `vercel build`, and a failed migration stops the job before `vercel deploy`
+# ever runs.
 name: Deploy
 
 on:
@@ -70,6 +79,23 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      # For `db:deploy` below - prisma's CLI and the generated client come
+      # from here, not from a global install.
+      - run: npm ci
+
+      # Migrates before anything is built or deployed, so a schema change
+      # lands before the code reading through it does. `db:deploy` is
+      # `node scripts/migrate.mjs`, not a bare `prisma migrate deploy`: Neon
+      # accepts a connection while its compute is still waking from
+      # autosuspend, and the migration's advisory lock then times out
+      # against a fixed 10s Prisma gives no way to raise (P1002) - the
+      # script retries that one error three times, five seconds apart, and
+      # fails the job on anything else. A failing step stops the job here,
+      # before `vercel build` or `vercel deploy` runs.
+      - run: npm run db:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       # Pinned rather than @latest: an unpinned CLI is unreviewed code in the
       # deploy pipeline.
