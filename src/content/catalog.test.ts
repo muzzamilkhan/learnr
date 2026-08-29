@@ -427,6 +427,11 @@ describe('shipped content', () => {
   it('cites no ACARA description where none of them fits the content', () => {
     const nswOnly = [
       ...['oclock', 'clock-says'].map((v) => `maths.K.time.${v}`),
+      // Halves of a shape, which NSW places at Early Stage 1 (MAE-GM-03) and
+      // ACARA does not describe until AC9M2N03 at Year 2 - so Kindergarten is
+      // two years short of an ACARA description and Year 1 one year short.
+      // Same divergence, two years of it.
+      ...['is-half-shaded', 'equal-parts'].map((v) => `maths.K.fractions.${v}`),
       ...['half-past', 'half-past-claim'].map((v) => `maths.1.time.${v}`),
       ...['half-shaded', 'how-much-shaded'].map((v) => `maths.1.fractions.${v}`),
       ...['timeline-years-between', 'timeline-read-year'].map((v) => `maths.5.data.${v}`),
@@ -613,7 +618,10 @@ describe('levels and topics are many-to-many', () => {
   it('carries a topic across several years, harder each time', () => {
     expect(levelsForTopic('maths', 'counting numbers')).toEqual(['K', '1', '2', '3']);
     expect(levelsForTopic('maths', 'multiplication')).toEqual(['2', '3', '4', '5']);
-    expect(levelsForTopic('maths', 'fractions')).toEqual(['1', '2', '3', '4', '5', '6']);
+    // Fractions now start at Kindergarten, where NSW puts halves of a shape
+    // (MAE-GM-03) - the strand pass added the two easier questions below Year
+    // 1's, so this reads K through 6 rather than 1 through 6.
+    expect(levelsForTopic('maths', 'fractions')).toEqual(['K', '1', '2', '3', '4', '5', '6']);
   });
 
   it('round-trips: every topic of a year lists that year back', () => {

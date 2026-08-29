@@ -868,4 +868,284 @@ export const yearK: QuestionTemplate[] = [
     },
     tags: ['AC9MFST01', 'MAE-DATA-01'],
   },
+
+  // ------------------------------------------------------------------
+  // Position, halves, and four more readings of a graph.
+  //
+  // The strand pass that added these was closing the distance to NSW's own
+  // 40/40/20 split across the three strands, and Kindergarten was the year
+  // furthest from it - 20 Number and algebra against 16 Measurement and space
+  // and 5 Statistics and probability. Two Early Stage 1 focus areas had no
+  // question at all: `MAE-GM-01`, position and direction, and `MAE-GM-03`,
+  // halves. Both are below.
+  // ------------------------------------------------------------------
+
+  // **A grid with no letters or numbers on it**, which is what makes this a
+  // position question rather than a grid-reference one. NSW puts grid maps and
+  // references at Stage 2 - Years 3 and 4 - so a lettered axis here would be
+  // asking a five-year-old for a convention the syllabus teaches three years
+  // later. `axisLabels: 'none'` leaves the grid as squares and the answer as
+  // the words a child actually uses for where something is.
+  //
+  // The extent is left open, which is this kind's own answer to the anchoring
+  // rule: the builder picks a different grid on every seed and the row the dot
+  // is in is the same row whatever size the grid is.
+  {
+    id: 'maths.K.position.which-row',
+    subject: 'maths',
+    topic: 'position',
+    level: 'K',
+    prompt: 'Is the dot in the top row or the bottom row?',
+    // Three rows, and the dot in the first or the last of them. The middle row
+    // is deliberately not an answer: "middle" is a third word to read on a
+    // button where the question is about two opposite ones, and a dot one row
+    // from either edge of a taller grid is not clearly in either.
+    vars: [
+      { name: 'x', kind: 'int', min: '1', max: '3' },
+      { name: 'top', kind: 'pick', from: [1, 0] },
+      // Row 3 is the top row: `grid` counts rows up from 1 at the bottom.
+      { name: 'y', kind: 'expr', expr: 'top == 1 ? 3 : 1' },
+    ],
+    answer: "top == 1 ? 'top' : 'bottom'",
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'top'", "'bottom'"] },
+    hint: 'The top row is the one right at the top of the grid.',
+    figure: {
+      kind: 'grid',
+      at: "x + ',' + y",
+      rows: '3',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9MFSP02', 'MAE-GM-01'],
+  },
+  {
+    id: 'maths.K.position.which-side',
+    subject: 'maths',
+    topic: 'position',
+    level: 'K',
+    prompt: 'Is the dot on the left side or the right side?',
+    // The columns pin rather than the rows, and for the reason the row
+    // question pins rows: the dot sits in the first or the last column so that
+    // "left" and "right" are true of it without a judgement call.
+    vars: [
+      { name: 'y', kind: 'int', min: '1', max: '3' },
+      { name: 'left', kind: 'pick', from: [1, 0] },
+      { name: 'x', kind: 'expr', expr: 'left == 1 ? 1 : 3' },
+    ],
+    answer: "left == 1 ? 'left' : 'right'",
+    answerType: 'choice',
+    choices: { count: 2, distractors: ["'left'", "'right'"] },
+    hint: 'Left is the side your left hand is on.',
+    figure: {
+      kind: 'grid',
+      at: "x + ',' + y",
+      columns: '3',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9MFSP02', 'MAE-GM-01'],
+  },
+
+  // **Halves, and Year 1 asks these too** - `maths.1.fractions.is-half` and
+  // `.how-much-shaded`. That is a restatement made legitimate by the year
+  // rather than by the citation, which is the ordinary case: NSW carries
+  // halves at Early Stage 1 (`MAE-GM-03`) *and* at Stage 1 (`MA1-GM-03`), and
+  // these two are the easier reading. Year 1's boolean walks the shaded count
+  // either side of the half over 4, 6 and 8 parts; this one only ever shows
+  // two or four parts, so a child can see the halves without counting past
+  // four. Keep them a step apart if either is ever reworked.
+  {
+    id: 'maths.K.fractions.is-half-shaded',
+    subject: 'maths',
+    topic: 'fractions',
+    level: 'K',
+    prompt: 'True or false: half of this shape is shaded.',
+    // Derived, never constrained. A constraint of the form "shade the half
+    // half the time" is satisfied by redrawing the whole scope, so the branch
+    // that is harder to satisfy gets thrown away more often and the answer
+    // comes out lopsided - which is the mistake two Year 1 templates made and
+    // had to be rewritten for. Here `half` decides the answer and `n` falls
+    // out of it, so no draw is ever rejected and the split is the pick's.
+    vars: [
+      { name: 'd', kind: 'pick', from: [2, 4] },
+      { name: 'half', kind: 'pick', from: [1, 0] },
+      // **The whole shape shaded is one of the false answers, and on two parts
+      // it is the only one.** A shape cut in two can be shaded one part - the
+      // half - or both, so a "not the half" branch that only ever shades
+      // between 1 and `d - 1` parts has nothing to draw at `d = 2` and answers
+      // true anyway. Written that way first and measured at 84/16 true, which
+      // is the skew this file's Year 1 siblings were rewritten for.
+      //
+      // `k` walks the shadings *other than* the half: 1 to `d`, with `d / 2`
+      // stepped over. Two parts gives {2}; four gives {1, 3, 4}.
+      { name: 'k', kind: 'int', min: '1', max: 'd - 1' },
+      { name: 'n', kind: 'expr', expr: 'half == 1 ? d / 2 : (k < d / 2 ? k : k + 1)' },
+    ],
+    answer: 'n * 2 == d',
+    hint: 'Half means the shaded parts and the plain parts are the same.',
+    // `shape` left open: the prompt says "this shape" and names nothing, so a
+    // circle, a strip and a rectangle are all honest drawings of it.
+    figure: { kind: 'fraction-shape', numerator: 'n', denominator: 'd' },
+    tags: ['MAE-GM-03'],
+  },
+  {
+    id: 'maths.K.fractions.equal-parts',
+    subject: 'maths',
+    topic: 'fractions',
+    level: 'K',
+    prompt: 'How many equal parts is this shape cut into?',
+    // Counting the parts rather than reading the fraction, which is where a
+    // five-year-old meets a fraction first - the shape is cut fairly, and how
+    // many pieces that made is a counting question with a picture.
+    vars: [
+      { name: 'd', kind: 'int', min: '2', max: '6' },
+      { name: 'n', kind: 'int', min: '1', max: 'd - 1' },
+    ],
+    answer: 'd',
+    hint: 'Count all the parts, the shaded ones and the plain ones.',
+    figure: { kind: 'fraction-shape', numerator: 'n', denominator: 'd' },
+    tags: ['MAE-GM-03'],
+  },
+
+  // Five more readings of a graph, which is the other half of the strand pass.
+  // The two kinds above each had a pair - read one row, and compare the rows -
+  // and this completes the set of things a five-year-old can be asked about a
+  // display they can already read: the smallest, the total, and how much more
+  // one is than another. Every one of them is `MAE-DATA-01`, which is the only
+  // Statistics and probability outcome Early Stage 1 has - NSW has no Chance
+  // focus area until Stage 1, so a chance question here would have no honest
+  // NSW code to cite.
+  {
+    id: 'maths.K.data.graph-fewest',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'This graph shows the fruit we ate. Which fruit did the fewest children eat?',
+    // Three-letter names throughout. `bar`'s room for a category name shrinks
+    // as the value axis grows a digit, and a name over budget shrinks the very
+    // budget it is measured against - so short nouns, and nothing that has to
+    // be argued for.
+    vars: [
+      { name: 'fig', kind: 'int', min: '1', max: '5' },
+      { name: 'pear', kind: 'int', min: '1', max: '5' },
+      { name: 'plum', kind: 'int', min: '1', max: '5' },
+    ],
+    // Distinct so there is one fewest, and something above 1 so the axis has
+    // more than a single step - which `bar` refuses outright. Three values
+    // drawn 1 to 5 are all 1 about once in 125 draws, which a 50-seed
+    // validation sample would pass by luck rather than by construction.
+    constraints: ['fig != pear', 'pear != plum', 'fig != plum', 'max(fig, pear, plum) > 1'],
+    answer: "fig < pear && fig < plum ? 'Fig' : pear < plum ? 'Pear' : 'Plum'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'Fig'", "'Pear'", "'Plum'"] },
+    hint: 'The shortest one is the fewest.',
+    figure: {
+      kind: 'bar',
+      values: "fig + ',' + pear + ',' + plum",
+      labels: "'Fig,Pear,Plum'",
+      scale: '1',
+    },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
+  {
+    id: 'maths.K.data.graph-altogether',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'This graph shows the hats we found. How many hats are there altogether?',
+    // **Two categories, not three.** The total is the point and a
+    // five-year-old adds two numbers; three would make this a question about
+    // adding three, which Kindergarten does not do. Two bars also leave the
+    // most room a category name ever gets.
+    vars: [
+      { name: 'red', kind: 'int', min: '1', max: '5' },
+      { name: 'blue', kind: 'int', min: '1', max: '5' },
+    ],
+    constraints: ['max(red, blue) > 1'],
+    answer: 'red + blue',
+    hint: 'Read both numbers off the graph, then add them.',
+    figure: {
+      kind: 'bar',
+      values: "red + ',' + blue",
+      labels: "'Red,Blue'",
+      scale: '1',
+    },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
+  {
+    id: 'maths.K.data.graph-more-than',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'How many more children chose {big} than {small}?',
+    // The two names come out of the draw rather than being written into the
+    // prompt, so which bar is the taller one moves and the question cannot be
+    // answered by learning that the first name is always the bigger.
+    vars: [
+      { name: 'cat', kind: 'int', min: '1', max: '5' },
+      { name: 'dog', kind: 'int', min: '1', max: '5' },
+      { name: 'big', kind: 'expr', expr: "cat > dog ? 'Cat' : 'Dog'" },
+      { name: 'small', kind: 'expr', expr: "cat > dog ? 'Dog' : 'Cat'" },
+    ],
+    // Different, so the taller bar is a fact rather than a tie - and the
+    // answer is then never 0, which is not a reading a child takes off a
+    // graph.
+    constraints: ['cat != dog'],
+    answer: 'abs(cat - dog)',
+    hint: 'Read both numbers off the graph, then take the smaller from the bigger.',
+    figure: {
+      kind: 'bar',
+      values: "cat + ',' + dog",
+      labels: "'Cat,Dog'",
+      scale: '1',
+    },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
+  {
+    id: 'maths.K.data.picture-most',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'Each picture stands for one sticker. Who has the most stickers?',
+    // Four at most and three-letter names, which is what a pictograph row
+    // permits: the row label's width caps the icons in a row, and a
+    // three-character name leaves room for four.
+    vars: [
+      { name: 'ivy', kind: 'int', min: '1', max: '4' },
+      { name: 'joe', kind: 'int', min: '1', max: '4' },
+      { name: 'sam', kind: 'int', min: '1', max: '4' },
+    ],
+    constraints: ['ivy != joe', 'joe != sam', 'ivy != sam'],
+    answer: "ivy > joe && ivy > sam ? 'Ivy' : joe > sam ? 'Joe' : 'Sam'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'Ivy'", "'Joe'", "'Sam'"] },
+    hint: 'The longest row is the most.',
+    figure: {
+      kind: 'pictograph',
+      counts: "ivy + ',' + joe + ',' + sam",
+      labels: "'Ivy,Joe,Sam'",
+      key: '1',
+    },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
+  {
+    id: 'maths.K.data.picture-altogether',
+    subject: 'maths',
+    topic: 'data',
+    level: 'K',
+    prompt: 'Each picture stands for one shell. How many shells did they find altogether?',
+    // Two rows, for `graph-altogether`'s reason.
+    vars: [
+      { name: 'mia', kind: 'int', min: '1', max: '4' },
+      { name: 'tom', kind: 'int', min: '1', max: '4' },
+    ],
+    answer: 'mia + tom',
+    hint: 'Count each row, then add the two numbers.',
+    figure: {
+      kind: 'pictograph',
+      counts: "mia + ',' + tom",
+      labels: "'Mia,Tom'",
+      key: '1',
+    },
+    tags: ['AC9MFST01', 'MAE-DATA-01'],
+  },
 ];

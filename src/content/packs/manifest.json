@@ -1,5 +1,5 @@
 {
-  "version": "6548429a5e23",
+  "version": "e9b4457b9660",
   "subjects": [
     {
       "subject": "english",
@@ -103,15 +103,17 @@
             "counting numbers",
             "data",
             "even and odd",
+            "fractions",
             "measurement",
             "patterns",
+            "position",
             "shapes",
             "sharing",
             "subtraction",
             "time"
           ],
-          "templateCount": 41,
-          "etag": "af9986462fd3"
+          "templateCount": 50,
+          "etag": "e1461f522d31"
         },
         {
           "level": "1",

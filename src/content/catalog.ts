@@ -369,6 +369,15 @@ export const DIVERGENCE_NOTES: readonly DivergenceNote[] = [
       'NSW places halves and quarters of a shape at Stage 1 (MA1-GM-03). ACARA’s first fraction ' +
       'description, AC9M2N03, is at Year 2, and Year 1 has none to cite.',
   },
+  {
+    cites: 'nsw',
+    level: 'K',
+    topic: 'fractions',
+    reason:
+      'The same disagreement as Year 1’s, one year earlier and wider: NSW puts halves of a ' +
+      'shape at Early Stage 1 (MAE-GM-03), where ACARA’s first fraction description is ' +
+      'AC9M2N03 at Year 2 — so Kindergarten is two years short of one rather than one.',
+  },
 ];
 
 /**

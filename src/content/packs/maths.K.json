@@ -1,5 +1,5 @@
 {
-  "version": "af9986462fd3",
+  "version": "e1461f522d31",
   "subject": "maths",
   "level": "K",
   "templates": [
@@ -1520,6 +1520,401 @@
         "kind": "pictograph",
         "counts": "ana + ',' + ben + ',' + kim",
         "labels": "'Ana,Ben,Kim'",
+        "key": "1"
+      },
+      "tags": [
+        "AC9MFST01",
+        "MAE-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.K.position.which-row",
+      "subject": "maths",
+      "topic": "position",
+      "level": "K",
+      "prompt": "Is the dot in the top row or the bottom row?",
+      "vars": [
+        {
+          "name": "x",
+          "kind": "int",
+          "min": "1",
+          "max": "3"
+        },
+        {
+          "name": "top",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "y",
+          "kind": "expr",
+          "expr": "top == 1 ? 3 : 1"
+        }
+      ],
+      "answer": "top == 1 ? 'top' : 'bottom'",
+      "answerType": "choice",
+      "choices": {
+        "count": 2,
+        "distractors": [
+          "'top'",
+          "'bottom'"
+        ]
+      },
+      "hint": "The top row is the one right at the top of the grid.",
+      "figure": {
+        "kind": "grid",
+        "at": "x + ',' + y",
+        "rows": "3",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9MFSP02",
+        "MAE-GM-01"
+      ]
+    },
+    {
+      "id": "maths.K.position.which-side",
+      "subject": "maths",
+      "topic": "position",
+      "level": "K",
+      "prompt": "Is the dot on the left side or the right side?",
+      "vars": [
+        {
+          "name": "y",
+          "kind": "int",
+          "min": "1",
+          "max": "3"
+        },
+        {
+          "name": "left",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "x",
+          "kind": "expr",
+          "expr": "left == 1 ? 1 : 3"
+        }
+      ],
+      "answer": "left == 1 ? 'left' : 'right'",
+      "answerType": "choice",
+      "choices": {
+        "count": 2,
+        "distractors": [
+          "'left'",
+          "'right'"
+        ]
+      },
+      "hint": "Left is the side your left hand is on.",
+      "figure": {
+        "kind": "grid",
+        "at": "x + ',' + y",
+        "columns": "3",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9MFSP02",
+        "MAE-GM-01"
+      ]
+    },
+    {
+      "id": "maths.K.fractions.is-half-shaded",
+      "subject": "maths",
+      "topic": "fractions",
+      "level": "K",
+      "prompt": "True or false: half of this shape is shaded.",
+      "vars": [
+        {
+          "name": "d",
+          "kind": "pick",
+          "from": [
+            2,
+            4
+          ]
+        },
+        {
+          "name": "half",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "k",
+          "kind": "int",
+          "min": "1",
+          "max": "d - 1"
+        },
+        {
+          "name": "n",
+          "kind": "expr",
+          "expr": "half == 1 ? d / 2 : (k < d / 2 ? k : k + 1)"
+        }
+      ],
+      "answer": "n * 2 == d",
+      "hint": "Half means the shaded parts and the plain parts are the same.",
+      "figure": {
+        "kind": "fraction-shape",
+        "numerator": "n",
+        "denominator": "d"
+      },
+      "tags": [
+        "MAE-GM-03"
+      ]
+    },
+    {
+      "id": "maths.K.fractions.equal-parts",
+      "subject": "maths",
+      "topic": "fractions",
+      "level": "K",
+      "prompt": "How many equal parts is this shape cut into?",
+      "vars": [
+        {
+          "name": "d",
+          "kind": "int",
+          "min": "2",
+          "max": "6"
+        },
+        {
+          "name": "n",
+          "kind": "int",
+          "min": "1",
+          "max": "d - 1"
+        }
+      ],
+      "answer": "d",
+      "hint": "Count all the parts, the shaded ones and the plain ones.",
+      "figure": {
+        "kind": "fraction-shape",
+        "numerator": "n",
+        "denominator": "d"
+      },
+      "tags": [
+        "MAE-GM-03"
+      ]
+    },
+    {
+      "id": "maths.K.data.graph-fewest",
+      "subject": "maths",
+      "topic": "data",
+      "level": "K",
+      "prompt": "This graph shows the fruit we ate. Which fruit did the fewest children eat?",
+      "vars": [
+        {
+          "name": "fig",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "pear",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "plum",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        }
+      ],
+      "constraints": [
+        "fig != pear",
+        "pear != plum",
+        "fig != plum",
+        "max(fig, pear, plum) > 1"
+      ],
+      "answer": "fig < pear && fig < plum ? 'Fig' : pear < plum ? 'Pear' : 'Plum'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'Fig'",
+          "'Pear'",
+          "'Plum'"
+        ]
+      },
+      "hint": "The shortest one is the fewest.",
+      "figure": {
+        "kind": "bar",
+        "values": "fig + ',' + pear + ',' + plum",
+        "labels": "'Fig,Pear,Plum'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9MFST01",
+        "MAE-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.K.data.graph-altogether",
+      "subject": "maths",
+      "topic": "data",
+      "level": "K",
+      "prompt": "This graph shows the hats we found. How many hats are there altogether?",
+      "vars": [
+        {
+          "name": "red",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "blue",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        }
+      ],
+      "constraints": [
+        "max(red, blue) > 1"
+      ],
+      "answer": "red + blue",
+      "hint": "Read both numbers off the graph, then add them.",
+      "figure": {
+        "kind": "bar",
+        "values": "red + ',' + blue",
+        "labels": "'Red,Blue'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9MFST01",
+        "MAE-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.K.data.graph-more-than",
+      "subject": "maths",
+      "topic": "data",
+      "level": "K",
+      "prompt": "How many more children chose {big} than {small}?",
+      "vars": [
+        {
+          "name": "cat",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "dog",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "big",
+          "kind": "expr",
+          "expr": "cat > dog ? 'Cat' : 'Dog'"
+        },
+        {
+          "name": "small",
+          "kind": "expr",
+          "expr": "cat > dog ? 'Dog' : 'Cat'"
+        }
+      ],
+      "constraints": [
+        "cat != dog"
+      ],
+      "answer": "abs(cat - dog)",
+      "hint": "Read both numbers off the graph, then take the smaller from the bigger.",
+      "figure": {
+        "kind": "bar",
+        "values": "cat + ',' + dog",
+        "labels": "'Cat,Dog'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9MFST01",
+        "MAE-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.K.data.picture-most",
+      "subject": "maths",
+      "topic": "data",
+      "level": "K",
+      "prompt": "Each picture stands for one sticker. Who has the most stickers?",
+      "vars": [
+        {
+          "name": "ivy",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        },
+        {
+          "name": "joe",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        },
+        {
+          "name": "sam",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        }
+      ],
+      "constraints": [
+        "ivy != joe",
+        "joe != sam",
+        "ivy != sam"
+      ],
+      "answer": "ivy > joe && ivy > sam ? 'Ivy' : joe > sam ? 'Joe' : 'Sam'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'Ivy'",
+          "'Joe'",
+          "'Sam'"
+        ]
+      },
+      "hint": "The longest row is the most.",
+      "figure": {
+        "kind": "pictograph",
+        "counts": "ivy + ',' + joe + ',' + sam",
+        "labels": "'Ivy,Joe,Sam'",
+        "key": "1"
+      },
+      "tags": [
+        "AC9MFST01",
+        "MAE-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.K.data.picture-altogether",
+      "subject": "maths",
+      "topic": "data",
+      "level": "K",
+      "prompt": "Each picture stands for one shell. How many shells did they find altogether?",
+      "vars": [
+        {
+          "name": "mia",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        },
+        {
+          "name": "tom",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        }
+      ],
+      "answer": "mia + tom",
+      "hint": "Count each row, then add the two numbers.",
+      "figure": {
+        "kind": "pictograph",
+        "counts": "mia + ',' + tom",
+        "labels": "'Mia,Tom'",
         "key": "1"
       },
       "tags": [
