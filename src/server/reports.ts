@@ -29,9 +29,16 @@ import { readSpeedSummaries } from './speed-records';
  */
 
 /**
- * How far back the calendar's read may reach: four Monday-to-Sunday weeks and a
- * margin, which is the widest window any caller has a use for. A cap as well as
- * a default - the window decides how many rows a single call reads.
+ * How far back the calendar's read reaches: four Monday-to-Sunday weeks and a
+ * margin, which is the widest window any caller has a use for.
+ *
+ * **A default, and no longer a cap.** It used to be both, because the window
+ * arrived off a URL and the number of rows one request read had to be bounded
+ * by something. Both callers are in this repository now and both pass a
+ * literal, so the zod bounds went with the route rather than being restated
+ * here against a caller that cannot be wrong. A caller that wanted more would
+ * get it; the guard to reinstate if one ever arrives from outside is the clamp,
+ * not this constant.
  */
 export const CALENDAR_WINDOW_MS = 29 * 24 * 60 * 60 * 1000;
 
@@ -62,7 +69,8 @@ export interface ChildRecordOptions {
   /**
    * Answers *per topic*, not a row cap - the report unfolds `EXAMPLE_ANSWERS` of
    * each and the lab asks for fifty, because a pattern across a child's answers
-   * cannot show in three.
+   * cannot show in three. Bounded by nothing but its two callers, for the reason
+   * `CALENDAR_WINDOW_MS` gives.
    */
   perTopic?: number;
   /** A duration, not an instant: this side keeps the clock. */

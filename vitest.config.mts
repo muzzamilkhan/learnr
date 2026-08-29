@@ -2,7 +2,26 @@ import { defineConfig } from 'vitest/config';
 import { resolve } from 'node:path';
 
 const rootDir = import.meta.dirname;
-const alias = { '@': resolve(rootDir, 'src') };
+
+/**
+ * `server-only` is aliased to an empty stub, for both projects.
+ *
+ * `src/server/db.ts` imports the real package so a `'use client'` file that
+ * reaches a data module fails `next build` rather than shipping Prisma to a
+ * browser. Its entry point throws on import unless the bundler asks for the
+ * `react-server` export condition, and vitest asks for neither - so without
+ * this every test that touches a data module would fail on a guard that is
+ * working correctly.
+ *
+ * It is shared rather than sitting on the `db` project alone: `unit` reaches
+ * `src/server` transitively through the components that render a wall of
+ * scores, and would break the same way. The alias is vitest's only, so the
+ * guard is live everywhere it matters.
+ */
+const alias = {
+  '@': resolve(rootDir, 'src'),
+  'server-only': resolve(rootDir, 'src/server/test-helpers/server-only-stub.ts'),
+};
 
 /**
  * Two projects, because the two suites cannot share a runner.
