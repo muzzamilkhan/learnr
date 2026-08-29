@@ -23,8 +23,8 @@ describe('questionTemplateSchema', () => {
    * This is the whole corpus rather than a sample, which is what makes it a
    * guard rather than a spot check.
    */
-  it('round-trips all 507 shipped templates without losing a field', () => {
-    expect(templates).toHaveLength(507);
+  it('round-trips all 553 shipped templates without losing a field', () => {
+    expect(templates).toHaveLength(553);
     for (const template of templates) {
       expect(questionTemplateSchema.parse(template)).toEqual(template);
     }
