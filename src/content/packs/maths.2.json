@@ -1,5 +1,5 @@
 {
-  "version": "0e7ce738fd0f",
+  "version": "dd70bd8f3503",
   "subject": "maths",
   "level": "2",
   "templates": [
@@ -1926,6 +1926,338 @@
         ]
       },
       "hint": "More counters of one colour means more chance of taking that colour.",
+      "tags": [
+        "AC9M2P01",
+        "MA1-CHAN-01"
+      ]
+    },
+    {
+      "id": "maths.2.measurement.squares-cover",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "2",
+      "prompt": "How many squares cover this shape altogether?",
+      "vars": [
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "3",
+          "max": "6"
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "3",
+          "max": "6"
+        },
+        {
+          "name": "ax",
+          "kind": "int",
+          "min": "1",
+          "max": "c"
+        },
+        {
+          "name": "ay",
+          "kind": "int",
+          "min": "1",
+          "max": "r"
+        }
+      ],
+      "answer": "c * r",
+      "hint": "Count the squares in one row, then count how many rows there are.",
+      "figure": {
+        "kind": "grid",
+        "at": "ax + ',' + ay",
+        "columns": "c",
+        "rows": "r",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9M2M02",
+        "MA1-2DS-02"
+      ]
+    },
+    {
+      "id": "maths.2.measurement.holds-least",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "2",
+      "prompt": "A tin holds {a} cups, a pail {b} and a vase {c}. Which holds the least?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "3",
+          "max": "30"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "3",
+          "max": "30"
+        },
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "3",
+          "max": "30"
+        }
+      ],
+      "constraints": [
+        "a != b",
+        "b != c",
+        "a != c"
+      ],
+      "answer": "a < b && a < c ? 'the tin' : b < c ? 'the pail' : 'the vase'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'the tin'",
+          "'the pail'",
+          "'the vase'"
+        ]
+      },
+      "hint": "The one that holds the fewest cups holds the least.",
+      "tags": [
+        "AC9M2M01",
+        "MA1-3DS-02"
+      ]
+    },
+    {
+      "id": "maths.2.measurement.length-together",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "2",
+      "prompt": "One ribbon is {a} paperclips long and another is {b}. How long are they end to end?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "4",
+          "max": "40"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "4",
+          "max": "40"
+        }
+      ],
+      "answer": "a + b",
+      "hint": "Add the two lengths together.",
+      "tags": [
+        "AC9M2M01",
+        "MA1-GM-02"
+      ]
+    },
+    {
+      "id": "maths.2.data.complete-the-count",
+      "subject": "maths",
+      "topic": "data",
+      "level": "2",
+      "prompt": "{total} children were asked. {a} chose red and {b} chose blue. How many chose green?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "green",
+          "kind": "int",
+          "min": "1",
+          "max": "12"
+        },
+        {
+          "name": "total",
+          "kind": "expr",
+          "expr": "a + b + green"
+        }
+      ],
+      "answer": "green",
+      "hint": "Take the red and the blue away from {total}.",
+      "tags": [
+        "AC9M2ST01",
+        "MA1-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.2.data.picture-key-two-total",
+      "subject": "maths",
+      "topic": "data",
+      "level": "2",
+      "prompt": "Each picture stands for 2 apples. How many apples did they pick altogether?",
+      "vars": [
+        {
+          "name": "ann",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        },
+        {
+          "name": "raj",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        }
+      ],
+      "answer": "(ann + raj) * 2",
+      "hint": "Count the pictures in both rows, then count them in twos.",
+      "figure": {
+        "kind": "pictograph",
+        "counts": "(ann * 2) + ',' + (raj * 2)",
+        "labels": "'Ann,Raj'",
+        "key": "2"
+      },
+      "tags": [
+        "AC9M2ST02",
+        "MA1-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.2.data.graph-difference-scale-two",
+      "subject": "maths",
+      "topic": "data",
+      "level": "2",
+      "prompt": "How many more children come by car than by bus?",
+      "vars": [
+        {
+          "name": "bus",
+          "kind": "int",
+          "min": "1",
+          "max": "3"
+        },
+        {
+          "name": "gap",
+          "kind": "int",
+          "min": "1",
+          "max": "2"
+        },
+        {
+          "name": "car",
+          "kind": "expr",
+          "expr": "bus + gap"
+        },
+        {
+          "name": "van",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        }
+      ],
+      "answer": "gap * 2",
+      "hint": "Read both numbers off the graph, then take one from the other.",
+      "figure": {
+        "kind": "bar",
+        "values": "(car * 2) + ',' + (bus * 2) + ',' + (van * 2)",
+        "labels": "'Car,Bus,Van'",
+        "scale": "2"
+      },
+      "tags": [
+        "AC9M2ST02",
+        "MA1-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.2.chance.bag-how-likely",
+      "subject": "maths",
+      "topic": "chance",
+      "level": "2",
+      "prompt": "A bag holds {bag}. Taking out a {asked} counter is...",
+      "vars": [
+        {
+          "name": "which",
+          "kind": "pick",
+          "from": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        },
+        {
+          "name": "bag",
+          "kind": "expr",
+          "expr": "which == 0 ? (r + ' red and ' + b + ' blue counters') : (r + ' red counters')"
+        },
+        {
+          "name": "asked",
+          "kind": "expr",
+          "expr": "which == 1 ? 'blue' : 'red'"
+        }
+      ],
+      "answer": "which == 0 ? 'possible' : which == 1 ? 'impossible' : 'certain'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'certain'",
+          "'possible'",
+          "'impossible'"
+        ]
+      },
+      "hint": "Impossible means there are none of them in the bag at all.",
+      "tags": [
+        "AC9M2P01",
+        "MA1-CHAN-01"
+      ]
+    },
+    {
+      "id": "maths.2.chance.spinner-unlikely",
+      "subject": "maths",
+      "topic": "chance",
+      "level": "2",
+      "prompt": "True or false: the arrow is unlikely to stop on a shaded part.",
+      "vars": [
+        {
+          "name": "n",
+          "kind": "pick",
+          "from": [
+            4,
+            6
+          ]
+        },
+        {
+          "name": "few",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "int",
+          "min": "few == 1 ? 1 : n / 2 + 1",
+          "max": "few == 1 ? n / 2 - 1 : n"
+        }
+      ],
+      "answer": "s * 2 < n",
+      "hint": "Count the shaded parts, then the parts with no shading.",
+      "figure": {
+        "kind": "spinner",
+        "sectors": "n == 4 ? '1,1,1,1' : '1,1,1,1,1,1'",
+        "fills": "n == 4 ? (s == 1 ? 'a,b,b,b' : s == 2 ? 'a,a,b,b' : s == 3 ? 'a,a,a,b' : 'a,a,a,a') : (s == 1 ? 'a,b,b,b,b,b' : s == 2 ? 'a,a,b,b,b,b' : s == 3 ? 'a,a,a,b,b,b' : s == 4 ? 'a,a,a,a,b,b' : s == 5 ? 'a,a,a,a,a,b' : 'a,a,a,a,a,a')"
+      },
       "tags": [
         "AC9M2P01",
         "MA1-CHAN-01"

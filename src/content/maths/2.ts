@@ -1202,4 +1202,225 @@ export const year2: QuestionTemplate[] = [
     hint: 'More counters of one colour means more chance of taking that colour.',
     tags: ['AC9M2P01', 'MA1-CHAN-01'],
   },
+
+  // ------------------------------------------------------------------
+  // Area, capacity, length, and five more of chance and data.
+  //
+  // The strand pass (issue #12). Year 2 was 24 Number and algebra, 21
+  // Measurement and space, 7 Statistics and probability; the eight below make
+  // it 24/24/12. Three Stage 1 focus areas had no Year 2 question at all -
+  // `MA1-2DS-02` area, `MA1-3DS-02` capacity and `MA1-GM-02` length - which is
+  // the same shape of hole Year 1 had, one year up.
+  // ------------------------------------------------------------------
+
+  // **Year 1 asks this too**, at `maths.1.measurement.squares-cover`, and the
+  // step is the numbers rather than the question: 2-to-5-a-side there against
+  // 3-to-6 here, so the count runs to 36 rather than 25 and is past what a
+  // child counts one square at a time. That is the ordinary "harder each time"
+  // reason a topic recurs, not a citation difference - both cite `MA1-2DS-02`,
+  // which spans the stage. Keep them a step apart if either is reworked.
+  {
+    id: 'maths.2.measurement.squares-cover',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '2',
+    prompt: 'How many squares cover this shape altogether?',
+    vars: [
+      { name: 'c', kind: 'int', min: '3', max: '6' },
+      { name: 'r', kind: 'int', min: '3', max: '6' },
+      { name: 'ax', kind: 'int', min: '1', max: 'c' },
+      { name: 'ay', kind: 'int', min: '1', max: 'r' },
+    ],
+    answer: 'c * r',
+    hint: 'Count the squares in one row, then count how many rows there are.',
+    figure: {
+      kind: 'grid',
+      at: "ax + ',' + ay",
+      columns: 'c',
+      rows: 'r',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9M2M02', 'MA1-2DS-02'],
+  },
+  {
+    id: 'maths.2.measurement.holds-least',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '2',
+    prompt: 'A tin holds {a} cups, a pail {b} and a vase {c}. Which holds the least?',
+    vars: [
+      { name: 'a', kind: 'int', min: '3', max: '30' },
+      { name: 'b', kind: 'int', min: '3', max: '30' },
+      { name: 'c', kind: 'int', min: '3', max: '30' },
+    ],
+    constraints: ['a != b', 'b != c', 'a != c'],
+    answer: "a < b && a < c ? 'the tin' : b < c ? 'the pail' : 'the vase'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'the tin'", "'the pail'", "'the vase'"] },
+    hint: 'The one that holds the fewest cups holds the least.',
+    tags: ['AC9M2M01', 'MA1-3DS-02'],
+  },
+  {
+    id: 'maths.2.measurement.length-together',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '2',
+    // Informal units, because square and metric units are Stage 2 content and
+    // this is a Stage 1 year - the paperclip is the unit Year 1 and Year 2 are
+    // both still measuring in.
+    prompt: 'One ribbon is {a} paperclips long and another is {b}. How long are they end to end?',
+    vars: [
+      { name: 'a', kind: 'int', min: '4', max: '40' },
+      { name: 'b', kind: 'int', min: '4', max: '40' },
+    ],
+    answer: 'a + b',
+    hint: 'Add the two lengths together.',
+    tags: ['AC9M2M01', 'MA1-GM-02'],
+  },
+
+  // `MA1-DATA-01` is gathering and organising data, and Year 2 had cited only
+  // `MA1-DATA-02` - what a finished display shows. Working out the group
+  // nobody counted is the other half of that.
+  {
+    id: 'maths.2.data.complete-the-count',
+    subject: 'maths',
+    topic: 'data',
+    level: '2',
+    prompt: '{total} children were asked. {a} chose red and {b} chose blue. How many chose green?',
+    // The total is built from the three groups rather than drawn and then
+    // divided up, so no draw is ever thrown away and the answer cannot come
+    // out zero or negative.
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'int', min: '2', max: '12' },
+      { name: 'green', kind: 'int', min: '1', max: '12' },
+      { name: 'total', kind: 'expr', expr: 'a + b + green' },
+    ],
+    answer: 'green',
+    hint: 'Take the red and the blue away from {total}.',
+    tags: ['AC9M2ST01', 'MA1-DATA-01'],
+  },
+  {
+    id: 'maths.2.data.picture-key-two-total',
+    subject: 'maths',
+    topic: 'data',
+    level: '2',
+    // **One picture stands for two, said in the prompt**, which is the
+    // carve-out this year already made once at `picture-key-two`: a
+    // many-to-one scale is content NSW places at Stage 3, and it is defensible
+    // here only because counting in twos is core Stage 1 work *and* the key is
+    // stated. Same argument, same year, so no new one is needed - but do not
+    // read it as a general licence.
+    prompt: 'Each picture stands for 2 apples. How many apples did they pick altogether?',
+    // Counts in apples rather than icons, and even, so the row is a whole
+    // number of pictures.
+    vars: [
+      { name: 'ann', kind: 'int', min: '1', max: '4' },
+      { name: 'raj', kind: 'int', min: '1', max: '4' },
+    ],
+    answer: '(ann + raj) * 2',
+    hint: 'Count the pictures in both rows, then count them in twos.',
+    figure: {
+      kind: 'pictograph',
+      counts: "(ann * 2) + ',' + (raj * 2)",
+      labels: "'Ann,Raj'",
+      key: '2',
+    },
+    tags: ['AC9M2ST02', 'MA1-DATA-02'],
+  },
+  {
+    id: 'maths.2.data.graph-difference-scale-two',
+    subject: 'maths',
+    topic: 'data',
+    level: '2',
+    prompt: 'How many more children come by car than by bus?',
+    // A scale of two, so the answer is not the number of rungs - which is the
+    // step this year takes over Year 1's difference question, where every bar
+    // was read straight off the lines.
+    //
+    // **Two limits bind at once here and both are the axis's.** At `scale: '2'`
+    // a value over 10 leaves more than the five labelled rungs whose labels
+    // stay clear of one another, so the icon counts stop at 5 and the values
+    // at 10; and three categories leave room for a three-character name, so
+    // "Walk" was refused by one character and the three below are all three.
+    vars: [
+      { name: 'bus', kind: 'int', min: '1', max: '3' },
+      { name: 'gap', kind: 'int', min: '1', max: '2' },
+      { name: 'car', kind: 'expr', expr: 'bus + gap' },
+      { name: 'van', kind: 'int', min: '1', max: '5' },
+    ],
+    answer: 'gap * 2',
+    hint: 'Read both numbers off the graph, then take one from the other.',
+    figure: {
+      kind: 'bar',
+      values: "(car * 2) + ',' + (bus * 2) + ',' + (van * 2)",
+      labels: "'Car,Bus,Van'",
+      scale: '2',
+    },
+    tags: ['AC9M2ST02', 'MA1-DATA-02'],
+  },
+  {
+    id: 'maths.2.chance.bag-how-likely',
+    subject: 'maths',
+    topic: 'chance',
+    level: '2',
+    prompt: 'A bag holds {bag}. Taking out a {asked} counter is...',
+    // **Derived three ways, so all three words come up equally.** `which`
+    // picks the answer and the bag is built to match it, rather than the bag
+    // being drawn and the answer falling where it may - which would make
+    // "possible" far the commonest and hand a child a word worth guessing.
+    // The option set never changes, so its key never changes either, and the
+    // modal-answer rule then scores exactly the blind baseline only if the
+    // three answers are even. Measured 33/33/33.
+    //
+    // The bag is written out rather than the counts being dropped into a
+    // fixed sentence, because a one-colour bag is what makes "certain" and
+    // "impossible" true at all and "and 0 blue ones" is not a sentence to put
+    // in front of a seven-year-old.
+    vars: [
+      { name: 'which', kind: 'pick', from: [0, 1, 2] },
+      { name: 'r', kind: 'int', min: '2', max: '9' },
+      { name: 'b', kind: 'int', min: '2', max: '9' },
+      {
+        name: 'bag',
+        kind: 'expr',
+        expr: "which == 0 ? (r + ' red and ' + b + ' blue counters') : (r + ' red counters')",
+      },
+      // Possible asks about red in a mixed bag; impossible asks about blue in
+      // a bag with none; certain asks about red in a bag of nothing else.
+      { name: 'asked', kind: 'expr', expr: "which == 1 ? 'blue' : 'red'" },
+    ],
+    answer: "which == 0 ? 'possible' : which == 1 ? 'impossible' : 'certain'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'certain'", "'possible'", "'impossible'"] },
+    hint: 'Impossible means there are none of them in the bag at all.',
+    tags: ['AC9M2P01', 'MA1-CHAN-01'],
+  },
+  {
+    id: 'maths.2.chance.spinner-unlikely',
+    subject: 'maths',
+    topic: 'chance',
+    level: '2',
+    prompt: 'True or false: the arrow is unlikely to stop on a shaded part.',
+    // Derived, never constrained: "shade fewer than half the time" as a
+    // constraint throws away the whole scope whenever it fails, and the branch
+    // that is harder to satisfy loses more draws. `few` decides and the shaded
+    // count follows it.
+    //
+    // Four and six parts only, so "fewer than half" and "more than half" are
+    // both drawable - three parts has no half to sit either side of.
+    vars: [
+      { name: 'n', kind: 'pick', from: [4, 6] },
+      { name: 'few', kind: 'pick', from: [1, 0] },
+      { name: 's', kind: 'int', min: 'few == 1 ? 1 : n / 2 + 1', max: 'few == 1 ? n / 2 - 1 : n' },
+    ],
+    answer: 's * 2 < n',
+    hint: 'Count the shaded parts, then the parts with no shading.',
+    figure: {
+      kind: 'spinner',
+      sectors: equalSectors('n', [4, 6]),
+      fills: shadedFills('n', 's', [4, 6]),
+    },
+    tags: ['AC9M2P01', 'MA1-CHAN-01'],
+  },
 ];
