@@ -1,5 +1,5 @@
 {
-  "version": "e3bf78b1d395",
+  "version": "d18ed3729bb7",
   "subject": "maths",
   "level": "1",
   "templates": [
@@ -1806,6 +1806,437 @@
         "kind": "spinner",
         "sectors": "n == 4 ? '1,1,1,1' : '1,1,1,1,1,1'",
         "fills": "n == 4 ? (s == 1 ? 'a,b,b,b' : s == 2 ? 'a,a,b,b' : s == 3 ? 'a,a,a,b' : 'a,a,a,a') : (s == 1 ? 'a,b,b,b,b,b' : s == 2 ? 'a,a,b,b,b,b' : s == 3 ? 'a,a,a,b,b,b' : s == 4 ? 'a,a,a,a,b,b' : s == 5 ? 'a,a,a,a,a,b' : 'a,a,a,a,a,a')"
+      },
+      "tags": [
+        "AC9M1P01",
+        "MA1-CHAN-01"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.squares-cover",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "How many squares cover this shape altogether?",
+      "vars": [
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "5"
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "2",
+          "max": "5"
+        },
+        {
+          "name": "ax",
+          "kind": "int",
+          "min": "1",
+          "max": "c"
+        },
+        {
+          "name": "ay",
+          "kind": "int",
+          "min": "1",
+          "max": "r"
+        }
+      ],
+      "answer": "c * r",
+      "hint": "Count the squares in one row, then count the rows.",
+      "figure": {
+        "kind": "grid",
+        "at": "ax + ',' + ay",
+        "columns": "c",
+        "rows": "r",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9M1M02",
+        "MA1-2DS-02"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.squares-in-row",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "How many squares are there in each row of this shape?",
+      "vars": [
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "5"
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "2",
+          "max": "5"
+        },
+        {
+          "name": "ax",
+          "kind": "int",
+          "min": "1",
+          "max": "c"
+        },
+        {
+          "name": "ay",
+          "kind": "int",
+          "min": "1",
+          "max": "r"
+        }
+      ],
+      "answer": "c",
+      "hint": "Count along one row, from one side to the other.",
+      "figure": {
+        "kind": "grid",
+        "at": "ax + ',' + ay",
+        "columns": "c",
+        "rows": "r",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9M1M02",
+        "MA1-2DS-02"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.holds-most",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "A mug holds {a} scoops, a jug {b} and a pot {c}. Which holds the most?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        }
+      ],
+      "constraints": [
+        "a != b",
+        "b != c",
+        "a != c"
+      ],
+      "answer": "a > b && a > c ? 'the mug' : b > c ? 'the jug' : 'the pot'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'the mug'",
+          "'the jug'",
+          "'the pot'"
+        ]
+      },
+      "hint": "The one that holds the most scoops holds the most.",
+      "tags": [
+        "AC9M1M02",
+        "MA1-3DS-02"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.holds-how-much-more",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "A bottle fills {a} cups. A flask fills {b} cups. How many more cups does the bottle fill?",
+      "vars": [
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        },
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "b + 1",
+          "max": "20"
+        }
+      ],
+      "answer": "a - b",
+      "hint": "Take {b} away from {a}.",
+      "tags": [
+        "AC9M1M02",
+        "MA1-3DS-02"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.mass-how-much-heavier",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "A brick balances {a} blocks. A tin balances {b}. How many blocks heavier is the brick?",
+      "vars": [
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        },
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "b + 1",
+          "max": "20"
+        }
+      ],
+      "answer": "a - b",
+      "hint": "Take {b} away from {a}.",
+      "tags": [
+        "AC9M1M02",
+        "MA1-NSM-01"
+      ]
+    },
+    {
+      "id": "maths.1.measurement.shortest",
+      "subject": "maths",
+      "topic": "measurement",
+      "level": "1",
+      "prompt": "A stick is {a} hands long, a rope {b} and a scarf {c}. Which is the shortest?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "2",
+          "max": "15"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "15"
+        },
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "15"
+        }
+      ],
+      "constraints": [
+        "a != b",
+        "b != c",
+        "a != c"
+      ],
+      "answer": "a < b && a < c ? 'the stick' : b < c ? 'the rope' : 'the scarf'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'the stick'",
+          "'the rope'",
+          "'the scarf'"
+        ]
+      },
+      "hint": "The one that measures the fewest hands is the shortest.",
+      "tags": [
+        "AC9M1M01",
+        "MA1-GM-02"
+      ]
+    },
+    {
+      "id": "maths.1.data.graph-how-many-asked",
+      "subject": "maths",
+      "topic": "data",
+      "level": "1",
+      "prompt": "This graph shows our favourite pets. How many children were asked altogether?",
+      "vars": [
+        {
+          "name": "cat",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "dog",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "rat",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        }
+      ],
+      "constraints": [
+        "max(cat, dog, rat) > 1"
+      ],
+      "answer": "cat + dog + rat",
+      "hint": "Read all three numbers off the graph, then add them up.",
+      "figure": {
+        "kind": "bar",
+        "values": "cat + ',' + dog + ',' + rat",
+        "labels": "'Cat,Dog,Rat'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9M1ST01",
+        "MA1-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.1.data.tally-how-many-asked",
+      "subject": "maths",
+      "topic": "data",
+      "level": "1",
+      "prompt": "A tally shows {a} chose red, {b} chose blue and {c} chose green. How many were asked?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        }
+      ],
+      "answer": "a + b + c",
+      "hint": "Add all three numbers together.",
+      "tags": [
+        "AC9M1ST01",
+        "MA1-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.1.data.graph-equal-claim",
+      "subject": "maths",
+      "topic": "data",
+      "level": "1",
+      "prompt": "This graph shows our lunches. True or false: as many chose {one} as chose {two}.",
+      "vars": [
+        {
+          "name": "pie",
+          "kind": "int",
+          "min": "2",
+          "max": "5"
+        },
+        {
+          "name": "same",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "off",
+          "kind": "int",
+          "min": "1",
+          "max": "4"
+        },
+        {
+          "name": "bun",
+          "kind": "expr",
+          "expr": "same == 1 ? pie : mod(pie + off - 1, 5) + 1"
+        },
+        {
+          "name": "egg",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "first",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "one",
+          "kind": "expr",
+          "expr": "first == 1 ? 'Pie' : 'Bun'"
+        },
+        {
+          "name": "two",
+          "kind": "expr",
+          "expr": "first == 1 ? 'Bun' : 'Pie'"
+        }
+      ],
+      "constraints": [
+        "max(pie, bun, egg) > 1"
+      ],
+      "answer": "pie == bun",
+      "hint": "Two bars the same height mean the same number chose each.",
+      "figure": {
+        "kind": "bar",
+        "values": "pie + ',' + bun + ',' + egg",
+        "labels": "'Pie,Bun,Egg'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9M1ST02",
+        "MA1-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.1.chance.spinner-certain",
+      "subject": "maths",
+      "topic": "chance",
+      "level": "1",
+      "prompt": "True or false: the arrow is certain to stop on a shaded part.",
+      "vars": [
+        {
+          "name": "n",
+          "kind": "pick",
+          "from": [
+            3,
+            4,
+            6
+          ]
+        },
+        {
+          "name": "certain",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "int",
+          "min": "certain == 1 ? n : 1",
+          "max": "certain == 1 ? n : n - 1"
+        }
+      ],
+      "answer": "s == n",
+      "hint": "Certain means it cannot stop anywhere else.",
+      "figure": {
+        "kind": "spinner",
+        "sectors": "n == 3 ? '1,1,1' : n == 4 ? '1,1,1,1' : '1,1,1,1,1,1'",
+        "fills": "n == 3 ? (s == 1 ? 'a,b,b' : s == 2 ? 'a,a,b' : 'a,a,a') : n == 4 ? (s == 1 ? 'a,b,b,b' : s == 2 ? 'a,a,b,b' : s == 3 ? 'a,a,a,b' : 'a,a,a,a') : (s == 1 ? 'a,b,b,b,b,b' : s == 2 ? 'a,a,b,b,b,b' : s == 3 ? 'a,a,a,b,b,b' : s == 4 ? 'a,a,a,a,b,b' : s == 5 ? 'a,a,a,a,a,b' : 'a,a,a,a,a,a')"
       },
       "tags": [
         "AC9M1P01",

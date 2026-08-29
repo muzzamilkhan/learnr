@@ -1155,4 +1155,257 @@ export const year1: QuestionTemplate[] = [
     },
     tags: ['AC9M1P01', 'MA1-CHAN-01'],
   },
+
+  // ------------------------------------------------------------------
+  // Area, capacity, and three more readings of a display.
+  //
+  // The strand pass (issue #12). Year 1 sat at 23 Number and algebra, 17
+  // Measurement and space and 8 Statistics and probability against NSW's rough
+  // 40/40/20. Two Stage 1 focus areas had nothing at all - `MA1-2DS-02`, area
+  // in informal units, and `MA1-3DS-02`, internal volume and capacity - and
+  // `MA1-DATA-01` had nothing either, every data question here citing
+  // `MA1-DATA-02` instead. Those three are what the ten below fill.
+  // ------------------------------------------------------------------
+
+  // **Area in informal units, drawn as squares.** `grid` with `axisLabels`
+  // pinned to `'none'` is a rectangle ruled into unit squares, which is what
+  // covering a surface with informal units looks like - and unlettered,
+  // because grid *references* are Stage 2 content and this is not one.
+  //
+  // The extent is pinned to bound variables rather than left open, because the
+  // answer is computed from it and a template cannot write an answer against a
+  // number it never sees. Pinning the extent and `axisLabels` together uses up
+  // both of this kind's usual levers, so what supplies the variation is the
+  // marked square: it moves over every cell of the grid, which is 4 to 25
+  // distinct pictures per extent.
+  {
+    id: 'maths.1.measurement.squares-cover',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    prompt: 'How many squares cover this shape altogether?',
+    vars: [
+      { name: 'c', kind: 'int', min: '2', max: '5' },
+      { name: 'r', kind: 'int', min: '2', max: '5' },
+      // The marked square, anywhere inside. `at` is "column,row".
+      { name: 'ax', kind: 'int', min: '1', max: 'c' },
+      { name: 'ay', kind: 'int', min: '1', max: 'r' },
+    ],
+    answer: 'c * r',
+    hint: 'Count the squares in one row, then count the rows.',
+    figure: {
+      kind: 'grid',
+      at: "ax + ',' + ay",
+      columns: 'c',
+      rows: 'r',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9M1M02', 'MA1-2DS-02'],
+  },
+  {
+    id: 'maths.1.measurement.squares-in-row',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    // The row rather than the whole shape, which is the step below counting
+    // the lot and the one that makes counting the lot possible.
+    prompt: 'How many squares are there in each row of this shape?',
+    vars: [
+      { name: 'c', kind: 'int', min: '2', max: '5' },
+      { name: 'r', kind: 'int', min: '2', max: '5' },
+      { name: 'ax', kind: 'int', min: '1', max: 'c' },
+      { name: 'ay', kind: 'int', min: '1', max: 'r' },
+    ],
+    answer: 'c',
+    hint: 'Count along one row, from one side to the other.',
+    figure: {
+      kind: 'grid',
+      at: "ax + ',' + ay",
+      columns: 'c',
+      rows: 'r',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9M1M02', 'MA1-2DS-02'],
+  },
+
+  // Capacity, which `MA1-3DS-02` calls internal volume and Kindergarten only
+  // ever compares two of. Year 1's step is the same one its length question
+  // takes over Kindergarten's: not which holds more, but how much more.
+  {
+    id: 'maths.1.measurement.holds-most',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    prompt: 'A mug holds {a} scoops, a jug {b} and a pot {c}. Which holds the most?',
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'int', min: '2', max: '12' },
+      { name: 'c', kind: 'int', min: '2', max: '12' },
+    ],
+    constraints: ['a != b', 'b != c', 'a != c'],
+    answer: "a > b && a > c ? 'the mug' : b > c ? 'the jug' : 'the pot'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'the mug'", "'the jug'", "'the pot'"] },
+    hint: 'The one that holds the most scoops holds the most.',
+    tags: ['AC9M1M02', 'MA1-3DS-02'],
+  },
+  {
+    id: 'maths.1.measurement.holds-how-much-more',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    prompt: 'A bottle fills {a} cups. A flask fills {b} cups. How many more cups does the bottle fill?',
+    vars: [
+      { name: 'b', kind: 'int', min: '2', max: '9' },
+      { name: 'a', kind: 'int', min: 'b + 1', max: '20' },
+    ],
+    // `a` is drawn above `b` rather than the difference being taken with
+    // `abs`, because the prompt names which of the two is the bigger and a
+    // draw where it is not would make the prompt false.
+    answer: 'a - b',
+    hint: 'Take {b} away from {a}.',
+    tags: ['AC9M1M02', 'MA1-3DS-02'],
+  },
+  {
+    id: 'maths.1.measurement.mass-how-much-heavier',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    prompt: 'A brick balances {a} blocks. A tin balances {b}. How many blocks heavier is the brick?',
+    vars: [
+      { name: 'b', kind: 'int', min: '2', max: '9' },
+      { name: 'a', kind: 'int', min: 'b + 1', max: '20' },
+    ],
+    answer: 'a - b',
+    hint: 'Take {b} away from {a}.',
+    tags: ['AC9M1M02', 'MA1-NSM-01'],
+  },
+  {
+    id: 'maths.1.measurement.shortest',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '1',
+    prompt: 'A stick is {a} hands long, a rope {b} and a scarf {c}. Which is the shortest?',
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '15' },
+      { name: 'b', kind: 'int', min: '2', max: '15' },
+      { name: 'c', kind: 'int', min: '2', max: '15' },
+    ],
+    constraints: ['a != b', 'b != c', 'a != c'],
+    answer: "a < b && a < c ? 'the stick' : b < c ? 'the rope' : 'the scarf'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'the stick'", "'the rope'", "'the scarf'"] },
+    hint: 'The one that measures the fewest hands is the shortest.',
+    tags: ['AC9M1M01', 'MA1-GM-02'],
+  },
+
+  // `MA1-DATA-01` is gathering and organising data; `MA1-DATA-02` is
+  // describing what a display shows. Every data question this year had cited
+  // the second, so the two below ask the first question instead: how many
+  // children the display is made of.
+  {
+    id: 'maths.1.data.graph-how-many-asked',
+    subject: 'maths',
+    topic: 'data',
+    level: '1',
+    prompt: 'This graph shows our favourite pets. How many children were asked altogether?',
+    vars: [
+      // **Five, not six.** At `scale: '1'` a value of 6 leaves six labelled
+      // rungs on the axis, one more than the five whose labels stay clear of
+      // one another, and the figure is refused outright. The cap on the values
+      // is the axis's, not the arithmetic's.
+      { name: 'cat', kind: 'int', min: '1', max: '5' },
+      { name: 'dog', kind: 'int', min: '1', max: '5' },
+      { name: 'rat', kind: 'int', min: '1', max: '5' },
+    ],
+    // Something above 1, or the axis is a single step and `bar` refuses it.
+    constraints: ['max(cat, dog, rat) > 1'],
+    answer: 'cat + dog + rat',
+    hint: 'Read all three numbers off the graph, then add them up.',
+    figure: {
+      kind: 'bar',
+      values: "cat + ',' + dog + ',' + rat",
+      labels: "'Cat,Dog,Rat'",
+      scale: '1',
+    },
+    tags: ['AC9M1ST01', 'MA1-DATA-01'],
+  },
+  {
+    id: 'maths.1.data.tally-how-many-asked',
+    subject: 'maths',
+    topic: 'data',
+    level: '1',
+    prompt: 'A tally shows {a} chose red, {b} chose blue and {c} chose green. How many were asked?',
+    vars: [
+      { name: 'a', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'int', min: '2', max: '12' },
+      { name: 'c', kind: 'int', min: '2', max: '12' },
+    ],
+    answer: 'a + b + c',
+    hint: 'Add all three numbers together.',
+    tags: ['AC9M1ST01', 'MA1-DATA-01'],
+  },
+  {
+    id: 'maths.1.data.graph-equal-claim',
+    subject: 'maths',
+    topic: 'data',
+    level: '1',
+    prompt: 'This graph shows our lunches. True or false: as many chose {one} as chose {two}.',
+    // Derived rather than constrained. "Make them equal half the time" as a
+    // constraint is satisfied by redrawing the whole scope, so the branch that
+    // is harder to satisfy is thrown away more often - which is what made two
+    // of this year's true/false templates come out 78/22 before they were
+    // rewritten. `same` decides, and the second value follows.
+    vars: [
+      // Five is the axis's ceiling at `scale: '1'` - see graph-how-many-asked
+      // above for why a sixth rung is refused.
+      { name: 'pie', kind: 'int', min: '2', max: '5' },
+      { name: 'same', kind: 'pick', from: [1, 0] },
+      { name: 'off', kind: 'int', min: '1', max: '4' },
+      // Stepped round rather than added, so the second bar stays inside 1..5
+      // without a constraint throwing draws away.
+      { name: 'bun', kind: 'expr', expr: 'same == 1 ? pie : mod(pie + off - 1, 5) + 1' },
+      { name: 'egg', kind: 'int', min: '1', max: '5' },
+      { name: 'first', kind: 'pick', from: [1, 0] },
+      // Which of the two the prompt names first also moves, so "the first one
+      // named is the taller" is not a rule a child can learn.
+      { name: 'one', kind: 'expr', expr: "first == 1 ? 'Pie' : 'Bun'" },
+      { name: 'two', kind: 'expr', expr: "first == 1 ? 'Bun' : 'Pie'" },
+    ],
+    constraints: ['max(pie, bun, egg) > 1'],
+    answer: 'pie == bun',
+    hint: 'Two bars the same height mean the same number chose each.',
+    figure: {
+      kind: 'bar',
+      values: "pie + ',' + bun + ',' + egg",
+      labels: "'Pie,Bun,Egg'",
+      scale: '1',
+    },
+    tags: ['AC9M1ST02', 'MA1-DATA-02'],
+  },
+  {
+    id: 'maths.1.chance.spinner-certain',
+    subject: 'maths',
+    topic: 'chance',
+    level: '1',
+    prompt: 'True or false: the arrow is certain to stop on a shaded part.',
+    // Certain is the whole disc in one fill group, which is the one thing a
+    // spinner draws that has no plain sector at all. The complement -
+    // *impossible* to stop on a shaded part - cannot be drawn here and no
+    // template should ask for it: the first-named group is the shaded one, so
+    // a disc with nothing shaded is not a picture this kind can make.
+    vars: [
+      { name: 'n', kind: 'pick', from: SPINNER_PARTS },
+      { name: 'certain', kind: 'pick', from: [1, 0] },
+      { name: 's', kind: 'int', min: 'certain == 1 ? n : 1', max: 'certain == 1 ? n : n - 1' },
+    ],
+    answer: 's == n',
+    hint: 'Certain means it cannot stop anywhere else.',
+    figure: {
+      kind: 'spinner',
+      sectors: equalSectors('n', SPINNER_PARTS),
+      fills: shadedFills('n', 's', SPINNER_PARTS),
+    },
+    tags: ['AC9M1P01', 'MA1-CHAN-01'],
+  },
 ];
