@@ -2,10 +2,6 @@
   "name": "learnr",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -16,8 +12,6 @@
     "test:db": "vitest run --project db",
     "test:watch": "vitest",
     "content:build": "tsx scripts/build-content.ts",
-    "fixtures:build": "tsx scripts/build-fixtures.ts",
-    "fixtures:emit": "tsx scripts/emit-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

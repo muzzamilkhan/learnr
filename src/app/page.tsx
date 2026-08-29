@@ -18,7 +18,6 @@ import { ProfileMenu } from '@/components/profile-menu';
 import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
-import { TimingOverlay } from '@/components/timing-overlay';
 import { resolveInitialLevel } from '@/lib/curriculum';
 import { CHILD_DEFAULT_TAB, SPEED_SECTION } from '@/lib/speedrun/tabs';
 
@@ -234,11 +233,6 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto min-h-screen max-w-4xl px-8 py-12">
-      {/* Off unless `?timing=1` is on the URL - see `TimingOverlay`. This screen
-          is the one whose whole cost is the server waterfall, so what the
-          overlay reports here is the navigation timing rather than any call. */}
-      <TimingOverlay />
-
       {/*
         A welcome, drawn as a band rather than a line of type on bare paper. The
         colour is the mark's own - a child arriving here has just seen the icon on

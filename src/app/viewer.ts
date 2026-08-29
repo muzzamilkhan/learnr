@@ -3,7 +3,6 @@ import type { Session } from 'next-auth';
 import { auth, isAuthConfigured } from '@/auth';
 import { readAccount } from '@/server/accounts';
 import { viewerKind, type ViewerKind } from '@/lib/viewer';
-import { timed } from '@/timing';
 import type { Account } from '@/lib/dto';
 
 export interface Viewer {
@@ -45,10 +44,7 @@ export interface Viewer {
  * whole job.
  */
 export const readViewer = cache(async (): Promise<Viewer> => {
-  // Timed on its own because it is the hop nothing else reports: `auth()` is a
-  // Prisma query to Neon that resolves the session cookie, and it runs before a
-  // signed-in page has read anything at all.
-  const session = isAuthConfigured ? await timed('auth()', async () => auth()) : null;
+  const session = isAuthConfigured ? await auth() : null;
   const userId = session?.user?.id;
   const account = userId ? await readAccount(userId) : null;
 

@@ -32,7 +32,6 @@ import {
 } from '@/lib/rewards/target';
 import { PLAY_LABEL_SIZE } from '@/lib/figures/labels';
 import { PROMPT_SENTINEL } from '@/lib/templates/limits';
-import { TimingOverlay, measure } from './timing-overlay';
 import { browserApi, uuid } from '@/browser-api';
 import { parseFigure } from '@/lib/figures/types';
 import { localOffsetMinutes, subscribeToTheClock, today } from './clock';
@@ -352,10 +351,7 @@ export function PlaySession({
     // The id is minted here rather than by the server, so a retried call reopens
     // the same sitting - `POST /sessions` answers 200 to an id it has seen.
     const id = uuid();
-    measure(
-      'startRecording',
-      browserApi.startSession({ id, subject, level, seed }),
-    ).then((started) => {
+    browserApi.startSession({ id, subject, level, seed }).then((started) => {
       recordId.current = started?.id ?? null;
     });
   }, [subject, level, seed, recordingEnabled]);
@@ -503,7 +499,7 @@ export function PlaySession({
 
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
-        measure('recordAttempt', browserApi.recordAttempts(id, [recorded])).then((result) => {
+        browserApi.recordAttempts(id, [recorded]).then((result) => {
           if (result) {
             setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
             if (result.streakAdvanced) setStreak(result.streak);
@@ -512,7 +508,7 @@ export function PlaySession({
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
           // repairs itself at the next round, which recounts the sitting whole.
-          if (closedRound(results)) measure('awardRound', browserApi.awardRound(id));
+          if (closedRound(results)) void browserApi.awardRound(id);
 
           // The day's goal, asked for after the answer is written for the same
           // reason the round's stars are: the server recounts from the stored
@@ -526,7 +522,7 @@ export function PlaySession({
           // every answer from the one that crosses the line onwards, which is
           // what still makes a dropped call repair itself.
           if (target && !targetFinished && worthBanking(target.target, targetDone, targetUnit)) {
-            measure('awardTarget', browserApi.awardTarget(id, offsetMinutes)).then((result) => {
+            browserApi.awardTarget(id, offsetMinutes).then((result) => {
               if (!result?.awarded) return;
               setTargetReward(target.target);
               setStars((total) => total + TARGET_STARS);
@@ -621,9 +617,6 @@ export function PlaySession({
     // Fixed to the viewport: everything must fit an iPad screen with no scrolling,
     // so the pad is never below the fold in either orientation.
     <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-4 py-3 sm:px-10 sm:py-5">
-      {/* Off unless `?timing=1` is on the URL - see `TimingOverlay`. */}
-      <TimingOverlay />
-
       {/* Nothing here counts anything. A clock and a running score are both things
           a child would watch instead of the question, and neither is theirs to
           worry about - the round's stars are the only reckoning, and they come

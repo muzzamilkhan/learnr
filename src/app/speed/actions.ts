@@ -2,7 +2,6 @@
 
 import { readViewer } from '@/app/viewer';
 import { dismissSpeedRecords } from '@/server/speed-records';
-import { timed } from '@/timing';
 
 /**
  * A parent dismissing the "new record" banner, and nothing else.
@@ -23,10 +22,6 @@ import { timed } from '@/timing';
  */
 
 export async function dismissRecordsAction(childId: string): Promise<void> {
-  return timed('action dismissRecords', () => dismissRecords(childId));
-}
-
-async function dismissRecords(childId: string): Promise<void> {
   const { userId, account } = await readViewer();
   if (!userId || account?.role !== 'parent') return;
 

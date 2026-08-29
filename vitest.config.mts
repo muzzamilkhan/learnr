@@ -44,7 +44,6 @@ export default defineConfig({
           name: 'unit',
           include: [
             'src/**/*.test.ts',
-            'packages/*/test/**/*.test.ts',
             'scripts/**/*.test.ts',
           ],
           exclude: ['src/server/**'],

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { browserApi, uuid } from '@/browser-api';
-import { TimingOverlay, measure } from './timing-overlay';
 import { appendNumeric } from '@/lib/session/answers';
 import type { SpeedOutcome } from '@/lib/dto';
 import { modeKey, type Mode } from '@/lib/speedrun/modes';
@@ -221,14 +220,12 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
       One id per submission, minted here and held for this run, because the
       endpoint dedupes `SpeedAttempt` on it.
     */
-    measure(
-      'submitRun',
-      browserApi.submitSpeedRun({
+    browserApi
+      .submitSpeedRun({
         id: uuid(),
         mode: modeKey(state.mode),
         correct: ended.correct,
-      }),
-    )
+      })
       .then(setOutcome)
       .catch(() => {});
   }, [recordingEnabled]);
@@ -374,9 +371,6 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
 
   return (
     <div className="no-select fixed inset-0 z-40 flex flex-col overflow-hidden bg-(--color-paper) px-4 py-3 sm:px-10 sm:py-5">
-      {/* Off unless `?timing=1` is on the URL - see `TimingOverlay`. */}
-      <TimingOverlay />
-
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -
           there is no confirmation, because a modal over a running clock is worse

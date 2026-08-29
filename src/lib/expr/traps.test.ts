@@ -1,4 +1,5 @@
-import type { Scope, Value } from '../../src/lib/expr';
+import { describe, it, expect } from 'vitest';
+import { evaluate, FUNCTIONS, type Scope, type Value } from '@/lib/expr';
 
 /**
  * Expressions whose expected values were written by a human, not read off the
@@ -20,13 +21,13 @@ import type { Scope, Value } from '../../src/lib/expr';
  * edit an expectation to match the engine without saying why in the commit -
  * that is the whole value of the file.
  */
-export interface TrapCase {
+interface TrapCase {
   expr: string;
   scope?: Scope;
   expect: Value;
 }
 
-export const EXPR_TRAPS: readonly TrapCase[] = [
+const EXPR_TRAPS: readonly TrapCase[] = [
   // Rounding at .5, on both sides of zero. `Math.round` is half-up; Swift's
   // `rounded()` is half-away-from-zero, so the negatives are where they part.
   { expr: 'round(2.5)', expect: 3 },
@@ -135,3 +136,21 @@ export const EXPR_TRAPS: readonly TrapCase[] = [
   { expr: '0.1 + 0.2', expect: 0.30000000000000004 },
   { expr: '0.1 * 3', expect: 0.30000000000000004 },
 ];
+
+describe('expression traps', () => {
+  it.each(EXPR_TRAPS)('$expr', ({ expr, scope, expect: expected }) => {
+    expect(evaluate(expr, scope ?? {})).toBe(expected);
+  });
+
+  it('names every function the language has, so a new one cannot arrive untested', () => {
+    const covered = new Set(
+      EXPR_TRAPS.flatMap(({ expr }) => [...expr.matchAll(/([a-zA-Z]\w*)\s*\(/g)].map((m) => m[1])),
+    );
+    expect(Object.keys(FUNCTIONS).filter((name) => !covered.has(name))).toEqual([]);
+  });
+
+  it('has no duplicate cases', () => {
+    const keys = EXPR_TRAPS.map(({ expr, scope }) => `${expr}|${JSON.stringify(scope ?? {})}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
