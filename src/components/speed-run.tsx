@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { submitRunAction } from '@/app/speed/actions';
+import { browserApi, uuid } from '@/browser-api';
 import { TimingOverlay, measure } from './timing-overlay';
 import { appendNumeric } from '@/lib/session/answers';
 import type { SpeedOutcome } from '@/lib/dto';
@@ -209,7 +209,26 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
     // run nobody touched are the same thing, and nought is the one score with
     // nothing to say.
     if (ended.correct === 0) return;
-    measure('submitRun', submitRunAction(modeKey(state.mode), ended.correct))
+    /*
+      The score is the client's word, and it always was: the questions are
+      generated in the browser and answered there, so there is no server-side
+      history to recount a run against. A speed run banks no stars and touches no
+      learning record, so the worst a forged score can do is put a wrong number
+      on the forger's own cabinet. Moving the call out of a server action changes
+      nothing about that - the bounds are the endpoint's, where they have to be
+      for the iOS client anyway.
+
+      One id per submission, minted here and held for this run, because the
+      endpoint dedupes `SpeedAttempt` on it.
+    */
+    measure(
+      'submitRun',
+      browserApi.submitSpeedRun({
+        id: uuid(),
+        mode: modeKey(state.mode),
+        correct: ended.correct,
+      }),
+    )
       .then(setOutcome)
       .catch(() => {});
   }, [recordingEnabled]);

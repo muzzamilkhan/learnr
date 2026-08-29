@@ -153,7 +153,7 @@ start. `tsc --noEmit` still does the typechecking.
 | | Where | Region |
 | --- | --- | --- |
 | Web app | `learnr.muzza.tech`, Vercel | `syd1` |
-| API | `learnr-api-syd.fly.dev`, Fly | `syd` |
+| API | `api.learnr.muzza.tech`, Fly | `syd` |
 | Database | Neon | `ap-southeast-2` |
 
 **All three are in Sydney, and that is the whole reason for the hosting choice.**
@@ -164,13 +164,49 @@ Vercel runs functions. It never scales to zero - the web app calls it server-sid
 on every render, so a cold start would land in a parent's page load. The name is
 `learnr-api-syd` because `learnr-api` is taken; Fly app names are globally unique.
 
+**The API answers on `api.learnr.muzza.tech`, and the name is load-bearing.**
+`learnr-api-syd.fly.dev` still works and is what the app is called on Fly, but a
+*subdomain of the web app* is what lets the browser call the API with the session
+cookie: a cookie scoped to `learnr.muzza.tech` reaches that host and its
+subdomains. A sibling name like `learnr-api.muzza.tech` could only be reached by
+widening the cookie to `muzza.tech`, which would send a child's session to every
+host under that name - the portfolio included. That is the whole reason for the
+shape of it.
+
 **The web app calls the API for everything but signing in.** `src/api.ts` is the
 one typed client; the five modules that used to hold Prisma queries -
 `src/lib/{db,records,accounts,sharing,speed-records}.ts` - are gone, along with
 the web app's copy of the schema and its migrations. Where this document below
 names one of them, read it as the same code now living in `apps/api/src/data/`.
 
-**The caller's session cookie is what authorises a request**, forwarded as-is.
+**The browser calls the API itself for everything a child does while playing**
+(`src/browser-api.ts`): opening a sitting, recording an answer, banking a round's
+stars, banking the day's goal, closing the sitting, and submitting a speed run.
+All of it is *recording* - none of it decides what the child sees next - which is
+what made moving it safe.
+
+Those were server actions once, and the cost of that shape is what this replaced:
+each was a POST to Vercel, which read the session against Neon, then called the
+API, which resolved the same cookie against the same table again. Two hops and
+two session lookups for a write the API could take directly. Worse, **Next
+serialises server-action requests from one client**, so the calls an answer makes
+queued behind each other while every one of them reported a healthy server-side
+duration - a wait that existed only in the browser and appeared in no log.
+
+So the API allows CORS from the web app's origin, exactly and never reflected
+(`LEARNR_WEB_ORIGINS`, `apps/api/src/env.ts`) - a browser refuses `*` outright
+once a request carries credentials. `maxAge` on the preflight matters more than
+it looks: a JSON POST is never a simple request, so without it every recorded
+answer would pay a preflight *and* the call, which is two round trips to save
+one. **Reads did not move.** `src/api.ts` still serves every page render; only
+the writes on the path a child can feel went across.
+
+What guards a cross-site write now that Next's origin check is not in front of
+it is `SameSite=Lax` on the session cookie, which withholds it from exactly the
+shape these calls have.
+
+**The caller's session cookie is what authorises a request**, forwarded as-is
+by `src/api.ts` and attached by the browser for `src/browser-api.ts`.
 The API resolves it against the very `Session` table Auth.js writes, so who a
 request is for is decided in one place and one sign-in serves both halves. There
 is no API key and no service account: an endpoint a child may not reach answers

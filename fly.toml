@@ -21,6 +21,12 @@ primary_region = "syd"   # Neon is in ap-southeast-2; every query is a LAN hop.
 [env]
   PORT = "3001"
   NODE_ENV = "production"
+  # The origins the browser may call this API from, as an exact allowlist - the
+  # web app writes a child's answers here directly now rather than through a
+  # server action, and a browser refuses a wildcard origin once a request
+  # carries credentials. Config rather than a secret, so it lives here and
+  # deploys with the app.
+  LEARNR_WEB_ORIGINS = "https://learnr.muzza.tech"
 
 [http_service]
   internal_port = 3001

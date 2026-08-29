@@ -1,59 +1,21 @@
 'use server';
 
-import { randomUUID } from 'node:crypto';
 import { api } from '@/api';
-import type { SpeedOutcome } from '@/lib/dto';
-import { modeKey, parseMode } from '@/lib/speedrun/modes';
 import { timed } from '@/timing';
 
 /**
- * Recording only, like the play actions. A run is over by the time either of
- * these is called, so a failure costs a record rather than a game.
+ * A parent dismissing the "new record" banner, and nothing else.
  *
- * Neither calls `auth()`, for the reason set out at the top of
- * `src/app/play/actions.ts`: the session read it used to open with was a Neon
- * round trip whose only outcome was an early return, and `POST /speed/runs`
- * (`requireUser`) and `DELETE /speed/unseen/:childId` (`requireParent`) both
- * refuse the same caller on the far side anyway.
- */
-
-/**
- * Bank a finished run. The mode arrives as a key from the browser and is parsed
- * before it is used - `parseMode` is the boundary, and an unrecognised key is a
- * run that never happened rather than a row keyed on junk.
+ * Submitting a run left this file when the browser started calling the API
+ * directly (`src/browser-api.ts`): a run is on the path where a round trip is
+ * something a child can feel, and this is not - it is a grown-up tapping a
+ * banner away on a screen with no clock running.
  *
- * The score is the client's word, and it is worth being plain about that: the
- * questions are generated in the browser and answered there, so there is no
- * server-side history to recount a run against, the way `awardRoundStars`
- * recounts a round from stored answers. A speed run banks no stars and touches
- * no learning record, so the worst a forged score can do is put a wrong number
- * on the forger's own cabinet.
+ * It does not call `auth()`. The session read it used to open with was a Neon
+ * round trip whose only outcome was an early return, and
+ * `DELETE /speed/unseen/:childId` gates on `requireParent`, which refuses the
+ * same caller on the far side anyway.
  */
-export async function submitRunAction(key: string, correct: number): Promise<SpeedOutcome | null> {
-  return timed('action submitRun', () => submitRun(key, correct));
-}
-
-async function submitRun(key: string, correct: number): Promise<SpeedOutcome | null> {
-  // Parsed here as well as at the endpoint, and normalised back to a key: the
-  // route rejects a key that is not a mode, and this is what keeps a run that
-  // never happened from costing a round trip to find that out.
-  const mode = parseMode(key);
-  if (mode === null) return null;
-
-  // One number now rather than two, since a run only moves on a right answer:
-  // the score and the questions answered are the same count. Still bounded
-  // before it is stored - never negative, never fractional, never absurd.
-  const right = Math.max(0, Math.min(Math.floor(correct) || 0, 10_000));
-
-  // One id per submission, and the endpoint dedupes on it: `SpeedAttempt.id` is
-  // the run rather than the row, so a client that re-sends a run writes it once.
-  // Minted here rather than passed in from the browser because this path has no
-  // retry queue to replay - the action is called once when a run ends, and a
-  // failure costs the run rather than being tried again. A client that *does*
-  // queue offline runs has to hold one id per run across every flush of it,
-  // which is the whole reason the column stopped defaulting.
-  return api.submitSpeedRun({ id: randomUUID(), mode: modeKey(mode), correct: right });
-}
 
 export async function dismissRecordsAction(childId: string): Promise<void> {
   return timed('action dismissRecords', () => dismissRecords(childId));

@@ -33,13 +33,8 @@ import {
 import { PLAY_LABEL_SIZE } from '@/lib/figures/labels';
 import { PROMPT_SENTINEL } from '@/lib/templates/limits';
 import { TimingOverlay, measure } from './timing-overlay';
-import {
-  awardRoundAction,
-  awardTargetAction,
-  endRecordingAction,
-  recordAttemptAction,
-  startRecordingAction,
-} from '@/app/play/actions';
+import { browserApi, uuid } from '@/browser-api';
+import { parseFigure } from '@/lib/figures/types';
 import { localOffsetMinutes, subscribeToTheClock, today } from './clock';
 import { NumberPad } from './number-pad';
 import { LetterPad } from './letter-pad';
@@ -354,8 +349,14 @@ export function PlaySession({
 
   useEffect(() => {
     if (!recordingEnabled) return;
-    measure('startRecording', startRecordingAction(subject, level, seed)).then((id) => {
-      recordId.current = id;
+    // The id is minted here rather than by the server, so a retried call reopens
+    // the same sitting - `POST /sessions` answers 200 to an id it has seen.
+    const id = uuid();
+    measure(
+      'startRecording',
+      browserApi.startSession({ id, subject, level, seed }),
+    ).then((started) => {
+      recordId.current = started?.id ?? null;
     });
   }, [subject, level, seed, recordingEnabled]);
 
@@ -363,7 +364,7 @@ export function PlaySession({
   useEffect(() => {
     return () => {
       if (advanceTimer.current) clearTimeout(advanceTimer.current);
-      if (recordId.current) endRecordingAction(recordId.current);
+      if (recordId.current) void browserApi.endSession(recordId.current);
     };
   }, []);
 
@@ -486,9 +487,23 @@ export function PlaySession({
         const attempt = next.attempts[next.attempts.length - 1];
         const results = next.attempts.map((a) => a.correct);
 
+        // The figure is bounded before it is sent, as it was when this went
+        // through a server action. The endpoint parses it again - it is reachable
+        // by clients this app does not write - but a figure that fails to parse
+        // should cost the figure, not the answer it came with, so it is dropped
+        // here rather than 400ing the whole attempt.
+        const { figure: rawFigure, ...rest } = attempt;
+        const figure = parseFigure(rawFigure) ?? undefined;
+        const recorded = {
+          ...rest,
+          id: uuid(),
+          offsetMinutes,
+          ...(figure ? { figure } : {}),
+        };
+
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
-        measure('recordAttempt', recordAttemptAction(id, attempt)).then((result) => {
+        measure('recordAttempt', browserApi.recordAttempts(id, [recorded])).then((result) => {
           if (result) {
             setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
             if (result.streakAdvanced) setStreak(result.streak);
@@ -497,7 +512,7 @@ export function PlaySession({
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
           // repairs itself at the next round, which recounts the sitting whole.
-          if (closedRound(results)) measure('awardRound', awardRoundAction(id));
+          if (closedRound(results)) measure('awardRound', browserApi.awardRound(id));
 
           // The day's goal, asked for after the answer is written for the same
           // reason the round's stars are: the server recounts from the stored
@@ -511,8 +526,8 @@ export function PlaySession({
           // every answer from the one that crosses the line onwards, which is
           // what still makes a dropped call repair itself.
           if (target && !targetFinished && worthBanking(target.target, targetDone, targetUnit)) {
-            measure('awardTarget', awardTargetAction(id, offsetMinutes)).then((awarded) => {
-              if (!awarded) return;
+            measure('awardTarget', browserApi.awardTarget(id, offsetMinutes)).then((result) => {
+              if (!result?.awarded) return;
               setTargetReward(target.target);
               setStars((total) => total + TARGET_STARS);
             });
