@@ -74,7 +74,7 @@ the purity rule it stood beside does not. It is replaced by a test under
 better than the current stack *and* better than `671f719`, where a read was at
 least a Prisma round trip from whichever serverless instance answered.
 
-## The move, in five parts
+## The move, in six parts
 
 ### 1. The data layer comes back
 
@@ -198,10 +198,56 @@ ungated Vercel build behind the tests, and there is nothing left to order.
 dependency `if:`. `scripts/changed-apps.ts` is deleted with them: it existed to
 answer which of two halves a push had to move.
 
-**The gate stays.** The content packs are generated and the drift test is the
-only thing between an edited year file and a stale shipped pack, which neither
-`next build` nor Vercel runs. That test has to run before a deploy, whatever
-runs it.
+**The gate stays, but it is guarding something else now.** It used to exist
+because the packs were generated and the drift test was the only thing between
+an edited year file and a stale shipped pack - neither `next build` nor Vercel
+runs a test. With the packs gone that particular hazard goes, but the reason for
+a gate does not: `catalog.test.ts` is what proves 553 templates still validate,
+still fit the prompt cap, and still never anchor a figure to an answer, and
+`next build` does not run it either.
+
+### 6. The content packs go, and the TypeScript becomes the source again
+
+`catalog.ts` reads `src/content/packs/` - fourteen generated JSON files and a
+manifest - rather than the year files that author them. **The packs existed so a
+client that could not import TypeScript could fetch them**, served by
+`GET /content/manifest` and `GET /content/:subject/:level`. There is no such
+client, and those two routes die with the API.
+
+So `catalog.ts` goes back to composing the arrays directly:
+
+```ts
+import { mathsTemplates } from './maths';
+import { englishTemplates } from './english';
+
+export const allTemplates = [...mathsTemplates, ...englishTemplates];
+```
+
+The order is unchanged - maths K-6 then English K-6, which is the order
+`allTemplates` has always had.
+
+**This deletes a whole failure mode rather than just a build step.** A pack is a
+second copy of the content, so editing a year file without running
+`npm run content:build` shipped a stale pack; `scripts/content-packs.test.ts`
+existed to redden when that happened. With one copy there is nothing to drift.
+Deleted with it: `scripts/build-content.ts`, `scripts/content-packs.ts`,
+`scripts/content-packs.test.ts`, the `content:build` script, and each pack's
+self-hashing `version`.
+
+**It also removes a cast at a boundary that no longer exists.** JSON widens
+`level` to `string` and a figure's `kind` with it, so `packs/index.ts` ends in a
+cast back to `ContentPack[]`. Reading the literals gives exact types with nothing
+to assert - and `ContentPack` and `ContentManifest` live in `src/lib/dto.ts`,
+which is being deleted anyway.
+
+**What is not lost is the validation.** The packs were never the thing that made
+content correct - `src/content/catalog.test.ts` is, and it runs over
+`allTemplates` whatever composes it: every one of the 553 templates validated and
+drawn fifty times, ids shaped `subject.level.topic.variant`, a curriculum
+citation in `tags`, at least 20 templates a year, no typed answer the number pad
+cannot enter, every prompt under `MAX_PROMPT_CHARS`, and every figure template
+made to prove it never draws one answer the same way twice. The two `leaks.test.ts`
+files are untouched.
 
 ## What is deleted
 
@@ -216,6 +262,9 @@ src/lib/revive.ts, src/lib/dto.ts       the wire boundary
 src/timing.ts, src/app/api/timing       the hop instrumentation
 prisma/auth.prisma                      the Auth.js subset schema
 scripts/changed-apps.ts                 which halves a push moves
+src/content/packs/             692 KB   the generated JSON, and its manifest
+scripts/build-content.ts                the generator
+scripts/content-packs.{ts,test.ts}      the byte-for-byte drift test
 ~/code/learnr-ledger/                   the cross-repo handover
 ```
 
@@ -306,16 +355,29 @@ genuinely dependent. Three of the four round trips that issue names stop being
 round trips once they are in-process, so re-measure before parallelising
 anything.
 
+## Where the request validation goes
+
+**zod becomes a web-app dependency, and the six handlers keep the schemas they
+already have.** `apps/api/src/schemas/play.ts` is written and tested; porting it
+is a move rather than a rewrite.
+
+The alternative was to lean on the boundary normalisers in `src/lib`
+(`parseYearLevel`, `parseTarget`, `parsePhoto`, `parseFigure`, `parseMode`,
+`parseOffsetMinutes`, `parsePlayedAt`). They stay, but they are not a substitute:
+**a normaliser answers "is this a legal value of this domain type", and a schema
+answers "is this object the shape I was promised".** A handler taking untrusted
+JSON from a browser needs both, and the normalisers only run once something has
+already been picked out of the body.
+
+**What does not come across is the response half.** In the API a response schema
+was a *serializer* - Fastify ran the value through it on the way out and a zod
+object silently stripped what it did not declare, which is why `Mirrored` existed
+to hold the schemas against the DTOs by key set in both directions. Nothing
+serialises through a schema any more: a route handler returns JSON directly and a
+page render returns a value in process. So `apps/api/src/schemas/dto.ts`,
+`Mirrored`, and the "leave `figure` off and every diagram vanishes from a
+parent's report" hazard all go. Only the request schemas move.
+
 ## Open questions
 
-- **`GET /content/manifest` and `GET /content/:subject/:level` served the packs
-  to a client that could not import TypeScript.** With no such client, the packs
-  could be dropped and `catalog.ts` could read the year files directly - which
-  would delete `npm run content:build`, `scripts/content-packs.test.ts` and the
-  "edited a year file, shipped a stale pack" failure mode. Deferred: it is a
-  content-pipeline change and does not belong inside a structural refactor.
-- **Where the API's 35 route schemas' validation goes.** The six write handlers
-  need input validation; zod is already a dependency of the API and not of the
-  web app. Either it becomes a web-app dependency or the boundary normalisers in
-  `src/lib` (`parseYearLevel`, `parseTarget`, `parsePhoto`, `parseFigure`,
-  `parseMode`, `parseOffsetMinutes`) do the whole job. They already do most of it.
+None outstanding.
