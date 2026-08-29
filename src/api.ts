@@ -1,5 +1,5 @@
 import 'server-only';
-import { cookies } from 'next/headers';
+import { headers } from 'next/headers';
 import { reviveDates } from '@/lib/revive';
 import { logTiming, stopwatch } from '@/timing';
 import type {
@@ -61,10 +61,27 @@ import type { Attempt } from '@/lib/session/session';
 const BASE = process.env.LEARNR_API_URL ?? 'http://localhost:3001';
 
 async function call(path: string, init: RequestInit = {}): Promise<Response | null> {
-  // The cookie jar is read before the clock starts: it is this process's own
-  // headers, not a hop, and folding it into the reading would flatter nothing
-  // and confuse the one number this is here to produce.
-  const jar = await cookies();
+  /*
+    **The raw `cookie` header, forwarded verbatim - not `cookies().toString()`.**
+
+    This is what child sign-in turned on. A browser can hold two cookies of the
+    same name, and after the session cookie gained a `Domain` so it would reach
+    `api.learnr.muzza.tech`, every browser that already had the host-only one
+    did: a `Set-Cookie` carrying a `Domain` writes a second cookie rather than
+    replacing the first.
+
+    Next's cookie jar is keyed by name, so it collapses those two to one and
+    `toString()` forwarded whichever survived - measurably the last of them.
+    When that was the stale one, the API answered 401 to a request whose live
+    session was sitting in the very same header, unsent. Making the API try
+    every token it is given (`tokensFrom`) could not help while only one was
+    ever reaching it.
+
+    So the header goes across as the browser wrote it, and the far side decides.
+    That also makes this the more honest forward in general: the API is being
+    handed the caller's request, not this process's reading of it.
+  */
+  const header = (await headers()).get('cookie') ?? '';
   const elapsed = stopwatch();
 
   try {
@@ -79,7 +96,7 @@ async function call(path: string, init: RequestInit = {}): Promise<Response | nu
         // then made that 400 indistinguishable from a failed read, which is
         // why it reached production silently rather than as an error.
         ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
-        cookie: jar.toString(),
+        cookie: header,
         ...init.headers,
       },
       // Every one of these is per-user and most are per-request. There is
@@ -87,7 +104,11 @@ async function call(path: string, init: RequestInit = {}): Promise<Response | nu
       cache: 'no-store',
     });
 
-    logTiming(`api ${init.method ?? 'GET'} ${path}`, elapsed(), `status=${response.status}`);
+    logTiming(
+      `api ${init.method ?? 'GET'} ${path}`,
+      elapsed(),
+      `status=${response.status}${sessionCookies(header)}`,
+    );
     return response;
   } catch (error) {
     // A dead connection is a failed read, not an empty one, and it must not
@@ -168,6 +189,21 @@ export interface ChildRecordRead {
 export interface SpeedRecordsRead {
   attempts: SpeedAttempt[];
   family: FamilyRecord[] | null;
+}
+
+/**
+ * How many session cookies the browser sent, reported only when it sent more
+ * than one.
+ *
+ * Two is not a hypothetical: it is what broke child sign-in, and it is silent -
+ * the request looks perfectly ordinary and the API simply answers 401. Counted
+ * on the substring rather than the exact name because the `__Secure-` prefix
+ * differs between development and production and this is a diagnostic, not a
+ * gate.
+ */
+function sessionCookies(header: string): string {
+  const count = header.split('authjs.session-token=').length - 1;
+  return count > 1 ? ` sessionCookies=${count}` : '';
 }
 
 const query = (params: Record<string, string | number | undefined>): string => {

@@ -18,8 +18,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('server-only', () => ({}));
+
+/**
+ * The raw header the "browser" sent. A test can rewrite it, because the case
+ * worth covering is the one where it carries the session cookie twice.
+ */
+let cookieHeader = 'authjs.session-token=abc';
+
 vi.mock('next/headers', () => ({
-  cookies: async () => ({ toString: () => 'authjs.session-token=abc' }),
+  headers: async () => ({ get: (name: string) => (name === 'cookie' ? cookieHeader : null) }),
 }));
 
 const { api } = await import('./api');
@@ -31,6 +38,7 @@ const headersOf = (index: number): Record<string, string> =>
 
 beforeEach(() => {
   sent.length = 0;
+  cookieHeader = 'authjs.session-token=abc';
   vi.stubGlobal('fetch', (url: string, init: RequestInit) => {
     sent.push({ url, init });
     return Promise.resolve(
@@ -76,5 +84,33 @@ describe('the typed client', () => {
 
     expect(headersOf(0).cookie).toBe('authjs.session-token=abc');
     expect(headersOf(1).cookie).toBe('authjs.session-token=abc');
+  });
+
+  /**
+   * The header goes across as the browser wrote it, duplicates and all - which
+   * is the whole of why child sign-in broke.
+   *
+   * A browser can hold two cookies of one name, and every browser holding the
+   * old host-only session cookie got a second one the moment that cookie gained
+   * a `Domain`. Next's jar is keyed by name and collapses them, so
+   * `cookies().toString()` forwarded whichever survived; when that was the
+   * stale one the API answered 401 with the live session sitting unsent in the
+   * very same header. Making the API try every token it is given cannot help
+   * while only one is ever reaching it.
+   */
+  it('forwards a session cookie that appears twice, rather than picking one', async () => {
+    cookieHeader = 'authjs.session-token=stale; theme=dark; authjs.session-token=live';
+    await api.me();
+
+    expect(headersOf(0).cookie).toBe(
+      'authjs.session-token=stale; theme=dark; authjs.session-token=live',
+    );
+  });
+
+  it('sends no cookie header content when the caller had none', async () => {
+    cookieHeader = '';
+    await api.me();
+
+    expect(headersOf(0).cookie).toBe('');
   });
 });
