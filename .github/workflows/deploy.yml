@@ -1,166 +1,27 @@
-# Both deploys, in one workflow, because they have to agree with each other.
+# A gate, not a deploy. There is one artifact now, and `vercel.json` has
+# `git.deploymentEnabled: true` again - Vercel builds and deploys the web app
+# itself on every push, the way it did before the API existed. This workflow's
+# job is to fail loudly before that happens, not to ship anything itself.
 #
-# Vercel used to build the web app itself on every push, ungated and in
-# parallel with these tests, while `fly deploy` waited behind them - so a push
-# touching both halves moved the web app in about two minutes and the API in
-# about six, with no order between them. `vercel.json` now sets
-# `git.deploymentEnabled: false`, so production only ever moves from here.
-#
-# **The tests are a gate rather than a courtesy.** The content packs under
-# `src/content/packs/` are generated from the TypeScript literals that author
-# them, and the only thing standing between an edited year file and a stale
-# shipped pack is `scripts/content-packs.test.ts` comparing the two byte for
-# byte. Neither `next build` nor the Docker build runs it, so before this
-# workflow that check existed only on whoever's laptop last ran `npm test`.
-#
-# **The API goes first.** Its release command runs `db:deploy`, so a schema
-# change lands before the web app that reads through it, and an endpoint exists
-# before the page that calls it. The web app calls the API server-side on every
-# render, which is what makes the order matter rather than being a preference.
-name: Deploy
+# **The tests are a gate rather than a courtesy.** `next build` does not run
+# `src/content/catalog.test.ts`, which is what proves all 553 shipped
+# templates still validate, still fit `MAX_PROMPT_CHARS`, and still never
+# anchor a figure to an answer. Nothing else stands between an edited
+# template and a broken one shipping.
+name: Checks
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
 
-# One deploy at a time, across both halves. Two rolling updates racing on a
-# single Fly machine is the one way this app can be down, and two pushes
-# interleaving their halves would be worse: the API from one and the web app
-# from the other.
-concurrency:
-  group: deploy
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
 jobs:
-  # There is deliberately no `paths-ignore:` above. What a push has to move is
-  # decided in exactly one place - `scripts/changed-apps.ts`, which has tests -
-  # and a second list here would be free to disagree with it. A prose-only push
-  # costs this job and nothing else.
-  changes:
-    name: What changed
-    runs-on: ubuntu-latest
-    outputs:
-      api: ${{ steps.classify.outputs.api }}
-      web: ${{ steps.classify.outputs.web }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # the push's base commit has to be there to diff against
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24 # runs TypeScript directly, so this needs no npm ci
-
-      # `github.event.before` is empty on a workflow_dispatch and all zeros on a
-      # first push; the script reads either as "could not tell" and deploys
-      # both, which is the failure worth having.
-      #
-      # The warning it silences is that the repository root declares no
-      # `"type"`, and it may not: `@learnr/core` is a symlink onto `src/`, so
-      # adding one would change how every engine file resolves.
-      - id: classify
-        run: >
-          node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON
-          scripts/changed-apps.ts "$BASE" "$HEAD" >> "$GITHUB_OUTPUT"
-        env:
-          BASE: ${{ github.event.before }}
-          HEAD: ${{ github.sha }}
-
   test:
     name: Tests and typechecks
-    needs: changes
-    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24 # the version apps/api/Dockerfile builds and runs on
-          cache: npm
-
-      # From the root: the workspace links @learnr/core into both applications,
-      # and installing inside apps/api cannot see it. `prisma generate` runs on
-      # postinstall and falls back to a placeholder URL, so this needs no secret.
-      - run: npm ci
-
-      - name: Typecheck the web app
-        run: npm run typecheck
-
-      # Includes the drift test - a year file edited without `npm run
-      # content:build` reddens here rather than shipping a stale pack.
-      - name: Test the web app
-        run: npm test
-
-      - name: Typecheck the API
-        run: npm run typecheck --workspace apps/api
-
-      # Testcontainers starts a real Postgres, which is the point: three
-      # concurrency guards (SELECT ... FOR UPDATE on TopicSkill and on
-      # roundsBanked, and the compare-and-set on targetDay) mean nothing
-      # against a mock, and they are what a deploy most needs proven.
-      - name: Test the API
-        run: npm test --workspace apps/api
-
-      # Everything above this line looks at the *source*. `tsc` typechecks it
-      # and vitest runs it through tsx, both of which resolve module formats
-      # that plain `node` loading an esbuild bundle does not - so the artifact
-      # that actually boots on Fly was the one version of this server nothing
-      # here had ever run.
-      #
-      # `@fastify/cors` proved what that costs on 2026-08-29: bundled rather
-      # than externalised, its CommonJS `require` became esbuild's `__require`
-      # shim and threw on the first line that ran. Green suite, green
-      # typecheck, and a crash loop that took the API down until it was rolled
-      # back. This boots the built bundle and asks it for /health, which is
-      # seconds and would have caught it.
-      - name: Boot the API bundle
-        run: npm run smoke --workspace apps/api
-
-  api:
-    name: Deploy the API to Fly
-    needs: [changes, test]
-    if: needs.changes.outputs.api == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      # Pinned to a release rather than @master, which Fly's own docs suggest:
-      # a moving branch on a third-party action is arbitrary code landing in the
-      # deploy pipeline unreviewed.
-      - uses: superfly/flyctl-actions/setup-flyctl@1.5
-
-      # From the repository root, because the Docker build context has to be:
-      # packages/core/src is a symlink to ./src, and a context of apps/api
-      # alone rebuilds a dangling link. --ha=false keeps it to the one
-      # always-on machine; the web app calls this server-side on every render,
-      # so a cold start would land in a parent's page load.
-      - run: flyctl deploy --ha=false --remote-only
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-  web:
-    name: Deploy the web app to Vercel
-    needs: [changes, test, api]
-    # `needs: api` alone would skip this whenever the API did not change, since
-    # Actions reads a skipped dependency as unmet. So the wait is spelled out:
-    # go when the API deployed or had nothing to deploy, never when it failed.
-    if: >
-      ${{ !cancelled()
-      && needs.changes.outputs.web == 'true'
-      && needs.test.result == 'success'
-      && (needs.api.result == 'success' || needs.api.result == 'skipped') }}
-    runs-on: ubuntu-latest
-    env:
-      # The token is a secret; the two ids are not, but .vercel/project.json is
-      # gitignored and they stay out of the tree with it.
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v5
 
@@ -169,27 +30,16 @@ jobs:
           node-version: 24
           cache: npm
 
-      # Pinned for the reason flyctl is: an unpinned CLI is unreviewed code in
-      # the deploy pipeline.
-      - run: npm install -g vercel@59.5.0
+      # `prisma generate` runs on postinstall and falls back to a placeholder
+      # URL, so this needs no secret.
+      - run: npm ci
 
-      # `whoami` first, because the failure this job actually hits is a token
-      # that authenticates perfectly well but belongs to a scope that cannot
-      # see this project - which the CLI reports as "Could not retrieve Project
-      # Settings", reading like a broken link rather than the wrong credential.
-      # One line of log naming the account is the difference between knowing
-      # that and bisecting it. An outright invalid token says so itself.
-      #
-      # The pull puts the project's settings and its production environment
-      # variables on the runner, which is what makes the build below the same
-      # build Vercel would have run.
-      - run: |
-          vercel whoami
-          vercel pull --yes --environment=production
+      - run: npm run typecheck
 
-      # Built here rather than on Vercel so the artifact that ships is the one
-      # the suites above ran beside, and so a red test means nothing was built
-      # at all. --prebuilt then uploads the output rather than the source.
-      - run: vercel build --prod
-
-      - run: vercel deploy --prebuilt --prod --yes
+      # Includes the `db` project, which starts a real Postgres via
+      # Testcontainers - GitHub-hosted Ubuntu runners have Docker already.
+      # Three concurrency guards (SELECT ... FOR UPDATE on TopicSkill and on
+      # roundsBanked, and the compare-and-set on targetDay) mean nothing
+      # against a mock, and they are what a deploy most needs proven, so this
+      # is not split down to `test:unit` for speed.
+      - run: npm test
