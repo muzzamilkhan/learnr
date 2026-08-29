@@ -1,5 +1,5 @@
 {
-  "version": "e61e91dcbd1e",
+  "version": "300a8135fd97",
   "subject": "maths",
   "level": "3",
   "templates": [
@@ -1969,6 +1969,271 @@
       "tags": [
         "AC9M3ST02",
         "MA2-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.3.shapes.quadrilateral-claim",
+      "subject": "maths",
+      "topic": "shapes",
+      "level": "3",
+      "prompt": "True or false: this shape is a quadrilateral.",
+      "vars": [
+        {
+          "name": "four",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "quad",
+          "kind": "pick",
+          "from": [
+            "square",
+            "rectangle",
+            "rhombus",
+            "parallelogram",
+            "trapezium",
+            "kite"
+          ]
+        },
+        {
+          "name": "other",
+          "kind": "pick",
+          "from": [
+            "equilateral",
+            "isosceles",
+            "scalene",
+            "right-triangle",
+            "pentagon",
+            "hexagon",
+            "heptagon",
+            "octagon"
+          ]
+        },
+        {
+          "name": "shape",
+          "kind": "expr",
+          "expr": "four == 1 ? quad : other"
+        }
+      ],
+      "answer": "four == 1",
+      "hint": "A quadrilateral is any shape with four straight sides.",
+      "figure": {
+        "kind": "polygon",
+        "shape": "shape"
+      },
+      "tags": [
+        "AC9M3SP01",
+        "MA2-2DS-01"
+      ]
+    },
+    {
+      "id": "maths.3.shapes.right-angle-claim",
+      "subject": "maths",
+      "topic": "shapes",
+      "level": "3",
+      "prompt": "True or false: this shape has a right angle.",
+      "vars": [
+        {
+          "name": "square",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "withRight",
+          "kind": "pick",
+          "from": [
+            "square",
+            "rectangle",
+            "right-triangle"
+          ]
+        },
+        {
+          "name": "without",
+          "kind": "pick",
+          "from": [
+            "equilateral",
+            "rhombus",
+            "parallelogram",
+            "pentagon",
+            "hexagon",
+            "heptagon",
+            "octagon"
+          ]
+        },
+        {
+          "name": "shape",
+          "kind": "expr",
+          "expr": "square == 1 ? withRight : without"
+        }
+      ],
+      "answer": "square == 1",
+      "hint": "A right angle is a square corner, like the corner of a page.",
+      "figure": {
+        "kind": "polygon",
+        "shape": "shape"
+      },
+      "tags": [
+        "AC9M3SP01",
+        "MA2-2DS-01"
+      ]
+    },
+    {
+      "id": "maths.3.perimeter-and-area.count-square-units",
+      "subject": "maths",
+      "topic": "perimeter and area",
+      "level": "3",
+      "prompt": "Each square is 1 square centimetre. What is the area of this shape?",
+      "vars": [
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "6"
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "2",
+          "max": "6"
+        },
+        {
+          "name": "ax",
+          "kind": "int",
+          "min": "1",
+          "max": "c"
+        },
+        {
+          "name": "ay",
+          "kind": "int",
+          "min": "1",
+          "max": "r"
+        }
+      ],
+      "answer": "c * r",
+      "hint": "Count the squares along one row, then multiply by the number of rows.",
+      "figure": {
+        "kind": "grid",
+        "at": "ax + ',' + ay",
+        "columns": "c",
+        "rows": "r",
+        "axisLabels": "'none'"
+      },
+      "tags": [
+        "AC9M3M02",
+        "MA2-2DS-03"
+      ]
+    },
+    {
+      "id": "maths.3.perimeter-and-area.area-from-rows",
+      "subject": "maths",
+      "topic": "perimeter and area",
+      "level": "3",
+      "prompt": "A rectangle is covered by {r} rows of {c} square centimetres. What is its area?",
+      "vars": [
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        },
+        {
+          "name": "c",
+          "kind": "int",
+          "min": "2",
+          "max": "9"
+        }
+      ],
+      "answer": "r * c",
+      "hint": "There are {r} rows with {c} in each, so multiply.",
+      "tags": [
+        "AC9M3M02",
+        "MA2-2DS-03"
+      ]
+    },
+    {
+      "id": "maths.3.data.graph-scale-five-total",
+      "subject": "maths",
+      "topic": "data",
+      "level": "3",
+      "prompt": "This graph shows the books each class read. How many were read altogether?",
+      "vars": [
+        {
+          "name": "red",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "sun",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        },
+        {
+          "name": "oak",
+          "kind": "int",
+          "min": "1",
+          "max": "5"
+        }
+      ],
+      "constraints": [
+        "max(red, sun, oak) > 1"
+      ],
+      "answer": "(red + sun + oak) * 5",
+      "hint": "Read all three numbers off the graph, then add them together.",
+      "figure": {
+        "kind": "bar",
+        "values": "(red * 5) + ',' + (sun * 5) + ',' + (oak * 5)",
+        "labels": "'Red,Sun,Oak'",
+        "scale": "5"
+      },
+      "tags": [
+        "AC9M3ST02",
+        "MA2-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.3.data.survey-neither",
+      "subject": "maths",
+      "topic": "data",
+      "level": "3",
+      "prompt": "{total} children were surveyed. {a} chose swimming and {b} chose running. How many chose neither?",
+      "vars": [
+        {
+          "name": "a",
+          "kind": "int",
+          "min": "5",
+          "max": "40"
+        },
+        {
+          "name": "b",
+          "kind": "int",
+          "min": "5",
+          "max": "40"
+        },
+        {
+          "name": "neither",
+          "kind": "int",
+          "min": "2",
+          "max": "25"
+        },
+        {
+          "name": "total",
+          "kind": "expr",
+          "expr": "a + b + neither"
+        }
+      ],
+      "answer": "neither",
+      "hint": "Add the two groups, then take that away from {total}.",
+      "tags": [
+        "AC9M3ST01",
+        "MA2-DATA-01"
       ]
     }
   ]

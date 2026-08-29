@@ -1284,4 +1284,163 @@ export const year3: QuestionTemplate[] = [
     },
     tags: ['AC9M3ST02', 'MA2-DATA-02'],
   },
+
+  // ------------------------------------------------------------------
+  // Flat shapes, area in square units, and two more of data.
+  //
+  // The strand pass (issue #12). Year 3 was 23 Number and algebra, 19
+  // Measurement and space, 10 Statistics and probability; the six below make it
+  // 23/23/12.
+  //
+  // Two Stage 2 focus areas had no Year 3 question at all, and both are about
+  // *flat* shapes: `MA2-2DS-01`, comparing shapes by their features, and
+  // `MA2-2DS-03`, area in square units. Everything filed under this year's
+  // `shapes` topic was a solid or a net, which is `MA2-3DS-01` - so the year
+  // that the diagrams design named as having no Space content at all had
+  // gained solids and still had no polygon in it.
+  // ------------------------------------------------------------------
+
+  {
+    id: 'maths.3.shapes.quadrilateral-claim',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '3',
+    prompt: 'True or false: this shape is a quadrilateral.',
+    // **Comparing shapes by their features is exactly what makes this a Year 3
+    // question** rather than the naming question Years K to 2 ask: a rhombus, a
+    // kite and a trapezium look nothing like one another and are all
+    // quadrilaterals, and a pentagon looks more like a hexagon than a square
+    // looks like a kite. Counting the sides is the feature that settles it.
+    //
+    // Derived rather than constrained: `four` picks the answer and the shape is
+    // drawn from the matching list, so the split is the pick's and no draw is
+    // ever thrown away. Constraining a shape drawn from one list to "have four
+    // sides half the time" rejects the whole scope on every miss, and the
+    // branch that is harder to satisfy loses more draws.
+    vars: [
+      { name: 'four', kind: 'pick', from: [1, 0] },
+      { name: 'quad', kind: 'pick', from: ['square', 'rectangle', 'rhombus', 'parallelogram', 'trapezium', 'kite'] },
+      { name: 'other', kind: 'pick', from: ['equilateral', 'isosceles', 'scalene', 'right-triangle', 'pentagon', 'hexagon', 'heptagon', 'octagon'] },
+      { name: 'shape', kind: 'expr', expr: 'four == 1 ? quad : other' },
+    ],
+    answer: 'four == 1',
+    hint: 'A quadrilateral is any shape with four straight sides.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M3SP01', 'MA2-2DS-01'],
+  },
+  {
+    id: 'maths.3.shapes.right-angle-claim',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '3',
+    prompt: 'True or false: this shape has a right angle.',
+    // **`rightAngles` is deliberately left off**, so no corner is ticked. A box
+    // drawn in the corner answers the question before the child has looked at
+    // the shape, which is the same objection this repo makes to a figure that
+    // never varies.
+    //
+    // The two lists are conservative: only the three shapes whose square
+    // corners are a fact about the shape itself are on the true side, and the
+    // false side leaves out the trapezium, which can honestly be drawn with a
+    // right angle and would make a false answer wrong on some draws.
+    vars: [
+      { name: 'square', kind: 'pick', from: [1, 0] },
+      { name: 'withRight', kind: 'pick', from: ['square', 'rectangle', 'right-triangle'] },
+      { name: 'without', kind: 'pick', from: ['equilateral', 'rhombus', 'parallelogram', 'pentagon', 'hexagon', 'heptagon', 'octagon'] },
+      { name: 'shape', kind: 'expr', expr: 'square == 1 ? withRight : without' },
+    ],
+    answer: 'square == 1',
+    hint: 'A right angle is a square corner, like the corner of a page.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M3SP01', 'MA2-2DS-01'],
+  },
+
+  // Area in square units, which is the Stage 2 successor to the informal
+  // squares Years 1 and 2 count. Year 4 asks for a rectangle's area from its
+  // two sides in a sentence (`maths.4.perimeter-and-area.rectangle-area`);
+  // these two are the picture and the rows, which Year 4 has neither of.
+  {
+    id: 'maths.3.perimeter-and-area.count-square-units',
+    subject: 'maths',
+    topic: 'perimeter and area',
+    level: '3',
+    prompt: 'Each square is 1 square centimetre. What is the area of this shape?',
+    // The extent is pinned to bound variables because the answer is computed
+    // from it, which uses up both of `grid`'s usual levers - so the variation
+    // is the marked square, which moves over every cell.
+    vars: [
+      { name: 'c', kind: 'int', min: '2', max: '6' },
+      { name: 'r', kind: 'int', min: '2', max: '6' },
+      { name: 'ax', kind: 'int', min: '1', max: 'c' },
+      { name: 'ay', kind: 'int', min: '1', max: 'r' },
+    ],
+    answer: 'c * r',
+    hint: 'Count the squares along one row, then multiply by the number of rows.',
+    figure: {
+      kind: 'grid',
+      at: "ax + ',' + ay",
+      columns: 'c',
+      rows: 'r',
+      axisLabels: "'none'",
+    },
+    tags: ['AC9M3M02', 'MA2-2DS-03'],
+  },
+  {
+    id: 'maths.3.perimeter-and-area.area-from-rows',
+    subject: 'maths',
+    topic: 'perimeter and area',
+    level: '3',
+    prompt: 'A rectangle is covered by {r} rows of {c} square centimetres. What is its area?',
+    vars: [
+      { name: 'r', kind: 'int', min: '2', max: '9' },
+      { name: 'c', kind: 'int', min: '2', max: '9' },
+    ],
+    answer: 'r * c',
+    hint: 'There are {r} rows with {c} in each, so multiply.',
+    tags: ['AC9M3M02', 'MA2-2DS-03'],
+  },
+
+  {
+    id: 'maths.3.data.graph-scale-five-total',
+    subject: 'maths',
+    topic: 'data',
+    level: '3',
+    prompt: 'This graph shows the books each class read. How many were read altogether?',
+    // Multiples of five on an axis stepping in fives, and stopping at 25: five
+    // labelled rungs is the most whose labels stay clear of one another, so a
+    // sixth would have the figure refused outright.
+    vars: [
+      { name: 'red', kind: 'int', min: '1', max: '5' },
+      { name: 'sun', kind: 'int', min: '1', max: '5' },
+      { name: 'oak', kind: 'int', min: '1', max: '5' },
+    ],
+    constraints: ['max(red, sun, oak) > 1'],
+    answer: '(red + sun + oak) * 5',
+    hint: 'Read all three numbers off the graph, then add them together.',
+    figure: {
+      kind: 'bar',
+      values: "(red * 5) + ',' + (sun * 5) + ',' + (oak * 5)",
+      labels: "'Red,Sun,Oak'",
+      scale: '5',
+    },
+    tags: ['AC9M3ST02', 'MA2-DATA-02'],
+  },
+  {
+    id: 'maths.3.data.survey-neither',
+    subject: 'maths',
+    topic: 'data',
+    level: '3',
+    prompt: '{total} children were surveyed. {a} chose swimming and {b} chose running. How many chose neither?',
+    // Built up from the three groups rather than drawn and divided, so the
+    // answer is never zero or negative and no draw is rejected.
+    vars: [
+      { name: 'a', kind: 'int', min: '5', max: '40' },
+      { name: 'b', kind: 'int', min: '5', max: '40' },
+      { name: 'neither', kind: 'int', min: '2', max: '25' },
+      { name: 'total', kind: 'expr', expr: 'a + b + neither' },
+    ],
+    answer: 'neither',
+    hint: 'Add the two groups, then take that away from {total}.',
+    tags: ['AC9M3ST01', 'MA2-DATA-01'],
+  },
 ];

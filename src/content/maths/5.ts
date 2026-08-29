@@ -1500,4 +1500,147 @@ export const year5: QuestionTemplate[] = [
     hint: 'The colour it stopped on most often is the one to expect next time.',
     tags: ['AC9M5P02', 'MA3-CHAN-01'],
   },
+
+  // ------------------------------------------------------------------
+  // Classifying triangles and quadrilaterals, the area of a triangle, and two
+  // more of data and chance.
+  //
+  // The strand pass (issue #12). Year 5 was 24 Number and algebra, 21
+  // Measurement and space, 10 Statistics and probability; the five below make
+  // it 24/24/12.
+  //
+  // `MA3-2DS-01` - classifying triangles and quadrilaterals - had no Year 5
+  // question at all. The only polygons this year drew were the two symmetry
+  // ones, so a year whose syllabus names classification outright had no
+  // question that classified anything. `MA3-2DS-03`, the area of a triangle,
+  // was the other empty one.
+  // ------------------------------------------------------------------
+
+  {
+    id: 'maths.5.shapes.triangle-by-sides',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '5',
+    prompt: 'What kind of triangle is this?',
+    // The three names are a closed set, so this is a `choice` at any level -
+    // and all three are on the screen every time, which means the option set
+    // carries no information about which one it is.
+    //
+    // The right-angled triangle is left out of the pick deliberately: it is
+    // classified by its angle rather than by its sides, so it is a fourth
+    // answer to a three-answer question and belongs to a different one.
+    vars: [
+      { name: 'shape', kind: 'pick', from: ['equilateral', 'isosceles', 'scalene'] },
+    ],
+    answer: 'shape',
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'equilateral'", "'isosceles'", "'scalene'"] },
+    hint: 'Equilateral has three equal sides, isosceles two, scalene none.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M5SP01', 'MA3-2DS-01'],
+  },
+  {
+    id: 'maths.5.shapes.parallel-pairs-claim',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '5',
+    prompt: 'True or false: this shape has two pairs of parallel sides.',
+    // The quadrilateral half of `MA3-2DS-01`, and the property that actually
+    // divides the six: a square, a rectangle, a rhombus and a parallelogram
+    // all have two pairs, and a trapezium and a kite do not. It cuts the
+    // vocabulary differently from Year 4's "are all the sides equal?" - a
+    // rectangle answers false there and true here.
+    //
+    // Derived, so the split is the pick's and no draw is thrown away.
+    vars: [
+      { name: 'two', kind: 'pick', from: [1, 0] },
+      { name: 'pairs', kind: 'pick', from: ['square', 'rectangle', 'rhombus', 'parallelogram'] },
+      { name: 'notPairs', kind: 'pick', from: ['trapezium', 'kite'] },
+      { name: 'shape', kind: 'expr', expr: 'two == 1 ? pairs : notPairs' },
+    ],
+    answer: 'two == 1',
+    hint: 'Parallel sides never meet, however far you stretch them.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M5SP01', 'MA3-2DS-01'],
+  },
+  {
+    id: 'maths.5.perimeter-and-area.triangle-area',
+    subject: 'maths',
+    topic: 'perimeter and area',
+    level: '5',
+    prompt: 'A triangle has a base of {b} cm and a height of {h} cm. What is its area?',
+    // **The base is always even**, so half of base times height is a whole
+    // number and the answer is typeable on a number pad with one decimal
+    // point but no fractions. Built as `2 * n` rather than drawn and filtered:
+    // a `mod(b, 2) == 0` constraint throws away half of every scope it draws.
+    vars: [
+      { name: 'n', kind: 'int', min: '2', max: '12' },
+      { name: 'b', kind: 'expr', expr: 'n * 2' },
+      { name: 'h', kind: 'int', min: '3', max: '20' },
+    ],
+    answer: 'b * h / 2',
+    hint: 'A triangle is half of the rectangle around it: base times height, halved.',
+    tags: ['AC9M5M02', 'MA3-2DS-03'],
+  },
+
+  {
+    id: 'maths.5.data.timeline-order',
+    subject: 'maths',
+    topic: 'data',
+    level: '5',
+    prompt: 'Which of these happened first?',
+    // **The letters are given out of date order, which is the whole question.**
+    // The kind letters events in the order the template lists them, so a
+    // template that listed them earliest-first would answer this off the
+    // alphabet - A would be the answer on every draw. `first` picks which
+    // letter gets the earliest year and the three years are dealt out around
+    // it.
+    //
+    // Three events on a line of four-digit years is the kind's whole budget,
+    // and the gaps have to share a divisor coarser than the line: 20 apart on
+    // a line stepping in 20s is what the two shipped timeline questions
+    // already use.
+    vars: [
+      { name: 'start', kind: 'pick', from: [1800, 1850, 1900] },
+      { name: 'first', kind: 'pick', from: [0, 1, 2] },
+      // The three events sit on ticks 1, 3 and 5 of the line - two divisions
+      // apart, which is the closest two letters may be drawn.
+      { name: 'ya', kind: 'expr', expr: 'start + 20 * (first == 0 ? 1 : first == 1 ? 3 : 5)' },
+      { name: 'yb', kind: 'expr', expr: 'start + 20 * (first == 0 ? 3 : first == 1 ? 5 : 1)' },
+      { name: 'yc', kind: 'expr', expr: 'start + 20 * (first == 0 ? 5 : first == 1 ? 1 : 3)' },
+    ],
+    answer: "first == 0 ? 'A' : first == 1 ? 'B' : 'C'",
+    answerType: 'choice',
+    choices: { count: 3, distractors: ["'A'", "'B'", "'C'"] },
+    hint: 'The earliest year is the one furthest to the left.',
+    figure: {
+      kind: 'timeline',
+      years: "ya + ',' + yb + ',' + yc",
+      labels: "'A,B,C'",
+      from: 'start',
+      to: 'start + 120',
+      step: '20',
+    },
+    tags: ['MA3-DATA-02'],
+  },
+  {
+    id: 'maths.5.chance.expected-count',
+    subject: 'maths',
+    topic: 'chance',
+    level: '5',
+    prompt: 'A spinner has {n} equal parts and {s} are shaded. In {t} spins, how many should stop shaded?',
+    // Quantifying a probability rather than naming it, which is the Stage 3
+    // step (`MA3-CHAN-01`) over the language Years 1 and 2 use. The number of
+    // spins is built as a multiple of the parts, so the expected count is
+    // always whole.
+    vars: [
+      { name: 'n', kind: 'pick', from: [3, 4, 5, 6] },
+      { name: 's', kind: 'int', min: '1', max: 'n - 1' },
+      { name: 'lots', kind: 'int', min: '2', max: '12' },
+      { name: 't', kind: 'expr', expr: 'n * lots' },
+    ],
+    answer: 's * lots',
+    hint: '{t} spins is {lots} lots of {n}, and {s} of every {n} should be shaded.',
+    tags: ['AC9M5P01', 'MA3-CHAN-01'],
+  },
 ];

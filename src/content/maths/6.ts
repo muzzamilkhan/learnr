@@ -1308,4 +1308,110 @@ export const year6: QuestionTemplate[] = [
     figure: { kind: 'spinner', sectors: 'parts' },
     tags: ['AC9M6P01', 'MA3-CHAN-01'],
   },
+
+  // ------------------------------------------------------------------
+  // The mean, a many-to-one graph read in halves, and a chance as a
+  // percentage.
+  //
+  // The strand pass (issue #12), and the last year of it. Year 6 was 20 Number
+  // and algebra, 22 Measurement and space, 7 Statistics and probability - the
+  // only year already over its Measurement and space share, so all three below
+  // are Statistics and probability and it ends at 20/22/10.
+  // ------------------------------------------------------------------
+
+  {
+    id: 'maths.6.data.column-mean',
+    subject: 'maths',
+    topic: 'data',
+    level: '6',
+    prompt: 'What is the mean of the four numbers on this graph?',
+    // **The mean is picked first and the four readings are built around it**,
+    // which is the only way this answer comes out evenly spread. Both of the
+    // obvious constructions are badly peaked, because four readings drawn
+    // independently sum the way four dice do: deriving the fourth reading to
+    // make the total divide by four measured **56% on a mean of 3**, and
+    // drawing all four and keeping the totals that divide is the same
+    // distribution conditioned - 85 of the 157 surviving quadruples have a
+    // mean of 3. A typed answer with a 56% mode is a number worth guessing.
+    // Picked first, the three means come up a third each.
+    //
+    // Two offsets and their negatives, so the four readings sum to exactly
+    // four times the mean with nothing thrown away.
+    //
+    // **Every reading stays at or under 5**, which is `bar`'s limit rather
+    // than the arithmetic's: at `scale: '1'` a value of 6 leaves six labelled
+    // rungs where five is the most whose labels stay clear of one another, and
+    // the figure is refused outright. A mean of 2 to 4 with offsets of at most
+    // 1 is what keeps every column inside 1..5.
+    vars: [
+      { name: 'mean', kind: 'int', min: '2', max: '4' },
+      { name: 'p', kind: 'int', min: '-1', max: '1' },
+      { name: 'q', kind: 'int', min: '-1', max: '1' },
+      { name: 'a', kind: 'expr', expr: 'mean + p' },
+      { name: 'b', kind: 'expr', expr: 'mean + q' },
+      { name: 'c', kind: 'expr', expr: 'mean - p' },
+      { name: 'd', kind: 'expr', expr: 'mean - q' },
+    ],
+    // Something above 1, or the axis is a single step and `bar` refuses it.
+    constraints: ['max(a, b, c, d) > 1'],
+    answer: 'mean',
+    hint: 'Add all four numbers, then divide by 4.',
+    figure: {
+      kind: 'bar',
+      values: "a + ',' + b + ',' + c + ',' + d",
+      labels: "'Mon,Tue,Wed,Thu'",
+      scale: '1',
+    },
+    tags: ['AC9M6ST01', 'MA3-DATA-02'],
+  },
+  {
+    id: 'maths.6.data.picture-key-halves-total',
+    subject: 'maths',
+    topic: 'data',
+    level: '6',
+    prompt: 'Each picture stands for 10 books. How many books were borrowed altogether?',
+    // **Halves are what make a many-to-one key usable rather than a scale that
+    // can only graph its own multiples**: with them a row may end on half an
+    // icon, so a key of 10 can say 25. The counts are therefore drawn as a
+    // number of *half* icons and multiplied by five, because a count the key
+    // cannot say even in halves is reported rather than quietly rounded into
+    // the same picture as its neighbour.
+    //
+    // A key of ten needs no argument at Stage 3 - `MA3-DATA-01` is graphs with
+    // many-to-one scales - where below it one has to be made. The prompt still
+    // says what one picture stands for, because the graph's own key draws an
+    // icon and a number and cannot say two *what*.
+    vars: [
+      { name: 'halvesA', kind: 'int', min: '2', max: '7' },
+      { name: 'halvesB', kind: 'int', min: '2', max: '7' },
+    ],
+    answer: '(halvesA + halvesB) * 5',
+    hint: 'Half a picture is 5 books.',
+    figure: {
+      kind: 'pictograph',
+      counts: "(halvesA * 5) + ',' + (halvesB * 5)",
+      labels: "'May,Jun'",
+      key: '10',
+      halves: 'true',
+    },
+    tags: ['AC9M6ST01', 'MA3-DATA-01'],
+  },
+  {
+    id: 'maths.6.chance.percentage-chance',
+    subject: 'maths',
+    topic: 'chance',
+    level: '6',
+    prompt: 'A bag holds {r} red counters and {b} blue. What percentage of them are red?',
+    // Quantifying a probability as a percentage, which is the Year 6 end of
+    // `MA3-CHAN-01`. The total is built to divide 100 exactly - 4, 5, 10 or 20
+    // counters - so the answer is a whole percentage and typeable.
+    vars: [
+      { name: 'total', kind: 'pick', from: [4, 5, 10, 20] },
+      { name: 'r', kind: 'int', min: '1', max: 'total - 1' },
+      { name: 'b', kind: 'expr', expr: 'total - r' },
+    ],
+    answer: 'r * 100 / total',
+    hint: 'There are {total} counters altogether. What share of 100 is {r} of them?',
+    tags: ['AC9M6P01', 'MA3-CHAN-01'],
+  },
 ];

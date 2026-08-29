@@ -1,5 +1,5 @@
 {
-  "version": "e5a8dfc1203f",
+  "version": "96822e23c0fd",
   "subject": "maths",
   "level": "6",
   "templates": [
@@ -2121,6 +2121,138 @@
         "kind": "spinner",
         "sectors": "parts"
       },
+      "tags": [
+        "AC9M6P01",
+        "MA3-CHAN-01"
+      ]
+    },
+    {
+      "id": "maths.6.data.column-mean",
+      "subject": "maths",
+      "topic": "data",
+      "level": "6",
+      "prompt": "What is the mean of the four numbers on this graph?",
+      "vars": [
+        {
+          "name": "mean",
+          "kind": "int",
+          "min": "2",
+          "max": "4"
+        },
+        {
+          "name": "p",
+          "kind": "int",
+          "min": "-1",
+          "max": "1"
+        },
+        {
+          "name": "q",
+          "kind": "int",
+          "min": "-1",
+          "max": "1"
+        },
+        {
+          "name": "a",
+          "kind": "expr",
+          "expr": "mean + p"
+        },
+        {
+          "name": "b",
+          "kind": "expr",
+          "expr": "mean + q"
+        },
+        {
+          "name": "c",
+          "kind": "expr",
+          "expr": "mean - p"
+        },
+        {
+          "name": "d",
+          "kind": "expr",
+          "expr": "mean - q"
+        }
+      ],
+      "constraints": [
+        "max(a, b, c, d) > 1"
+      ],
+      "answer": "mean",
+      "hint": "Add all four numbers, then divide by 4.",
+      "figure": {
+        "kind": "bar",
+        "values": "a + ',' + b + ',' + c + ',' + d",
+        "labels": "'Mon,Tue,Wed,Thu'",
+        "scale": "1"
+      },
+      "tags": [
+        "AC9M6ST01",
+        "MA3-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.6.data.picture-key-halves-total",
+      "subject": "maths",
+      "topic": "data",
+      "level": "6",
+      "prompt": "Each picture stands for 10 books. How many books were borrowed altogether?",
+      "vars": [
+        {
+          "name": "halvesA",
+          "kind": "int",
+          "min": "2",
+          "max": "7"
+        },
+        {
+          "name": "halvesB",
+          "kind": "int",
+          "min": "2",
+          "max": "7"
+        }
+      ],
+      "answer": "(halvesA + halvesB) * 5",
+      "hint": "Half a picture is 5 books.",
+      "figure": {
+        "kind": "pictograph",
+        "counts": "(halvesA * 5) + ',' + (halvesB * 5)",
+        "labels": "'May,Jun'",
+        "key": "10",
+        "halves": "true"
+      },
+      "tags": [
+        "AC9M6ST01",
+        "MA3-DATA-01"
+      ]
+    },
+    {
+      "id": "maths.6.chance.percentage-chance",
+      "subject": "maths",
+      "topic": "chance",
+      "level": "6",
+      "prompt": "A bag holds {r} red counters and {b} blue. What percentage of them are red?",
+      "vars": [
+        {
+          "name": "total",
+          "kind": "pick",
+          "from": [
+            4,
+            5,
+            10,
+            20
+          ]
+        },
+        {
+          "name": "r",
+          "kind": "int",
+          "min": "1",
+          "max": "total - 1"
+        },
+        {
+          "name": "b",
+          "kind": "expr",
+          "expr": "total - r"
+        }
+      ],
+      "answer": "r * 100 / total",
+      "hint": "There are {total} counters altogether. What share of 100 is {r} of them?",
       "tags": [
         "AC9M6P01",
         "MA3-CHAN-01"

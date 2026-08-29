@@ -1,5 +1,5 @@
 {
-  "version": "90f0f6ed850e",
+  "version": "68855e2f45ae",
   "subject": "maths",
   "level": "5",
   "templates": [
@@ -2306,6 +2306,231 @@
       "hint": "The colour it stopped on most often is the one to expect next time.",
       "tags": [
         "AC9M5P02",
+        "MA3-CHAN-01"
+      ]
+    },
+    {
+      "id": "maths.5.shapes.triangle-by-sides",
+      "subject": "maths",
+      "topic": "shapes",
+      "level": "5",
+      "prompt": "What kind of triangle is this?",
+      "vars": [
+        {
+          "name": "shape",
+          "kind": "pick",
+          "from": [
+            "equilateral",
+            "isosceles",
+            "scalene"
+          ]
+        }
+      ],
+      "answer": "shape",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'equilateral'",
+          "'isosceles'",
+          "'scalene'"
+        ]
+      },
+      "hint": "Equilateral has three equal sides, isosceles two, scalene none.",
+      "figure": {
+        "kind": "polygon",
+        "shape": "shape"
+      },
+      "tags": [
+        "AC9M5SP01",
+        "MA3-2DS-01"
+      ]
+    },
+    {
+      "id": "maths.5.shapes.parallel-pairs-claim",
+      "subject": "maths",
+      "topic": "shapes",
+      "level": "5",
+      "prompt": "True or false: this shape has two pairs of parallel sides.",
+      "vars": [
+        {
+          "name": "two",
+          "kind": "pick",
+          "from": [
+            1,
+            0
+          ]
+        },
+        {
+          "name": "pairs",
+          "kind": "pick",
+          "from": [
+            "square",
+            "rectangle",
+            "rhombus",
+            "parallelogram"
+          ]
+        },
+        {
+          "name": "notPairs",
+          "kind": "pick",
+          "from": [
+            "trapezium",
+            "kite"
+          ]
+        },
+        {
+          "name": "shape",
+          "kind": "expr",
+          "expr": "two == 1 ? pairs : notPairs"
+        }
+      ],
+      "answer": "two == 1",
+      "hint": "Parallel sides never meet, however far you stretch them.",
+      "figure": {
+        "kind": "polygon",
+        "shape": "shape"
+      },
+      "tags": [
+        "AC9M5SP01",
+        "MA3-2DS-01"
+      ]
+    },
+    {
+      "id": "maths.5.perimeter-and-area.triangle-area",
+      "subject": "maths",
+      "topic": "perimeter and area",
+      "level": "5",
+      "prompt": "A triangle has a base of {b} cm and a height of {h} cm. What is its area?",
+      "vars": [
+        {
+          "name": "n",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "b",
+          "kind": "expr",
+          "expr": "n * 2"
+        },
+        {
+          "name": "h",
+          "kind": "int",
+          "min": "3",
+          "max": "20"
+        }
+      ],
+      "answer": "b * h / 2",
+      "hint": "A triangle is half of the rectangle around it: base times height, halved.",
+      "tags": [
+        "AC9M5M02",
+        "MA3-2DS-03"
+      ]
+    },
+    {
+      "id": "maths.5.data.timeline-order",
+      "subject": "maths",
+      "topic": "data",
+      "level": "5",
+      "prompt": "Which of these happened first?",
+      "vars": [
+        {
+          "name": "start",
+          "kind": "pick",
+          "from": [
+            1800,
+            1850,
+            1900
+          ]
+        },
+        {
+          "name": "first",
+          "kind": "pick",
+          "from": [
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "ya",
+          "kind": "expr",
+          "expr": "start + 20 * (first == 0 ? 1 : first == 1 ? 3 : 5)"
+        },
+        {
+          "name": "yb",
+          "kind": "expr",
+          "expr": "start + 20 * (first == 0 ? 3 : first == 1 ? 5 : 1)"
+        },
+        {
+          "name": "yc",
+          "kind": "expr",
+          "expr": "start + 20 * (first == 0 ? 5 : first == 1 ? 1 : 3)"
+        }
+      ],
+      "answer": "first == 0 ? 'A' : first == 1 ? 'B' : 'C'",
+      "answerType": "choice",
+      "choices": {
+        "count": 3,
+        "distractors": [
+          "'A'",
+          "'B'",
+          "'C'"
+        ]
+      },
+      "hint": "The earliest year is the one furthest to the left.",
+      "figure": {
+        "kind": "timeline",
+        "years": "ya + ',' + yb + ',' + yc",
+        "labels": "'A,B,C'",
+        "from": "start",
+        "to": "start + 120",
+        "step": "20"
+      },
+      "tags": [
+        "MA3-DATA-02"
+      ]
+    },
+    {
+      "id": "maths.5.chance.expected-count",
+      "subject": "maths",
+      "topic": "chance",
+      "level": "5",
+      "prompt": "A spinner has {n} equal parts and {s} are shaded. In {t} spins, how many should stop shaded?",
+      "vars": [
+        {
+          "name": "n",
+          "kind": "pick",
+          "from": [
+            3,
+            4,
+            5,
+            6
+          ]
+        },
+        {
+          "name": "s",
+          "kind": "int",
+          "min": "1",
+          "max": "n - 1"
+        },
+        {
+          "name": "lots",
+          "kind": "int",
+          "min": "2",
+          "max": "12"
+        },
+        {
+          "name": "t",
+          "kind": "expr",
+          "expr": "n * lots"
+        }
+      ],
+      "answer": "s * lots",
+      "hint": "{t} spins is {lots} lots of {n}, and {s} of every {n} should be shaded.",
+      "tags": [
+        "AC9M5P01",
         "MA3-CHAN-01"
       ]
     }

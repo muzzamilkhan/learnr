@@ -434,7 +434,9 @@ describe('shipped content', () => {
       ...['is-half-shaded', 'equal-parts'].map((v) => `maths.K.fractions.${v}`),
       ...['half-past', 'half-past-claim'].map((v) => `maths.1.time.${v}`),
       ...['half-shaded', 'how-much-shaded'].map((v) => `maths.1.fractions.${v}`),
-      ...['timeline-years-between', 'timeline-read-year'].map((v) => `maths.5.data.${v}`),
+      ...['timeline-years-between', 'timeline-read-year', 'timeline-order'].map(
+        (v) => `maths.5.data.${v}`,
+      ),
     ];
 
     for (const id of nswOnly) {

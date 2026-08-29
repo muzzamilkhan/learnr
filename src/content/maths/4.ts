@@ -1456,4 +1456,149 @@ export const year4: QuestionTemplate[] = [
     hint: 'Every spin was red, blue or green.',
     tags: ['AC9M4P02', 'MA2-CHAN-01'],
   },
+
+  // ------------------------------------------------------------------
+  // Classifying flat shapes, mass in two units, and building a graph.
+  //
+  // The strand pass (issue #12). Year 4 was 24 Number and algebra, 21
+  // Measurement and space, 10 Statistics and probability; the five below make
+  // it 24/24/12.
+  //
+  // Two Stage 2 focus areas had no Year 4 question: `MA2-2DS-01`, comparing
+  // shapes by their features - the same hole Year 3 had, and for the same
+  // reason, that this year's flat-shape work is all symmetry (`MA2-2DS-02`) -
+  // and `MA2-DATA-01`, collecting data and constructing graphs, where every
+  // data question here reads a display somebody else built.
+  // ------------------------------------------------------------------
+
+  {
+    id: 'maths.4.shapes.equal-sides-claim',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '4',
+    prompt: 'True or false: every side of this shape is the same length.',
+    // Year 3 asks whether a shape is a quadrilateral, which is a question
+    // about how many sides. This is a question about the sides themselves, and
+    // it cuts the vocabulary across the other axis: a square and a rhombus
+    // answer the same way and a square and a rectangle do not.
+    //
+    // Derived, so the split is the pick's rather than a constraint's.
+    vars: [
+      { name: 'equal', kind: 'pick', from: [1, 0] },
+      { name: 'regular', kind: 'pick', from: ['equilateral', 'square', 'rhombus', 'pentagon', 'hexagon', 'heptagon', 'octagon'] },
+      { name: 'irregular', kind: 'pick', from: ['isosceles', 'scalene', 'right-triangle', 'rectangle', 'parallelogram', 'trapezium', 'kite'] },
+      { name: 'shape', kind: 'expr', expr: 'equal == 1 ? regular : irregular' },
+    ],
+    answer: 'equal == 1',
+    hint: 'Look at all the sides, not just two of them.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M4SP01', 'MA2-2DS-01'],
+  },
+  {
+    id: 'maths.4.shapes.name-quadrilateral',
+    subject: 'maths',
+    topic: 'shapes',
+    level: '4',
+    prompt: 'What is this quadrilateral called?',
+    // **Still `choice` even though Year 4 is where typed words become
+    // allowed.** Spelling "parallelogram" is not the skill this question is
+    // for, and the six names are a closed set - which is a `choice` at any
+    // level.
+    //
+    // The distractors are the answer stepped round the same list, so no option
+    // set ever pairs one name with a group of a different kind: every button on
+    // the screen is a quadrilateral, and telling them apart is the question.
+    vars: [
+      { name: 'i', kind: 'int', min: '0', max: '5' },
+      { name: 'j', kind: 'int', min: '1', max: '5' },
+      { name: 'k', kind: 'int', min: '1', max: '5' },
+      { name: 'shape', kind: 'expr', expr: 'i == 0 ? \'square\' : i == 1 ? \'rectangle\' : i == 2 ? \'rhombus\' : i == 3 ? \'parallelogram\' : i == 4 ? \'trapezium\' : \'kite\'' },
+    ],
+    // Two distinct steps round the list, so the three options are three
+    // different names.
+    constraints: ['j != k'],
+    answer: 'shape',
+    answerType: 'choice',
+    choices: {
+      count: 3,
+      distractors: [
+        "mod(i + j, 6) == 0 ? 'square' : mod(i + j, 6) == 1 ? 'rectangle' : mod(i + j, 6) == 2 ? 'rhombus' : mod(i + j, 6) == 3 ? 'parallelogram' : mod(i + j, 6) == 4 ? 'trapezium' : 'kite'",
+        "mod(i + k, 6) == 0 ? 'square' : mod(i + k, 6) == 1 ? 'rectangle' : mod(i + k, 6) == 2 ? 'rhombus' : mod(i + k, 6) == 3 ? 'parallelogram' : mod(i + k, 6) == 4 ? 'trapezium' : 'kite'",
+      ],
+    },
+    hint: 'Count the pairs of sides that are the same length, and look for square corners.',
+    figure: { kind: 'polygon', shape: 'shape' },
+    tags: ['AC9M4SP01', 'MA2-2DS-01'],
+  },
+  {
+    id: 'maths.4.measurement.metres-and-centimetres',
+    subject: 'maths',
+    topic: 'measurement',
+    level: '4',
+    prompt: 'A rope is {m} metres and {c} centimetres long. How long is it in centimetres?',
+    // The third of the unit pairs this year carries both halves of at once -
+    // `kilograms-and-grams` does mass and `which-holds-more` does capacity,
+    // and length had only the perimeter question under `MA2-GM-02`.
+    //
+    // `step` on the centimetres rather than a `mod` constraint: written as a
+    // constraint, one draw in five survives and rejection sampling spends its
+    // 200 attempts failing.
+    vars: [
+      { name: 'm', kind: 'int', min: '2', max: '9' },
+      { name: 'c', kind: 'int', min: '5', max: '95', step: 5 },
+    ],
+    answer: 'm * 100 + c',
+    hint: 'One metre is 100 centimetres.',
+    tags: ['AC9M4M02', 'MA2-GM-02'],
+  },
+
+  // `MA2-DATA-01` is collecting data and constructing graphs. Both of these
+  // are about *building* a display rather than reading one, which is the half
+  // this year had none of.
+  {
+    id: 'maths.4.data.column-height-from-tally',
+    subject: 'maths',
+    topic: 'data',
+    level: '4',
+    prompt: 'A tally counts {n} children. On a graph where each step stands for {s}, how tall is the column?',
+    // `n` is built as a multiple of `s` rather than drawn and then checked, so
+    // the column is always a whole number of steps and no draw is rejected.
+    vars: [
+      { name: 's', kind: 'pick', from: [2, 5, 10] },
+      { name: 'h', kind: 'int', min: '2', max: '5' },
+      { name: 'n', kind: 'expr', expr: 'h * s' },
+    ],
+    answer: 'h',
+    hint: 'How many {s}s make {n}?',
+    tags: ['AC9M4ST01', 'MA2-DATA-01'],
+  },
+  {
+    id: 'maths.4.data.which-scale-fits',
+    subject: 'maths',
+    topic: 'data',
+    level: '4',
+    prompt: 'The tallest column must show {n}. Which scale fits the graph into 5 steps or fewer?',
+    // **The scale is picked first and `n` is drawn inside the band that makes
+    // it the answer**, so all four options come up a quarter of the time. Drawn
+    // the other way round - `n` first, scale worked out - the bands are 5, 5,
+    // 15 and 25 numbers wide, so a child tapping 10 every time would beat
+    // guessing by a distance. The option set never changes, so an uneven answer
+    // is a leak with nothing to hide behind.
+    //
+    // Five steps is `bar`'s own limit and not an arbitrary one: an axis carries
+    // at most five labelled rungs before their labels stop being clear of one
+    // another.
+    vars: [
+      { name: 's', kind: 'pick', from: [1, 2, 5, 10] },
+      // The band where `s` is the smallest scale that fits: above what the
+      // scale below it can hold, and no more than five of `s`.
+      { name: 'lo', kind: 'expr', expr: 's == 1 ? 1 : s == 2 ? 6 : s == 5 ? 11 : 26' },
+      { name: 'n', kind: 'int', min: 'lo', max: 's * 5' },
+    ],
+    answer: 's',
+    answerType: 'choice',
+    choices: { count: 4, distractors: ['1', '2', '5', '10'] },
+    hint: 'Five steps of the scale have to reach {n}, and a smaller scale is easier to read.',
+    tags: ['AC9M4ST01', 'MA2-DATA-01'],
+  },
 ];
