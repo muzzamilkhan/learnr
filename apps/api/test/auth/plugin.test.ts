@@ -72,6 +72,73 @@ describe('the token a request carries', () => {
     await app.close();
   });
 
+  /**
+   * Two cookies, one name. This is not hypothetical - it took child sign-in
+   * down in production on 2026-08-29.
+   *
+   * The session cookie used to be host-only. Scoping it to
+   * `Domain=learnr.muzza.tech`, so the browser would send it to the API's
+   * subdomain, does **not** replace the host-only one a browser is already
+   * holding: a `Set-Cookie` carrying a `Domain` writes a *second* cookie of the
+   * same name, and the browser then sends both. Signing in again does not help,
+   * because signing in is the very thing that writes the second one.
+   *
+   * Which of the two wins was then decided by whichever parser read the header.
+   * Auth.js saw a live session and let the page render; this plugin returned on
+   * the first match, got the stale one, and answered 401 to every call the page
+   * then made. So a token is tried until one resolves, rather than the first
+   * being treated as the only one there is.
+   */
+  it('tries every cookie of that name, so a stale one cannot mask a live one', async () => {
+    const app = await anApp();
+    const userId = await makeParent();
+    const stale = randomUUID();
+    const live = await aSessionToken(userId);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/who',
+      headers: { cookie: `authjs.session-token=${stale}; authjs.session-token=${live}` },
+    });
+
+    expect(response.json()).toEqual({ userId });
+    await app.close();
+  });
+
+  // The same, the other way round: whichever order the browser sends them in.
+  it('finds the live one when it comes first', async () => {
+    const app = await anApp();
+    const userId = await makeParent();
+    const live = await aSessionToken(userId);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/who',
+      headers: { cookie: `authjs.session-token=${live}; authjs.session-token=${randomUUID()}` },
+    });
+
+    expect(response.json()).toEqual({ userId });
+    await app.close();
+  });
+
+  // An expired session is not a live one, so it must not be the answer just
+  // because it parsed - the second cookie is still worth trying.
+  it('passes over an expired session for a live one', async () => {
+    const app = await anApp();
+    const userId = await makeParent();
+    const expired = await aSessionToken(userId, new Date(Date.now() - 60_000));
+    const live = await aSessionToken(userId);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/who',
+      headers: { cookie: `authjs.session-token=${expired}; authjs.session-token=${live}` },
+    });
+
+    expect(response.json()).toEqual({ userId });
+    await app.close();
+  });
+
   it('is nobody when the request carries nothing', async () => {
     const app = await anApp();
 
