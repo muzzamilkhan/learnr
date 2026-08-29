@@ -164,23 +164,29 @@ const NSW_OUTCOMES: Record<Stage, readonly string[]> = {
  * green forever, so the manual two-way diff against the notes file is the whole
  * of the guard.
  *
- * Per-stage counts (ES1 11, S1 9, S2 11, S3 7 - 38) reconciled against the
+ * Per-stage counts (ES1 11, S1 9, S2 11, S3 9 - 40) reconciled against the
  * totals the notes file states for itself. Repeat that if you touch either
  * side.
  *
- * Two structural facts that look like transcription errors and are not. Stage 1
- * has no phonological-awareness and no print-concepts outcome: both fold into
- * EN1-PHOKW-01, which is why Year 1 rhyme cites PHOKW where Kindergarten rhyme
- * cites PHOAW. And Stage 3 has no reading-fluency outcome, unlike the three
- * stages below it.
+ * Three structural facts that look like transcription errors and are not.
+ * Stage 1 has no phonological-awareness and no print-concepts outcome: both
+ * fold into EN1-PHOKW-01, which is why Year 1 rhyme cites PHOKW where
+ * Kindergarten rhyme cites PHOAW. Stage 3 has no reading-fluency outcome,
+ * unlike the three stages below it. And **Stage 3 has one CWT outcome where
+ * Stage 2 has three** - `EN3-CWT-01` is the whole of Creating written texts at
+ * that stage. That last is the one to expect somebody to "fix": Stage 2's
+ * `EN2-CWT-01/02/03` sit directly above it in this table and the inference
+ * from their shape is wrong. There is no `EN3-CWT-02` or `-03`. Handwriting
+ * goes the other way and stays split, `EN3-HANDW-01` and `-02`.
  *
- * **Stage 3 is incomplete, on purpose.** NESA's Stage 3 content page did not
- * render its Creating-written-texts or Handwriting-and-digital-transcription
- * detail sections when this list was transcribed, so codes beyond
- * `EN3-CWT-01` in either focus area were never seen on a NESA page and are not
- * guessed here. See the notes file for what was tried. The gap fails the same
- * direction every omission in this list does - a template that ever needs one
- * of those codes gets a loud failure and a lookup, not a fabricated citation.
+ * **Stage 3 was recovered rather than read off NESA**, which still does not
+ * render it - its outcomes page truncates after EN2-UARL-01 and its Stage 3
+ * content page expands only EN3-OLC-01 (re-checked 2026-08-29). The nine come
+ * from two independent published copies that agree, the same route Stage 3 of
+ * `NSW_OUTCOMES` above took for the same reason. What earns them their place
+ * here is the cross-check rather than their provenance: one of the two carries
+ * Stages 1 and 2 as well, and reproduces both exactly as this table already had
+ * them, splits and absences included. The notes file names both sources.
  */
 const ENGLISH_NSW_OUTCOMES: Record<Stage, readonly string[]> = {
   ES1: [
@@ -226,6 +232,8 @@ const ENGLISH_NSW_OUTCOMES: Record<Stage, readonly string[]> = {
     'EN3-RECOM-01',
     'EN3-CWT-01',
     'EN3-SPELL-01',
+    'EN3-HANDW-01',
+    'EN3-HANDW-02',
     'EN3-UARL-01',
     'EN3-UARL-02',
   ],

@@ -3,10 +3,10 @@
 **Date:** 2026-08-23
 **Status:** shipped. 155 English templates under `src/content/english/`, with
 `leaks.test.ts` beside them - the measured check this design argued for, which
-found leaks the structural checks could not. What is *not* done is the NSW
-Stage 3 transcription gap this design named as a stop-and-ask: the CWT and
-handwriting codes were never sourced, and `ENGLISH_NSW_OUTCOMES.S3` still holds
-seven codes (`learnr#11`).
+found leaks the structural checks could not. The NSW Stage 3 transcription gap
+this design named as a stop-and-ask is **closed** (`learnr#11`, 2026-08-29):
+`ENGLISH_NSW_OUTCOMES.S3` holds nine codes, and half the gap turned out not to
+be one - see *One open item* below.
 
 ## What this is
 
@@ -344,7 +344,22 @@ fraction divergences - NSW teaching something a year before ACARA. The list is
 derived from the citations rather than predicted here, and each entry gets its
 sentence.
 
-### One open item
+### One open item, since closed
+
+**Closed 2026-08-29 (`learnr#11`).** NESA still does not render Stage 3 - the
+prediction below that a PDF or the per-stage content pages would yield it was
+wrong on both counts. It was sourced instead from two independent published
+copies that agree, and that reproduce Stages 1 and 2 exactly as this repo
+already had them; `docs/superpowers/notes/nsw-english-outcome-codes.md` names
+both and says why the cross-check is what makes them believable. The stop-and-ask
+this section demanded is what happened, and the answer was *don't wait for NESA*.
+
+Two of the four candidate codes were real - `EN3-HANDW-01` and `EN3-HANDW-02` -
+and **the other two do not exist**: Stage 3 has a single Creating-written-texts
+outcome where Stage 2 has three. So half of what this section called a
+transcription gap was the syllabus's own shape, and the discipline it argues for
+below is exactly what stopped four inferred codes going in, two of which would
+have been fabrications.
 
 **NESA's outcomes page paginates, and Stage 3 did not come back with the other
 three stages.** Early Stage 1, Stage 1 and Stage 2 were retrieved cleanly; Stage
@@ -408,7 +423,8 @@ task at the end, not a prerequisite.
 - **The NSW English transcription fails safe only against omissions.** Same
   exposure `nsw-outcome-codes.md` has, same mitigation, and now twice the
   surface.
-- **Stage 3 codes are not yet sourced.** Named above as a stop-and-ask.
+- ~~**Stage 3 codes are not yet sourced.**~~ Closed 2026-08-29; the list is
+  complete at nine. The exposure above it is the one that remains.
 - **The Crown copyright rule now governs twice as many codes.** It had to be
   swept for twice in maths, each drifting comment reading as harmless on its
   own. Say where a syllabus puts something; never what it says.
