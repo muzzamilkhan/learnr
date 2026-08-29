@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { startDatabase, stopDatabase, truncateAll, testPrisma } from './test-helpers/db';
 import { makeParent } from './test-helpers/factories';
 import { resolveUserId, userIdFrom } from './session';
-import { SESSION_COOKIE_NAME } from '@/auth';
+import { SESSION_COOKIE_NAME } from '@/session-cookie';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);

@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma, isDatabaseConfigured, claimParentRole } from '@/server/db';
+import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/session-cookie';
 
 /**
  * Google is the only NextAuth provider. The other way in - a child redeeming a
@@ -14,55 +15,12 @@ import { prisma, isDatabaseConfigured, claimParentRole } from '@/server/db';
  */
 
 /**
- * The session cookie, pinned rather than left to Auth.js's implicit naming. Auth.js
- * switches the name between dev and prod (the `__Secure-` prefix) internally; the
- * code-redemption path has to set the very same cookie, so the name and options are
- * written down once here and imported there rather than guessed at in two places.
+ * Re-exported rather than defined here - see `src/session-cookie.ts` for why
+ * they live apart from the `NextAuth({...})` call below, and for the two
+ * constants themselves. Every existing importer of these two names from
+ * `@/auth` keeps working unchanged.
  */
-const useSecureCookies = process.env.NODE_ENV === 'production';
-
-export const SESSION_COOKIE_NAME = useSecureCookies
-  ? '__Secure-authjs.session-token'
-  : 'authjs.session-token';
-
-/**
- * Which hosts the session cookie is sent to.
- *
- * Unset, the cookie is host-only: the browser sends it back to
- * `learnr.muzza.tech` and nowhere else. That was right while this app was the
- * only thing that ever read it, and it is not now - the browser calls the API
- * directly for everything a child does while playing, and a host-only cookie
- * would not go with those calls.
- *
- * So production sets it to `learnr.muzza.tech`, which reaches that host *and*
- * its subdomains, `api.learnr.muzza.tech` among them. That is also why the API
- * is a subdomain of this app rather than a sibling like `learnr-api.muzza.tech`:
- * a sibling could only be reached by widening this to `muzza.tech`, which would
- * send a child's session cookie to every host under that name.
- *
- * `__Secure-` permits a `Domain`; it is `__Host-` that forbids one. Left unset
- * in development, where the web app and the API are two ports on localhost and
- * a host-only cookie already reaches both.
- */
-const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
-
-export const SESSION_COOKIE_OPTIONS: {
-  httpOnly: true;
-  sameSite: 'lax';
-  path: '/';
-  secure: boolean;
-  domain?: string;
-} = {
-  httpOnly: true,
-  // What stands between a cookie this widely scoped and a cross-site write, now
-  // that the browser posts to the API itself rather than through a server
-  // action and Next's origin check. Lax withholds the cookie from a cross-site
-  // POST, which is the shape every one of these calls has.
-  sameSite: 'lax',
-  path: '/',
-  secure: useSecureCookies,
-  ...(cookieDomain ? { domain: cookieDomain } : {}),
-};
+export { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: isDatabaseConfigured && prisma ? PrismaAdapter(prisma) : undefined,

@@ -1,6 +1,6 @@
 import { prisma } from './db';
 import { readAccount } from './accounts';
-import { SESSION_COOKIE_NAME } from '@/auth';
+import { SESSION_COOKIE_NAME } from '@/session-cookie';
 
 /**
  * A token is a `Session` row, whoever wrote it. Auth.js writes one when a parent
