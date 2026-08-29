@@ -1,19 +1,28 @@
-# A gate, not a deploy. There is one artifact now, and `vercel.json` has
-# `git.deploymentEnabled: true` again - Vercel builds and deploys the web app
-# itself on every push, the way it did before the API existed. This workflow's
-# job is to fail loudly before that happens, not to ship anything itself.
+# The one path to production, and it runs behind the tests.
 #
-# **The tests are a gate rather than a courtesy.** `next build` does not run
-# `src/content/catalog.test.ts`, which is what proves all 553 shipped
-# templates still validate, still fit `MAX_PROMPT_CHARS`, and still never
-# anchor a figure to an answer. Nothing else stands between an edited
-# template and a broken one shipping.
-name: Checks
+# `vercel.json` sets `git.deploymentEnabled.master: false` - Vercel still
+# builds a preview for every push to any other branch (that came back when
+# git deploys were re-enabled generally), but `master` is excluded from its
+# own git integration entirely. This workflow is the only thing left that can
+# move production, so a push to `master` cannot race an ungated Vercel build
+# the way it could when `deploymentEnabled` was a plain boolean: there is
+# nothing on the other side to race against any more.
+#
+# **The tests are what stands between a push and production, not a
+# courtesy.** `next build` does not run `src/content/catalog.test.ts`, which
+# is what proves all 553 shipped templates still validate, still fit
+# `MAX_PROMPT_CHARS`, and still never anchor a figure to an answer. Nothing
+# else catches a broken template before it ships.
+name: Deploy
 
 on:
   push:
     branches: [master]
   workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -43,3 +52,46 @@ jobs:
       # against a mock, and they are what a deploy most needs proven, so this
       # is not split down to `test:unit` for speed.
       - run: npm test
+
+  deploy:
+    name: Deploy the web app to Vercel
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      # The token is a secret; the two ids are not, but .vercel/project.json
+      # is gitignored and they stay out of the tree with it.
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      # Pinned rather than @latest: an unpinned CLI is unreviewed code in the
+      # deploy pipeline.
+      - run: npm install -g vercel@59.5.0
+
+      # `whoami` first, because the failure this job actually hits is a token
+      # that authenticates perfectly well but belongs to a scope that cannot
+      # see this project - which the CLI reports as "Could not retrieve
+      # Project Settings", reading like a broken link rather than the wrong
+      # credential. One line of log naming the account is the difference
+      # between knowing that and bisecting it.
+      #
+      # The pull puts the project's settings and its production environment
+      # variables on the runner, which is what makes the build below the same
+      # build Vercel's own git integration would have run.
+      - run: |
+          vercel whoami
+          vercel pull --yes --environment=production
+
+      # Built here rather than on Vercel so the artifact that ships is the one
+      # the suite above ran beside, and so a red test means nothing was built
+      # at all. --prebuilt then uploads the output rather than the source.
+      - run: vercel build --prod
+
+      - run: vercel deploy --prebuilt --prod --yes
