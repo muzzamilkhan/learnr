@@ -84,6 +84,25 @@ jobs:
       # from here, not from a global install.
       - run: npm ci
 
+      # A missing database secret must stop the deploy, because a skipped
+      # migration is invisible in a green build. `scripts/migrate.mjs` skips
+      # and exits 0 when it finds no `DATABASE_URL` - correct locally, where
+      # the app is designed to run and play without a database
+      # (`isDatabaseConfigured`), and wrong here, where "no secret" would
+      # otherwise read as "nothing to migrate" rather than "the migration
+      # never ran." This does not change the script; it stops the job before
+      # that behaviour can fire in production.
+      - name: Refuse to deploy without a database
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "::error::DATABASE_URL is not set. Migrations would be skipped silently and a"
+            echo "::error::schema change would ship without its migration. Add the repository"
+            echo "::error::secret before deploying."
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       # Migrates before anything is built or deployed, so a schema change
       # lands before the code reading through it does. `db:deploy` is
       # `node scripts/migrate.mjs`, not a bare `prisma migrate deploy`: Neon
