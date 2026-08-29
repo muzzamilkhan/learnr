@@ -1,12 +1,16 @@
 # The one path to production, and it runs behind the tests.
 #
-# `vercel.json` sets `git.deploymentEnabled.master: false` - Vercel still
-# builds a preview for every push to any other branch (that came back when
-# git deploys were re-enabled generally), but `master` is excluded from its
-# own git integration entirely. This workflow is the only thing left that can
-# move production, so a push to `master` cannot race an ungated Vercel build
-# the way it could when `deploymentEnabled` was a plain boolean: there is
-# nothing on the other side to race against any more.
+# `vercel.json` sets `git.deploymentEnabled: false` outright, so Vercel
+# builds nothing off a push to any branch. This workflow is the only thing
+# that can move production, and a push cannot race an ungated Vercel build
+# because there is nothing on the other side to race against.
+#
+# **That means no preview deployments, and it is a deliberate trade rather
+# than an oversight.** Previews were briefly re-enabled per-branch, then
+# turned off again: a preview runs against the *production* database, so it
+# reads and writes real children's records. Sharing a family's data with
+# every branch build is a worse price than losing previews. Reinstate them
+# by naming branches here again, but point them at a Neon branch first.
 #
 # **The tests are what stands between a push and production, not a
 # courtesy.** `next build` does not run `src/content/catalog.test.ts`, which

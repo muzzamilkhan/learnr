@@ -31,10 +31,16 @@ anything pure; folding the two into a single run would make every unit test wait
 on a container, which is most of what makes this repo quick to work on.
 
 **A push to `master` deploys** (`.github/workflows/deploy.yml`), behind the suite
-and the typecheck. `vercel.json` excludes `master` from Vercel's own git
-integration - as a per-branch object, so **every other branch still gets a
-preview deployment** - which leaves this workflow the only thing that can move
-production and nothing on the other side of it to race. It runs `vercel build
+and the typecheck. `vercel.json` sets `git.deploymentEnabled: false`, so Vercel
+builds nothing off a push to any branch - which leaves this workflow the only
+thing that can move production and nothing on the other side of it to race.
+
+**There are no preview deployments, and that is a trade rather than an
+oversight.** They were briefly re-enabled per-branch during the collapse and
+turned off again, because a preview runs against the *production* database and
+so reads and writes real children's records. Handing a family's data to every
+branch build costs more than losing previews. Naming branches in `vercel.json`
+brings them back, but point them at a Neon branch first. It runs `vercel build
 --prod` on the runner and uploads the output with `--prebuilt`, so the artifact
 that ships is the one the suite ran beside and a red test means nothing was
 built at all.
@@ -1995,7 +2001,7 @@ and what it took; read it before re-deriving any of the below.
   which existed only because the engine was published through a committed
   symlink. The alias works everywhere again.
 
-**Preview deployments came back**, having been the price of gating an ungated
+**There are still no preview deployments**, which was the price of gating an ungated
 Vercel build behind the tests.
 
 **Deliberately not done**: batching recorded attempts (#21), because the streak
