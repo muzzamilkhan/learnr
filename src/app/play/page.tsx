@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { api } from '@/api';
+import { readPlayState } from '@/server/play-state';
 import { readViewer } from '@/app/viewer';
 import { templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
@@ -23,13 +23,14 @@ export default async function PlayPage({
 
   // What the child has shown before, so the first question of this sitting is
   // already weighted by it - together with the run of days, the stars and the
-  // goal, which all come off the child's own row. Five reads on one screen was
-  // five round trips before the first question rendered, so it is one call.
+  // goal, which all come off the child's own row. Four of the five reads go in
+  // parallel inside `readPlayState`, because asked one at a time they are a
+  // waterfall in front of the first question.
   //
-  // The level is passed as it parsed rather than as the URL wrote it, and
-  // omitted when it is not a school year: the endpoint would refuse a made-up
-  // year, and this is the very read that decides whether to correct it.
-  const state = userId ? await api.playState(subject, level, RECENT_MEMORY) : null;
+  // The level is passed as it parsed rather than as the URL wrote it, and null
+  // when it is not a school year: there is no course to draw recent topics from,
+  // and this is the very read that decides whether to correct the URL.
+  const state = userId ? await readPlayState(userId, subject, level, RECENT_MEMORY) : null;
   const player = state?.player ?? null;
 
   // A managed child's year is the parent's decision, so it is enforced here and

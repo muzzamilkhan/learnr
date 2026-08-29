@@ -439,3 +439,43 @@ export async function readFamilyRecords(parentId: string): Promise<FamilyRecord[
     return null;
   }
 }
+
+/** Both walls of the scores screen. `family: null` is nobody to rank, not a failure. */
+export interface SpeedRecordsRead {
+  attempts: SpeedAttempt[];
+  family: FamilyRecord[] | null;
+}
+
+/**
+ * Both walls of the scores screen: this player's own runs, and the household
+ * they are ranked inside.
+ *
+ * **The board ranks a household, which is not the caller.** `householdId` is a
+ * parent's own id and a child's *parent's* - so handing `userId` to
+ * `readFamilyRecords` would rank a child against the rows belonging to them and
+ * to anyone whose `parentId` is the child, which is nobody. A board of one,
+ * silently, on every child's screen.
+ *
+ * **Three states, not two.** `family: null` beside a successful read is a child
+ * on their own Google account or a parent with no children - no household at
+ * all, and a board of one is not a leaderboard. A read that actually broke is
+ * the whole answer being null, so the screen can tell "nobody to rank" from "try
+ * again in a moment".
+ *
+ * One read for both walls rather than one per tab. Only one tab is ever drawn,
+ * so the other half is paid for and dropped - which is the cheaper half of the
+ * trade against resolving the household twice.
+ */
+export async function readSpeedScores(userId: string): Promise<SpeedRecordsRead | null> {
+  const account = await readAccount(userId);
+  const household = account ? householdId(account) : null;
+
+  const [attempts, family] = await Promise.all([
+    readSpeedAttempts(userId),
+    household === null ? Promise.resolve(null) : readFamilyRecords(household),
+  ]);
+
+  if (attempts === null || (household !== null && family === null)) return null;
+
+  return { attempts, family };
+}

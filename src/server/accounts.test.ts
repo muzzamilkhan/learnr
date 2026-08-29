@@ -3,11 +3,13 @@ import { startDatabase, stopDatabase, truncateAll, testPrisma } from './test-hel
 import { makeChild, makeParent } from './test-helpers/factories';
 import {
   claimParentRole,
+  createChild,
   issueLoginCode,
   listChildren,
   readAccount,
   redeemLoginCode,
   removeChild,
+  updateChild,
 } from './accounts';
 
 beforeAll(startDatabase);
@@ -109,5 +111,64 @@ describe('the login code', () => {
     const theirChild = await makeChild(theirs);
 
     expect(await issueLoginCode(mine, theirChild)).toBeNull();
+  });
+});
+
+/**
+ * A child profile is a `User` row with no email and no `Account` - there is
+ * nothing OAuth about it. `createChild` takes the shapes the boundary parsers
+ * produce (`Avatar`, `DailyTarget`), never the strings a form submitted, so an
+ * avatar that does not exist cannot reach it: `parseChildInput` in
+ * `src/app/actions.ts` is where a form's answer is decided.
+ */
+describe('createChild', () => {
+  it('stores the profile against the parent who made it', async () => {
+    const parentId = await makeParent();
+
+    const childId = await createChild(parentId, {
+      name: 'Ada',
+      avatar: 'fox',
+      photo: null,
+      level: '3',
+      target: { kind: 'questions', value: 10 },
+    });
+
+    expect(childId).toBeTypeOf('string');
+    expect(await testPrisma().user.findUnique({ where: { id: childId! } })).toMatchObject({
+      name: 'Ada', avatar: 'fox', selectedLevel: '3',
+      targetKind: 'questions', targetValue: 10, parentId, role: 'child',
+    });
+  });
+});
+
+describe('updateChild', () => {
+  it('changes a child this parent owns', async () => {
+    const parentId = await makeParent();
+    const childId = await makeChild(parentId, { name: 'Ada' });
+
+    const ok = await updateChild(parentId, childId, {
+      name: 'Grace', avatar: 'owl', photo: null, level: '5', target: null,
+    });
+
+    expect(ok).toBe(true);
+    expect(await testPrisma().user.findUnique({ where: { id: childId } })).toMatchObject({
+      name: 'Grace', avatar: 'owl', selectedLevel: '5', targetKind: null,
+    });
+  });
+
+  // The child id round-trips through the browser, so every mutation scopes its
+  // `where` by `parentId` as well as `id`. There is no separate check to drift.
+  it('refuses a child belonging to someone else', async () => {
+    const mine = await makeParent();
+    const theirs = await makeParent();
+    const theirChild = await makeChild(theirs, { name: 'Theirs' });
+
+    const ok = await updateChild(mine, theirChild, {
+      name: 'Taken', avatar: 'owl', photo: null, level: '5', target: null,
+    });
+
+    expect(ok).toBe(false);
+    expect(await testPrisma().user.findUnique({ where: { id: theirChild } }))
+      .toMatchObject({ name: 'Theirs' });
   });
 });

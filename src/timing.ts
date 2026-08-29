@@ -1,15 +1,13 @@
 /**
  * Where the time goes, written down.
  *
- * The web app is two network hops from its data now - browser to Vercel, Vercel
- * to Fly, Fly to Neon - and a third of that journey pays for a session lookup
- * twice over: `auth()` resolves the cookie against Neon here, and the API
- * resolves the very same cookie against the very same table on the far side.
- * None of that is visible from a stack trace, so it is measured instead.
+ * This went in to measure a hop that no longer exists - Vercel to Fly, with a
+ * session lookup paid for on each side of it. What is left to measure is Vercel
+ * to Neon: `auth()` resolves the cookie there before a signed-in page has read
+ * anything at all, and none of that is visible from a stack trace.
  *
- * It sits here rather than in `src/lib` for the same reason `src/api.ts` does:
- * `src/lib` is the pure engine and may not touch the clock. `performance.now()`
- * is a clock.
+ * It sits here rather than in `src/lib` because `src/lib` is the pure engine and
+ * may not touch the clock. `performance.now()` is a clock.
  *
  * Nothing here is server-only. The overlay behind `?timing=1` reads the same
  * `stopwatch` from the browser, where the wait that matters most - server

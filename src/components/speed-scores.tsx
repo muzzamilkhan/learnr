@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { api, type SpeedRecordsRead } from '@/api';
+import { readSpeedScores, type SpeedRecordsRead } from '@/server/speed-records';
 import { parseScoreTab, type ScoreTab } from '@/lib/speedrun/tabs';
 import { FamilyLeaderboard } from './family-leaderboard';
 import { ScoreTabs } from './score-tabs';
@@ -28,15 +28,14 @@ import { SpeedRecordsCabinet } from './speed-records';
  * visitor signs in, so this says that instead rather than asking a wall to
  * guess a third meaning for `[]`. A player with no household - a child on their
  * own Google account - has nobody to be ranked against, and a board of one is
- * not a leaderboard: that is `family: null` beside a 200, which the endpoint
- * keeps distinct from the 503 that means the read broke.
+ * not a leaderboard: that is `family: null` beside a successful read, which
+ * `readSpeedScores` keeps distinct from the null that means the read broke.
  *
- * **Both walls come from one call**, `GET /speed/records`, rather than a read
- * per tab. Only one tab is ever drawn, so the other half is paid for and
- * dropped - which is the cheaper half of the trade against the round trip the
- * *household* used to cost on its own, before the endpoint learned to resolve
- * it. Whose household it is has to be settled on the far side anyway: a child's
- * is their parent's, and ranking them by their own id is a board of one.
+ * **Both walls come from one read**, `readSpeedScores`, rather than a read per
+ * tab. Only one tab is ever drawn, so the other half is paid for and dropped -
+ * which is the cheaper half of the trade against resolving the *household*
+ * twice. Whose household it is is not the caller: a child's is their parent's,
+ * and ranking them by their own id is a board of one.
  *
  * **`?tab=` is parsed here rather than by each page**, unlike `?child=` and the
  * rest: this is the only thing that reads it, and `defaultTab` is what it falls
@@ -56,7 +55,7 @@ export function SpeedScores({
   tabPath,
   runPath,
   hash,
-  signedIn,
+  userId,
   scale = 'child',
 }: {
   /** The raw `?tab=` off the URL, normalised here against `defaultTab`. */
@@ -73,8 +72,12 @@ export function SpeedScores({
   runPath: string;
   /** Where a tab switch should land, on a screen the tabs sit a long way down. */
   hash?: string;
-  /** Signed out is its own state on both walls - see above. */
-  signedIn: boolean;
+  /**
+   * Whose scores these are, or null for a visitor. Signed out is its own state
+   * on both walls - see above - and it is the same fact as having no id to read
+   * a wall for, so the two are one prop rather than two free to disagree.
+   */
+  userId: string | null;
   scale?: keyof typeof SCALES;
 }) {
   const style = SCALES[scale];
@@ -84,12 +87,12 @@ export function SpeedScores({
     The tabs draw before the scores are read, and that is the point of the
     boundary below.
 
-    This screen is the child's home, and it used to be four sequential round
-    trips before a single byte of it left the server - the session, the account,
-    the player's own row, and then this. It was the last of them and the cheapest
+    This screen is the child's home, and it is four sequential round trips to
+    Neon before a single byte of it leaves the server - the session, the account,
+    the player's own row, and then this. It is the last of them and the cheapest
     to move: the tabs are built from the URL alone, and the wall under them is
-    the only part that needs the network. So the tabs, the headings and
-    everything above them flush while the read is still in flight.
+    the only part that needs a read. So the tabs, the headings and everything
+    above them flush while the read is still in flight.
 
     `ScoreTabs` is also the half worth having first for its own sake. It is
     navigation - each tab is a URL on the screen it sits on - and navigation
@@ -108,7 +111,7 @@ export function SpeedScores({
         <Suspense fallback={<WallSkeleton scale={scale} />}>
           <ScoreWall
             showing={showing}
-            signedIn={signedIn}
+            userId={userId}
             runPath={runPath}
             scale={scale}
           />
@@ -119,24 +122,25 @@ export function SpeedScores({
 }
 
 /**
- * The half that needs the network, kept apart so the boundary above has
+ * The half that needs the database, kept apart so the boundary above has
  * something to suspend on. A component only suspends where it awaits, so the
  * read has to live below the boundary rather than beside it.
  */
 async function ScoreWall({
   showing,
-  signedIn,
+  userId,
   runPath,
   scale,
 }: {
   showing: ScoreTab;
-  signedIn: boolean;
+  userId: string | null;
   runPath: string;
   scale: keyof typeof SCALES;
 }) {
   // One read for both walls, made here rather than inside whichever half is
   // drawn, so the two cannot end up reading twice on a screen that shows one.
-  const scores = signedIn ? await api.speedRecords() : null;
+  const scores = userId ? await readSpeedScores(userId) : null;
+  const signedIn = Boolean(userId);
 
   return showing === 'records' ? (
     <Records signedIn={signedIn} scores={scores} basePath={runPath} scale={scale} />

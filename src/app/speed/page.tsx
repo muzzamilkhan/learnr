@@ -61,7 +61,7 @@ export default async function SpeedScreen({
   const tab = (await searchParams).tab;
   // Past the role check, so this cannot redirect: it re-reads nothing, being
   // the same cached call the branch above already made.
-  const { name, image, viewable } = await readParent();
+  const { userId, name, image, viewable } = await readParent();
 
   // A parent doesn't play for stars, so the menu counts nothing - the same two
   // nulls the parent layout passes.
@@ -82,7 +82,7 @@ export default async function SpeedScreen({
             defaultTab={PARENT_DEFAULT_TAB}
             tabPath={PARENT_SPEED_HREF}
             runPath={PARENT_SPEED_HREF}
-            signedIn
+            userId={userId}
             scale="parent"
           />
         </Well>

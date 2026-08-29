@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { isAuthConfigured } from '@/auth';
-import { api } from '@/api';
+import { claimParentRole } from '@/server/accounts';
+import { readPlayer } from '@/server/play-state';
+import { readViewableChildren } from '@/server/sharing';
 import { readViewer } from './viewer';
 import { listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
@@ -90,8 +92,8 @@ function CurriculumLink() {
  * Deliberately not the child's frame and not the parent's: which of those this
  * screen should be is the very thing that could not be read, so it wears
  * neither. A sign-out is offered because it is the one action that still works
- * without the API - the cookie is this app's to clear - and because a person who
- * cannot get in wants a way out.
+ * with the database down - the cookie is this app's to clear - and because a
+ * person who cannot get in wants a way out.
  */
 function CouldNotLoad() {
   return (
@@ -130,12 +132,10 @@ export default async function HomePage({
 
   /*
     Signed in, and their account did not come back. This is not "not a parent" -
-    it is not knowing - and the two used to be one branch, because a null
-    account meant a database that was down and so an app that was down with it.
-    The record lives behind an API now, which can be unreachable while this page
-    renders perfectly well, and reading that as "not a parent" put a grown-up on
-    the child's home screen: a level picker, a row of subject cards and their own
-    name on top of it.
+    it is not knowing - and the two used to be one branch. Neon is a network hop,
+    so it can be unreachable while this page renders perfectly well, and reading
+    that as "not a parent" put a grown-up on the child's home screen: a level
+    picker, a row of subject cards and their own name on top of it.
 
     So it says so instead. Nothing below this line can be answered without the
     account - which branch this screen is, which level to reopen on, whose face
@@ -151,7 +151,7 @@ export default async function HomePage({
   // because there is no question left - see `claimParentRole`. The write is a
   // compare-and-set and this is the only page that can see the gap, so it costs a
   // no-op statement once per such account and nothing at all afterwards.
-  if (kind === 'unclaimed') await api.claimParent();
+  if (kind === 'unclaimed' && userId) await claimParentRole(userId);
 
   // Past the branch above, so `unreadable` is not one of the answers left: a
   // grown-up is one whose role is claimed as `parent` or is about to be.
@@ -162,11 +162,11 @@ export default async function HomePage({
   // are counting nothing. For a child it is one read: all four live on their own
   // row, and asking for them a function at a time was four round trips to it.
   //
-  // The window of answers the goal bar folds comes back with them, fetched by
-  // the endpoint only when there is a goal to measure them against - the page
-  // used to make that call itself and would otherwise pay a round trip for an
-  // answer it throws away.
-  const play = userId && !isParent ? await api.player() : null;
+  // The window of answers the goal bar folds comes back with them, read only
+  // when there is a goal to measure them against - see `readPlayer`, which is
+  // where that conditional lives so this screen does not pay for an answer it
+  // throws away.
+  const play = userId && !isParent ? await readPlayer(userId) : null;
   const player = play?.player ?? null;
   const targetAnswers = play?.targetAnswers ?? [];
 
@@ -183,7 +183,7 @@ export default async function HomePage({
     // invited to watch someone else's child has a report to land on, and telling
     // them to add a child of their own would be answering a question they
     // haven't asked.
-    const profiles = await api.viewableChildren();
+    const profiles = await readViewableChildren(userId);
     const menu = (
       <ProfileMenu
         name={session?.user?.name ?? null}
@@ -331,7 +331,7 @@ export default async function HomePage({
           tabPath="/"
           runPath="/speed"
           hash={SPEED_SECTION}
-          signedIn={Boolean(userId)}
+          userId={userId ?? null}
         />
 
         <h3 className="mt-8 mb-4 text-2xl font-bold tracking-tight">Start a run</h3>

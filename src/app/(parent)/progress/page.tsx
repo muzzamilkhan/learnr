@@ -4,7 +4,8 @@ import { ProgressReport } from '@/components/progress-report';
 import { SpeedBanner } from '@/components/speed-banner';
 import { resolveChild } from '@/lib/children';
 import { compareSubjects } from '@/lib/curriculum';
-import { api } from '@/api';
+import { readChildRecord, CALENDAR_WINDOW_MS } from '@/server/reports';
+import { readUnseenRecords } from '@/server/speed-records';
 import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import { readParent } from '../parent';
 import { requestNow } from '@/app/now';
@@ -12,20 +13,13 @@ import { requestNow } from '@/app/now';
 // Per-parent and per-child, so it must never be prerendered and shared.
 export const dynamic = 'force-dynamic';
 
-/**
- * Four weeks and a margin, across every subject: the calendar measures the
- * child's whole day against their goal, while everything else on this screen is
- * scoped to the subject being looked at.
- */
-const CALENDAR_WINDOW_MS = 29 * 24 * 60 * 60 * 1000;
-
 export default async function ProgressPage({
   searchParams,
 }: {
   searchParams: Promise<{ child?: string; subject?: string }>;
 }) {
   const { child: childParam, subject: subjectParam } = await searchParams;
-  const { viewable } = await readParent();
+  const { userId, viewable } = await readParent();
 
   // Scoped to this parent's children, never to the one `?child=` names, so it
   // shows regardless of which child's report is currently open - and never to
@@ -36,7 +30,7 @@ export default async function ProgressPage({
   // this screen's to do. Best-effort like the play path's own `readRecentAnswers`
   // fallback: a missed celebration costs nothing a parent would notice was
   // missing, unlike the report below it.
-  const unseenRecords = await api.unseenRecords();
+  const unseenRecords = await readUnseenRecords(userId);
   const banner = <SpeedBanner records={unseenRecords ?? []} />;
 
   if (viewable === null) {
@@ -91,10 +85,12 @@ export default async function ProgressPage({
 
   const now = requestNow();
 
-  // Five reads, one call. The endpoint answers with the raw history rather than
-  // the report it could compute, because every chart below folds the
-  // observations itself - and `/progress/lab` exists precisely to try foldings
-  // that are not on this screen yet.
+  // Five reads in parallel behind one call, and the raw history rather than the
+  // report it could compute: every chart below folds the observations itself,
+  // and `/progress/lab` exists precisely to try foldings that are not on this
+  // screen yet. The window across every subject is `CALENDAR_WINDOW_MS`, because
+  // the calendar measures the child's whole day against their goal while
+  // everything else here is scoped to the subject being looked at.
   //
   // `speedRuns` is asked for only on the subject that shows them: every mode is
   // arithmetic, so an English report draws no speed run well and would be paying
@@ -102,7 +98,7 @@ export default async function ProgressPage({
   // parent's - so the well and the heading above it can never disagree about who
   // is on screen, and the numbers survive a banner about this same child being
   // dismissed.
-  const record = await api.childRecord(child.id, {
+  const record = await readChildRecord(userId, child.id, {
     subject,
     windowMs: CALENDAR_WINDOW_MS,
     speedRuns: subject === SPEED_RUN_SUBJECT,

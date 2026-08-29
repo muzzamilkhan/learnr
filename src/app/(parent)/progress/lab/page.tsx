@@ -3,7 +3,7 @@ import { listSubjects } from '@/content/catalog';
 import { ChildPicker } from '@/components/child-picker';
 import { ProgressLab } from '@/components/progress-lab';
 import { resolveChild } from '@/lib/children';
-import { api } from '@/api';
+import { readChildRecord } from '@/server/reports';
 import { readParent } from '../../parent';
 
 // Per-parent and per-child, so it must never be prerendered and shared.
@@ -37,7 +37,7 @@ export default async function ProgressLabPage({
   searchParams: Promise<{ child?: string; subject?: string }>;
 }) {
   const { child: childParam, subject: subjectParam } = await searchParams;
-  const { viewable } = await readParent();
+  const { userId, viewable } = await readParent();
 
   if (viewable === null) {
     return <Note>Couldn&rsquo;t load your children just now. Try again in a moment.</Note>;
@@ -59,10 +59,10 @@ export default async function ProgressLabPage({
   const subject = subjects.find((option) => option === subjectParam) ?? subjects[0] ?? 'maths';
 
   // The same read the report makes, asking for far more answers per topic. It
-  // costs a `sittings` array this screen ignores and no extra query - the
-  // endpoint is one call either way, and a second endpoint differing by one
-  // field is a shape to keep in step for nothing.
-  const record = await api.childRecord(child.id, {
+  // costs a `sittings` array this screen ignores and no extra query - the reads
+  // run in parallel either way, and a second composition differing by one field
+  // is a shape to keep in step for nothing.
+  const record = await readChildRecord(userId, child.id, {
     subject,
     perTopic: LAB_ANSWERS_PER_TOPIC,
   });

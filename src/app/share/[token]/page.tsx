@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { api } from '@/api';
+import { readShareInvite } from '@/server/sharing';
 import { readViewer } from '@/app/viewer';
 import { AcceptShare } from '@/components/accept-share';
 import { SignInButton, SignOutButton } from '@/components/auth-buttons';
@@ -38,7 +38,7 @@ export default async function SharePage({
 
   // The one read on this page that needs no session at all, and has to: the
   // link's whole point is that it reaches somebody with no account here yet.
-  const invite = await api.readShare(token);
+  const invite = await readShareInvite(token);
   if (!invite || !invite.live) {
     return (
       <Frame heading="This link doesn’t work">

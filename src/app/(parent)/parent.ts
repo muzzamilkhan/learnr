@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { redirect } from 'next/navigation';
-import { api } from '@/api';
+import { readViewableChildren } from '@/server/sharing';
 import type { ChildProfile, ViewableChild } from '@/lib/dto';
 import { readViewer } from '@/app/viewer';
 
@@ -59,9 +59,9 @@ export const readParent = cache(async (): Promise<ParentContext> => {
 
     It returns nulls instead, which every page here already draws as
     "couldn't load your children just now" - the same shape a failed
-    `viewableChildren` produces. There is nothing new for a page to handle and
-    nothing to leak: with the API unreachable no read on these screens can
-    return anything either.
+    `readViewableChildren` produces. There is nothing new for a page to handle
+    and nothing to leak: with the database unreachable no read on these screens
+    can return anything either.
   */
   if (kind === 'unreadable') return context(null);
 
@@ -70,5 +70,5 @@ export const readParent = cache(async (): Promise<ParentContext> => {
   // heals rather than loops.
   if (kind !== 'parent') redirect('/');
 
-  return context(await api.viewableChildren());
+  return context(await readViewableChildren(userId));
 });

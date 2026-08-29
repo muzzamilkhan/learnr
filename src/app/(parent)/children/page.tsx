@@ -2,7 +2,9 @@ import { listLevels } from '@/content/catalog';
 import { ParentDashboard, type ChildRow } from '@/components/parent-dashboard';
 import { SharedChildren, type SharedChildRow } from '@/components/shared-children';
 import { SharingPanel, type InviteRow } from '@/components/sharing-panel';
-import { api } from '@/api';
+import { listPendingInvites, listSharedViewers } from '@/server/sharing';
+import type { PendingInvite } from '@/lib/dto';
+import type { SharedViewer } from '@/lib/children';
 import { readParent } from '../parent';
 
 // Per-parent, so it must never be prerendered and shared.
@@ -22,7 +24,7 @@ export const dynamic = 'force-dynamic';
  * report replaces only what is below them.
  */
 export default async function ChildrenPage() {
-  const { profiles, viewable } = await readParent();
+  const { userId, profiles, viewable } = await readParent();
 
   if (profiles === null || viewable === null) {
     return (
@@ -54,12 +56,12 @@ export default async function ChildrenPage() {
       sharedBy: child.sharedBy,
     }));
 
-  // Only fetched for a parent with children of their own: with nobody to share
+  // Only read for a parent with children of their own: with nobody to share
   // there is nothing either half could return, and the panel isn't drawn. The
   // two arrive together because one screen wants both, and a failed read makes
   // them both null - which the panel already draws as "couldn't load", where two
   // empty lists would have said "you have shared nothing".
-  const sharing = rows.length ? await api.shares() : { invites: [], viewers: [] };
+  const sharing = rows.length ? await readSharing(userId) : { invites: [], viewers: [] };
 
   return (
     <>
@@ -87,4 +89,23 @@ export default async function ChildrenPage() {
       ) : null}
     </>
   );
+}
+
+/**
+ * The two halves of the sharing panel, in parallel and null together.
+ *
+ * Null together is the point: the panel draws null as "couldn't load", and one
+ * successful empty list beside one failure would tell a parent they have shared
+ * nothing. Two reads rather than one because they are two tables; one answer
+ * because one screen asks the question.
+ */
+async function readSharing(
+  parentId: string,
+): Promise<{ invites: PendingInvite[]; viewers: SharedViewer[] } | null> {
+  const [invites, viewers] = await Promise.all([
+    listPendingInvites(parentId),
+    listSharedViewers(parentId),
+  ]);
+
+  return invites === null || viewers === null ? null : { invites, viewers };
 }

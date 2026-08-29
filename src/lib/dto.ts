@@ -10,8 +10,8 @@
  * depend on, and the data modules re-export them rather than redeclaring them.
  *
  * Pure by construction: types only, no Prisma, no runtime. Every `Date` here is
- * a real `Date` on both sides - the wire carries an ISO string, and the web
- * client's `reviveDates` turns it back before anything reads it.
+ * a real `Date`: nothing crosses a wire on the way to a screen any more, so a
+ * Prisma read hands one over and it is read as one.
  *
  * `contract/openapi.yaml` remains the contract for a client that cannot import
  * TypeScript. This is the same information, for the two that can.
