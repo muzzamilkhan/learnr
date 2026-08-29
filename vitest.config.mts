@@ -47,6 +47,13 @@ export default defineConfig({
           environment: 'node',
           testTimeout: 60_000,
           hookTimeout: 120_000,
+          // src/server/session.ts reads SESSION_COOKIE_NAME off '@/auth', which
+          // pulls in next-auth. Externalized (the vitest default for anything in
+          // node_modules), next-auth loads through Node's native ESM resolver,
+          // which - unlike Vite's - refuses the extensionless `next/server`
+          // specifier next-auth imports internally. Inlining routes it through
+          // Vite's resolver instead, which behaves like Next's own bundler here.
+          server: { deps: { inline: ['next-auth', '@auth/prisma-adapter'] } },
         },
       },
     ],

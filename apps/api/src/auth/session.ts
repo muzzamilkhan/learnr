@@ -1,25 +1,7 @@
-import { prisma } from '../db.js';
-
 /**
- * A token is a `Session` row, whoever wrote it. Auth.js writes one when a parent
- * signs in with Google; `POST /auth/redeem` writes one when a child spends their
- * code. The API cannot tell the two apart and does not need to.
+ * `session.ts` moved to the repository root (`src/server/session.ts`) as part
+ * of collapsing the API back into the web app - `apps/api` is deleted whole in
+ * a later step of that collapse. This shim exists only to keep the workspace
+ * typechecking cleanly until then; `plugin.ts` is still the only caller.
  */
-export async function resolveUserId(token: string | undefined): Promise<string | null> {
-  if (!prisma || !token) return null;
-
-  try {
-    const session = await prisma.session.findUnique({
-      where: { sessionToken: token },
-      select: { userId: true, expires: true },
-    });
-
-    if (!session) return null;
-    if (session.expires.getTime() <= Date.now()) return null;
-
-    return session.userId;
-  } catch (error) {
-    console.error('Failed to resolve a session', error);
-    return null;
-  }
-}
+export { resolveUserId } from '../../../../src/server/session';
