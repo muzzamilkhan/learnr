@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import type { ClientLabel, ClientSample } from '@/timing';
 
 /**
  * What the child actually waits for, on the screen they wait on.
@@ -22,20 +23,77 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
  */
 
 export interface Sample {
-  label: string;
+  label: ClientLabel;
   ms: number;
   at: number;
 }
 
+/** How many the overlay draws. What is *sent* is queued separately - see below. */
 const MAX_SAMPLES = 14;
 
+/**
+ * How many may wait to be sent. The queue only grows when the sink is failing,
+ * and a measurement nobody could read is not worth unbounded memory on a screen
+ * a child is playing on.
+ */
+const MAX_UNFLUSHED = 200;
+
+/** The most one request may carry, which is `parseSamples`' own cap. */
+const MAX_BATCH = 50;
+
+const SINK = '/api/timing';
+const FLUSH_MS = 5_000;
+
 let samples: Sample[] = [];
+let unflushed: ClientSample[] = [];
 const listeners = new Set<(s: Sample[]) => void>();
 
-/** Record one measurement. A no-op cost when the overlay is not mounted. */
-export function sample(label: string, ms: number): void {
-  samples = [{ label, ms: Math.round(ms), at: Date.now() }, ...samples].slice(0, MAX_SAMPLES);
+/**
+ * Record one measurement. A no-op cost when the overlay is not mounted, and
+ * nothing is ever sent unless `?timing=1` put the overlay there - a real player
+ * measures nothing and posts nothing.
+ *
+ * The queue to be sent is kept apart from the list on screen because they are
+ * two different questions: the overlay shows the last handful, and a child
+ * answering quickly can produce more than that between two flushes.
+ */
+export function sample(label: ClientLabel, ms: number): void {
+  const rounded = Math.round(ms);
+  samples = [{ label, ms: rounded, at: Date.now() }, ...samples].slice(0, MAX_SAMPLES);
+  if (unflushed.length < MAX_UNFLUSHED) unflushed.push({ label, ms: rounded });
   for (const listener of listeners) listener(samples);
+}
+
+/**
+ * Send what has been measured since the last flush.
+ *
+ * `sendBeacon` on the way out, because a `fetch` started in `pagehide` is
+ * cancelled with the page and the last few answers of a sitting are exactly the
+ * ones worth having. `keepalive` does the same job for the periodic flush
+ * without needing the page to be going anywhere.
+ *
+ * Drained before the send rather than after it, so a failing sink drops
+ * readings instead of retrying them forever behind a growing queue. These are
+ * measurements; losing some is a worse log, not a worse app.
+ */
+function flush(leaving = false): void {
+  if (unflushed.length === 0) return;
+
+  const batch = unflushed.slice(0, MAX_BATCH);
+  unflushed = unflushed.slice(MAX_BATCH);
+  const body = JSON.stringify({ samples: batch });
+
+  if (leaving && typeof navigator.sendBeacon === 'function') {
+    navigator.sendBeacon(SINK, new Blob([body], { type: 'application/json' }));
+    return;
+  }
+
+  void fetch(SINK, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {});
 }
 
 /**
@@ -44,7 +102,7 @@ export function sample(label: string, ms: number): void {
  * Returns the promise untouched, so a call site reads the same with it as
  * without it and nothing about play depends on the measurement.
  */
-export function measure<T>(label: string, run: Promise<T>): Promise<T> {
+export function measure<T>(label: ClientLabel, run: Promise<T>): Promise<T> {
   const started = performance.now();
   const done = () => sample(label, performance.now() - started);
   run.then(done, done);
@@ -111,6 +169,23 @@ export function TimingOverlay() {
   const on = useSyncExternalStore(neverChanges, isOn, getOff);
   const shown = useSyncExternalStore(subscribe, getSamples, getNoSamples);
   const nav = useNavigation(on);
+
+  // Posting only happens while the overlay is on, which is what keeps a real
+  // player from ever making this call. `pagehide` rather than `beforeunload`,
+  // which iOS Safari does not reliably fire.
+  useEffect(() => {
+    if (!on) return;
+
+    const timer = setInterval(() => flush(), FLUSH_MS);
+    const leave = () => flush(true);
+    window.addEventListener('pagehide', leave);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('pagehide', leave);
+      flush(true);
+    };
+  }, [on]);
 
   if (!on) return null;
 

@@ -57,3 +57,67 @@ export async function timed<T>(label: string, run: () => Promise<T>): Promise<T>
     logTiming(label, elapsed());
   }
 }
+
+/**
+ * The measurements the browser is allowed to report, as a closed set.
+ *
+ * The sink writes a label straight into a log line, so a label carrying a
+ * newline would forge lines of its own - and the endpoint is unauthenticated,
+ * because making it read the session would cost the very Neon round trip the
+ * answer path just stopped paying. An allowlist settles both at once: these are
+ * the labels this app records, so anything else is not a reading that could
+ * have come from it, and there is nothing to escape.
+ */
+export const CLIENT_LABELS = [
+  'startRecording',
+  'recordAttempt',
+  'awardRound',
+  'awardTarget',
+  'submitRun',
+] as const;
+
+export type ClientLabel = (typeof CLIENT_LABELS)[number];
+
+export interface ClientSample {
+  label: ClientLabel;
+  ms: number;
+}
+
+/** At most this many readings per request - one batch must not be a flood of lines. */
+const MAX_BATCH = 50;
+
+/** Ten minutes. Past this it is not a measurement of anything. */
+const MAX_SAMPLE_MS = 600_000;
+
+const isLabel = (value: unknown): value is ClientLabel =>
+  CLIENT_LABELS.includes(value as ClientLabel);
+
+/**
+ * A batch of client readings, or nothing.
+ *
+ * Every field is the browser's word and this endpoint is open, so it is a
+ * boundary normaliser in the same shape as `parseTarget` and `parseFigure`: a
+ * bad sample is dropped rather than refused, so one malformed reading does not
+ * cost the good ones beside it.
+ */
+export function parseSamples(body: unknown): ClientSample[] {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return [];
+
+  const { samples } = body as { samples?: unknown };
+  if (!Array.isArray(samples)) return [];
+
+  return samples
+    .filter((sample): sample is ClientSample => {
+      if (typeof sample !== 'object' || sample === null) return false;
+      const { label, ms } = sample as { label?: unknown; ms?: unknown };
+      return (
+        isLabel(label) &&
+        typeof ms === 'number' &&
+        Number.isFinite(ms) &&
+        ms >= 0 &&
+        ms <= MAX_SAMPLE_MS
+      );
+    })
+    .slice(0, MAX_BATCH)
+    .map(({ label, ms }) => ({ label, ms: Math.round(ms) }));
+}

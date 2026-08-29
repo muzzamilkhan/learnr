@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { logTiming, stopwatch, timed, uptimeMs } from './timing';
+import { CLIENT_LABELS, logTiming, parseSamples, stopwatch, timed, uptimeMs } from './timing';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -67,5 +67,56 @@ describe('logTiming', () => {
 describe('uptimeMs', () => {
   it('counts from when the module was loaded, not from the epoch', () => {
     expect(uptimeMs()).toBeLessThan(60_000);
+  });
+});
+
+describe('parseSamples', () => {
+  const ok = { samples: [{ label: 'recordAttempt', ms: 120 }] };
+
+  it('keeps a well-formed batch', () => {
+    expect(parseSamples(ok)).toEqual([{ label: 'recordAttempt', ms: 120 }]);
+  });
+
+  it('refuses anything that is not a batch of samples', () => {
+    expect(parseSamples(null)).toEqual([]);
+    expect(parseSamples({})).toEqual([]);
+    expect(parseSamples({ samples: 'recordAttempt' })).toEqual([]);
+    expect(parseSamples([{ label: 'recordAttempt', ms: 1 }])).toEqual([]);
+  });
+
+  // The sink writes these straight into a log line, so a label carrying a
+  // newline would forge log lines of its own. An allowlist rather than an
+  // escape: the labels are a closed set this app writes, so anything outside it
+  // is not a measurement that could have come from here.
+  it('drops a label that is not one this app records', () => {
+    expect(parseSamples({ samples: [{ label: 'nope', ms: 1 }] })).toEqual([]);
+    expect(parseSamples({ samples: [{ label: 'recordAttempt\nfake', ms: 1 }] })).toEqual([]);
+  });
+
+  it('drops a reading that is not a sane number of milliseconds', () => {
+    const bad = (ms: unknown) => parseSamples({ samples: [{ label: 'recordAttempt', ms }] });
+    expect(bad(-1)).toEqual([]);
+    expect(bad(Number.NaN)).toEqual([]);
+    expect(bad(Number.POSITIVE_INFINITY)).toEqual([]);
+    expect(bad('120')).toEqual([]);
+    expect(bad(9_999_999)).toEqual([]);
+  });
+
+  it('keeps the good samples in a batch that also holds bad ones', () => {
+    expect(
+      parseSamples({ samples: [{ label: 'nope', ms: 1 }, { label: 'awardRound', ms: 7 }] }),
+    ).toEqual([{ label: 'awardRound', ms: 7 }]);
+  });
+
+  // An unbounded batch is an unbounded number of log lines from one request.
+  it('caps how many one request may write', () => {
+    const many = Array.from({ length: 500 }, () => ({ label: 'recordAttempt', ms: 5 }));
+    expect(parseSamples({ samples: many }).length).toBeLessThanOrEqual(50);
+  });
+
+  it('names the labels the client is allowed to report', () => {
+    expect(CLIENT_LABELS).toContain('recordAttempt');
+    expect(CLIENT_LABELS).toContain('awardTarget');
+    expect(CLIENT_LABELS).toContain('submitRun');
   });
 });
