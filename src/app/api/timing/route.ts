@@ -1,4 +1,4 @@
-import { logTiming, parseSamples } from '@/timing';
+import { logTiming, parseSamples, stopwatch, uptimeMs } from '@/timing';
 
 /**
  * Where the browser's own readings land.
@@ -39,4 +39,56 @@ export async function POST(request: Request): Promise<Response> {
   for (const { label, ms } of parseSamples(body)) logTiming(`client ${label}`, ms);
 
   return new Response(null, { status: 204 });
+}
+
+/**
+ * A probe, temporary, for one question: why does a call from here to the API
+ * cost about 560ms when the API answers it in ten, and a curl from a laptop in
+ * the same city completes the whole thing - DNS, TCP, TLS and all - in under
+ * forty?
+ *
+ * The reading is the same on a warm instance as a cold one, which rules out
+ * cold start, and the API's own timing line rules out the API. What is left is
+ * the hop, and the hop has two shapes worth telling apart:
+ *
+ * - **Connection setup.** If the first call is slow and the next two are fast,
+ *   nothing is reusing a connection and every request is paying DNS and a TLS
+ *   handshake.
+ * - **Per-request overhead.** If all three are slow, it is not the handshake -
+ *   it is something in the path taken on every call.
+ *
+ * Both hostnames are probed because they resolve differently: `fly.dev` is
+ * Fly's own name, `api.learnr.muzza.tech` is ours, and both carry an A and an
+ * AAAA. If one is fast and the other is not, the difference is name
+ * resolution - a client preferring an unroutable IPv6 and waiting to fall back
+ * would look exactly like this.
+ *
+ * Delete this with the overlay once the numbers are in.
+ */
+export async function GET(): Promise<Response> {
+  const hosts = [
+    process.env.LEARNR_API_URL ?? 'http://localhost:3001',
+    'https://api.learnr.muzza.tech',
+  ];
+
+  const results: Record<string, { attempt: number; ms: number; status: number }[]> = {};
+
+  for (const host of hosts) {
+    const attempts: { attempt: number; ms: number; status: number }[] = [];
+    // Three in a row, sequentially: the second and third are the ones that say
+    // whether anything was kept open.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const elapsed = stopwatch();
+      let status = 0;
+      try {
+        status = (await fetch(`${host}/health`, { cache: 'no-store' })).status;
+      } catch {
+        status = -1;
+      }
+      attempts.push({ attempt, ms: elapsed(), status });
+    }
+    results[host] = attempts;
+  }
+
+  return Response.json({ upMs: uptimeMs(), results });
 }
