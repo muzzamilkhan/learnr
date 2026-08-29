@@ -1,6 +1,7 @@
 import type { QuestionTemplate } from '../lib/templates/types';
 import { compareYearLevels, type Stage, type YearLevel } from '../lib/curriculum';
-import { PACKS } from './packs';
+import { mathsTemplates } from './maths';
+import { englishTemplates } from './english';
 
 /**
  * The in-repo course catalog. Once courses are authored by AI and stored in the
@@ -11,11 +12,16 @@ import { PACKS } from './packs';
  * recurs across years at increasing difficulty. Neither owns the other, so the
  * catalog can be walked from either end - `topicsForLevel` and `levelsForTopic`.
  *
- * The templates are read from the generated packs in `./packs`, not from the
- * TypeScript literals that author them - so every test in this directory runs
- * against the artifact that actually ships.
+ * Every shipped template, maths K-6 then English K-6 - the order `allTemplates`
+ * has always had.
+ *
+ * This read the generated packs in `./packs` while the API served them to a
+ * client that could not import TypeScript. There is no such client, so a pack
+ * is a second copy of the content whose only remaining job was to be kept in
+ * step with the first - and `scripts/content-packs.test.ts` existed to redden
+ * when it was not. One copy cannot drift.
  */
-export const allTemplates: QuestionTemplate[] = PACKS.flatMap((pack) => pack.templates);
+export const allTemplates: QuestionTemplate[] = [...mathsTemplates, ...englishTemplates];
 
 export interface LevelSummary {
   level: YearLevel;

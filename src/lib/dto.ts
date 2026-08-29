@@ -22,7 +22,6 @@ import type { YearLevel } from './curriculum';
 import type { DailyTarget } from './rewards/target';
 import type { PlayStreak } from './rewards/streak';
 import type { StandingChange } from './speedrun/leaderboard';
-import type { QuestionTemplate } from './templates/types';
 
 export type Role = 'parent' | 'child';
 
@@ -149,40 +148,3 @@ export type AcceptResult =
   | { ok: true; children: number }
   | { ok: false; reason: 'unavailable' | 'own-link' | 'error' };
 
-/**
- * One subject and school year of shipped content.
- *
- * `version` is derived - 12 hex characters of sha256 over the pack's own bytes
- * with this field excluded - so it can never disagree with the templates below
- * it, and nobody has to remember to bump anything. It is the same value the
- * manifest carries as that pack's `etag`, written twice so neither file has to
- * be read to make sense of the other.
- */
-export interface ContentPack {
-  version: string;
-  subject: string;
-  level: YearLevel;
-  templates: QuestionTemplate[];
-}
-
-export interface ContentManifestLevel {
-  level: YearLevel;
-  topics: string[];
-  templateCount: number;
-  /** The `version` of the pack this names. */
-  etag: string;
-}
-
-export interface ContentManifestSubject {
-  subject: string;
-  levels: ContentManifestLevel[];
-}
-
-/**
- * What content exists, without any of it. A client renders a level picker from
- * this alone and downloads only the pack a child is about to play.
- */
-export interface ContentManifest {
-  version: string;
-  subjects: ContentManifestSubject[];
-}
