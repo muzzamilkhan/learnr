@@ -16,8 +16,8 @@ dropdown and can't reach another year by typing a URL.
 
 Questions are generated, not stored. Each one comes from a **template** that
 declares its variables and an expression for the answer, so a single template
-produces an endless supply of questions at the same difficulty. 507 templates
-ship - 350 maths and 155 English - covering Kindergarten to Year 6, written
+produces an endless supply of questions at the same difficulty. 553 templates
+ship - 398 maths and 155 English - covering Kindergarten to Year 6, written
 against both the Australian Curriculum and the NSW syllabus.
 
 Signed out, `/` is a landing page: what the app is, what it covers - read from
@@ -27,99 +27,76 @@ the top bar, Google for a grown-up and the code box for a child.
 ## Getting started
 
 ```bash
-npm install             # always from the root - see below
+npm install
 cp .env.example .env    # see Configuration below
-npm run dev             # the web app, http://localhost:3000
-
-# in a second terminal, for anything that reads or writes data:
-cp apps/api/.env.example apps/api/.env
-npm run dev --workspace apps/api   # http://localhost:3001
+npm run dev             # http://localhost:3000
 ```
-
-**`npm install` is always run from the root.** This is an npm workspace and the
-root install is what links `@learnr/core` into both applications; installing
-inside `apps/api` cannot see it.
 
 **The app plays without any configuration.** Sign-in and progress recording are
 skipped when their environment variables are absent (`isAuthConfigured`,
 `isDatabaseConfigured`), so the question engine and the play screen work on a
-fresh clone with no API running at all. The placeholder connection string in
+fresh clone with no database at all. The placeholder connection string in
 `.env.example` counts as absent, so copying the file as-is is enough to start.
 
 ### Configuration
 
-The web app's `.env`:
+`.env`:
 
 | Variable | What it is |
 | --- | --- |
-| `LEARNR_API_URL` | Where the API is. Defaults to `http://localhost:3001`, so a local pair needs no entry. |
-| `DATABASE_URL` | Neon Postgres, via the Vercel Marketplace. **For Auth.js alone** - everything else goes through the API. |
+| `DATABASE_URL` | Neon Postgres, via the Vercel Marketplace. The one connection the app has - Auth.js and everything else read through it. |
 | `AUTH_SECRET` | Generate with `npx auth secret`. |
 | `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google Cloud console, with redirect URI `http://localhost:3000/api/auth/callback/google`. |
 
-The API's own `apps/api/.env` needs `DATABASE_URL` and `PORT` and nothing else:
-Auth.js runs in the web app, and the API reads the very `Session` rows it writes,
-so one sign-in serves both halves and there is no API key to manage.
-
 ## Commands
-
-The web app, at the repository root:
 
 ```bash
 npm run dev            # dev server
-npm test               # vitest, run once
+npm test               # vitest: both projects, and `db` needs Docker
+npm run test:unit      # the fast half - the engine, the content, the components
+npm run test:db        # the data layer, against a real Postgres
 npm run test:watch     # vitest, watch
 npm run typecheck      # tsc --noEmit
 npm run build          # production build
-npm run content:build  # regenerate src/content/packs/ from the templates
-npm run db:generate    # prisma generate, for Auth.js alone
+npm run db:generate    # prisma generate
+npm run db:migrate     # prisma migrate dev
+npm run db:deploy      # apply migrations
 ```
 
-The API is a workspace and does not answer to those:
-
-```bash
-npm run dev --workspace apps/api        # http://localhost:3001
-npm test --workspace apps/api           # needs Docker - Testcontainers Postgres
-npm run typecheck --workspace apps/api
-npm run contract --workspace apps/api   # regenerate contract/openapi.yaml
-```
-
-**There is no `db:migrate` at the root.** `apps/api` owns the schema and the
-migrations, and runs `db:deploy` as its release command, so a release carries its
-own schema changes.
+`npm test` is two vitest projects. `unit` is node-only and parallel; `db` is
+everything under `src/server/`, which runs against a real Postgres in
+Testcontainers, because three concurrency guards mean nothing against a mock.
+`npm run test:unit` is the one to reach for while working on anything pure.
 
 ### Deploying
 
-A push to `master` runs `.github/workflows/deploy.yml`: both test suites and both
-typechecks, then the API to Fly, then the web app to Vercel. **The API goes
-first** - its release applies migrations, and the web app calls it server-side on
-every render, so an endpoint has to exist before the page that calls it.
+A push to `master` runs `.github/workflows/deploy.yml`: the suite and the
+typecheck, then a `vercel build --prod` on the runner and a `--prebuilt` deploy,
+so the artifact that ships is the one the tests ran beside. `vercel.json` keeps
+`master` off Vercel's own git integration - every other branch still gets a
+preview - which leaves the workflow the only thing that can move production.
 
-Which halves a push moves is `scripts/changed-apps.ts`'s answer, and it has
-tests. The shared engine moves both, because it ships inside the Next bundle and
-inside the API image alike, and a path matching no rule moves both too - a wasted
-deploy is cheaper than a change that silently did not ship.
+The gate is the point: `next build` does not run `src/content/catalog.test.ts`,
+which is what proves all 553 shipped templates still validate, still fit the
+prompt cap, and still never anchor a figure to an answer.
 
 ## How it works
 
-One repository, three pieces: the Next.js web app at the root, a Fastify REST API
-in `apps/api`, and the pure engine both consume as `@learnr/core`. Next.js App
-Router, React 19, Tailwind 4, Auth.js with Google sign-in. The web app is on
-Vercel, the API on Fly, the database is Neon Postgres - all three in Sydney,
-because the API makes several sequential reads per page and an ocean between them
-would cost a second.
+One Next.js application: App Router, React 19, Tailwind 4, Auth.js with Google
+sign-in, on Vercel, with Neon Postgres behind it. Both are in Sydney, because a
+page render makes several reads and an ocean between them would cost a second.
 
 **All the logic lives in `src/lib` as pure functions.** Nothing in there touches
 React, the network, the clock or the database - callers pass in `now` and a seeded
 RNG. That is what makes the engine testable and lets any session be replayed from
-its seed. It holds without exception: the two impure files the web app has left,
-`src/api.ts` and `src/auth-db.ts`, sit outside `src/lib` rather than being
-excused from the rule, and a guard test fails the build if an engine file reaches
-for the web app's `@/` alias.
+its seed. It holds without exception: the impure half of the app is `src/server/`,
+a directory rather than a list of exceptions, and `src/lib/purity.test.ts` fails
+the build if anything in `src/lib` or `src/content` imports React, `next`,
+`@prisma/client` or `src/server`.
 
 ```
 src/lib/expr/        safe expression language (tokenize -> parse -> evaluate)
-src/lib/figures/     the questions that are a picture: eleven kinds, a registry
+src/lib/figures/     the questions that are a picture: twelve kinds, a registry
 src/lib/templates/   question templates: types, generation, validation
 src/lib/session/     session state machine, grading, answer input rules
 src/lib/analytics/   the learner profile, and the report written from it
@@ -132,25 +109,27 @@ src/lib/login-code.ts the 4-character code a child signs in with
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
 src/content/         the shipped course content, a year a file
-src/content/packs/   the generated JSON packs - the artifact that ships
+src/server/          the Prisma client, the data layer, and the composed reads
+src/browser-api.ts   what the browser posts while a child is playing
 src/components/      UI
-src/app/             routes and server actions
-packages/core/       @learnr/core: the engine above, shared with the API
-apps/api/            the Fastify REST API - owns the schema and the migrations
+src/app/             routes, route handlers and server actions
+prisma/              the schema and its migrations
 ```
 
-**The web app calls the API for everything but signing in.** `src/api.ts` is the
-one typed client. The caller's session cookie is what authorises a request,
-forwarded as-is, so who a request is for is decided in one place - and an
-endpoint a child may not reach answers 403 to the child rather than trusting the
-web app to have asked nicely.
+**A page render reads in process; the play path writes over HTTP.** Everything a
+child does while playing - opening a sitting, recording an answer, banking a
+round's stars or the day's goal, closing the sitting, submitting a speed run -
+is posted by the browser to a route handler under `/api/v1`, rather than through
+a server action, because Next serialises server-action requests from one client
+and those calls would queue behind each other where a child can feel it. All of
+it is *recording*: none of it decides what the child sees next.
 
 **Null means "could not read", never "nothing there."** That distinction is
 load-bearing on half these screens, because `[]` from a read of a child's answers
-renders as "your child has never practised". A 503, a 4xx and a dead connection
-all come back as null; an endpoint meaning "nothing there" says `[]` with a 200.
+renders as "your child has never practised". A failed read comes back as null; a
+read meaning "nothing there" returns `[]`.
 
-**The play screen keeps playing when the API doesn't.** An unweighted first
+**The play screen keeps playing when the database doesn't.** An unweighted first
 question beats no question, nothing is recorded, and the child never learns there
 was an outage. Every screen that needs to know who is asking degrades instead of
 guessing - a grown-up is never dropped onto the child's home screen because a
@@ -189,11 +168,10 @@ resolve to nothing. Run anything new through `validateTemplate` before importing
 it: it catches unbound variables, out-of-order references, malformed expressions
 and unsatisfiable constraints, then proves the template can actually generate.
 
-**The templates ship as generated JSON and the TypeScript is what authors edit.**
-`npm run content:build` writes `src/content/packs/`, and a test regenerates them
-in memory and compares byte for byte - so editing a year file without rebuilding
-is a red suite rather than a stale pack. The packs are also what a client that
-cannot import TypeScript fetches, over `/content/manifest`.
+**The TypeScript literals are the content**, and `catalog.ts` composes them into
+one array - maths K-6 then English K-6. `src/content/catalog.test.ts` validates
+every one of them, draws each fifty times, and holds them to the curriculum
+rules; nothing ships that has not been through it.
 
 ### Levels and topics
 
@@ -209,10 +187,10 @@ division into Year 4.
 ### Questions that are a picture
 
 "What shape is this?" has no hole to fill: the figure *is* the question and the
-prompt is only its caption. Eleven kinds of figure ship - polygons, angles, bar
+prompt is only its caption. Twelve kinds of figure ship - polygons, angles, bar
 and picture graphs, spinners, solids, number lines, clocks, arrays, fractions of
-a shape and grids - each generated from the same bound scope and injected RNG the
-question uses.
+a shape, grids and timelines - each generated from the same bound scope and
+injected RNG the question uses.
 
 **No single diagram may become the anchor for an answer.** If every obtuse angle
 is drawn the same way, a child learns to recognise the picture and the analytics
@@ -409,8 +387,4 @@ referenced here by code only.
 
 ## Status
 
-Not a stable release. Maths and English both ship, K to Year 6. A native iOS
-client for children is under way in a separate repository: it consumes the API's
-`contract/openapi.yaml` and a Swift port of the engine, because play has to work
-offline, which means questions are generated on the device. The TypeScript engine
-is the oracle the port is verified against.
+Not a stable release. Maths and English both ship, K to Year 6.

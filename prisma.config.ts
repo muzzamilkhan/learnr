@@ -8,8 +8,8 @@ loadEnv({ path: '.env.local', quiet: true });
 loadEnv({ quiet: true });
 
 /**
- * `apps/api` owned the schema and the migrations; the web app owns them
- * again, so this config generates *and* migrates.
+ * This app owns the schema and the migrations, so the config generates *and*
+ * migrates - `npm run db:migrate` writes one, `npm run db:deploy` applies them.
  *
  * `prisma generate` needs no datasource, but the config must still name one.
  * Falling back to the .env.example placeholder - which `isDatabaseConfigured`

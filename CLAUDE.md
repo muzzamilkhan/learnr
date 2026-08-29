@@ -3,246 +3,159 @@
 A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
 designed for a standard iPad. Maths and English are the two subjects that ship.
 
-This repository is a workspace holding **two applications and the engine they
-share** - see **Where everything lives** below. A native iOS child client is the
-third and lives in its own repository.
+One Next.js application: the engine, the content, the UI, the routes and the
+data layer in one tree - see **Where everything lives** below. It was two
+applications and a shared package for a few days, and **What the collapse cost
+and kept**, near the foot of this file, is what that left behind.
 
 ## Commands
 
 ```bash
 npm run dev           # dev server
-npm test              # vitest, run once
+npm test              # vitest, both projects - the `db` one needs Docker
+npm run test:unit     # the fast half: the engine, the content, the components
+npm run test:db       # the data layer, against a real Postgres
 npm run test:watch    # vitest, watch
 npm run typecheck     # tsc --noEmit
 npm run build         # production build
-npm run content:build # regenerate src/content/packs/ from the TypeScript templates
-npm run db:generate   # prisma generate, for Auth.js alone - see below
+npm run db:generate   # prisma generate
+npm run db:migrate    # prisma migrate dev - writing a migration, locally
+npm run db:deploy     # applying them, which is what a release runs
 ```
 
-**There is no `db:migrate` or `db:deploy` here.** `apps/api` owns the schema and
-the migrations and runs `db:deploy` as its own release command; this package
-generates a client from `prisma/auth.prisma` - the four tables Auth.js needs and
-nothing else - because `PrismaAdapter` wants a live `PrismaClient` in-process and
-cannot speak REST. Everything else goes over the wire through `src/api.ts`.
+**`npm test` is two vitest projects and only one of them needs Docker.** `unit`
+is node-only and parallel - the engine, the content and the components. `db` is
+everything under `src/server/`, which runs against a real Postgres in
+Testcontainers. `npm run test:unit` is the one to reach for while working on
+anything pure; folding the two into a single run would make every unit test wait
+on a container, which is most of what makes this repo quick to work on.
 
-Those are the **web app's**. The API is a workspace and does not answer to them:
+**A push to `master` deploys** (`.github/workflows/deploy.yml`), behind the suite
+and the typecheck. `vercel.json` excludes `master` from Vercel's own git
+integration - as a per-branch object, so **every other branch still gets a
+preview deployment** - which leaves this workflow the only thing that can move
+production and nothing on the other side of it to race. It runs `vercel build
+--prod` on the runner and uploads the output with `--prebuilt`, so the artifact
+that ships is the one the suite ran beside and a red test means nothing was
+built at all.
 
-```bash
-npm test --workspace apps/api        # Docker must be running - see below
-npm run typecheck --workspace apps/api
-npm run dev --workspace apps/api     # http://localhost:3001
-npm run contract --workspace apps/api  # regenerate contract/openapi.yaml
-npm run smoke --workspace apps/api     # build the bundle and check it boots
-fly deploy --ha=false                # from the repository root, and by hand
-```
+**The gate matters more than the automation.** `next build` does not run
+`src/content/catalog.test.ts`, and that test is what proves all 553 shipped
+templates still validate, still fit `MAX_PROMPT_CHARS`, and still never anchor a
+figure to an answer. Nothing else catches a broken template before it ships.
 
-**A push to `master` deploys both halves** (`.github/workflows/deploy.yml`),
-behind both suites and both typechecks. Vercel used to build the web app itself
-on every push - ungated, and in parallel with those tests - while `fly deploy`
-waited behind them, so a push touching both moved the web app in about two
-minutes and the API in about six, with no order between them. `vercel.json` now
-sets `git.deploymentEnabled: false`, so Vercel never builds on a push and
-production moves from the workflow alone. **There are no preview deployments any
-more**, which is the price of that.
+**The workflow needs three repository secrets** - `VERCEL_TOKEN`,
+`VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. The two ids are not secret but sit in
+the gitignored `.vercel/project.json` and stay out of the tree with it.
 
-**The API goes first and the web app second.** A Fly release runs `db:deploy`,
-so a schema change lands before the web app that reads through it and an
-endpoint exists before the page that calls it - and the web app calls the API
-server-side on every render, which is what makes the order load-bearing rather
-than a preference. The web job waits on the API job having *succeeded or been
-skipped*, spelled out in its `if:` because Actions reads a skipped dependency as
-unmet and would otherwise skip the web app whenever the API had nothing to ship.
+Deploying by hand still works, and is what to reach for when the deploy is the
+only thing you want: `vercel build --prod && vercel deploy --prebuilt --prod`.
 
-**What a push moves is `scripts/changed-apps.ts`'s answer, and it has tests.**
-`apps/api/` and `fly.toml` move the API; the Next app at the root moves the web
-app; `src/lib`, `src/content`, `packages/` and the workspace root move **both**,
-because the engine ships inside the Next bundle and inside the API image alike
-and half a move leaves the two running different engine code. Prose moves
-nothing. A path matching no rule moves both: a wasted deploy is the cheaper
-mistake than a change that silently did not ship. There is deliberately no
-`paths-ignore:` on the workflow - a second list would be free to disagree with
-the tested one. Node 24 runs that file directly, which is why the job deciding
-this needs no `npm ci`.
-
-The gate matters more than the automation: the content packs are generated, and
-the drift test is the only thing between an edited year file and a stale shipped
-pack, which neither `next build` nor the Docker build runs.
-
-Both deploys by hand still work, and are what to reach for when the deploy is
-the only thing you want: `fly deploy --ha=false`, and `vercel build --prod &&
-vercel deploy --prebuilt --prod`.
-
-**The workflow needs three repository secrets beyond `FLY_API_TOKEN`** -
-`VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. The two ids are not
-secret but sit in the gitignored `.vercel/project.json` and stay out of the tree
-with it. Without them the web job fails and the API still ships, which is the
-right way round.
-
-`npm install` is always run **from the root**: the workspace links `@learnr/core`
-into both applications, and installing inside `apps/api` cannot see it.
-
-Run `npm test` and `npm run typecheck` before pushing - both, for whichever half
-you touched.
+Run `npm test` and `npm run typecheck` before pushing.
 
 ## Where everything lives
 
-One repository, npm workspaces. The web app is at the root, the API is a
-workspace, and the pure engine is a package both consume.
+One Next.js application at the repository root. The engine and the content are
+pure, the impure half is a directory, and every read and write reaches Neon in
+process.
 
 ```
-/                    the Next.js web app - src/, public/
+src/app/             routes, and api/v1/ route handlers for the six play writes
 src/lib/, src/content/   the pure engine, and nothing impure in either
-src/api.ts           the typed client - every read and write, over the wire
-src/auth-db.ts       the one Prisma connection left, for Auth.js alone
-prisma/auth.prisma   the four Auth.js tables, generate only - never migrated
-packages/core/       @learnr/core: the pure engine, shared
-apps/api/            the Fastify REST API - owns the schema and migrations
-apps/api/contract/   openapi.yaml, generated from the route schemas
-fly.toml             the API's deployment, at the root because the build needs it
-vercel.json          git deploys off; the web app ships from the workflow alone
-scripts/changed-apps.ts  which halves a push has to move, and its test beside it
+src/server/          the Prisma client, the data layer, and the composed reads
+src/browser-api.ts   what the browser posts while a child is playing
+src/components/      UI
+prisma/              the schema and its migrations
+vercel.json          master is off Vercel's git integration; the workflow ships it
 ```
 
-**`packages/core/src` is a committed symlink to the repo's own `src/`.** Node
-refuses an `exports` target outside the package directory, so the sources cannot
-live under `packages/core` and every target has to start with `./`. The package is
-a window onto `src/lib` and `src/content` rather than a copy of them - a second
-copy would start drifting immediately, which is the whole failure this design
-exists to prevent.
+**`src/server` owns the database, and `src/lib` stays exactly the pure engine.**
+The five modules holding the Prisma queries - `db`, `records`, `accounts`,
+`sharing` and `speed-records` - lived *inside* `src/lib` once, in the directory
+whose whole rule is that everything in it is pure. They sit in `src/server/`
+instead, so that rule is true without exception, and `src/lib/purity.test.ts` is
+what keeps it true: it walks `src/lib` and `src/content` and fails on any import
+of React, `next`, `@prisma/client` or `src/server`.
 
-**Three consequences worth knowing before they bite:**
+**`server-only` sits on `src/server/db.ts` and nowhere else in the directory.**
+Every data module imports `prisma` from there, so one line poisons the whole
+directory for a client bundle: a `'use client'` file that reaches a data module -
+directly, or through any component that imports one - fails `next build` with the
+import chain named, rather than shipping a Prisma client and a `DATABASE_URL` to
+a browser. `src/components/speed-scores.tsx` imports a data module directly,
+which is exactly the shape the guard exists to catch. vitest aliases the package
+to an empty stub, because `server-only`'s entry point throws outside the
+`react-server` condition and both projects import these modules in plain node -
+the alias is the test runner's alone, so the guard is live where it matters.
 
-- **The engine may not import through the `@` alias.** That alias is the web app's
-  tooling and does not exist for a package, so `@/lib/curriculum` inside
-  `src/content` resolves here and fails anywhere else. A guard test in
-  `packages/core/test/exports.test.ts` walks `src/lib` and `src/content` and fails
-  on any `@/` import. It has **no exemption list** - the five impure files it used
-  to hold are the ones the cutover deleted, so `src/lib` and `src/content` are now
-  exactly the pure engine. The web app's own two impure files, `src/api.ts` and
-  `src/auth-db.ts`, sit outside both rather than being exempted.
-- **The API's Docker build context is the repository root, not `apps/api`.** The
-  symlink points at `../../src`, so a context of `apps/api` alone rebuilds a
-  dangling link and nothing resolves.
-- **An engine file under `src/lib` or `src/content` may not import from outside
-  `src/`.** Because the symlink resolves to the repository root, `tsc` walks
-  every one of those files twice, once under its real path and once under
-  `packages/core/src/...` - and a relative import that escapes `src/` (to
-  `scripts/`, say) resolves from the real path but not from the mirrored one,
-  so the mirrored copy fails with `TS2307`. That failure is the only place such
-  an import shows up: the API's Docker build copies just `src/lib`,
-  `src/content`, `packages/core` and `apps/api`, so an engine file reaching past
-  `src/` would pass every other local check and only fail at deploy. Leaving
-  the mirror in `tsconfig.json`'s program, rather than excluding it, is what
-  makes that failure show up at desk instead. `scripts/content-packs.ts` is
-  what a content-pack test imports, which is why its test lives beside it at
-  `scripts/content-packs.test.ts` rather than under `src/content/`.
-
-**`apps/api` owns the database.** The schema, the migrations and Prisma live
-there; a deploy runs `db:deploy` as its release command, so a release carries its
-own schema changes. Its tests run against a real Postgres in Testcontainers rather
-than a mock - three concurrency guards (`SELECT ... FOR UPDATE` on `TopicSkill`
-and on `roundsBanked`, and the compare-and-set on `targetDay`) mean nothing
+**The data layer's tests run against a real Postgres in Testcontainers rather
+than a mock.** Three concurrency guards - `SELECT ... FOR UPDATE` on `TopicSkill`
+and on `roundsBanked`, and the compare-and-set on `targetDay` - mean nothing
 against a fake client, and they are the parts most worth proving.
 
-**Its build is an esbuild bundle, not `tsc` output.** `@learnr/core` ships
-TypeScript with extensionless relative imports, which tsx and vitest resolve and
-plain `node` does not - so a `tsc` build alone produces a server that will not
-start. `tsc --noEmit` still does the typechecking.
-
-**Everything in `dependencies` is external to that bundle except `@learnr/core`,
-and the list is derived rather than written down** (`apps/api/scripts/bundle.ts`).
-It used to be a hand-kept array, so adding a dependency and not listing it made
-esbuild *bundle* it - harmless for an ES module, fatal for a CommonJS one, whose
-`require` calls become esbuild's `__require` shim and throw `Dynamic require of
-"x" is not supported` the moment they run.
-
-**Nothing but the machine could catch that, which is why `npm run smoke` exists.**
-`tsc`, vitest and tsx all resolve CommonJS perfectly well and none of them ever
-loads the bundle, so the artifact that boots on Fly was the one version of this
-server nothing had run. `@fastify/cors` proved the cost on 2026-08-29: a green
-suite, a green typecheck, and a crash loop that took the API down until it was
-rolled back to the previous image. `smoke` builds the bundle, boots it exactly as
-the Dockerfile does and asks it for `/health` - no database needed, since the
-server answers without one - and the deploy workflow gates on it.
+**Two files there are composition rather than queries, and that is deliberate.**
+`src/server/reports.ts` builds a child's whole history for the parent's report
+out of five reads and the ownership check in front of them, and
+`src/server/play-state.ts` answers the two playing screens in one shape. Both
+were route handlers; the reads inside them are still issued in parallel for the
+reason they were parallel there - asked a function at a time they are a waterfall
+in front of the first question a child sees. In process they are cheaper. They
+are still round trips to Neon.
 
 ### Deployed
 
 | | Where | Region |
 | --- | --- | --- |
 | Web app | `learnr.muzza.tech`, Vercel | `syd1` |
-| API | `api.learnr.muzza.tech`, Fly | `syd` |
 | Database | Neon | `ap-southeast-2` |
 
-**All three are in Sydney, and that is the whole reason for the hosting choice.**
-A query from Sydney round-trips in about 3ms; the report endpoint makes roughly
-five sequential reads, so an API in the US would cost a second a page. Fly is
-there rather than Vercel because the API is a long-running Fastify process and
-Vercel runs functions. It never scales to zero - the web app calls it server-side
-on every render, so a cold start would land in a parent's page load. The name is
-`learnr-api-syd` because `learnr-api` is taken; Fly app names are globally unique.
+**Both are in Sydney, and that is the whole reason for the hosting choice.** A
+query from Sydney round-trips in about 3ms; a parent's report makes roughly five
+reads, so a database in the US would cost a second a page.
 
-**The API answers on `api.learnr.muzza.tech`, and the name is load-bearing.**
-`learnr-api-syd.fly.dev` still works and is what the app is called on Fly, but a
-*subdomain of the web app* is what lets the browser call the API with the session
-cookie: a cookie scoped to `learnr.muzza.tech` reaches that host and its
-subdomains. A sibling name like `learnr-api.muzza.tech` could only be reached by
-widening the cookie to `muzza.tech`, which would send a child's session to every
-host under that name - the portfolio included. That is the whole reason for the
-shape of it.
+**Reads are function calls; the writes a child makes while playing are not.** A
+page render calls `src/server/` directly and there is no HTTP on a read at all.
+What still crosses a wire is what the *browser* writes (`src/browser-api.ts`):
+opening a sitting, recording an answer, banking a round's stars, banking the
+day's goal, closing the sitting, and submitting a speed run. All of it is
+*recording* - none of it decides what the child sees next - which is the property
+that makes leaving it in the browser's hands safe.
 
-**The web app calls the API for everything but signing in.** `src/api.ts` is the
-one typed client; the five modules that used to hold Prisma queries -
-`src/lib/{db,records,accounts,sharing,speed-records}.ts` - are gone, along with
-the web app's copy of the schema and its migrations. Where this document below
-names one of them, read it as the same code now living in `apps/api/src/data/`.
+**Those are route handlers under `/api/v1`, not server actions, and it is the
+most valuable thing the split turned up.** Next serialises server-action requests
+from one client, so the calls a single answer makes queue behind each other while
+every one of them reports a healthy server-side duration - a wait that exists
+only in the browser and appears in no log. That was true of the monolith all
+along and was invisible only because each call was fast. Same origin, so there is
+no CORS, no preflight to pay for on every recorded answer, and no `Domain` on the
+session cookie.
 
-**The browser calls the API itself for everything a child does while playing**
-(`src/browser-api.ts`): opening a sitting, recording an answer, banking a round's
-stars, banking the day's goal, closing the sitting, and submitting a speed run.
-All of it is *recording* - none of it decides what the child sees next - which is
-what made moving it safe.
+**Each handler resolves the session once and gates there** (`requireUser` and
+`requireParent`, `src/server/session.ts`). It does not open with `auth()` and then
+check again: that double lookup was measured at 717ms on a cold Prisma client
+against about 5ms warm, and was paid up to twice per answer. One service means
+one lookup is both necessary and sufficient.
 
-Those were server actions once, and the cost of that shape is what this replaced:
-each was a POST to Vercel, which read the session against Neon, then called the
-API, which resolved the same cookie against the same table again. Two hops and
-two session lookups for a write the API could take directly. Worse, **Next
-serialises server-action requests from one client**, so the calls an answer makes
-queued behind each other while every one of them reported a healthy server-side
-duration - a wait that existed only in the browser and appeared in no log.
-
-So the API allows CORS from the web app's origin, exactly and never reflected
-(`LEARNR_WEB_ORIGINS`, `apps/api/src/env.ts`) - a browser refuses `*` outright
-once a request carries credentials. `maxAge` on the preflight matters more than
-it looks: a JSON POST is never a simple request, so without it every recorded
-answer would pay a preflight *and* the call, which is two round trips to save
-one. **Reads did not move.** `src/api.ts` still serves every page render; only
-the writes on the path a child can feel went across.
-
-What guards a cross-site write now that Next's origin check is not in front of
-it is `SameSite=Lax` on the session cookie, which withholds it from exactly the
-shape these calls have.
-
-**The caller's session cookie is what authorises a request**, forwarded as-is
-by `src/api.ts` and attached by the browser for `src/browser-api.ts`.
-The API resolves it against the very `Session` table Auth.js writes, so who a
-request is for is decided in one place and one sign-in serves both halves. There
-is no API key and no service account: an endpoint a child may not reach answers
-403 to the child, rather than trusting the web app to have asked nicely.
+**The caller's session cookie is what authorises a request.** A token is a
+`Session` row whoever wrote it - Auth.js writes one when a parent signs in with
+Google, `redeemLoginCode` writes one when a child spends their code - so who a
+request is for is decided in one place and the two paths cannot be told apart.
+There is no API key and no service account: a handler a child may not reach
+answers 403 to the child.
 
 **Null still means "could not read", never "nothing there."** That distinction is
 load-bearing on half these screens - `[]` from `readObservations` renders as
-"your child has never practised" - so a 503, a 4xx and a dead connection all come
-back from `src/api.ts` as null, and an endpoint meaning "nothing there" says `[]`
-with a 200. `family: null` on `GET /speed/records` is the third state that needed
-saying out loud: nobody to rank, which is neither.
+"your child has never practised" - so a failed read comes back as null, and a
+read meaning "nothing there" returns `[]`. `family: null` on the speed records is
+the third state that needed saying out loud: nobody to rank, which is neither.
 
 **Who is asking has four answers, not two** (`viewerKind`, `src/lib/viewer.ts`).
 A null account means *signed out* or *the read failed*, and every screen used to
-read both as "not a parent". That was harmless while the database was
-in-process - a failed read meant the whole app was down - and is not now: the API
-can be unreachable while the web app renders perfectly well, and a grown-up would
-land on the child's home screen, level picker and all. So `readViewer` returns a
-`kind`, and the three screens that gate on a role branch on it:
+read both as "not a parent". That is not safe in one process either, because
+**Neon is a network hop**: a read can fail while the app renders perfectly well,
+and a grown-up would land on the child's home screen, level picker and all. So
+`readViewer` returns a `kind`, and the three screens that gate on a role branch
+on it:
 
 - `/` says **"Can't load your account"** rather than picking a branch. Nothing on
   that screen can be answered without the account, so there is nothing to
@@ -259,182 +172,21 @@ there was an outage. `unclaimed` is a fourth answer for its own reason: `/`
 claims the role and every other screen bounces there, so the bounce heals rather
 than loops - which only works while it is distinguishable from `parent`.
 
-**Auth.js is the one thing that could not follow.** `src/auth-db.ts` keeps a
-Prisma client for `PrismaAdapter` alone and nothing else may import it; if a
-second caller appears the fix is an endpoint. `prisma/auth.prisma` is a *subset*
-rather than a copy - Prisma reads only the columns a model declares, so a `User`
-of five fields is a smaller session lookup, and the file may only ever shrink
-towards what the adapter touches. `claimParentRole` is written there a third
-time, beside the API's and the one inside `acceptShareInvite`'s transaction,
-because it runs during the OAuth callback before the cookie the API
-authenticates by exists. All three are the same compare-and-set on `role IS
-NULL`, which is what makes duplicating it safe.
-
-**Dates cross as ISO strings and are revived once**, by `reviveDates`
-(`src/lib/revive.ts`) at the boundary, rather than remembered at each of a dozen
-call sites. The pattern is deliberately strict - a full timestamp with a `T` and
-a zone - so "2026" inside a maths question does not become a `Date`.
-
-### The iOS app
-
-**`muzzamilkhan/learnr-ios`** - private, Swift, and already under way. It is
-deliberately **not** a workspace here: it consumes `contract/openapi.yaml` and a
-Swift port of the engine, never the TypeScript package, so there is nothing for a
-workspace to link. `openapi.yaml` is the contract for a client that cannot import
-TypeScript; `@learnr/core/dto` is the same information for the two that can.
-
-```
-LearnrEngine/   a Swift package - the ported engine
-  Rng/          mulberry32 + FNV-1a, bit-exact with the web app
-  Expr/         the sandboxed expression language
-  Templates/    binding, constraints, {expr} holes
-  Figures/      eleven kinds - `timeline` is the twelfth here and not yet ported
-  Session/      the state machine, grading, the profile and the selector
-  SpeedRun/     the second state machine, and the modes
-  Api/          the client, the models and the offline sync queue
-LearnrApp/      the app shell - code entry, keychain, session, the screens
-```
-
-**Work crosses between the two repositories through the ledger, and never as a
-commit.** Nothing in `learnr-ios` is edited from a session here, and nothing here
-is edited from a session there. Both repositories are live - this one deploys to
-Vercel and Fly on a push to `master` - and the iOS side is worked on from a
-different machine, so a commit arriving across is a change nobody on the
-receiving side asked for or expected. That half is unchanged and is the reason
-the ledger exists. It is written into `learnr-ios/CLAUDE.md` from the other
-direction too.
-
-**The ledger is one file both sides write to**, at
-`/home/muzza/code/learnr-ledger/LEDGER.md` on this machine, with a `ledger`
-script beside it that locks, stamps the date and commits every write, so two
-sessions writing at once cannot lose each other's work. The iOS agent reaches it
-by SSH into this machine. It replaced the GitHub issues the two used to raise on
-each other, which had become Muzzamil's to chase across two repositories rather
-than the two sides' to hand over between themselves.
-
-```bash
-ledger read                       # first thing, every session
-ledger items                      # what is outstanding across the boundary
-ledger status web                 # rewrite this side's "Now" block, body on stdin
-ledger entry web decision "..."   # log something the other side could contradict
-ledger answer L4 "..."            # answer an iOS question
-ledger escalate L4 "..."          # ... or hand it to Muzzamil
-```
-
-**It sits outside both repositories deliberately.** `learnr` is public and a
-push to it deploys; the ledger belongs to neither side, ships nothing, and puts
-nothing about the iOS app in a public repo. Its git history has no remote.
-
-**This side answers the questions, and escalates the ones the source cannot
-answer.** The engine here is the oracle, the API owns the schema and the specs
-live in this repo, so how something is *meant* to work is answerable here - and
-iOS is told to ask rather than guess, because a wrong guess in the port is
-invisible until a digest reddens, and sometimes not even then. What is not
-answerable here is a product call, a priority call, or a trade nobody has made
-yet. Those get `ledger escalate` **and a line in the reply to Muzzamil**: an
-invented answer to that kind of question is how the two sides end up shipping
-different products.
-
-**An ask wakes this side rather than waiting to be noticed.** `ledger ask` fires
-`answer <id>` for anything raised *for* the web side: a headless Claude in this
-repository, read-only, which reads the item, answers it from the engine, the
-contract and the specs, and writes back with `ledger answer` - or escalates. It
-logs to `~/code/learnr-ledger/runs/<id>.log`, and a run that cannot start
-escalates rather than going quiet, because a question that silently never got
-answered is the worst of the three outcomes. So most asks are already answered
-by the time a session here looks at them, and the session's job is to read what
-was said and carry on from it. `.claude/skills/ledger/SKILL.md` is the how.
-
-**So the ledger is the current state of the other side, and a clone is not.**
-Because iOS development happens elsewhere, the clone at `~/code/learnr-ios` can
-be several days behind what the ledger reports - `learnr#6` described a port far
-ahead of anything pushed to its `main`. Read the ledger first, and treat the
-checkout as evidence of what has *shipped* rather than of what exists.
-
-**Children only.** A parent uses the web app, so the iOS app has no Google
-sign-in and needs no Sign in with Apple - the four-character login code is the
-only way in, which is why `POST /auth/redeem` is the whole of its sign-in
-surface.
-
-**The engine is ported rather than served because play works offline**, which
-means questions are generated on the device, which means the engine exists twice.
-The two are kept in step by **fixture vectors generated from the TypeScript
-engine, which is the oracle**: it defines what correct means and the port is
-verified against it. `Rng` and `Expr` have per-case vectors of their own
-(`LearnrEngine/Tests/.../Vectors/`), generated before the golden corpus existed;
-everything ported since is held against **`fixtures/digests/`, vendored into
-`learnr-ios`** rather than read from a sibling clone or fetched, so `swift test`
-needs neither the network nor a checkout of this repository. The manifest version
-sits in that diff, which is what makes a stale copy name itself.
-
-The design is `docs/superpowers/specs/2026-08-26-ios-port-design.md` - **this
-repo is where that spec lives**. Its conformance-suite section is superseded by
-`2026-08-26-fixture-generation-design.md`: the spec asked for a corpus both
-suites load and compare field by field, and what shipped is a *digest*, because
-50,000 cases is 37.7 MB and unreviewable as a diff. The cost of that trade is
-real and lands on the port - a red digest names the template and not the field -
-which is what `npm run fixtures:emit` is for. Its build order, of which the first
-three are done and the fifth is in progress:
-
-1. **The API server** - done, cutover and all. The impure files are extracted,
-   the endpoints stand up, and the web app reads and writes through them.
-2. **Content extraction** - done. The 553 templates ship as versioned JSON,
-   consumed by the web app first so the format was proven before iOS depended on
-   it; `GET /content/manifest` and `GET /content/:subject/:level` are what a
-   Swift client fetches them from.
-3. **Fixture generation** - done. Four digest sets over the shipped content, the
-   TypeScript engine as oracle. It ran after steps 4 and 5 had started rather
-   than before them, which the spec anticipated; what it unblocked is everything
-   above `expr`, which had nothing to be verified against until it existed.
-4. **The Swift engine** - `rng`, `expr`, `generate`, all eleven figure builders,
-   the session and profile and selector, and the speed run are ported and green
-   (`learnr#6`). Figure *rendering* is a rewrite to SwiftUI `Canvas`, judged by
-   eye, as the spec said it would be. What remains is verifying the port against
-   the digests rather than against the older per-case vectors.
-5. **The iOS app** - UI, sync queue, offline store. The shell, sync queue, code
-   entry, play screen and speed-run screen exist.
-
-**Every response is typed now**, so the Swift models can be generated rather
-than transcribed. Sixteen declarations used to be `z.unknown()`, `/me` among
-them, and the contract said little more than "a 200 happens". All 32 paths carry
-a schema and the contract holds no empty one, which is `learnr#4` closed - the
-hand-transcribed models on the iOS side are the thing that outlived it.
-
-**A response schema is a serializer, not a description**, which is the thing to
-know before editing one. Fastify runs the value through it on the way out and a
-zod object strips what it does not declare - so a field left out does not fail,
-it silently vanishes from the response. Leave `figure` off an answered question
-and every diagram disappears from a parent's report, with nothing to see.
-
-So the schemas (`apps/api/src/schemas/dto.ts`) are held against the DTOs by the
-compiler, in `Mirrored` at the foot of that file. It compares **key sets**, both
-ways, rather than assignability - because an object missing an *optional* field
-is still assignable to one that has it, and optional fields are precisely the
-ones whose loss is invisible. The check is shallow and that is sound because it
-is total: every nested shape is built from a schema with its own entry. `Mark`
-and `Mode` are unions, where `keyof` sees only the common keys, so those two are
-held to exactness both ways instead.
-
-What the compiler cannot catch is a schema that is too *tight*: `integer` where
-a ratio is 0.67 does not strip, it throws, and the endpoint 500s. That needs real
-data awkward enough to reach it, which is
-`apps/api/test/routes/serialization.test.ts` - all four mark kinds, a photo, a
-live code, an optional avatar, a shared child, both arms of the mode union, and
-answers that are neither all right nor all wrong. Every guard there was checked
-by breaking the schema it covers and watching the right thing go red.
-
-`Date` stays a `Date`: `z.date()` accepts one and serializes it to an ISO 8601
-string, which the contract documents as `format: date-time` - so a client
-generates a date-typed model rather than a string it has to remember to parse.
+**Auth.js reads the same schema as everything else.** `PrismaAdapter` takes the
+one client from `src/server/db.ts`; there is no second schema and no subset
+model. The cost is worth naming rather than discovering: the adapter selects
+whole `User` rows on every authenticated request, and `User` has eighteen columns
+against the five the old subset declared - two schemas for one table is the worse
+trade. `claimParentRole` is written three times - in `src/server/db.ts` for the
+sign-in event, in `src/server/accounts.ts` for the healing case on `/`, and
+inline inside `acceptShareInvite`'s transaction. All three are the same
+compare-and-set on `role IS NULL`, which is what makes duplicating it safe.
 
 ### Repository visibility
 
-**`learnr` is public; `learnr-ios` is private.** The API's source became public
-with `learnr` when the separate private `learnr-api` repo was folded in - worth
-knowing rather than discovering.
-Nothing sensitive is committed: `.env` has never been in history, and
-`.env.example` carries empty placeholders. Secrets live in Vercel, in Fly
-(`fly secrets set`), and in local gitignored `.env` files.
+**`learnr` is public.** Nothing sensitive is committed: `.env` has never been in
+history, and `.env.example` carries empty placeholders. Secrets live in Vercel
+and in local gitignored `.env` files.
 
 ## Architecture
 
@@ -442,14 +194,10 @@ Nothing sensitive is committed: `.env` has never been in history, and
 the network, the clock or the database - callers pass in `now` and an RNG. This is
 the rule that keeps the app testable; don't break it for convenience.
 
-**It is now true without exception**, which it was not while the five Prisma
-modules lived there. The two impure files left in the web app sit outside
-`src/lib` for that reason - `src/api.ts` talks to the network, `src/auth-db.ts`
-holds a database connection - and `packages/core/test/exports.test.ts` no longer
-carries a list of files to look past.
-
-Everything below is the **web app**, at the repository root. The API's own layout
-is in `apps/api/README.md`.
+**It is true without exception, and `src/lib/purity.test.ts` is what holds it
+there** - nothing in `src/lib` or `src/content` imports React, `next`,
+`@prisma/client` or `src/server`. The impure half of the app is a directory
+rather than a list of files to look past.
 
 ```
 src/lib/expr/        safe expression language (tokenize → parse → evaluate)
@@ -463,14 +211,13 @@ src/lib/speech/      turning a question into words worth hearing
 src/lib/curriculum.ts school years, NSW stages, labels and ordering
 src/lib/day.ts       which local day a moment falls in
 src/lib/rng.ts       seeded PRNG
-src/lib/dto.ts       the shapes that cross the API boundary, declared once
-src/lib/revive.ts    ISO strings back into Dates, at that boundary
+src/lib/dto.ts       the shapes the data layer and the components share
 src/lib/viewer.ts    what a signed-in-but-unreadable account means, and the rest
 src/content/         the shipped course content, a year a file + catalog lookups
-src/content/packs/    the generated JSON packs - the artifact that ships
-scripts/build-content.ts  writes them from the TypeScript literals
+src/server/          the Prisma client, the data layer, and the composed reads
+src/browser-api.ts   the six writes the browser makes while a child plays
 src/components/      UI
-src/app/             routes and server actions
+src/app/             routes, the six route handlers, and server actions
 ```
 
 - `src/lib/expr` is a small Pratt-parsed expression language. Templates are
@@ -644,17 +391,13 @@ total when a year grows.
 
 Every template cites the content it practises in `tags` - `AC9M4N02`, `MA2-AR-01`.
 
-**The templates ship as generated JSON, and the TypeScript is what authors
-edit.** `scripts/build-content.ts` serializes them into `src/content/packs/` -
-one pack a subject and year, plus a manifest - and `catalog.ts` reads the packs,
-so `catalog.test.ts` and `leaks.test.ts` run against the artifact rather than
-its source. `scripts/content-packs.test.ts` regenerates in memory and compares byte
-for byte, so editing a year file without running `npm run content:build` is a
-red suite rather than a stale pack. A pack's `version` is a hash of its own
-bytes: nothing to bump, so nothing to forget. **The JSON import may not carry an
-import attribute** - `with { type: 'json' }` fails the API's typecheck under
-`nodenext`, because the symlink puts the file's real path under a repository
-root that declares no `"type"`.
+**The TypeScript literals are the content**, and `catalog.ts` composes
+`allTemplates` out of them - maths K-6 then English K-6, the order it has always
+had. They were serialized into JSON packs for a while, so that a client which
+could not import TypeScript could fetch them over the wire; there is no such
+client, and a pack was a second copy of the content whose only remaining job was
+to be kept in step with the first. One copy cannot drift, which deletes the
+failure mode rather than testing for it.
 
 ### Answer types
 
@@ -1016,9 +759,10 @@ hence the retry, and one time round is enough.
 **Time taken is capped** (`MAX_TIME_MS`) before it is recorded. An abandoned
 question is not a measurement, and the total is per topic and never trimmed.
 
-Recording is best-effort and must never block or interrupt play: writes go through
-server actions that swallow failures. `learningSessionId` round-trips through the
-client, so every write verifies the session belongs to the signed-in user first.
+Recording is best-effort and must never block or interrupt play: the writes go
+through `src/browser-api.ts`, which swallows every failure. `learningSessionId`
+round-trips through the client, so every write verifies the session belongs to
+the signed-in user first.
 
 ## Reinforcement and analytics
 
@@ -1690,39 +1434,18 @@ Every record set before the table existed is backfilled as **one** run each,
 carrying the record's own `achievedAt` - one run is all that can honestly be
 recovered.
 
-**A run belongs to when it was *played*, not when it was received.** `POST
-/speed/runs` takes an optional `playedAt` and `SpeedAttempt.playedAt` no longer
-means the receipt time; a run that set a best dates its `SpeedRecord.achievedAt`
-by the same stamp. This matters only for a client with an offline queue, which
-is the iOS app: without it a child's afternoon of offline runs all land in one
-minute that evening, in whatever order the queue drained, under a "latest run" a
-parent reads as when their child played. The stamp has to be fixed when the run
-ends and held across every flush of it - the same property `SpeedAttempt.id`
-needs, for the same reason.
+**A run is stamped with the server's clock when it is submitted.**
+`SpeedAttempt.playedAt`, and the `SpeedRecord.achievedAt` a beaten best takes
+from it, both come from the moment `POST /api/v1/speed/runs` lands - a second or
+two after the run ended. A client-supplied `playedAt` existed for an offline
+queue flushing runs hours after they were played; the browser submits the instant
+a run ends, so the field and the `parsePlayedAt` that bounded it are both gone.
+The column keeps its `@default(now())`, so none of this needed a migration.
 
-**It is bounded by `parsePlayedAt` (`src/lib/day.ts`), beside
-`parseOffsetMinutes` and for its reason**: a client-supplied timestamp now
-reaches a path that orders the cabinet, the report table and the family board
-and tie-breaks which run gets starred. **The two bounds are deliberately not
-symmetric**, because the two mistakes are not - a stamp too far in the past
-sorts itself to the bottom and harms nothing but its own row, while one in the
-future sits at the *top* of every ordering and stays there until real time
-catches up. So forward is five minutes of ordinary clock skew and backward is
-thirty days, the far side of any offline queue worth believing.
-
-**A refused stamp is not a refused run.** The field is optional and the schema
-takes a loose string, so an unparseable stamp falls back to the server's clock -
-which is exactly what happened before any client sent one. That is the
-difference between it and `mode`, where an unparseable value is a run that never
-happened and earns the 400: a client bug in the stamp must not be able to
-destroy every run a build submits. The contract still advertises `format:
-date-time`, since being lenient about what arrives is not the same as being
-vague about what is wanted. `ISO_TIMESTAMP` is exported from `src/lib/revive.ts`
-rather than written twice, so the stamps going out and the one coming in cannot
-disagree about what a timestamp is.
-
-The column keeps its `@default(now())` as the fallback for a client that sends
-nothing, so this needed no migration and an older build is unchanged.
+**The id is still minted once per run, on the client**, and it is the whole of
+the guard on the insert: a unique violation on it means the run is already stored
+rather than that anything went wrong. Two runs that scored the same are still two
+runs - only a repeat of the same id collapses.
 
 **A parent's report gets a table instead of the cards** (`SpeedTable`, in the
 `Speed runs` well on `/progress`). The cards are collectibles built for the player;
@@ -1750,7 +1473,7 @@ too. A child on their own Google account and a parent with no children have no
 household at all, and get a sentence rather than a board of one.
 
 **A viewer a child was shared with widens the board, on both sides.**
-`readFamilyRecords` (`src/lib/speed-records.ts`) reads the household, then every
+`readFamilyRecords` (`src/server/speed-records.ts`) reads the household, then every
 `ChildShare` touching it in either direction, and `extendHouseholdWithShares`
 (`src/lib/children.ts`, pure and tested) adds only the viewer and the specific
 child a grant names, never the rest of either side. A sibling nobody shared stays
@@ -1843,9 +1566,7 @@ with Google *is* saying you are a grown-up.
 It used to be a choice, and what retired it is that the second card produced an
 account nobody managed. A self-declared child had `parentId` null, and `parentId`
 is the whole of what fixes a level - so `/play`'s redirect of a mismatched
-`?level=` did not apply, and the year a parent set was bypassable. It is also what
-makes dropping Google from the planned iOS app sound: the child is the only native
-user there.
+`?level=` did not apply, and the year a parent set was bypassable.
 
 **The compare-and-set outlived the chooser it was written for.**
 `claimParentRole` is still `UPDATE ... WHERE role IS NULL`, so a role already set
@@ -1943,28 +1664,22 @@ schedule. Two halves of one decision: the window protects the handoff, and once 
 child is in they stay in. `Session.expires` is not nullable, so "does not expire"
 is a date far enough out never to arrive.
 
-**Guessing a code is throttled in both halves, and they are not the same limit.**
-The charset is 31 characters and the code is 4, which is 923,521 codes;
-`redeemLoginCode` matches **any** live code rather than one child's, so a guesser
-is attacking the pool of every code out at that moment; and a hit buys a session
-that never expires. The window and single-use redemption were always the argument
-for why four characters was safe, and an unbounded number of guesses is what
-would have retired it.
+**Guessing a code is throttled, per browser.** The charset is 31 characters and
+the code is 4, which is 923,521 codes; `redeemLoginCode` matches **any** live
+code rather than one child's, so a guesser is attacking the pool of every code
+out at that moment; and a hit buys a session that never expires. The window and
+single-use redemption were always the argument for why four characters was safe,
+and an unbounded number of guesses is what would have retired it.
 
 `src/lib/throttle.ts` is the pure half - a fixed window of failures per caller,
-`now` injected, shared through `@learnr/core/throttle` because **both halves need
-it and neither can do the other's job**:
-
-- **The web app's action is the primary limit**, `REDEEM_FAILURE_LIMIT` (10) per
-  browser per 15 minutes. It is here because this is the only place the child's
-  own address is visible - `api.redeem` is called server-side, so a browser-typed
-  code reaches the API from Vercel. It is **best-effort**: a Vercel Function's
-  memory is per-instance and a cold start forgets, so it raises the cost of
-  guessing by a large factor without being a wall.
-- **The API's is the backstop**, `REDEEM_BACKSTOP_LIMIT` (120) per caller, and
-  generous on purpose: one key there is a real device (iOS calls it directly) and
-  another is *every browser at once*. A number tight enough to matter for the
-  first would lock out the second. It answers **429** with a `Retry-After`.
+`now` injected - and `redeemLoginCodeAction` is its one caller:
+`REDEEM_FAILURE_LIMIT` (10) failures per browser per 15 minutes, keyed off the
+address the request arrives from. It is **best-effort**: a Vercel Function's
+memory is per-instance and a cold start forgets, so it raises the cost of
+guessing by a large factor without being a wall. A shared store is what would
+make it one, and it is not worth a dependency at this size.
+(`REDEEM_BACKSTOP_LIMIT` is the API's own backstop, left in `login-code.ts` with
+nothing reading it.)
 
 **Only failures count and a success clears the caller**, so a child mistyping and
 then getting it right spends nothing, and a guesser has no success to clear with.
@@ -2012,7 +1727,7 @@ decides where a freshly signed-in session is pointed. `//host` and `/\host` are
 refused by name, because a slash a backslash disagree about is where an open
 redirect lives.
 
-`src/lib/accounts.ts` holds the Prisma side, following `records.ts`: every child
+`src/server/accounts.ts` holds the Prisma side, following `records.ts`: every child
 mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**
 best-effort - a silently failed login is a child locked out and a silently failed
@@ -2062,7 +1777,7 @@ no Google picture is a lettered circle among photographs; that is the honest cos
 ## Sharing a child
 
 A second grown-up - a separated parent, a grandparent, a tutor - can be given a
-child's report and nothing else. `src/lib/sharing.ts` is the Prisma side, beside
+child's report and nothing else. `src/server/sharing.ts` is the Prisma side, beside
 `accounts.ts`; `src/lib/share-link.ts` is the pure half, beside `login-code.ts`.
 
 **Read-only is a property of the schema, not a check anyone has to remember.**
@@ -2221,129 +1936,124 @@ now English has made it a real choice.
 **A parent's profile menu has no stars and no streak.** They don't play, so
 `page.tsx` skips those two reads entirely rather than reading numbers it won't show.
 
-## The golden corpus
+## What the collapse cost and kept
 
-The engine here is the **oracle** for the Swift port in `learnr-ios`, and
-`fixtures/` is where that is written down. `npm run fixtures:build` regenerates
-it; `npm run fixtures:emit` writes the full corpus for reading.
+For a few days this repository was two applications - this one and a Fastify API
+on Fly - with the engine shared between them as `@learnr/core`, an OpenAPI
+contract, a golden corpus of digests, and a Swift port of the engine in a private
+iOS repository held against it. All of that is gone.
+`docs/superpowers/specs/2026-08-29-api-collapse-design.md` is why it was undone
+and what it took; read it before re-deriving any of the below.
 
-**What is committed is a digest, not the corpus.** 553 templates drawn 100 times
-is 37.7 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
-two spaces, because it exists to be read. Figures are 22 MB of that, where one
-`clock` drawing is 6.4 KB against a `polygon`'s 169 bytes. 110 MB cannot be
-reviewed as a diff, which is the whole point of regeneration being its own
-reviewable commit. So
-`fixtures/digests/` holds one twelve-character hash per template (~100 KB) and
-`fixtures/corpus/` is gitignored and rebuilt in about three seconds.
+**What the split turned up, and this keeps:**
 
-**The seed is contract**: `` `${templateId}:${draw}` ``, draws 0-99, because
-`createRng` hashes the string itself. It differs deliberately from a live
-session's `` `${sessionSeed}:${drawNumber}` `` - a fixture needs a seed stable
-across regeneration and independent of any session.
+- **The play path writes from the browser** rather than through a server action,
+  because Next serialises server-action requests from one client (#17). They are
+  route handlers under `/api/v1` now, same origin.
+- **One session lookup per write** (#18). The old shape resolved the cookie in a
+  server action and then again in the API - 717ms on a cold Prisma client, paid
+  up to twice per answer.
+- **`worthBanking`** (#19): the day's goal is banked from the answer that crosses
+  the line onwards, not after every answer. The repair survives, and nineteen
+  writes per twenty-question target do not.
+- **`src/lib` is exactly the pure engine.** The five Prisma modules used to live
+  inside it; they came back to `src/server/` rather than to where they were.
+  `src/lib/purity.test.ts` replaced `packages/core/test/exports.test.ts`, whose
+  `@/`-import rule went with the package boundary but whose purity rule did not.
+- **The seventy expression traps**, now a plain unit test at
+  `src/lib/expr/traps.test.ts`. Everywhere else the engine is the oracle and a
+  fixture proved *agreement*; that file **asserts** values a human wrote down -
+  `round(-2.5)` is `-2`, `-2 ^ 2` is `-4`, `mod(-7, 3)` is `2` where `-7 % 3` is
+  `-1`, `"a" + 1 + 2` is `"a12"` where `1 + 2 + "a"` is `"3a"` - which is why it
+  outlived the corpus it was generated beside. Harvesting cannot reach these: the
+  shipped templates use `^` not once, and never `ceil`, `trunc`, `sign`, `sqrt`
+  or `isInt`. When it and the engine disagree, decide which is wrong.
 
-**The canonical form is not JSON** (`scripts/fixtures/canonical.ts`). Two JSON
-encoders in two languages have to agree about escaping first, and a prompt
-carries the minus sign, times, divide, degree and dollar - exactly where they
-differ. So a case is written out by hand: name and value join with `U+001F`,
-fields with `U+001E`, cases with a newline, and the canonicaliser throws on a
-value containing any of the three. Every value is its JavaScript `String(v)`
-form, which is the rule that earns its keep - `generateQuestion` already keys the
-expected answer and the distractor dedup off `String(value)`, so a port yielding
-`"2.0"` where this says `"2"` marks a correct answer wrong. Hashing that form
-makes the digest *test* it. `vars` are sorted by name, because a Swift dictionary
-has no order to borrow.
+**What went, and what going cost:**
 
-**A field left out of the canonical form is invisible forever**, so the
-completeness check is the compiler's: `CanonicalCovers` compares key sets both
-ways against `GeneratedQuestion` and against each arm of `Mark`. It is
-`Mirrored`'s trick from `apps/api/src/schemas/dto.ts` one level up, and it exists
-for the identical reason - optional fields are the ones whose loss is invisible,
-and `choices`, `hint` and `figure` are all optional.
+- **The golden corpus** (`fixtures/`). Its job was to hold a Swift port against a
+  TypeScript oracle, and with one engine there is no second implementation to
+  disagree. `src/content/catalog.test.ts` already draws every one of the 553
+  shipped templates fifty times, validates each, and proves a figure template
+  never draws one answer the same way twice.
+- **The contract, the typed client and the response schemas**, including the
+  `Mirrored` key-set check that held them to the DTOs. Nothing serialises through
+  a schema any more - a route handler returns JSON and a page render returns a
+  value in process - so the hazard those guarded, a field left out of a response
+  schema vanishing silently, cannot happen. The *request* schemas moved across
+  and are in `src/app/api/v1/schemas.ts`: a normaliser answers "is this a legal
+  value of this domain type" and a schema answers "is this object the shape I was
+  promised", and a handler taking untrusted JSON needs both.
+- **The content packs**, and with them `npm run content:build` and the byte-for-
+  byte drift test that existed because a pack could go stale.
+- **The timing instrumentation** (#20), built to diagnose a ~530ms Vercel-to-Fly
+  floor that died with Fly. The lesson it leaves is that a server log cannot see
+  a queue in the browser, and the device this is felt on is an iPad with no
+  console to open - so if the play path feels slow again, the instrumentation to
+  reach for is browser-side.
+- **The `@/`-import ban in the engine, and four constraints beside it**, all of
+  which existed only because the engine was published through a committed
+  symlink. The alias works everywhere again.
 
-**Regenerating is not the fix for a red build.**
-`scripts/fixtures/digests.test.ts` reddens when the engine's output moves, and
-the whole value of that is lost if regenerating is the reflex. A deliberate
-engine change regenerates the digests **in its own commit, which says why** -
-never in the same commit as the change. This is the one rule here that is
-documentation rather than a test, because a check for it is defeated by a rebase.
+**Preview deployments came back**, having been the price of gating an ungated
+Vercel build behind the tests.
 
-**Four sets, and one of them asserts rather than records.**
-`scripts/fixtures/expr-traps.ts` carries seventy expressions whose expected
-values a human wrote down - `round(-2.5)` is `-2`, `-2 ^ 2` is `-4`, `1 && 2` is
-`true`, `mod(-7, 3)` is `2` where `-7 % 3` is `-1`, and `"a" + 1 + 2` is `"a12"`
-where `1 + 2 + "a"` is `"3a"` - and its test asserts them against the engine. Everywhere else the engine
-is the oracle and a fixture proves *agreement*, so a bug here would be reproduced
-in Swift and both sides would stay green. Harvesting cannot reach these: the 507
-shipped templates use `^` **not once** and never use `ceil`, `trunc`, `sign`,
-`sqrt` or `isInt`. When that file and the engine disagree, decide which is wrong.
-
-The other three record: the main corpus; the 1,453 expressions content actually
-uses, evaluated against real bound scopes (`q.vars` *is* the scope, so this needs
-no engine instrumentation - and a figure's parameters are expressions too, which
-is why the harvest walks `FigureSpec` rather than naming its fields); and grading
-and profile folding over constructed inputs built to reach each threshold.
-
-Two things the profile set learned the hard way, both worth keeping. **It folds
-through `nextSkill` *and* `buildProfile` because `buildProfile` sorts** by
-`answeredAt` first - so the out-of-order undercount can only ever appear on the
-`nextSkill` path, which is the one the stored row takes in production. And it
-hashes `skillStatus` and `reviewIntervalMs` at two instants, the last answer and
-when review falls due, because **a stored row cannot express `review-due`** -
-status is a function of `now` as well as the row, so without the second instant
-one of the five statuses is unreachable however many scenarios are added.
-
-`fixtures/` is in `changed-apps.ts`'s `IGNORED`: the digests are not in the Next
-bundle and not in the API's Docker context, so a regeneration deploys nothing.
+**Deliberately not done**: batching recorded attempts (#21), because the streak
+flash and the round's stars read the response and every number that justified it
+was taken across a hop that no longer exists; and the remaining read waterfall
+(#16), where `auth()` and the account read are genuinely dependent and three of
+the four round trips stopped being round trips. Re-measure before deciding
+either.
 
 ## Setup
 
 Copy `.env.example` to `.env` and fill in:
 
-- `LEARNR_API_URL` - where the API is. Defaults to `http://localhost:3001`, the
-  port `npm run dev --workspace apps/api` listens on, so a local pair needs no
-  entry. Production points at `https://learnr-api-syd.fly.dev`.
-- `DATABASE_URL` - Neon Postgres via the Vercel Marketplace. **For Auth.js
-  alone** - see `src/auth-db.ts`. Everything else goes through the API.
+- `DATABASE_URL` - Neon Postgres via the Vercel Marketplace, and the one
+  connection the app has.
   **It ends `sslmode=verify-full`, and that is the current behaviour written
   down rather than a tightening.** `pg-connection-string` treats `prefer`,
   `require` and `verify-ca` as aliases for `verify-full` already and warns that
   it does; what changes at pg v9 is that they stop being aliases and take
   libpq's weaker semantics instead. So a URL saying `require` is one that
   silently loosens on a major version bump, and one saying `verify-full` keeps
-  verifying. Both `PrismaPg` clients parse the string through that library, so
-  it is the web app's connection and the API's alike.
+  verifying. `PrismaPg` parses the string through that library.
 - `AUTH_SECRET` - `npx auth secret`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
   `http://localhost:3000/api/auth/callback/google`
 
 Without these the app still runs and plays - auth and recording are skipped
 (`isAuthConfigured`, `isDatabaseConfigured`) so the engines and UI stay workable.
-With the API simply unreachable the same holds on the play path by design: the
-first question is drawn unweighted and nothing is recorded, but the screen opens.
+The placeholder in `.env.example` counts as no database, so copying the file as
+it stands is enough to start. The same holds when the database is simply
+unreachable: the first question is drawn unweighted and nothing is recorded, but
+the screen opens.
 
 Prisma 7: the connection URL lives in `prisma.config.ts`, not the schema, and the
-client is generated to `src/generated/prisma` (gitignored) and constructed with the
-`@prisma/adapter-pg` driver adapter. There is no `migrations` path in that config,
-deliberately - it generates and never migrates.
+client is generated to `src/generated/prisma` (gitignored) and constructed with
+the `@prisma/adapter-pg` driver adapter. That config names the migrations path
+too - `npm run db:migrate` writes one locally and `npm run db:deploy` applies
+them, so a release carries its own schema changes. Nothing in the tree invokes
+it: that wiring is the Vercel project's own build command, which `vercel pull`
+brings down onto the runner. `scripts/migrate.mjs` sits behind `db:deploy`
+rather than `prisma migrate deploy` directly, for one retry: Neon accepts a
+connection while its compute is still coming out of autosuspend, and Prisma then
+times out taking the migration advisory lock against a fixed 10s it gives no way
+to raise (P1002). That is a
+cold database rather than a broken migration, and the answer is to knock again -
+only that error is retried. Two production builds died this way before the retry
+existed. Without a database it does nothing and succeeds, because a deploy must
+not be the one thing that insists on Postgres.
 
-**The API has its own `.env`**, at `apps/api/.env`, needing only `DATABASE_URL`
-and `PORT` - Auth.js runs in the web app, so the API needs no `AUTH_*` variable.
-It reads the same `Session` rows Auth.js writes, which is how one sign-in serves
-both.
-
-**Its tests need Docker**, and they do *not* read that `.env`: the Testcontainers
-Postgres is started in a vitest `globalSetup` which sets `DATABASE_URL` before any
-test module is imported. It has to be that early, because the data modules build
-their client from the variable at import time - a per-file `beforeAll` leaves
-`prisma` null and every function returning null against a database that is running
-perfectly well. `npm run db:deploy` and `prisma migrate dev` **do** read it, so
-they reach whatever it names.
+**The `db` test project needs Docker**, and it does *not* read `.env`: the
+Testcontainers Postgres is started in a vitest `globalSetup` which sets
+`DATABASE_URL` before any test module is imported. It has to be that early,
+because the data modules build their client from the variable at import time - a
+per-file `beforeAll` leaves `prisma` null and every function returning null
+against a database that is running perfectly well. `npm run db:deploy` and
+`prisma migrate dev` **do** read it, so they reach whatever it names.
 
 ## Working agreements
 
 - TDD, lean tests. Test behaviour through the public function, not internals.
 - Work on `master` and push when a piece of work is done. Not a stable release yet.
-- **Read the ledger at the start of a session** - `~/code/learnr-ledger/ledger read`.
-  It is where the iOS side says what it has done and what it needs, and where this
-  side answers. See **The iOS app** above for what belongs in it and what gets
-  escalated to Muzzamil instead of answered.
