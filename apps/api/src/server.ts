@@ -9,6 +9,7 @@ import {
 import { transformObject } from './openapi.js';
 import { registerComponents } from './schemas/register.js';
 import { authPlugin } from './auth/plugin.js';
+import { timingPlugin } from './timing.js';
 import { authRoutes } from './routes/auth.js';
 import { sessionRoutes } from './routes/sessions.js';
 import { childRoutes } from './routes/children.js';
@@ -43,6 +44,9 @@ export function buildServer(): FastifyInstance {
     transformObject,
   });
 
+  // Registered before the auth plugin so its `onResponse` hook is in place
+  // for every request the auth hook then times a part of.
+  app.register(timingPlugin);
   app.register(authPlugin);
   app.register(authRoutes);
   app.register(sessionRoutes);

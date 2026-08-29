@@ -3,6 +3,7 @@ import type { Session } from 'next-auth';
 import { auth, isAuthConfigured } from '@/auth';
 import { api } from '@/api';
 import { viewerKind, type ViewerKind } from '@/lib/viewer';
+import { timed } from '@/timing';
 import type { Account } from '@/lib/dto';
 
 export interface Viewer {
@@ -44,7 +45,12 @@ export interface Viewer {
  * is two, and telling them apart is `viewerKind`'s whole job.
  */
 export const readViewer = cache(async (): Promise<Viewer> => {
-  const session = isAuthConfigured ? await auth() : null;
+  // Timed on its own because it is the hop nothing else reports. `auth()` is a
+  // Prisma query from Vercel to Neon that resolves the session cookie - and the
+  // API resolves that same cookie against that same table again on the far side
+  // of `api.me()`, so a signed-in page load pays for the lookup twice before it
+  // has read anything at all.
+  const session = isAuthConfigured ? await timed('auth()', async () => auth()) : null;
   const userId = session?.user?.id;
   const account = userId ? await api.me() : null;
 

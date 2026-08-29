@@ -33,7 +33,14 @@ export const authPlugin: FastifyPluginAsync = fp(async (app) => {
   app.decorateRequest('userId', null);
 
   app.addHook('onRequest', async (request) => {
-    request.userId = await resolveUserId(tokenFrom(request));
+    // Timed separately from the request as a whole because it is the one part
+    // of it the web app has already paid for once - see `timingPlugin`. A
+    // request carrying no token skips the query entirely and leaves `authMs`
+    // null, which is why the reading is nullable rather than zero.
+    const started = performance.now();
+    const token = tokenFrom(request);
+    request.userId = await resolveUserId(token);
+    if (token) request.authMs = performance.now() - started;
   });
 });
 

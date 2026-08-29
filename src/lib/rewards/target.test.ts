@@ -10,6 +10,7 @@ import {
   targetOptions,
   targetProgress,
   targetUnits,
+  worthBanking,
   totalFor,
 } from './target';
 
@@ -209,5 +210,42 @@ describe('the numbers the feature is built on', () => {
     expect(targetUnits({ kind: 'minutes', value: 20 })).toBe(20 * MINUTE);
     expect(totalFor({ questions: 4, timeMs: 90_000 }, 'questions')).toBe(4);
     expect(totalFor({ questions: 4, timeMs: 90_000 }, 'minutes')).toBe(90_000);
+  });
+});
+
+describe('worthBanking', () => {
+  const questions = { kind: 'questions', value: 20 } as const;
+  const minutes = { kind: 'minutes', value: 10 } as const;
+
+  // The call it gates costs a round trip and can only answer "not yet" until
+  // the day's count reaches the target, so the whole point is to not make it.
+  it('is not worth asking while the day is short of the target', () => {
+    expect(worthBanking(questions, 0, 1)).toBe(false);
+    expect(worthBanking(questions, 18, 1)).toBe(false);
+  });
+
+  it('counts the answer in hand, so the one that crosses the line asks', () => {
+    expect(worthBanking(questions, 19, 1)).toBe(true);
+  });
+
+  // Past the target it keeps saying yes, and that is what makes a dropped call
+  // repair itself: the next answer asks again, and the compare-and-set on the
+  // day means only one of them can ever pay out.
+  it('keeps asking once the target is passed', () => {
+    expect(worthBanking(questions, 25, 1)).toBe(true);
+    expect(worthBanking(questions, 100, 1)).toBe(true);
+  });
+
+  it('measures a minutes target in the unit the day is counted in', () => {
+    expect(worthBanking(minutes, 8 * MINUTE, 30_000)).toBe(false);
+    expect(worthBanking(minutes, 9.5 * MINUTE, 30_000)).toBe(true);
+  });
+
+  // Null is the device not having decided which answers are today's yet - a
+  // question only it can answer, and one it has not answered this early. Asking
+  // is the old behaviour, and the wrong answer here costs a call rather than an
+  // award, so it errs towards the call.
+  it('asks when the device does not yet know what the day holds', () => {
+    expect(worthBanking(questions, null, 1)).toBe(true);
   });
 });

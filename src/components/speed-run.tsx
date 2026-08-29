@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { submitRunAction } from '@/app/speed/actions';
+import { TimingOverlay, measure } from './timing-overlay';
 import { appendNumeric } from '@/lib/session/answers';
 import type { SpeedOutcome } from '@/lib/dto';
 import { modeKey, type Mode } from '@/lib/speedrun/modes';
@@ -208,7 +209,7 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
     // run nobody touched are the same thing, and nought is the one score with
     // nothing to say.
     if (ended.correct === 0) return;
-    submitRunAction(modeKey(state.mode), ended.correct)
+    measure('submitRun', submitRunAction(modeKey(state.mode), ended.correct))
       .then(setOutcome)
       .catch(() => {});
   }, [recordingEnabled]);
@@ -354,6 +355,9 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
 
   return (
     <div className="no-select fixed inset-0 z-40 flex flex-col overflow-hidden bg-(--color-paper) px-4 py-3 sm:px-10 sm:py-5">
+      {/* Off unless `?timing=1` is on the URL - see `TimingOverlay`. */}
+      <TimingOverlay />
+
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -
           there is no confirmation, because a modal over a running clock is worse

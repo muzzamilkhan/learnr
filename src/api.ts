@@ -1,6 +1,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { reviveDates } from '@/lib/revive';
+import { logTiming, stopwatch } from '@/timing';
 import type {
   Account,
   AcceptResult,
@@ -60,10 +61,14 @@ import type { Attempt } from '@/lib/session/session';
 const BASE = process.env.LEARNR_API_URL ?? 'http://localhost:3001';
 
 async function call(path: string, init: RequestInit = {}): Promise<Response | null> {
+  // The cookie jar is read before the clock starts: it is this process's own
+  // headers, not a hop, and folding it into the reading would flatter nothing
+  // and confuse the one number this is here to produce.
   const jar = await cookies();
+  const elapsed = stopwatch();
 
   try {
-    return await fetch(`${BASE}${path}`, {
+    const response = await fetch(`${BASE}${path}`, {
       ...init,
       headers: {
         // **Only where there is a body to describe.** Fastify refuses a JSON
@@ -81,9 +86,17 @@ async function call(path: string, init: RequestInit = {}): Promise<Response | nu
       // nothing here Next may hold on to.
       cache: 'no-store',
     });
+
+    logTiming(`api ${init.method ?? 'GET'} ${path}`, elapsed(), `status=${response.status}`);
+    return response;
   } catch (error) {
     // A dead connection is a failed read, not an empty one, and it must not
     // throw into a page render. See the null convention above.
+    //
+    // Timed all the same, and this is the reading most worth having: a hop that
+    // dies slowly costs the full timeout, and it is indistinguishable from a
+    // slow one in every log above this line.
+    logTiming(`api ${init.method ?? 'GET'} ${path}`, elapsed(), 'status=dead');
     console.error(`API request failed: ${path}`, error);
     return null;
   }

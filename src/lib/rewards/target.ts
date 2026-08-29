@@ -155,6 +155,38 @@ export function targetProgress(target: DailyTarget, done: number): TargetProgres
 export const dayProgress = (target: DailyTarget, total: DayTotal): TargetProgress =>
   targetProgress(target, totalFor(total, target.kind));
 
+/**
+ * Whether it is worth asking the server to bank the day, once the answer in
+ * hand is counted.
+ *
+ * It decides one thing and it is not whether the goal was met: the server
+ * recounts today from the stored answers and is the only thing that may award.
+ * This only says whether asking could possibly be worth a round trip. The play
+ * screen used to ask after *every* answer, which is safe and is what lets a
+ * dropped call repair itself - but for a target of twenty questions that is
+ * nineteen calls whose answer the device could already work out, each one a
+ * server action queued behind the answer that is being recorded.
+ *
+ * So the repair is kept and the pointless calls go. Once the day's own count
+ * reaches the target this keeps saying yes on every answer after it, so a call
+ * that fails is retried by the next answer, and the compare-and-set on
+ * `User.targetDay` means only one of them can ever pay out.
+ *
+ * `done` is null while the device has not yet decided which of the server's
+ * answers are today's - a question only it can answer, since the day boundary
+ * depends on an offset the server does not have. It asks, rather than guessing:
+ * a wrong yes costs one call that says "not yet", and a wrong no would cost the
+ * award itself.
+ */
+export function worthBanking(
+  target: DailyTarget,
+  done: number | null,
+  adding: number,
+): boolean {
+  if (done === null) return true;
+  return targetProgress(target, done + adding).complete;
+}
+
 export type TargetCellState = 'none' | 'partial' | 'met';
 
 /**

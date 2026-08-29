@@ -1,13 +1,13 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { auth } from '@/auth';
 import { api } from '@/api';
 import type { AttemptResult } from '@/lib/dto';
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 import { parseOffsetMinutes } from '@/lib/day';
 import { parseFigure } from '@/lib/figures/types';
+import { timed } from '@/timing';
 
 /**
  * Recording only. These never affect what the child sees next - the session
@@ -16,6 +16,25 @@ import { parseFigure } from '@/lib/figures/types';
  * They are still server actions rather than calls the browser makes itself,
  * because the session cookie is `httpOnly` and the API authenticates by it. The
  * browser says what happened; this forwards it with the proof of who said it.
+ *
+ * **None of them calls `auth()`, and that is the point of them being this
+ * short.** Each one used to open with a session read whose only use was to
+ * return early when there was nobody signed in - a Prisma query from Vercel to
+ * Neon, on a connection that belongs to a serverless instance and so is cold
+ * whenever that instance is. Measured, a fresh one costs about 700ms against
+ * about 5ms warm, and a child answering a question was paying it up to twice.
+ *
+ * It decided nothing. The cookie is forwarded to the API either way, and every
+ * route these reach gates on `requireUser` (`apps/api/src/routes/sessions.ts`),
+ * which answers 401 on exactly the condition the guard tested; `request` in
+ * `src/api.ts` turns that 401 into the same `null` the guard returned. So the
+ * check was being made twice, in two places, against the same `Session` table -
+ * and only the far one was load-bearing, because it is the one an iOS client
+ * that never passes through here is also held to.
+ *
+ * What is left is a round trip to the API and nothing else. The play path no
+ * longer touches Prisma at all: `/play`'s own render still reads the session
+ * once, but no answer does.
  */
 
 export async function startRecordingAction(
@@ -23,9 +42,14 @@ export async function startRecordingAction(
   level: YearLevel,
   seed: string,
 ): Promise<string | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  return timed('action startRecording', () => startRecording(subject, level, seed));
+}
 
+async function startRecording(
+  subject: string,
+  level: YearLevel,
+  seed: string,
+): Promise<string | null> {
   // The id is minted here rather than by the database, so a retried call opens
   // the same sitting rather than a second one - `POST /sessions` answers 200 to
   // an id it has already seen. That is also the shape the offline iOS client
@@ -44,8 +68,13 @@ export async function recordAttemptAction(
   learningSessionId: string,
   attempt: Attempt,
 ): Promise<AttemptResult | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  return timed('action recordAttempt', () => recordAttempt(learningSessionId, attempt));
+}
+
+async function recordAttempt(
+  learningSessionId: string,
+  attempt: Attempt,
+): Promise<AttemptResult | null> {
   // The offset is the browser's word, and it ends up in a stored day number, so
   // it is bounded here. An answer with a nonsense offset is still worth keeping;
   // it is recorded at UTC rather than dropped.
@@ -86,14 +115,18 @@ export async function recordAttemptAction(
  * the server, so this says only *that* a round finished, never what it was worth.
  */
 export async function awardRoundAction(learningSessionId: string): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+  return timed('action awardRound', () => awardRound(learningSessionId));
+}
+
+async function awardRound(learningSessionId: string): Promise<void> {
   await api.awardRound(learningSessionId);
 }
 
 export async function endRecordingAction(learningSessionId: string): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+  return timed('action endRecording', () => endRecording(learningSessionId));
+}
+
+async function endRecording(learningSessionId: string): Promise<void> {
   await api.endSession(learningSessionId);
 }
 
@@ -109,9 +142,13 @@ export async function awardTargetAction(
   learningSessionId: string,
   offsetMinutes: number,
 ): Promise<boolean> {
-  const session = await auth();
-  if (!session?.user?.id) return false;
+  return timed('action awardTarget', () => awardTarget(learningSessionId, offsetMinutes));
+}
 
+async function awardTarget(
+  learningSessionId: string,
+  offsetMinutes: number,
+): Promise<boolean> {
   const offset = parseOffsetMinutes(offsetMinutes);
   if (offset === null) return false;
 

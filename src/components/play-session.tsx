@@ -25,12 +25,14 @@ import {
   dayProgress,
   dayTotal,
   targetProgress,
+  worthBanking,
   TARGET_STARS,
   type DailyTarget,
   type TargetAnswer,
 } from '@/lib/rewards/target';
 import { PLAY_LABEL_SIZE } from '@/lib/figures/labels';
 import { PROMPT_SENTINEL } from '@/lib/templates/limits';
+import { TimingOverlay, measure } from './timing-overlay';
 import {
   awardRoundAction,
   awardTargetAction,
@@ -352,7 +354,7 @@ export function PlaySession({
 
   useEffect(() => {
     if (!recordingEnabled) return;
-    startRecordingAction(subject, level, seed).then((id) => {
+    measure('startRecording', startRecordingAction(subject, level, seed)).then((id) => {
       recordId.current = id;
     });
   }, [subject, level, seed, recordingEnabled]);
@@ -460,11 +462,17 @@ export function PlaySession({
       // The target's own view of the answer. Questions step by one; minutes take
       // the time the answer was actually recorded with, cap and all, so the bar
       // and the parent's report can never disagree.
-      if (target) {
-        const attempt = next.attempts[next.attempts.length - 1];
-        const unit = target.target.kind === 'questions' ? 1 : attempt.timeTakenMs;
-        setAddedToday((added) => added + unit);
-      }
+      //
+      // Read out here rather than inside the branch below because two things
+      // want it now: the bar, and the decision about whether today's goal is
+      // close enough to be worth asking the server to bank - see `worthBanking`.
+      const targetUnit =
+        target === null
+          ? 0
+          : target.target.kind === 'questions'
+            ? 1
+            : next.attempts[next.attempts.length - 1].timeTakenMs;
+      if (target) setAddedToday((added) => added + targetUnit);
 
       updateEntry(value);
       setFeedback(correct ? { state: 'correct' } : { state: 'wrong', expected });
@@ -480,7 +488,7 @@ export function PlaySession({
 
         // Only the first answer of a day comes back with anything to show, and
         // a failed write simply comes back with nothing.
-        recordAttemptAction(id, attempt).then((result) => {
+        measure('recordAttempt', recordAttemptAction(id, attempt)).then((result) => {
           if (result) {
             setPlayStreak({ days: result.streak, lastDay: localDay(now, offsetMinutes) });
             if (result.streakAdvanced) setStreak(result.streak);
@@ -489,16 +497,21 @@ export function PlaySession({
           // counts the round from the stored answers, and a recount that raced
           // the tenth of them would find nine and award nothing. A dropped call
           // repairs itself at the next round, which recounts the sitting whole.
-          if (closedRound(results)) awardRoundAction(id);
+          if (closedRound(results)) measure('awardRound', awardRoundAction(id));
 
           // The day's goal, asked for after the answer is written for the same
           // reason the round's stars are: the server recounts from the stored
           // answers, and a recount that raced this answer would find one fewer
-          // and award nothing. Asking on every answer is safe and is what makes
-          // a dropped call repair itself - the compare-and-set on the day means
-          // only one of them can ever pay out.
-          if (target && !targetFinished) {
-            awardTargetAction(id, offsetMinutes).then((awarded) => {
+          // and award nothing.
+          //
+          // It is no longer asked on *every* answer, which is what it used to
+          // do. The server is still the only thing that awards, but a call made
+          // before the day's own count reaches the target can only ever come
+          // back "not yet" - so `worthBanking` drops those, and keeps asking on
+          // every answer from the one that crosses the line onwards, which is
+          // what still makes a dropped call repair itself.
+          if (target && !targetFinished && worthBanking(target.target, targetDone, targetUnit)) {
+            measure('awardTarget', awardTargetAction(id, offsetMinutes)).then((awarded) => {
               if (!awarded) return;
               setTargetReward(target.target);
               setStars((total) => total + TARGET_STARS);
@@ -512,7 +525,7 @@ export function PlaySession({
       if (correct) advanceTimer.current = setTimeout(() => advance(next), CORRECT_MS);
       else setPending(next);
     },
-    [session, question, feedback, advance, updateEntry, target, targetFinished],
+    [session, question, feedback, advance, updateEntry, target, targetFinished, targetDone],
   );
 
   // A physical keyboard should work as well as the on-screen pads.
@@ -593,6 +606,9 @@ export function PlaySession({
     // Fixed to the viewport: everything must fit an iPad screen with no scrolling,
     // so the pad is never below the fold in either orientation.
     <main className="no-select flex h-[100dvh] flex-col overflow-hidden px-4 py-3 sm:px-10 sm:py-5">
+      {/* Off unless `?timing=1` is on the URL - see `TimingOverlay`. */}
+      <TimingOverlay />
+
       {/* Nothing here counts anything. A clock and a running score are both things
           a child would watch instead of the question, and neither is theirs to
           worry about - the round's stars are the only reckoning, and they come

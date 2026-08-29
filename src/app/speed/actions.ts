@@ -1,14 +1,20 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { auth } from '@/auth';
 import { api } from '@/api';
 import type { SpeedOutcome } from '@/lib/dto';
 import { modeKey, parseMode } from '@/lib/speedrun/modes';
+import { timed } from '@/timing';
 
 /**
  * Recording only, like the play actions. A run is over by the time either of
  * these is called, so a failure costs a record rather than a game.
+ *
+ * Neither calls `auth()`, for the reason set out at the top of
+ * `src/app/play/actions.ts`: the session read it used to open with was a Neon
+ * round trip whose only outcome was an early return, and `POST /speed/runs`
+ * (`requireUser`) and `DELETE /speed/unseen/:childId` (`requireParent`) both
+ * refuse the same caller on the far side anyway.
  */
 
 /**
@@ -24,9 +30,10 @@ import { modeKey, parseMode } from '@/lib/speedrun/modes';
  * on the forger's own cabinet.
  */
 export async function submitRunAction(key: string, correct: number): Promise<SpeedOutcome | null> {
-  const session = await auth();
-  if (!session?.user?.id) return null;
+  return timed('action submitRun', () => submitRun(key, correct));
+}
 
+async function submitRun(key: string, correct: number): Promise<SpeedOutcome | null> {
   // Parsed here as well as at the endpoint, and normalised back to a key: the
   // route rejects a key that is not a mode, and this is what keeps a run that
   // never happened from costing a round trip to find that out.
@@ -49,7 +56,9 @@ export async function submitRunAction(key: string, correct: number): Promise<Spe
 }
 
 export async function dismissRecordsAction(childId: string): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
+  return timed('action dismissRecords', () => dismissRecords(childId));
+}
+
+async function dismissRecords(childId: string): Promise<void> {
   await api.dismissRecords(childId);
 }
