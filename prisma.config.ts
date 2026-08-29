@@ -8,14 +8,8 @@ loadEnv({ path: '.env.local', quiet: true });
 loadEnv({ quiet: true });
 
 /**
- * `prisma generate` for Auth.js, and nothing more.
- *
- * **There is no `migrations` path here, on purpose.** `apps/api` owns the
- * schema and the migrations, and its deploy runs `db:deploy` as a release
- * command - so this package has no `db:migrate` and no `db:deploy` left to
- * point anywhere. What remains is generating a client from the four Auth.js
- * tables (`prisma/auth.prisma`) so `PrismaAdapter` has one, which is the single
- * thing the extraction could not move.
+ * `apps/api` owned the schema and the migrations; the web app owns them
+ * again, so this config generates *and* migrates.
  *
  * `prisma generate` needs no datasource, but the config must still name one.
  * Falling back to the .env.example placeholder - which `isDatabaseConfigured`
@@ -25,6 +19,9 @@ loadEnv({ quiet: true });
 const PLACEHOLDER = 'postgresql://user:password@host/dbname?sslmode=require';
 
 export default defineConfig({
-  schema: 'prisma/auth.prisma',
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+  },
   datasource: { url: process.env.DATABASE_URL ?? PLACEHOLDER },
 });

@@ -18,6 +18,8 @@
     "fixtures:emit": "tsx scripts/emit-fixtures.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "node scripts/migrate.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

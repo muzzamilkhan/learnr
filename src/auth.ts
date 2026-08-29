@@ -1,7 +1,7 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma, isDatabaseConfigured, claimParentRole } from '@/auth-db';
+import { prisma, isDatabaseConfigured, claimParentRole } from '@/server/db';
 
 /**
  * Google is the only NextAuth provider. The other way in - a child redeeming a
