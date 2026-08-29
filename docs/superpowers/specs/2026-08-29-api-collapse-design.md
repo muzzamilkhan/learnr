@@ -125,10 +125,35 @@ src/app/speed/actions.ts                src/app/share/[token]/page.tsx
 src/components/speed-scores.tsx
 ```
 
-**`reviveDates` goes with them.** Dates crossed as ISO strings because there was
-a wire boundary; a Prisma read returns a `Date`. `src/lib/revive.ts` and
-`src/lib/dto.ts` are deleted - the DTO shapes existed to be shared with a client
-that could not import TypeScript, and there is no such client.
+**`reviveDates` goes with them, but `src/lib/dto.ts` stays.** These are two
+different things and the first draft of this spec got it wrong.
+
+Dates crossed as ISO strings because a page render went over the wire; a Prisma
+read returns a `Date`. So `src/lib/revive.ts` is deleted - **but only because the
+one HTTP boundary left is checkably date-free.** `src/browser-api.ts` still
+posts over HTTP and still parses JSON, and its two response shapes are
+`AttemptResult` (two numbers and a boolean) and `SpeedOutcome` (two numbers, a
+boolean, and a `StandingChange` of three numbers). Nothing in either is a `Date`.
+That is a property to assert rather than to rely on: a type-level test fails the
+build if a `Date` ever appears in a browser-api response, because it would
+silently arrive as a string.
+
+`ISO_TIMESTAMP` moves to `src/lib/day.ts`, which is its only consumer.
+
+**`src/lib/dto.ts` is not deleted.** Nine files in the web app import it -
+`progress-report.tsx`, `progress-topics.tsx`, `speed-result.tsx`,
+`speed-banner.tsx`, `speed-run.tsx`, `accept-share.tsx`, `app/actions.ts`,
+`app/viewer.ts`, `(parent)/parent.ts` - and so do all four data modules. They are
+the shapes the data layer and the components share, which is a real job that
+survives the wire boundary going away. Only the four pack shapes go with the
+packs: `ContentPack`, `ContentManifestLevel`, `ContentManifestSubject` and
+`ContentManifest`.
+
+**`parsePlayedAt` goes, and the `playedAt` request field with it.** Both existed
+for an offline queue flushing runs hours after they were played, which was the
+iOS client. The browser submits a run the moment it ends and has never sent the
+field. `SpeedAttempt.playedAt` keeps its `@default(now())`, so this needs no
+migration.
 
 **`viewerKind` stays** (`src/lib/viewer.ts`). It is the one thing born of the
 split that is still true without it: Neon is a network hop, so a read can fail
@@ -314,6 +339,33 @@ the setting on, and both were found by a screenshot tool rather than by a person
 `ChildPhoto` stays its own table. The Auth.js adapter selects whole `User` rows
 on every authenticated request, and a photo has no business riding along with a
 session lookup.
+
+## The test suite splits in two
+
+The two suites cannot merge into one vitest run. The web app's is node-only,
+parallel and needs nothing; the API's needs Docker, a `globalSetup` that starts
+Testcontainers before any module is imported, `fileParallelism: false` because
+every file shares one Postgres and truncates between tests, and 60-second
+timeouts for a cold image pull.
+
+Collapsing them naively would make **every unit test require Docker**, which is
+a real regression in how fast this is to work on.
+
+So `vitest.config.ts` gains two projects:
+
+| project | files | environment |
+| --- | --- | --- |
+| `unit` | `src/**/*.test.ts` excluding `src/server/**` | node, parallel, no setup |
+| `db` | `src/server/**/*.test.ts` | Testcontainers `globalSetup`, `fileParallelism: false`, 60s timeout |
+
+`npm test` runs both. `npm run test:unit` runs the fast one alone, and is what
+to reach for while working on the engine, the content or a component.
+
+The `globalSetup` has to stay a `globalSetup` rather than becoming a
+`beforeAll`: the data modules build their Prisma client from `DATABASE_URL` at
+import time, so the variable has to name the container before a worker loads
+anything. A per-file `beforeAll` leaves `prisma` null and every data function
+returning null against a database that is running perfectly well.
 
 ## Verification
 
