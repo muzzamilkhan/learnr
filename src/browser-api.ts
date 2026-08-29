@@ -1,68 +1,50 @@
-import { reviveDates } from '@/lib/revive';
 import type { AttemptResult, SpeedOutcome } from '@/lib/dto';
 import type { Attempt } from '@/lib/session/session';
 import type { YearLevel } from '@/lib/curriculum';
 
 /**
- * What the browser writes to the API itself, without going through this app.
+ * What the browser writes, without going through a server action.
  *
  * Everything a child does while playing is here: opening a sitting, recording an
  * answer, banking a round's stars, banking the day's goal, closing the sitting,
  * and submitting a speed run. All of it is *recording* - none of it decides what
- * the child sees next, which is the property that made moving it safe.
+ * the child sees next, which is the property that made moving it off server
+ * actions safe.
  *
- * **Why it moved off server actions.** Every one of those was a POST to this
- * app's own server, which read the session against Neon, then called the API,
- * which resolved the same cookie against the same table again. Two hops and two
- * session lookups for a write the API could take directly. Worse, Next
- * serialises server-action requests from one client, so the three calls an
- * answer makes queued behind each other while every one of them reported a
- * healthy server-side duration - a wait that existed only in the browser and
- * showed up in no log. A child answering faster than the queue drained was
- * racing a queue nobody could see.
+ * **Why it is not a server action.** A server action is a POST Next serialises
+ * per client, so the calls a single answer makes queue behind each other while
+ * every one of them reports a healthy server-side duration - a wait that exists
+ * only in the browser and appears in no log. A child answering faster than the
+ * queue drained was racing a queue nobody could see. These are route handlers
+ * instead, called directly with `fetch`.
  *
- * **The cookie is what still authorises it.** `credentials: 'include'` sends the
- * session cookie, which reaches `api.learnr.muzza.tech` because the cookie is
- * scoped to `learnr.muzza.tech` and its subdomains - see `SESSION_COOKIE_OPTIONS`.
- * It is still `httpOnly`, so nothing here can read it; the browser attaches it.
- * The API authorises exactly as it did before, and an endpoint a child may not
- * reach still answers 403 to the child.
- *
- * **Reads stay on the server.** `src/api.ts` is unchanged and still serves every
- * page render. Only these writes moved, because only these are on the path where
- * a round trip is something a child can feel.
+ * **Reads stay on the server.** Only these writes are called from the browser,
+ * because only these are on the path where a round trip is something a child
+ * can feel.
  */
 
-/**
- * Where the API is, and it has to be `NEXT_PUBLIC_` because this runs in the
- * browser - `LEARNR_API_URL` is a server variable and would be undefined here.
- * The default is the port `npm run dev --workspace apps/api` listens on.
- */
-const BASE = process.env.NEXT_PUBLIC_LEARNR_API_URL ?? 'http://localhost:3001';
+// Same origin, so there is no base at all and no NEXT_PUBLIC_ variable to get
+// wrong. The six writes are route handlers in this app.
+const BASE = '/api/v1';
 
 /**
- * A write, and null on any failure at all - the same convention `src/api.ts`
- * keeps, for the same reason: a 503, a 4xx and a dead connection are all "it did
- * not land", and none of them may throw into a screen a child is playing on.
+ * A write, and null on any failure at all - a 503, a 4xx and a dead connection
+ * are all "it did not land", and none of them may throw into a screen a child
+ * is playing on.
  */
 async function post<T>(path: string, body?: unknown): Promise<T | null> {
   try {
     const response = await fetch(`${BASE}${path}`, {
       method: 'POST',
-      // The whole point. Without it the browser sends no cookie and every one of
-      // these is a 401.
-      credentials: 'include',
-      // **Only where there is a body to describe.** Fastify refuses a JSON
-      // content-type with an empty body before any handler runs, which is a 400
-      // the null convention would then hide - the same trap `src/api.ts`
-      // documents, and the same answer.
+      // **Only where there is a body to describe.** A JSON content-type with an
+      // empty body would be a 400 the null convention would then hide.
       ...(body === undefined
         ? {}
         : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }),
     });
 
     if (!response.ok || response.status === 204) return null;
-    return reviveDates<T>(await response.json());
+    return await response.json();
   } catch {
     // A dead connection costs history, not play. Nothing here is awaited by
     // anything the child is waiting on.
@@ -125,6 +107,6 @@ export const browserApi = {
 
   endSession: (id: string) => post<null>(`/sessions/${id}/end`),
 
-  submitSpeedRun: (body: { id: string; mode: string; correct: number; playedAt?: string }) =>
+  submitSpeedRun: (body: { id: string; mode: string; correct: number }) =>
     post<SpeedOutcome>('/speed/runs', body),
 };

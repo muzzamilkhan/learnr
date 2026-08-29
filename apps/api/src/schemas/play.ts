@@ -1,34 +1,25 @@
 import { z } from 'zod';
-import { idSchema, yearLevelSchema } from './common.js';
+import { idSchema } from './common.js';
 
-export const attemptSchema = z.object({
-  id: z.uuid(),
-  templateId: z.string().min(1),
-  subject: z.string().min(1),
-  topic: z.string().min(1),
-  level: yearLevelSchema,
-  prompt: z.string(),
-  expected: z.string(),
-  response: z.string(),
-  correct: z.boolean(),
-  timeTakenMs: z.number().int().min(0),
-  answeredAt: z.number().int(),
-  offsetMinutes: z.number().int().min(-840).max(840),
-  figure: z.unknown().optional(),
-});
-
-export const createSessionSchema = z.object({
-  id: z.uuid(),
-  subject: z.string().min(1),
-  level: yearLevelSchema,
-  seed: z.string().min(1),
-});
+/**
+ * The request schemas moved to the repository root
+ * (`src/app/api/v1/schemas.ts`) as part of collapsing the API back into the
+ * web app - `apps/api` is deleted whole in a later step of that collapse.
+ * This shim exists only to keep the workspace typechecking cleanly until
+ * then.
+ *
+ * The response schemas below (`attemptResultSchema`, `sessionSchema`) were
+ * deleted from the root file - nothing serialises through them there any
+ * more - but this Fastify route still declares its own response shape, so
+ * they are kept here, local to the code that still needs them.
+ */
+export {
+  attemptSchema,
+  attemptsBodySchema,
+  createSessionSchema,
+} from '../../../../src/app/api/v1/schemas';
 
 export const sessionSchema = z.object({ id: idSchema });
-
-export const attemptsBodySchema = z.object({
-  attempts: z.array(attemptSchema).min(1).max(200),
-});
 
 export const attemptResultSchema = z.object({
   streak: z.number().int().min(0),

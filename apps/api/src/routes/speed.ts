@@ -11,7 +11,6 @@ import {
   summaryRunSchema,
 } from '../schemas/dto.js';
 import { MODES, modeKey, parseMode } from '@learnr/core/speedrun/modes';
-import { parsePlayedAt } from '@learnr/core/day';
 import { householdId } from '@learnr/core/children';
 import { readAccount } from '../data/accounts.js';
 import {
@@ -38,24 +37,13 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
   /**
    * Bank a finished run.
    *
-   * **`playedAt` says when the run was played, and the server no longer
-   * assumes that is now.** A client with an offline queue flushes a run
-   * whenever connectivity returns, and the stamp orders the cabinet, the report
-   * table and the family board and tie-breaks which run gets starred - so an
-   * afternoon of offline runs used to land in one minute that evening, in
-   * whatever order the queue drained, under a "latest run" a parent reads as
-   * when their child played.
-   *
-   * It is **optional and loosely typed on purpose**, which is the difference
-   * between it and `mode`. An unparseable mode is a run that never happened and
-   * earns the 400; an unparseable stamp costs nothing but itself, so
-   * `parsePlayedAt` bounds it and the run falls back to the server's clock -
-   * exactly what happened before any client sent one. A client bug in the stamp
-   * must not be able to destroy every run a build submits.
-   *
-   * The contract still advertises `format: date-time`, because that is what a
-   * client should send and what a generated model should carry. Being lenient
-   * about what arrives is not the same as being vague about what is wanted.
+   * This endpoint is superseded by the route handler at
+   * `src/app/api/v1/speed/runs/route.ts` as part of collapsing the API back
+   * into the web app - `apps/api` is deleted whole in a later step of that
+   * collapse. `playedAt` and the `parsePlayedAt` bound behind it went with
+   * that move: it existed for an offline queue no client here ever used, so
+   * this route now stamps every run with the server's own clock, which is
+   * what happened before any client sent a stamp at all.
    */
   app.post('/speed/runs', {
     schema: {
@@ -64,15 +52,6 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
         id: z.uuid(),
         mode: z.string().min(1),
         correct: z.number().int().min(0).max(MAX_SCORE),
-        playedAt: z
-          .string()
-          .meta({
-            format: 'date-time',
-            description:
-              'When the run was played, ISO 8601. Omit it and the server stamps receipt. '
-              + 'Hold one stamp per run across every flush of it, as with `id`.',
-          })
-          .optional(),
       }),
       response: { 200: speedOutcomeSchema, 400: errorSchema, 503: errorSchema },
     },
@@ -81,10 +60,8 @@ export const speedRoutes: FastifyPluginAsync = async (fastify) => {
     const mode = parseMode(request.body.mode);
     if (!mode) return reply.code(400).send({ error: 'No such mode' });
 
-    const playedAt = parsePlayedAt(request.body.playedAt, Date.now()) ?? new Date();
-
     const outcome = await submitSpeedRun(userId, {
-      id: request.body.id, mode, correct: request.body.correct, playedAt,
+      id: request.body.id, mode, correct: request.body.correct, playedAt: new Date(),
     });
     if (!outcome) return reply.code(503).send({ error: 'Could not record the run' });
 
