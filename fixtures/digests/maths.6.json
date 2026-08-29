@@ -1,5 +1,5 @@
 {
-  "version": "ebb24924e2d5",
+  "version": "6d271f185e71",
   "set": "maths.6",
   "draws": 100,
   "groups": {
@@ -9,12 +9,15 @@
     "maths.6.angles.rest-of-a-line": "64579ad11b6b",
     "maths.6.angles.rest-of-a-turn": "eff916c77850",
     "maths.6.angles.vertically-opposite": "8b2b07b9ecaf",
+    "maths.6.chance.percentage-chance": "487cb7e46468",
     "maths.6.chance.spinner-and-coin": "7b9dbef20c7f",
     "maths.6.chance.spinner-decimal": "71cde7eb613a",
     "maths.6.chance.spinner-not-shaded": "a2b0a0675cd4",
+    "maths.6.data.column-mean": "71b447059b3f",
     "maths.6.data.column-mode": "71bad7a87170",
     "maths.6.data.column-range": "3eb2b5e330c2",
     "maths.6.data.line-graph-steepest": "85b33f82f95a",
+    "maths.6.data.picture-key-halves-total": "38012f735b80",
     "maths.6.data.picture-key-total": "cd2710704ce1",
     "maths.6.decimals.add": "b8637f53364f",
     "maths.6.decimals.divide-by-powers-of-ten": "1c3e2e8105ee",
