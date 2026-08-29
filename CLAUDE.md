@@ -378,7 +378,7 @@ three are done and the fifth is in progress:
 
 1. **The API server** - done, cutover and all. The impure files are extracted,
    the endpoints stand up, and the web app reads and writes through them.
-2. **Content extraction** - done. The 507 templates ship as versioned JSON,
+2. **Content extraction** - done. The 553 templates ship as versioned JSON,
    consumed by the web app first so the format was proven before iOS depended on
    it; `GET /content/manifest` and `GET /content/:subject/:level` are what a
    Swift client fetches them from.
@@ -606,7 +606,7 @@ answer the same way twice.
 (`src/lib/templates/limits.ts`). This is the only lever on how big every question
 on the play screen is drawn: the screen sets one size for all of them and that size
 is the worst case's, so a template past the cap makes every *other* question
-smaller. 105 is measured - over 300 draws of each of the 507 shipped templates the
+smaller. 105 is measured - over 300 draws of each of the 553 shipped templates the
 longest prompt is 100 chars, median 46, shortest 14 - with five characters of slack
 so a growing digit inside a template doesn't redden the suite. `catalog.test.ts`
 draws every template fifty times against it (fifty rather than the usual
@@ -624,12 +624,23 @@ reopening this**, because the tail is the whole of the gain and it has been take
 
 ### Shape of the content
 
-Maths ships K-6 as **352 templates, one file per school year** under
+Maths ships K-6 as **398 templates, one file per school year** under
 `src/content/maths/` (`k.ts`-`6.ts`, concatenated in school order by `index.ts`).
 The split is filing rather than structure: `mathsTemplates` is the same array in
 the same order, and `catalog.ts` never learned there is more than one file. What it
 buys is that a year is the unit a content change touches. English follows the
 identical shape under `src/content/english/` and adds **155 templates**.
+
+**Maths sits at NSW's own strand split, 40 / 40 / 20**, and that is a property
+worth not losing. Counted by focus area the syllabus is roughly 40% Number and
+algebra, 40% Measurement and space, 20% Statistics and probability; the content
+is 39.7 / 40.2 / 20.1, and **every year is at that split individually** rather
+than only the corpus. It was 74.5 / 22 / 3.5 before the diagrams work - the
+shape of an app that could only render a sentence, left in the content after
+the constraint was lifted - then 44.9 / 38.9 / 16.2, and the second content
+pass the NSW design deferred closed the rest. Adding a run of Number templates
+to one year is what would quietly undo it, so measure the split rather than the
+total when a year grows.
 
 Every template cites the content it practises in `tags` - `AC9M4N02`, `MA2-AR-01`.
 
@@ -2216,7 +2227,7 @@ The engine here is the **oracle** for the Swift port in `learnr-ios`, and
 `fixtures/` is where that is written down. `npm run fixtures:build` regenerates
 it; `npm run fixtures:emit` writes the full corpus for reading.
 
-**What is committed is a digest, not the corpus.** 507 templates drawn 100 times
+**What is committed is a digest, not the corpus.** 553 templates drawn 100 times
 is 37.7 MB of compact JSON, and ~110 MB as the emitter actually writes it - indented
 two spaces, because it exists to be read. Figures are 22 MB of that, where one
 `clock` drawing is 6.4 KB against a `polygon`'s 169 bytes. 110 MB cannot be
