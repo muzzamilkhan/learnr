@@ -52,7 +52,7 @@ export function responsesFor(question: Question): string[] {
 }
 
 /**
- * Draw 0 of every template - 507 questions, covering all four answer types -
+ * Draw 0 of every template - 553 questions, covering all four answer types -
  * each graded against its own response list.
  *
  * One draw a template rather than all hundred: grading reads the answer and the

@@ -13,7 +13,7 @@ import type { Scope, Value } from '../../src/lib/expr';
  * other side of zero, `^` is tested only for right-associativity, and `&&` is
  * never given a truthy non-boolean.
  *
- * Harvesting from content cannot reach them. The 507 shipped templates use `^`
+ * Harvesting from content cannot reach them. The 553 shipped templates use `^`
  * **not once**, and never use `ceil`, `trunc`, `sign`, `sqrt` or `isInt`.
  *
  * **When this file and the engine disagree, decide which is wrong.** Do not
