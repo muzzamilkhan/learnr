@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startDatabase, stopDatabase, truncateAll, testPrisma } from '../helpers/db.js';
-import { makeChild, makeParent } from '../helpers/factories.js';
+import { startDatabase, stopDatabase, truncateAll, testPrisma } from './test-helpers/db';
+import { makeChild, makeParent } from './test-helpers/factories';
 import {
   readLearnerProfile,
   readObservations,
   recordAttempt,
   recordSessionStart,
-} from '../../src/data/records.js';
-import type { Attempt } from '@learnr/core/session';
+} from './records';
+import type { Attempt } from '@/lib/session/session';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);

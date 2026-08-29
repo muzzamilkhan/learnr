@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startDatabase, stopDatabase, truncateAll } from '../helpers/db.js';
-import { makeChild, makeParent } from '../helpers/factories.js';
+import { startDatabase, stopDatabase, truncateAll } from './test-helpers/db';
+import { makeChild, makeParent } from './test-helpers/factories';
 import {
   acceptShareInvite,
   createShareInvite,
   readViewableChildren,
   revokeShare,
-} from '../../src/data/sharing.js';
-import { issueLoginCode } from '../../src/data/accounts.js';
+} from './sharing';
+import { issueLoginCode } from './accounts';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);

@@ -15,8 +15,12 @@ loadEnv({ quiet: true });
 // fails loudly against this URL rather than silently using it.
 const PLACEHOLDER = 'postgresql://user:password@host/dbname?sslmode=require';
 
+// The schema and migrations moved back to the repository root - see
+// prisma.config.ts there. apps/api is deleted whole in a later step of the
+// API collapse; this points `postinstall`'s `prisma generate` at the schema's
+// real location until then, rather than at a path that no longer exists.
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
-  migrations: { path: 'prisma/migrations' },
+  schema: '../../prisma/schema.prisma',
+  migrations: { path: '../../prisma/migrations' },
   datasource: { url: process.env.DATABASE_URL ?? PLACEHOLDER },
 });

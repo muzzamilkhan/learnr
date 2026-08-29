@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startDatabase, stopDatabase, truncateAll, testPrisma } from '../helpers/db.js';
-import { makeChild, makeParent } from '../helpers/factories.js';
+import { startDatabase, stopDatabase, truncateAll, testPrisma } from './test-helpers/db';
+import { makeChild, makeParent } from './test-helpers/factories';
 import {
   claimParentRole,
   issueLoginCode,
@@ -8,7 +8,7 @@ import {
   readAccount,
   redeemLoginCode,
   removeChild,
-} from '../../src/data/accounts.js';
+} from './accounts';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);

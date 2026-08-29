@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startDatabase, stopDatabase, truncateAll, testPrisma } from '../helpers/db.js';
-import { makeChild, makeParent } from '../helpers/factories.js';
-import { readSpeedAttempts, submitSpeedRun } from '../../src/data/speed-records.js';
-import { parseMode } from '@learnr/core/speedrun/modes';
+import { startDatabase, stopDatabase, truncateAll, testPrisma } from './test-helpers/db';
+import { makeChild, makeParent } from './test-helpers/factories';
+import { readSpeedAttempts, submitSpeedRun } from './speed-records';
+import { parseMode } from '@/lib/speedrun/modes';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);

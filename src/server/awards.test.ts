@@ -1,14 +1,14 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { startDatabase, stopDatabase, truncateAll, testPrisma, warmPool } from '../helpers/db.js';
-import { makeChild, makeParent } from '../helpers/factories.js';
+import { startDatabase, stopDatabase, truncateAll, testPrisma, warmPool } from './test-helpers/db';
+import { makeChild, makeParent } from './test-helpers/factories';
 import {
   awardDailyTarget,
   awardRoundStars,
   recordAttempt,
   recordSessionStart,
-} from '../../src/data/records.js';
-import type { Attempt } from '@learnr/core/session';
-import { TARGET_STARS } from '@learnr/core/rewards/target';
+} from './records';
+import type { Attempt } from '@/lib/session/session';
+import { TARGET_STARS } from '@/lib/rewards/target';
 
 beforeAll(startDatabase);
 afterAll(stopDatabase);
