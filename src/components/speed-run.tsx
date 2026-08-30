@@ -19,9 +19,12 @@ import {
   type RunResult,
   type RunState,
 } from '@/lib/speedrun/run';
+import type { TapOutcome } from '@/lib/speedrun/taps';
 import { ExitIcon } from './exit-icon';
 import { NumberPad } from './number-pad';
 import { playSound, primeSounds } from './sounds';
+import { TapReadout } from './tap-readout';
+import { reportTaps, TapProbe, timed } from './tap-probe';
 import { SpeedResult } from './speed-result';
 import { SpeedTimer } from './speed-timer';
 
@@ -103,9 +106,15 @@ interface Props {
    */
   backHref: string;
   recordingEnabled: boolean;
+  /**
+   * DIAGNOSTIC: whether to draw the tap funnel over the run (`?debug=1`). The
+   * recording happens either way - see `tap-probe.ts`. This is only whether
+   * somebody is watching it on the device.
+   */
+  debug: boolean;
 }
 
-export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) {
+export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: Props) {
   const [phase, setPhase] = useState<Phase>('countdown');
   const [run, setRun] = useState<RunState | null>(null);
   /**
@@ -125,6 +134,18 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
   const [count, setCount] = useState(COUNT_FROM);
   const [result, setResult] = useState<RunResult | null>(null);
   const [outcome, setOutcome] = useState<SpeedOutcome | null>(null);
+
+  /**
+   * DIAGNOSTIC: what happened to every finger that landed on this run.
+   *
+   * Held in a lazy `useState` rather than a ref, which is how React spells "one
+   * stable object for the life of this component": the initialiser runs once,
+   * the setter is never called, and nothing reads a ref during render. The
+   * probe itself holds no React state and can schedule no render - see
+   * `tap-probe.ts` on why a probe that costs a frame would manufacture the
+   * symptom it is looking for.
+   */
+  const [probe] = useState(() => new TapProbe());
 
   const updateEntry = useCallback((next: string | ((value: string) => string)) => {
     const resolved = typeof next === 'function' ? next(entryRef.current) : next;
@@ -148,12 +169,20 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
     };
   }, []);
 
+  // DIAGNOSTIC: the viewport, watched for the whole life of the screen. A zoom
+  // that begins and ends between two taps is exactly the event being looked for.
+  useEffect(() => {
+    probe.watch();
+    return () => probe.stop();
+  }, [probe]);
+
   const start = useCallback(() => {
     // The clock starts when the count-in ends, so the first question has been on
     // screen and read by the time it is worth anything. The seed is made here
     // rather than on the server: nothing about a run is rendered before this tap,
     // so there is no hydration to keep in step.
     const startedAt = Date.now() + COUNTDOWN_MS;
+    probe.reset(); // DIAGNOSTIC: "go again" keeps the component, not the funnel.
     advance(startRun({ mode, seed: `${startedAt}-${Math.random()}`, startedAt }));
     updateEntry('');
     setWrong(false);
@@ -162,7 +191,7 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
     setResult(null);
     setOutcome(null);
     setPhase('countdown');
-  }, [advance, mode, updateEntry]);
+  }, [advance, mode, probe, updateEntry]);
 
   /**
    * The run itself, put under the count-in that is already on screen (see the
@@ -188,6 +217,10 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
     const ended = runResult(state);
     setResult(ended);
     setPhase('result');
+
+    // DIAGNOSTIC: one span per run, sent whether or not the score is banked -
+    // a run played signed out drops taps exactly as readily as one that counts.
+    reportTaps(probe.summary(), modeKey(state.mode), ended.correct);
 
     // Best-effort like every other write in this app: a failed submit costs a
     // record, and the result screen then says nothing about a best rather than
@@ -228,7 +261,7 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
       })
       .then(setOutcome)
       .catch(() => {});
-  }, [recordingEnabled]);
+  }, [probe, recordingEnabled]);
 
   /**
    * One keypress, and the whole of what a speed run does with an answer.
@@ -247,35 +280,58 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
    */
   const press = useCallback(
     (key: string) => {
-      const state = runRef.current;
-      const now = Date.now();
-      if (state === null || isOver(state, now)) return;
+      // DIAGNOSTIC: the click half of the funnel. `apply` is this handler
+      // exactly as it was, with each of its early returns given a name, so that
+      // "we decided not to act on this" can be told apart from "this never
+      // reached us" - which is the whole question. Nothing below changes what
+      // a tap does; it only says what it did.
+      const tap = probe.click(key);
+      let sound: number | null = null;
 
-      const typed = appendNumeric(entryRef.current, key);
-      if (typed === entryRef.current) return;
+      const apply = (): TapOutcome => {
+        const state = runRef.current;
+        const now = Date.now();
+        if (state === null) return 'refused-none';
+        if (isOver(state, now)) return 'refused-over';
 
-      const verdict = judgeEntry(state, typed);
+        const typed = appendNumeric(entryRef.current, key);
+        if (typed === entryRef.current) return 'refused-full';
 
-      if (verdict === 'correct') {
-        playSound('correct');
-        advance(answerRun(state, typed, now));
-        updateEntry('');
-        return;
-      }
+        const verdict = judgeEntry(state, typed);
 
-      if (verdict === 'dead') {
-        playSound('incorrect');
-        updateEntry('');
-        setWrong(true);
-        if (flashTimer.current) clearTimeout(flashTimer.current);
-        flashTimer.current = setTimeout(() => setWrong(false), FLASH_MS);
-        return;
-      }
+        if (verdict === 'correct') {
+          sound = timed(() => playSound('correct'));
+          advance(answerRun(state, typed, now));
+          updateEntry('');
+          return 'correct';
+        }
 
-      updateEntry(typed);
+        if (verdict === 'dead') {
+          sound = timed(() => playSound('incorrect'));
+          updateEntry('');
+          setWrong(true);
+          if (flashTimer.current) clearTimeout(flashTimer.current);
+          flashTimer.current = setTimeout(() => setWrong(false), FLASH_MS);
+          return 'dead';
+        }
+
+        updateEntry(typed);
+        return 'typing';
+      };
+
+      const outcome = apply();
+      probe.settled(tap, outcome, sound);
     },
-    [advance, updateEntry],
+    [advance, probe, updateEntry],
   );
+
+  // DIAGNOSTIC: the clock a tap is timed against and the phase it landed in.
+  // Pushed rather than read, because the pointerdown listener is a plain browser
+  // callback and would otherwise close over whatever phase it was created in.
+  const runningSince = run?.startedAt ?? null;
+  useEffect(() => {
+    probe.context(runningSince, phase);
+  }, [probe, runningSince, phase]);
 
   // The count-in. One timeout per second is one more than needed, so it is an
   // interval to draw the numbers and a single timeout to end the phase - which
@@ -363,14 +419,24 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
   // count-in from the very first paint, the server's included.
   if (run === null) {
     return (
-      <div className="no-select fixed inset-0 z-40 bg-(--color-paper)">
+      <div
+        className="no-select fixed inset-0 z-40 bg-(--color-paper)"
+        // DIAGNOSTIC: capture, and on the container rather than on each key -
+        // the tap being hunted is the one that never becomes a click, so it has
+        // to be seen before anything downstream has the chance not to happen.
+        onPointerDownCapture={(event) => probe.down(event.target)}
+      >
         <Countdown count={COUNT_FROM} />
       </div>
     );
   }
 
   return (
-    <div className="no-select fixed inset-0 z-40 flex flex-col overflow-hidden bg-(--color-paper) px-4 py-3 sm:px-10 sm:py-5">
+    <div
+      className="no-select fixed inset-0 z-40 flex flex-col overflow-hidden bg-(--color-paper) px-4 py-3 sm:px-10 sm:py-5"
+      // DIAGNOSTIC: see the count-in branch above.
+      onPointerDownCapture={(event) => probe.down(event.target)}
+    >
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -
           there is no confirmation, because a modal over a running clock is worse
@@ -454,6 +520,11 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) 
       </div>
 
       {phase === 'countdown' && <Countdown count={count} />}
+
+      {/* DIAGNOSTIC: the only console this iPad has. Refreshes once a second and
+          takes no pointer events - a readout that could eat a tap while looking
+          for eaten taps would be its own punchline. */}
+      {debug && <TapReadout probe={probe} />}
     </div>
   );
 }

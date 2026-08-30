@@ -84,6 +84,10 @@ export function NumberPad({
           type="button"
           disabled={disabled}
           onClick={() => onDigit(digit)}
+          // DIAGNOSTIC, with `tap-probe.ts` and deleted alongside it: what a
+          // pointerdown reads to know which key it landed on, before anything
+          // downstream has had the chance not to happen.
+          data-pad-key={digit}
           // 1-9 fill the first three columns; the fourth, where there is one,
           // is Check's.
           style={{ gridColumn: (index % 3) + 1, gridRow: Math.floor(index / 3) + 1 }}
@@ -98,6 +102,7 @@ export function NumberPad({
           type="button"
           disabled={disabled}
           onClick={() => onDigit('.')}
+          data-pad-key="."
           aria-label="Decimal point"
           className={`${KEY_CLASS} col-start-1 row-start-4`}
         >
@@ -109,6 +114,7 @@ export function NumberPad({
         type="button"
         disabled={disabled}
         onClick={() => onDigit('0')}
+        data-pad-key="0"
         className={`${KEY_CLASS} ${
           bottomRow
             ? `row-start-4 ${decimal ? 'col-start-2' : 'col-span-2 col-start-1'}`

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { SpeedRun } from '@/components/speed-run';
 import { parseMode } from '@/lib/speedrun/modes';
+import { parseDebug } from '@/lib/speedrun/taps';
 import { CHILD_SPEED_HREF, PARENT_SPEED_HREF } from '@/lib/speedrun/tabs';
 import { readViewer } from '../../(parent)/parent';
 
@@ -42,9 +43,22 @@ export const dynamic = 'force-dynamic';
  * home section - because what someone is undoing is "I picked Multiply", not "I
  * opened this app". Home differs too: a parent's home is the report.
  */
-export default async function SpeedPage({ params }: { params: Promise<{ mode: string }> }) {
+export default async function SpeedPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ mode: string }>;
+  // DIAGNOSTIC, and only `?debug=` - see `src/lib/speedrun/taps.ts`.
+  searchParams: Promise<{ debug?: string }>;
+}) {
   const mode = parseMode(decodeURIComponent((await params).mode));
   if (!mode) notFound();
+
+  // Parsed here rather than beside the component: every export of a
+  // `'use client'` module is a client reference, so a parser living in
+  // `speed-run.tsx` could not be called on the server. The funnel is recorded
+  // either way; this only decides whether it is drawn on the device.
+  const debug = parseDebug((await searchParams).debug);
 
   const { userId, account } = await readViewer();
   const isParent = account?.role === 'parent';
@@ -55,6 +69,7 @@ export default async function SpeedPage({ params }: { params: Promise<{ mode: st
       homeHref={isParent ? '/progress' : '/'}
       backHref={isParent ? PARENT_SPEED_HREF : CHILD_SPEED_HREF}
       recordingEnabled={Boolean(userId)}
+      debug={debug}
     />
   );
 }
