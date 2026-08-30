@@ -26,7 +26,7 @@ import { parseSubjects } from '@/lib/subjects';
 import { parseAvatar } from '@/lib/avatars';
 import { parseTarget } from '@/lib/rewards/target';
 import { browserIp, createThrottle } from '@/lib/throttle';
-import { REDEEM_FAILURE_LIMIT, REDEEM_FAILURE_WINDOW_MS } from '@/lib/login-code';
+import { isGuess, REDEEM_FAILURE_LIMIT, REDEEM_FAILURE_WINDOW_MS } from '@/lib/login-code';
 import { parsePhoto } from '@/lib/photo/photo';
 import type { AcceptResult } from '@/lib/dto';
 
@@ -221,18 +221,30 @@ export async function redeemLoginCodeAction(code: string): Promise<{ error: stri
     return { error: 'Too many tries - wait a few minutes and have another go.' };
   }
 
-  const redeemed = await redeemLoginCode(code);
-  if (!redeemed) {
-    if (browser) redeemFailures.fail(browser, now);
-    return { error: "That code doesn't work - ask your grown-up for a new one." };
+  const result = await redeemLoginCode(code);
+
+  if (result.status !== 'redeemed') {
+    // Only a rejection is somebody trying a code. A database that could not
+    // answer must not spend a child's ten attempts - see `isGuess`.
+    if (browser && isGuess(result.status)) redeemFailures.fail(browser, now);
+
+    return {
+      error:
+        result.status === 'rejected'
+          ? "That code doesn't work - ask your grown-up for a new one."
+          : // Deliberately not about the code. The code may be perfectly good,
+            // and telling a child to go and get a new one sends them to a
+            // grown-up to fix something that is not broken.
+            'Something went wrong. Wait a moment and try the same code again.',
+    };
   }
 
   if (browser) redeemFailures.clear(browser);
 
   const store = await cookies();
-  store.set(SESSION_COOKIE_NAME, redeemed.token, {
+  store.set(SESSION_COOKIE_NAME, result.session.token, {
     ...SESSION_COOKIE_OPTIONS,
-    expires: redeemed.expires,
+    expires: result.session.expires,
   });
 
   revalidatePath('/');

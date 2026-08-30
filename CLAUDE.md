@@ -1780,6 +1780,21 @@ decides where a freshly signed-in session is pointed. `//host` and `/\host` are
 refused by name, because a slash a backslash disagree about is where an open
 redirect lives.
 
+**Spending a code has three answers, not two** (`RedeemStatus`). `redeemLoginCode`
+returned `null` for four different things - no database, a code that would not
+normalise, no live code matching, and a transaction that threw - and the screen
+said *that code doesn't work, ask your grown-up for a new one* to all of them.
+Told to a child whose code is good and whose database was merely waking up, that
+is a lie that sends them to a grown-up to fix something that is not broken; Neon
+comes out of autosuspend while already accepting connections, which is the same
+cold start `scripts/migrate.mjs` retries P1002 for. So `unavailable` is its own
+answer and says so without blaming the code. It is the null convention arriving
+where getting it wrong locks a child out rather than drawing an empty chart.
+**Only a `rejected` counts toward the lockout** (`isGuess`): an unreachable
+database is not somebody trying codes, and counting it would let an outage spend
+a child's ten attempts and then lock them out for fifteen minutes - the throttle
+punishing the one person it exists to protect.
+
 `src/server/accounts.ts` holds the Prisma side, following `records.ts`: every child
 mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**

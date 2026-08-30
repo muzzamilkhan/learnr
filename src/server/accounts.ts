@@ -296,6 +296,15 @@ export interface RedeemedSession {
 }
 
 /**
+ * What came of spending a code - see `RedeemStatus` for why there are three
+ * answers rather than a nullable session.
+ */
+export type RedeemResult =
+  | { status: 'redeemed'; session: RedeemedSession }
+  | { status: 'rejected' }
+  | { status: 'unavailable' };
+
+/**
  * Exchange a code for a session.
  *
  * Spending the code and learning whose it was are one statement - `UPDATE ...
@@ -308,15 +317,17 @@ export interface RedeemedSession {
 export async function redeemLoginCode(
   input: string,
   now = new Date(),
-): Promise<RedeemedSession | null> {
-  if (!prisma) return null;
+): Promise<RedeemResult> {
+  // Not "wrong code": there is no database to ask, so nothing is known about
+  // whether the code is good. See `RedeemStatus`.
+  if (!prisma) return { status: 'unavailable' };
 
   const code = normaliseCode(input);
-  if (!code) return null;
+  if (!code) return { status: 'rejected' };
 
   const db = prisma;
   try {
-    return await db.$transaction(async (tx) => {
+    return await db.$transaction<RedeemResult>(async (tx) => {
       const claimed = await tx.$queryRaw<{ id: string }[]>`
         UPDATE "User"
         SET "loginCode" = NULL, "loginCodeExpiresAt" = NULL
@@ -325,15 +336,21 @@ export async function redeemLoginCode(
       `;
 
       const child = claimed[0];
-      if (!child) return null;
+      if (!child) return { status: 'rejected' };
 
       const token = randomUUID();
       const expires = new Date(now.getTime() + SESSION_LIFETIME_MS);
       await tx.session.create({ data: { sessionToken: token, userId: child.id, expires } });
-      return { token, expires, userId: child.id };
+      return { status: 'redeemed', session: { token, expires, userId: child.id } };
     });
   } catch (error) {
+    // The one that used to be indistinguishable from a wrong code, and the
+    // reason this returns a status at all. Neon comes out of autosuspend while
+    // already accepting connections - the same cold start `scripts/migrate.mjs`
+    // retries P1002 for - so a read here can throw against a database that is
+    // fine a second later, and a child holding a perfectly good code was told
+    // it did not work and charged a guess for it.
     console.error('Failed to redeem login code', error);
-    return null;
+    return { status: 'unavailable' };
   }
 }

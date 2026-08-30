@@ -100,10 +100,11 @@ describe('the login code', () => {
     expect(code).toBeTypeOf('string');
 
     const first = await redeemLoginCode(code!);
-    expect(first).not.toBeNull();
+    expect(first.status).toBe('redeemed');
 
+    // Spent, not broken: a second go is a rejection and nothing else.
     const second = await redeemLoginCode(code!);
-    expect(second).toBeNull();
+    expect(second).toEqual({ status: 'rejected' });
   });
 
   it('will not redeem an expired code', async () => {
@@ -111,7 +112,14 @@ describe('the login code', () => {
     const childId = await makeChild(parentId);
     const code = await issueLoginCode(parentId, childId, new Date(Date.now() - 2 * 60 * 60 * 1000));
 
-    expect(await redeemLoginCode(code!)).toBeNull();
+    expect(await redeemLoginCode(code!)).toEqual({ status: 'rejected' });
+  });
+
+  it('rejects a code that is not a code at all, rather than saying it cannot tell', async () => {
+    // The distinction the status exists for: this one really is the typist's
+    // fault, so it is a rejection and it counts as a guess.
+    expect(await redeemLoginCode('!!!!')).toEqual({ status: 'rejected' });
+    expect(await redeemLoginCode('')).toEqual({ status: 'rejected' });
   });
 
   it('will not issue a code for another parent-s child', async () => {

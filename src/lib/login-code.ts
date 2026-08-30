@@ -57,6 +57,43 @@ export const REDEEM_FAILURE_WINDOW_MS = 15 * 60 * 1000;
 export const REDEEM_FAILURE_LIMIT = 10;
 
 /**
+ * What came of spending a code. **Three answers, not two.**
+ *
+ * `redeemLoginCode` used to return `null` for four different things - no
+ * database configured, a code that would not normalise, no live code matching,
+ * and a transaction that threw - and the screen said the same sentence to all
+ * of them: *that code doesn't work, ask your grown-up for a new one*. Told to a
+ * child whose code is perfectly good and whose database was merely slow to wake
+ * up, that sentence is a lie, and it sends them to a grown-up to fix something
+ * that is not broken.
+ *
+ * It is the distinction the rest of the app is careful about - null means
+ * *could not read*, never *nothing there* - arriving in the one place where
+ * getting it wrong locks a child out rather than drawing an empty chart. That
+ * is what `accounts.ts` means by not being best-effort.
+ */
+export type RedeemStatus =
+  /** A live code, now spent. */
+  | 'redeemed'
+  /** No live code matches what was typed. The code really is wrong. */
+  | 'rejected'
+  /** The question could not be answered: no database, or a read that threw. */
+  | 'unavailable';
+
+/**
+ * Whether a failed redemption was a **guess**, and so counts toward the lockout.
+ *
+ * Only a rejection does. An unreachable database is not somebody trying codes,
+ * and counting it would let an outage spend a child's ten attempts and lock
+ * them out for fifteen minutes on top of it - the throttle punishing the one
+ * person it exists to protect. The window is short enough that a guesser gains
+ * nothing from the outages they cannot cause.
+ */
+export function isGuess(status: RedeemStatus): boolean {
+  return status === 'rejected';
+}
+
+/**
  * `randomInt(max)` must return a whole number in `[0, max)` - the contract of
  * `crypto.randomInt`, which is what production passes.
  */

@@ -8,6 +8,7 @@ import {
   isCodeLive,
   isCodeValid,
   minutesLeft,
+  isGuess,
   normaliseCode,
 } from './login-code';
 
@@ -109,5 +110,22 @@ describe('minutesLeft', () => {
 
   it('never goes negative', () => {
     expect(minutesLeft(expires, new Date('2026-08-17T11:00:00Z'))).toBe(0);
+  });
+});
+
+describe('isGuess', () => {
+  it('counts a rejected code, because that is somebody trying one', () => {
+    expect(isGuess('rejected')).toBe(true);
+  });
+
+  it('does not count a database that could not answer', () => {
+    // The throttle exists to protect children from a guesser. Letting an
+    // outage spend their ten attempts would have it lock out the one person it
+    // is for - and a guesser cannot cause outages, so nothing is given away.
+    expect(isGuess('unavailable')).toBe(false);
+  });
+
+  it('does not count a success', () => {
+    expect(isGuess('redeemed')).toBe(false);
   });
 });
