@@ -115,6 +115,16 @@ export const RUN_BUCKET_MS = 15_000;
 /** How many taps are kept whole beside the percentiles. */
 export const WORST_TAPS = 5;
 
+/**
+ * How many swallowed taps are kept whole.
+ *
+ * More than `WORST_TAPS`, because these arrive in bursts - one run dropped
+ * eleven of its thirteen inside a single fifteen-second bucket - and what is
+ * being characterised is the shape of the burst rather than one bad tap. The
+ * earliest are the ones kept, since a burst is read from its start.
+ */
+export const DROPPED_TAPS = 8;
+
 export interface Percentiles {
   /** Null rather than zero when nothing was measured - `[]` and null again. */
   p50: number | null;
@@ -148,6 +158,17 @@ export interface TapSummary {
   buckets: TapBucket[];
   /** The slowest few taps, whole, because a percentile cannot be read back. */
   worst: TapRecord[];
+  /**
+   * The swallowed taps, whole, earliest first.
+   *
+   * `worst` cannot carry them: it ranks on `paintMs`, and a tap that never
+   * became a click never painted - so the taps most worth reading were the one
+   * shape the summary threw away. What is wanted from them is `sinceLastMs`.
+   * A **two-digit answer is two taps in quick succession and a one-digit answer
+   * is one**, which is the reported shape of the bug, so whether a dropped tap
+   * follows hard on the heels of another is the question these exist to answer.
+   */
+  dropped: TapRecord[];
 }
 
 /**
@@ -229,6 +250,7 @@ export function summariseTaps(records: readonly TapRecord[]): TapSummary {
       .filter((record) => record.paintMs !== null)
       .sort((a, b) => (b.paintMs ?? 0) - (a.paintMs ?? 0))
       .slice(0, WORST_TAPS),
+    dropped: swallowed.slice(0, DROPPED_TAPS),
   };
 }
 

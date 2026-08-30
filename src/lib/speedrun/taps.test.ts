@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   debugEnabled,
+  DROPPED_TAPS,
   parseDebugParam,
   RUN_BUCKET_MS,
   summariseTaps,
@@ -156,6 +157,41 @@ describe('summariseTaps', () => {
     const summary = summariseTaps([tap({ scale: 1 }), tap({ scale: 1.8 }), tap({ scale: 1 })]);
 
     expect(summary.maxScale).toBe(1.8);
+  });
+
+  it('keeps the swallowed taps whole, in the order they were dropped', () => {
+    // `worst` cannot carry these: it ranks on `paintMs`, and a tap that never
+    // became a click never painted, so the taps most worth reading were the one
+    // shape the summary threw away. What is wanted from them is `sinceLastMs` -
+    // whether a dropped tap is the second of two fast ones, which is what a
+    // two-digit answer is and a one-digit answer is not.
+    const records = [
+      tap({ at: 1_000, key: '4', sinceLastMs: 900 }),
+      tap({ at: 1_100, key: '2', clickMs: null, outcome: 'swallowed', sinceLastMs: 100 }),
+      tap({ at: 5_000, key: '7', clickMs: null, outcome: 'swallowed', sinceLastMs: 80 }),
+    ];
+
+    const summary = summariseTaps(records);
+
+    expect(summary.dropped.map((record) => record.key)).toEqual(['2', '7']);
+    expect(summary.dropped[0]?.sinceLastMs).toBe(100);
+  });
+
+  it('caps the dropped taps but keeps the earliest, since a burst has a start', () => {
+    const records = Array.from({ length: DROPPED_TAPS + 3 }, (_, index) =>
+      tap({ at: index * 100, clickMs: null, outcome: 'swallowed', sinceLastMs: index }),
+    );
+
+    const summary = summariseTaps(records);
+
+    expect(summary.dropped).toHaveLength(DROPPED_TAPS);
+    expect(summary.dropped[0]?.sinceLastMs).toBe(0);
+  });
+
+  it('leaves an off-pad tap out of the dropped list as well as the count', () => {
+    const summary = summariseTaps([tap({ key: null, clickMs: null, outcome: 'swallowed' })]);
+
+    expect(summary.dropped).toEqual([]);
   });
 
   it('totals the time spent starting sounds, since that sits inside the handler', () => {

@@ -322,6 +322,9 @@ export function reportTaps(summary: TapSummary, mode: string, correct: number) {
           'taps.paint_p95': summary.paintMs.p95 ?? -1,
           'taps.paint_max': summary.paintMs.max ?? -1,
           'taps.worst': JSON.stringify(summary.worst).slice(0, 2_000),
+          // The taps nothing else can describe: `worst` ranks on paint time and
+          // these never painted. `sinceLastMs` is what they are here for.
+          'taps.dropped': JSON.stringify(summary.dropped).slice(0, 2_000),
           ...buckets,
           ...device(),
         },

@@ -55,8 +55,28 @@ interface Props {
   decimal?: boolean;
 }
 
+/**
+ * `touch-manipulation` is `touch-action: manipulation`, and it is the one class
+ * here that is not about how a key looks.
+ *
+ * **iOS Safari has ignored `user-scalable=no` and `maximum-scale` since iOS
+ * 10**, deliberately, so the viewport block in `layout.tsx` that says it "stops
+ * the iPad zooming when a child double-taps an answer button" has not been true
+ * for years. Double-tap-to-zoom is live on the target device, and a pad is
+ * where it does the most damage: two taps in quick succession, close together,
+ * is a child typing a two-digit answer *and* the gesture Safari is watching
+ * for. While it waits to find out which, the second tap's click is held - and
+ * if it decides the double tap was a gesture, that click never arrives at all.
+ * The page is already at fit-width, so there is nothing to zoom to and nothing
+ * visibly happens; the tap is simply gone.
+ *
+ * `touch-action: manipulation` is the supported way to say this element never
+ * needs double-tap zoom, which is exactly true of a digit key. It is on the
+ * keys rather than the whole screen so that pinch-zoom - the accessibility
+ * behaviour iOS 10 was protecting - is untouched everywhere else.
+ */
 const KEY_CLASS =
-  'flex h-full w-full items-center justify-center rounded-xl border-2 border-(--color-line) bg-(--color-card) text-3xl font-semibold transition active:scale-95 active:bg-(--color-brand-soft) disabled:opacity-40 sm:rounded-2xl sm:text-4xl';
+  'flex h-full w-full touch-manipulation items-center justify-center rounded-xl border-2 border-(--color-line) bg-(--color-card) text-3xl font-semibold transition active:scale-95 active:bg-(--color-brand-soft) disabled:opacity-40 sm:rounded-2xl sm:text-4xl';
 
 export function NumberPad({
   disabled,
@@ -142,7 +162,7 @@ export function NumberPad({
           disabled={disabled || !canCheck}
           onClick={onCheck}
           aria-label="Check"
-          className="col-start-4 row-span-4 row-start-1 flex h-full w-full items-center justify-center rounded-xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30 sm:rounded-2xl"
+          className="col-start-4 row-span-4 row-start-1 flex h-full w-full touch-manipulation items-center justify-center rounded-xl bg-(--color-brand) text-white transition active:scale-95 disabled:opacity-30 sm:rounded-2xl"
         >
           <CheckIcon />
         </button>
