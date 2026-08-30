@@ -26,6 +26,19 @@ model User {
   /// The year the home screen reopens on. Australian school year: "K" or "1" through "6".
   selectedLevel String?
 
+  /// Which subjects this child may practise, set by their parent beside the
+  /// level and enforced the same way - the home screen draws these cards and
+  /// `/play` refuses any other subject. An array rather than a join table for
+  /// `ShareInvite.childIds`' reason: a handful of short strings, written whole
+  /// on every save and read whole beside the rest of the profile.
+  ///
+  /// The default is what backfilled every row that predates the column, which is
+  /// the honest reading of an app that shipped maths first. It means nothing on
+  /// a parent's row - a parent does not play - and a child is always created
+  /// with an explicit list, so the default is a migration's answer rather than a
+  /// value anything relies on.
+  subjects String[] @default(["maths"])
+
   /// Chosen once at first sign-in and then permanent: "parent" or "child". Null
   /// means the choice hasn't been made yet, which is what routes to the chooser -
   /// including for every account that already existed before this column did.

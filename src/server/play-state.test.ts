@@ -44,6 +44,16 @@ describe('readPlayState', () => {
     expect(state.player.selectedLevel).toBe('3');
   });
 
+  // The subjects ride along on the row the level, the streak, the stars and the
+  // goal already come off, so gating the play screen on them costs no read.
+  it('carries the subjects their parent offers them', async () => {
+    const childId = await makeChild(await makeParent(), { subjects: ['maths'] });
+
+    const state = await readPlayState(childId, 'maths', '3', 5);
+
+    expect(state.player.subjects).toEqual(['maths']);
+  });
+
   it('returns the profile, topics and player state a sitting needs', async () => {
     const childId = await makeChild(await makeParent());
     await play(childId, 3);

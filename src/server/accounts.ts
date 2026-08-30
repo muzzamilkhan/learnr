@@ -94,6 +94,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
         avatar: true,
         photo: { select: { dataUrl: true } },
         selectedLevel: true,
+        subjects: true,
         targetKind: true,
         targetValue: true,
         loginCode: true,
@@ -106,6 +107,7 @@ export async function listChildren(parentId: string): Promise<ChildProfile[] | n
       avatar: parseAvatar(row.avatar) ?? 'fox',
       photo: parsePhoto(row.photo?.dataUrl),
       level: row.selectedLevel,
+      subjects: row.subjects,
       target: parseTarget(row.targetKind, row.targetValue),
       code: row.loginCode,
       codeExpiresAt: row.loginCodeExpiresAt,
@@ -122,6 +124,12 @@ export interface ChildInput {
   /** Null clears the photograph, which is what "Remove photo" on the form means. */
   photo: string | null;
   level: YearLevel;
+  /**
+   * Which subjects this child may practise. Never empty - `parseSubjects` is
+   * what refuses a choice naming nothing, so "at least one" is decided at the
+   * boundary and this type can say so.
+   */
+  subjects: string[];
   /** Null clears the target, which is what "No goal" on the form means. */
   target: DailyTarget | null;
 }
@@ -141,6 +149,7 @@ export async function createChild(parentId: string, input: ChildInput): Promise<
         name: input.name,
         avatar: input.avatar,
         selectedLevel: input.level,
+        subjects: input.subjects,
         targetKind: input.target?.kind ?? null,
         targetValue: input.target?.value ?? null,
         // A nested create, so the photograph lands in the same statement as the
@@ -178,6 +187,9 @@ export async function updateChild(
           name: input.name,
           avatar: input.avatar,
           selectedLevel: input.level,
+          // Written whole rather than added to, so a subject the parent
+          // unticked is a subject the child stops being offered.
+          subjects: input.subjects,
           targetKind: input.target?.kind ?? null,
           targetValue: input.target?.value ?? null,
         },

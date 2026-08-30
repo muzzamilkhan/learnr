@@ -1,4 +1,4 @@
-import { listLevels } from '@/content/catalog';
+import { availableSubjects, listLevels } from '@/content/catalog';
 import { ParentDashboard, type ChildRow } from '@/components/parent-dashboard';
 import { SharedChildren, type SharedChildRow } from '@/components/shared-children';
 import { SharingPanel, type InviteRow } from '@/components/sharing-panel';
@@ -40,6 +40,7 @@ export default async function ChildrenPage() {
     avatar: child.avatar,
     photo: child.photo,
     level: child.level,
+    subjects: child.subjects,
     target: child.target,
     code: child.code,
     codeExpiresAt: child.codeExpiresAt?.toISOString() ?? null,
@@ -65,7 +66,7 @@ export default async function ChildrenPage() {
 
   return (
     <>
-      <ParentDashboard profiles={rows} levels={listLevels()} />
+      <ParentDashboard profiles={rows} levels={listLevels()} allSubjects={availableSubjects()} />
 
       <SharedChildren profiles={shared} />
 

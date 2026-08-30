@@ -1,0 +1,20 @@
+-- A parent chooses which subjects their child practises.
+--
+-- The column is set beside the level and enforced the same way: the home screen
+-- draws these subjects' cards and `/play` refuses any other. An array rather
+-- than a join table for `ShareInvite.childIds`' reason - a handful of short
+-- strings, written whole on every save and read whole beside the rest of the
+-- profile.
+--
+-- The default is the whole of the backfill. Every row that predates this column
+-- comes out maths-only, which is the honest reading of an app that shipped
+-- maths first and only later added English: nobody's parent has been asked yet,
+-- so nobody is silently opted into a second subject. A child created from here
+-- on always carries an explicit list, so the default is this statement's answer
+-- rather than a value the app relies on.
+--
+-- NOT NULL with a default, so the write is a catalog change on Postgres 11 and
+-- up rather than a rewrite of the table - and no row can ever hold NULL, which
+-- would be a third meaning beside "these subjects" and the empty list that
+-- `subjectsAllowed` already degrades.
+ALTER TABLE "User" ADD COLUMN "subjects" TEXT[] NOT NULL DEFAULT ARRAY['maths']::TEXT[];

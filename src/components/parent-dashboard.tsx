@@ -30,6 +30,8 @@ export interface ChildRow {
   /** The cropped photograph, if their parent has given them one. */
   photo: string | null;
   level: string | null;
+  /** The subjects their parent offers them - never empty on a saved profile. */
+  subjects: string[];
   target: DailyTarget | null;
   code: string | null;
   codeExpiresAt: string | null;
@@ -63,11 +65,14 @@ const ICON_PRIMARY =
 export function ParentDashboard({
   profiles,
   levels,
+  allSubjects,
 }: {
   // Not `children` - that name belongs to React, and passing this list under it
   // reads as nested JSX to every tool that looks at the file.
   profiles: ChildRow[];
   levels: YearLevel[];
+  /** Everything with content, so a third subject shipping fills the form itself. */
+  allSubjects: string[];
 }) {
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const router = useRouter();
@@ -80,6 +85,7 @@ export function ParentDashboard({
             <li key={child.id}>
               <ChildForm
                 levels={levels}
+                allSubjects={allSubjects}
                 initial={child}
                 onDone={() => {
                   setEditing(null);
@@ -99,6 +105,7 @@ export function ParentDashboard({
       {editing === 'new' ? (
         <ChildForm
           levels={levels}
+          allSubjects={allSubjects}
           initial={null}
           onDone={() => {
             setEditing(null);
@@ -118,8 +125,8 @@ export function ParentDashboard({
 
       {profiles.length === 0 && editing !== 'new' ? (
         <p className="text-sm text-(--color-ink-soft)">
-          Add a profile for each child. You&rsquo;ll pick their level, and they sign in with a
-          code rather than an account of their own.
+          Add a profile for each child. You&rsquo;ll pick their level and subjects, and they
+          sign in with a code rather than an account of their own.
         </p>
       ) : null}
     </section>
@@ -133,6 +140,15 @@ export function ParentDashboard({
  */
 export const targetLabel = (target: DailyTarget): string =>
   `${target.value} ${target.kind === 'minutes' ? 'min' : 'questions'} a day`;
+
+/**
+ * The subjects in a parent's words, for the same row of short facts. Named
+ * rather than counted: with two to four of them "Maths, English" is no longer
+ * than "2 subjects" and says which, which is the only thing a parent skimming
+ * wants to know.
+ */
+export const subjectsLabel = (subjects: string[]): string =>
+  subjects.map((subject) => subject.charAt(0).toUpperCase() + subject.slice(1)).join(', ');
 
 function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
   // Read once, at mount: a code's hour does not turn over while a parent looks
@@ -210,6 +226,11 @@ function ChildCard({ child, onEdit }: { child: ChildRow; onEdit: () => void }) {
           <p className="truncate text-base font-semibold">{child.name}</p>
           <p className="text-sm text-(--color-ink-soft)">
             {child.level ? shortYearLabel(child.level as YearLevel) : 'No level set'}
+            {/* Beside the level because it is the other half of what this child
+                is set to practise, and always shown rather than only when it is
+                unusual: a card saying "Year 3" and nothing else would leave a
+                parent who took English away with no sign that they had. */}
+            {child.subjects.length ? ` · ${subjectsLabel(child.subjects)}` : ''}
             {/* Only ever an addition. A card reading "No daily goal" would put an
                 absence on every card of every parent who never wanted one. */}
             {child.target ? ` · Goal: ${targetLabel(child.target)}` : ''}
@@ -374,11 +395,13 @@ function CodePanel({
 
 function ChildForm({
   levels,
+  allSubjects,
   initial,
   onDone,
   onCancel,
 }: {
   levels: YearLevel[];
+  allSubjects: string[];
   initial: ChildRow | null;
   onDone: () => void;
   onCancel: () => void;
@@ -391,6 +414,15 @@ function ChildForm({
   const [photo, setPhoto] = useState<string | null>(initial?.photo ?? null);
   const [cropping, setCropping] = useState(false);
   const [level, setLevel] = useState<string>(initial?.level ?? levels[0] ?? 'K');
+  // A new child starts on maths alone: it is what every child practises from
+  // Kindergarten, and it is what every profile that predates this form was
+  // backfilled to, so a new profile and an old one mean the same thing. The
+  // fallback covers maths not being among the subjects with content - the form
+  // must never open with nothing ticked, since nothing ticked is a save it
+  // refuses.
+  const [subjects, setSubjects] = useState<string[]>(
+    initial?.subjects ?? (allSubjects.includes('maths') ? ['maths'] : allSubjects.slice(0, 1)),
+  );
   // "none" is a real choice here rather than an absence, so the dropdown has
   // something to show for the child who has no goal.
   const [targetKind, setTargetKind] = useState<TargetKind | 'none'>(initial?.target?.kind ?? 'none');
@@ -407,14 +439,34 @@ function ChildForm({
     if (kind !== 'none') setTargetValue(String(targetOptions(kind)[0]));
   };
 
+  // Kept in the order the app offers them rather than the order they were
+  // tapped, so the chips here and the card's fact line always read the same.
+  const toggleSubject = (subject: string) =>
+    setSubjects((chosen) =>
+      chosen.includes(subject)
+        ? chosen.filter((other) => other !== subject)
+        : allSubjects.filter((other) => chosen.includes(other) || other === subject),
+    );
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!name.trim()) return;
+    // The same two things the Save button is disabled on. `parseSubjects` is
+    // what actually refuses an empty choice - this only saves the round trip.
+    if (!name.trim() || subjects.length === 0) return;
 
     startTransition(async () => {
       const saved = initial
-        ? await updateChildAction(initial.id, name, avatar, level, targetKind, targetValue, photo)
-        : await createChildAction(name, avatar, level, targetKind, targetValue, photo);
+        ? await updateChildAction(
+            initial.id,
+            name,
+            avatar,
+            level,
+            targetKind,
+            targetValue,
+            photo,
+            subjects,
+          )
+        : await createChildAction(name, avatar, level, targetKind, targetValue, photo, subjects);
       if (saved) onDone();
     });
   };
@@ -451,6 +503,46 @@ function ChildForm({
           />
         </div>
       </div>
+
+      {/*
+        Which subjects this child is offered - the other half of the course their
+        parent sets, so it sits directly under the level rather than down beside
+        the picture. Toggles rather than a dropdown for the reason the avatar row
+        below is toggles: a small closed set, more than one of which may be on at
+        once, and every option worth having on screen together.
+
+        At least one has to be ticked. That is refused at the boundary
+        (`parseSubjects`) rather than trusted to the form, and it is said here in
+        words as well, since a greyed-out button explains nothing.
+      */}
+      <fieldset>
+        <legend className="mb-2 text-sm font-semibold">Subjects</legend>
+        <div className="flex flex-wrap gap-2">
+          {allSubjects.map((option) => {
+            const chosen = subjects.includes(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => toggleSubject(option)}
+                aria-pressed={chosen}
+                className={`no-select rounded-lg border px-3 py-1.5 text-sm font-semibold capitalize transition ${
+                  chosen
+                    ? 'border-(--color-brand) bg-(--color-brand-soft) text-(--color-brand)'
+                    : 'border-(--color-line) text-(--color-ink-soft) hover:border-(--color-brand)'
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-sm text-(--color-ink-soft)">
+          {subjects.length === 0
+            ? 'Pick at least one.'
+            : 'What they see on their home screen. Their progress in a subject is kept either way.'}
+        </p>
+      </fieldset>
 
       <div className="flex flex-wrap items-end gap-3">
         <div>
@@ -563,7 +655,11 @@ function ChildForm({
       ) : null}
 
       <div className="flex gap-2">
-        <button type="submit" disabled={pending || !name.trim()} className={PRIMARY}>
+        <button
+          type="submit"
+          disabled={pending || !name.trim() || subjects.length === 0}
+          className={PRIMARY}
+        >
           {initial ? 'Save' : 'Add child'}
         </button>
         <button type="button" onClick={onCancel} className={BUTTON}>

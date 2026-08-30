@@ -83,6 +83,21 @@ describe('a shared child', () => {
     expect(viewable?.[0]?.code).toBeNull();
     expect(viewable?.[0]?.codeExpiresAt).toBeNull();
   });
+
+  // The level comes across, and the subjects sit beside it for the same reason:
+  // a viewer reads the same profile the owner set, minus the code. Unlike the
+  // code this is not withheld - what a child practises is the very thing the
+  // report a viewer was given is about.
+  it('carries the subjects their parent set', async () => {
+    const owner = await makeParent();
+    const childId = await makeChild(owner, { subjects: ['english'] });
+    const viewer = await makeParent();
+
+    const invite = await createShareInvite(owner, [childId]);
+    await acceptShareInvite(invite!.token, viewer);
+
+    expect((await readViewableChildren(viewer))?.[0]?.subjects).toEqual(['english']);
+  });
 });
 
 describe('revokeShare', () => {

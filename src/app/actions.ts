@@ -20,7 +20,9 @@ import {
   revokeShare,
 } from '@/server/sharing';
 import { readViewer } from '@/app/viewer';
+import { availableSubjects } from '@/content/catalog';
 import { parseYearLevel } from '@/lib/curriculum';
+import { parseSubjects } from '@/lib/subjects';
 import { parseAvatar } from '@/lib/avatars';
 import { parseTarget } from '@/lib/rewards/target';
 import { browserIp, createThrottle } from '@/lib/throttle';
@@ -78,11 +80,20 @@ function parseChildInput(
   targetKind: string,
   targetValue: string,
   photo: string | null,
+  subjects: string[],
 ): ChildInput | null {
   const trimmed = name.trim();
   const parsedAvatar = parseAvatar(avatar);
   const parsedLevel = parseYearLevel(level);
-  if (!trimmed || trimmed.length > 40 || !parsedAvatar || !parsedLevel) return null;
+
+  // Which subjects exist is derived from the shipped templates, so the catalog
+  // is what the choice is checked against - and a choice naming none of them
+  // fails the whole save, exactly as a level that is not a school year does.
+  // "At least one subject" is decided in `parseSubjects` and nowhere else.
+  const parsedSubjects = parseSubjects(subjects, availableSubjects());
+  if (!trimmed || trimmed.length > 40 || !parsedAvatar || !parsedLevel || !parsedSubjects) {
+    return null;
+  }
 
   // "No goal" is a choice a parent makes, so it is a valid input that clears the
   // target - and a target that fails to parse is refused outright rather than
@@ -100,6 +111,7 @@ function parseChildInput(
     photo: parsePhoto(photo),
     level: parsedLevel,
     target,
+    subjects: parsedSubjects,
   };
 }
 
@@ -110,9 +122,10 @@ export async function createChildAction(
   targetKind: string,
   targetValue: string,
   photo: string | null,
+  subjects: string[],
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo, subjects);
   if (!parentId || !input) return false;
 
   const created = await createChild(parentId, input);
@@ -128,9 +141,10 @@ export async function updateChildAction(
   targetKind: string,
   targetValue: string,
   photo: string | null,
+  subjects: string[],
 ): Promise<boolean> {
   const parentId = await requireParentId();
-  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo);
+  const input = parseChildInput(name, avatar, level, targetKind, targetValue, photo, subjects);
   if (!parentId || !input) return false;
 
   const updated = await updateChild(parentId, childId, input);

@@ -18,7 +18,7 @@ export async function makeParent(
 /** A managed child: no email, no Account row, a parent who owns them. */
 export async function makeChild(
   parentId: string,
-  overrides: { name?: string; level?: string; avatar?: string } = {},
+  overrides: { name?: string; level?: string; avatar?: string; subjects?: string[] } = {},
 ): Promise<string> {
   const user = await testPrisma().user.create({
     data: {
@@ -27,6 +27,7 @@ export async function makeChild(
       name: overrides.name ?? 'Child',
       selectedLevel: overrides.level ?? '3',
       avatar: overrides.avatar ?? 'fox',
+      subjects: overrides.subjects ?? ['maths', 'english'],
     },
   });
   return user.id;

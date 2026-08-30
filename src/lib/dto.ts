@@ -52,6 +52,12 @@ export interface ChildProfile {
   photo: string | null;
   /** Set by the parent at creation and only ever changed by them. */
   level: string | null;
+  /**
+   * The subjects their parent offers them, as stored. The caller resolves them
+   * against content the way it resolves the level - `subjectsAllowed` is where
+   * a subject whose content has since gone is dropped.
+   */
+  subjects: string[];
   /** The daily target the parent set, or null for the child who has none. */
   target: DailyTarget | null;
   /** The live code, if one has been generated and not yet used or expired. */
@@ -74,6 +80,13 @@ export interface ViewableChild extends ChildProfile {
 export interface PlayerState {
   /** As stored - the caller resolves it against content. */
   selectedLevel: string | null;
+  /**
+   * The subjects this child may practise, as stored. Empty when there is no row
+   * to read - `subjectsAllowed` is what turns that into every subject rather
+   * than a home screen with no cards on it, the same trade the play screen
+   * makes when a profile read fails.
+   */
+  subjects: string[];
   streak: PlayStreak;
   stars: number;
   target: DailyTarget | null;

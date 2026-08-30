@@ -352,6 +352,7 @@ export async function awardRoundStars(
 
 const noPlayerState = (): PlayerState => ({
   selectedLevel: null,
+  subjects: [],
   streak: noStreak(),
   stars: 0,
   target: null,
@@ -365,6 +366,7 @@ export async function readPlayerState(userId: string): Promise<PlayerState> {
       where: { id: userId },
       select: {
         selectedLevel: true,
+        subjects: true,
         playStreak: true,
         playStreakDay: true,
         stars: true,
@@ -377,6 +379,7 @@ export async function readPlayerState(userId: string): Promise<PlayerState> {
 
     return {
       selectedLevel: user.selectedLevel,
+      subjects: user.subjects,
       streak: { days: user.playStreak, lastDay: user.playStreakDay },
       stars: user.stars,
       target: parseTarget(user.targetKind, user.targetValue),

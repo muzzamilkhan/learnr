@@ -247,6 +247,12 @@ null for anything else.
 
 **A topic is what a question practises** ("counting numbers", "even and odd").
 
+**A subject exists because content cites it**, the same way the curriculum is
+derived rather than declared - `availableSubjects()` in `catalog.ts` is the list,
+ordered by `compareSubjects` so maths leads. It is what a parent's choice of
+subjects for a child is checked against and what every screen offering subjects
+lists, so a third subject shipping reaches all of them at once.
+
 **Levels and topics are many-to-many, and neither owns the other.** The pairing
 lives on the template - one year, one topic - so the curriculum is *derived from
 content*, not declared. Adding a Year 4 division template is all it takes to put
@@ -1633,9 +1639,50 @@ read off this screen by eye and typed into another device.
 A **managed child** is a `User` row with `parentId` set, no email and no `Account`
 row. Because it is an ordinary user row, `LearningSession`, `Attempt`,
 `TopicSkill`, `records.ts` and the play actions work on it unchanged. `parentId` is
-the only flag that matters downstream: it is what fixes the level. A managed child
-gets `SubjectCards` for their `selectedLevel` with no dropdown, and `/play`
-**redirects** a mismatched `level` parameter back to theirs.
+the only flag that matters downstream: it is what fixes the level *and* the
+subjects. A managed child gets `SubjectCards` for their `selectedLevel` with no
+dropdown, and `/play` **redirects** a mismatched `level` parameter back to theirs.
+
+**Which subjects a child practises is their parent's too** (`User.subjects`), set
+in the same form as the level and enforced the same way - the home screen draws
+only those cards, and `/play` refuses any other subject rather than trusting a
+hidden card to be the whole of it. **At least one, and that is decided at the
+boundary**: `parseSubjects` (`src/lib/subjects.ts`, beside `parseYearLevel` and
+`parseTarget`) drops anything the catalog has no content for and returns null when
+nothing is left, so an empty choice fails the whole save the way an unparseable
+level already does. Which subjects exist is derived from the shipped templates, so
+`availableSubjects()` is passed in rather than declared in `src/lib` - the same
+shape as `resolveInitialLevel` taking its levels.
+
+**A refused subject goes home; a wrong level is corrected.** The two redirects
+differ because the URLs are asking for different things: a mismatched level still
+names a lesson this child is allowed, so correcting it lands them where they were
+going, while a subject they were not given names one they are not - and silently
+starting a different lesson is worse than showing them the cards that are theirs.
+
+**An array column rather than a join table**, for `ShareInvite.childIds`' reason:
+a handful of short strings, written whole on every save and read whole beside the
+rest of the profile. It rides on the row `readPlayerState` already reads, so
+gating the play screen costs no query. Its `@default(["maths"])` **is** the
+backfill - every row predating the column came out maths-only, which is the honest
+reading of an app that shipped maths first and added English later: nobody's
+parent had been asked yet, so nobody was silently opted in. A new profile starts
+on maths alone for the same reason, so an old profile and a new one mean the same
+thing.
+
+**An empty list reads as every subject, not as none** (`subjectsAllowed`). A child
+cannot be saved without one, so an empty list is a row disagreeing with itself,
+and the answer to that is the screen they had before this feature rather than a
+home screen with no cards on it - the trade the play screen already makes when a
+profile read fails. A refused save is the parent's to see; a child stuck at a
+blank screen has nobody to tell.
+
+**The parent's report is not gated on it.** `/progress` lists every subject with
+content whatever the child is currently offered: taking English away stops new
+English questions, and a report that hid the English already done would read as
+though it never happened. Nothing on that screen is a way to practise, so there is
+nothing there to gate. **The speed run is untouched** for the reason it is walled
+off everywhere else - a run has no curriculum subject and writes no `Attempt`.
 
 **A child with no parent is a shape the app no longer creates.** The level dropdown
 is still what `/` draws for a `child` row without a `parentId`, but nothing can

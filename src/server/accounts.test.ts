@@ -69,6 +69,15 @@ describe('listChildren', () => {
     expect(children).toHaveLength(1);
     expect(children?.[0]?.name).toBe('Mine');
   });
+
+  // The dashboard draws them on the card and the form opens on them, so they
+  // come back with the rest of the profile rather than in a read of their own.
+  it('reports the subjects each child is offered', async () => {
+    const parentId = await makeParent();
+    await makeChild(parentId, { subjects: ['english'] });
+
+    expect((await listChildren(parentId))?.[0]?.subjects).toEqual(['english']);
+  });
 });
 
 describe('removeChild', () => {
@@ -131,12 +140,29 @@ describe('createChild', () => {
       photo: null,
       level: '3',
       target: { kind: 'questions', value: 10 },
+      subjects: ['maths', 'english'],
     });
 
     expect(childId).toBeTypeOf('string');
     expect(await testPrisma().user.findUnique({ where: { id: childId! } })).toMatchObject({
       name: 'Ada', avatar: 'fox', selectedLevel: '3',
       targetKind: 'questions', targetValue: 10, parentId, role: 'child',
+      subjects: ['maths', 'english'],
+    });
+  });
+
+  // What a parent may practise their child on is theirs to set, so it is stored
+  // as chosen rather than defaulted to everything with content.
+  it('stores a child offered one subject', async () => {
+    const parentId = await makeParent();
+
+    const childId = await createChild(parentId, {
+      name: 'Ada', avatar: 'fox', photo: null, level: '3', target: null,
+      subjects: ['maths'],
+    });
+
+    expect(await testPrisma().user.findUnique({ where: { id: childId! } })).toMatchObject({
+      subjects: ['maths'],
     });
   });
 });
@@ -148,11 +174,30 @@ describe('updateChild', () => {
 
     const ok = await updateChild(parentId, childId, {
       name: 'Grace', avatar: 'owl', photo: null, level: '5', target: null,
+      subjects: ['maths', 'english'],
     });
 
     expect(ok).toBe(true);
     expect(await testPrisma().user.findUnique({ where: { id: childId } })).toMatchObject({
       name: 'Grace', avatar: 'owl', selectedLevel: '5', targetKind: null,
+      subjects: ['maths', 'english'],
+    });
+  });
+
+  // Taking a subject away is the half worth proving: the column is written as
+  // the whole list every time rather than added to, so a subject dropped from
+  // the form is a subject the child stops being offered.
+  it('takes a subject away', async () => {
+    const parentId = await makeParent();
+    const childId = await makeChild(parentId, { subjects: ['maths', 'english'] });
+
+    await updateChild(parentId, childId, {
+      name: 'Ada', avatar: 'fox', photo: null, level: '3', target: null,
+      subjects: ['english'],
+    });
+
+    expect(await testPrisma().user.findUnique({ where: { id: childId } })).toMatchObject({
+      subjects: ['english'],
     });
   });
 
@@ -165,6 +210,7 @@ describe('updateChild', () => {
 
     const ok = await updateChild(mine, theirChild, {
       name: 'Taken', avatar: 'owl', photo: null, level: '5', target: null,
+      subjects: ['maths'],
     });
 
     expect(ok).toBe(false);

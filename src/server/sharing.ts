@@ -82,6 +82,7 @@ async function listSharedWithMe(
             avatar: true,
             photo: { select: { dataUrl: true } },
             selectedLevel: true,
+            subjects: true,
             targetKind: true,
             targetValue: true,
             parent: { select: { name: true, email: true } },
@@ -98,6 +99,7 @@ async function listSharedWithMe(
       // it is how a grown-up reading two families' children tells them apart.
       photo: parsePhoto(child.photo?.dataUrl),
       level: child.selectedLevel,
+      subjects: child.subjects,
       target: parseTarget(child.targetKind, child.targetValue),
       // Never shown to a viewer, and never read either.
       code: null,

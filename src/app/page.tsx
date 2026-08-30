@@ -6,7 +6,7 @@ import { claimParentRole } from '@/server/accounts';
 import { readPlayer } from '@/server/play-state';
 import { readViewableChildren } from '@/server/sharing';
 import { readViewer } from './viewer';
-import { listLevels, listSubjects } from '@/content/catalog';
+import { availableSubjects, listLevels, listSubjects } from '@/content/catalog';
 import { SignOutButton } from '@/components/auth-buttons';
 import { BoltIcon } from '@/components/bolt-icon';
 import { DailyGoal } from '@/components/daily-goal';
@@ -19,6 +19,7 @@ import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
 import { resolveInitialLevel } from '@/lib/curriculum';
+import { subjectsAllowed } from '@/lib/subjects';
 import { CHILD_DEFAULT_TAB, SPEED_SECTION } from '@/lib/speedrun/tabs';
 
 // The screen is per-child: it opens on the level that child last chose, so it
@@ -172,6 +173,25 @@ export default async function HomePage({
   const initialLevel = resolveInitialLevel(player?.selectedLevel ?? null, levels);
   const isManagedChild = account?.role === 'child' && account.parentId !== null;
 
+  /*
+    Which subjects this child is offered. A managed child gets the ones their
+    parent ticked and no others - the same shape as the level, which is theirs
+    to set too - and everybody else gets whatever has content: a child on their
+    own account has no parent to have chosen for them.
+
+    Hiding a card is not the enforcement. `/play` refuses the subject as well,
+    because the subject is a query parameter and hiding a card would leave a
+    typed URL as a way straight past it - exactly the argument the level makes.
+
+    `subjectsAllowed` is what reads an empty list as "everything" rather than as
+    "nothing", so a row that somehow disagrees with itself costs a child a
+    restriction rather than their whole home screen.
+  */
+  const allowedSubjects = subjectsAllowed(player?.subjects ?? [], availableSubjects());
+  const offeredSubjects = isManagedChild
+    ? subjects.filter((summary) => allowedSubjects.includes(summary.subject))
+    : subjects;
+
   // A parent opens this app to see how their children are going, so that is what
   // their home screen is. The report lives at `/progress` and is not rebuilt here
   // - with children to report on, this screen's whole job is to get out of the
@@ -296,9 +316,9 @@ export default async function HomePage({
         ) : isManagedChild ? (
           // The parent set this year, so it is shown rather than chosen: subjects
           // for their level, and no dropdown to wander out of it.
-          <SubjectCards subjects={subjects} level={initialLevel} />
+          <SubjectCards subjects={offeredSubjects} level={initialLevel} />
         ) : (
-          <LevelPicker subjects={subjects} levels={levels} initialLevel={initialLevel} />
+          <LevelPicker subjects={offeredSubjects} levels={levels} initialLevel={initialLevel} />
         )}
       </section>
 

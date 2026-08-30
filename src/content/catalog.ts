@@ -1,5 +1,10 @@
 import type { QuestionTemplate } from '../lib/templates/types';
-import { compareYearLevels, type Stage, type YearLevel } from '../lib/curriculum';
+import {
+  compareSubjects,
+  compareYearLevels,
+  type Stage,
+  type YearLevel,
+} from '../lib/curriculum';
 import { mathsTemplates } from './maths';
 import { englishTemplates } from './english';
 
@@ -53,6 +58,24 @@ export function listSubjects(templates: QuestionTemplate[] = allTemplates): Subj
         });
       return { subject, levels };
     });
+}
+
+/**
+ * The subjects something has been written for, in the order the app offers them.
+ *
+ * Derived from the templates rather than declared, the way the curriculum is:
+ * a subject exists because content cites it. This is what a parent's choice of
+ * subjects is checked against (`parseSubjects`) and what every screen offering
+ * subjects lists, so a third subject shipping reaches all of them at once.
+ *
+ * `listSubjects` sorts alphabetically, which puts English in front of maths.
+ * `compareSubjects` is the order a person is offered them in - maths leads,
+ * because it is the one every child practises from Kindergarten.
+ */
+export function availableSubjects(templates: QuestionTemplate[] = allTemplates): string[] {
+  return listSubjects(templates)
+    .map((summary) => summary.subject)
+    .sort(compareSubjects);
 }
 
 /** Every year with content, across all subjects - the home screen's level list. */

@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { listSubjects } from '@/content/catalog';
+import { availableSubjects } from '@/content/catalog';
 import { ProgressReport } from '@/components/progress-report';
 import { SpeedBanner } from '@/components/speed-banner';
 import { resolveChild } from '@/lib/children';
-import { compareSubjects } from '@/lib/curriculum';
 import { readChildRecord, CALENDAR_WINDOW_MS } from '@/server/reports';
 import { readUnseenRecords } from '@/server/speed-records';
 import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
@@ -71,16 +70,15 @@ export default async function ProgressPage({
     );
   }
 
-  // `listSubjects` sorts alphabetically, which puts English in front of maths
-  // and so makes English the report's default. Maths is the subject a parent
-  // opens this screen for - it is the one every child practises from
-  // Kindergarten - so it leads here, and the first entry is what a bare
-  // `/progress` resolves to. Ordering is this screen's, not the catalog's: the
-  // landing page lists subjects to describe coverage, where alphabetical is
-  // the honest order.
-  const subjects = listSubjects()
-    .map((summary) => summary.subject)
-    .sort(compareSubjects);
+  // Every subject with content, maths first - `availableSubjects` is where that
+  // order lives, because maths is the one every child practises from
+  // Kindergarten and the first entry is what a bare `/progress` resolves to.
+  //
+  // Deliberately not the subjects this child is currently *offered*: taking
+  // English away stops them being given new English questions, and a report
+  // that hid the English they have already done would read as though it never
+  // happened. Nothing here is a way to practise, so there is nothing to gate.
+  const subjects = availableSubjects();
   const subject = subjects.find((option) => option === subjectParam) ?? subjects[0] ?? 'maths';
 
   const now = requestNow();

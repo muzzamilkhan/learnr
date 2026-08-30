@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { readPlayState } from '@/server/play-state';
 import { readViewer } from '@/app/viewer';
-import { templatesFor } from '@/content/catalog';
+import { availableSubjects, templatesFor } from '@/content/catalog';
 import { PlaySession } from '@/components/play-session';
 import { SignOutButton } from '@/components/auth-buttons';
 import { emptyProfile } from '@/lib/analytics/profile';
@@ -10,6 +10,7 @@ import { noStreak } from '@/lib/rewards/streak';
 import { RECENT_MEMORY } from '@/lib/reinforcement/select';
 import { newSession } from '@/lib/session/seed';
 import { parseYearLevel, yearLabel } from '@/lib/curriculum';
+import { subjectsAllowed } from '@/lib/subjects';
 
 export default async function PlayPage({
   searchParams,
@@ -41,6 +42,19 @@ export default async function PlayPage({
   if (managedLevel && managedLevel !== levelParam) {
     redirect(`/play?subject=${subject}&level=${managedLevel}`);
   }
+
+  // And which subjects, for the same reason: a card can only ever offer one
+  // their parent ticked, so only a typed or stale URL reaches this - but a
+  // decision made only in the UI is not made at all.
+  //
+  // Home rather than a redirect to a subject they do have, which is what a wrong
+  // *level* gets. The difference is what the URL is asking for: a wrong level
+  // still names a lesson this child is allowed, so correcting it lands them
+  // where they were going, while a refused subject names one they are not - and
+  // silently starting a different lesson is worse than showing them the cards
+  // that are theirs.
+  const allowedSubjects = subjectsAllowed(player?.subjects ?? [], availableSubjects());
+  if (isManagedChild && !allowedSubjects.includes(subject)) redirect('/');
 
   const templates = level ? templatesFor(subject, level) : [];
 
