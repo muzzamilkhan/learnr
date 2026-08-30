@@ -1,4 +1,6 @@
+import { cookies } from 'next/headers';
 import { signIn, signOut } from '@/auth';
+import { DEBUG_COOKIE } from '@/lib/speedrun/taps';
 
 /**
  * `lg` is the child's scale; `bar` is the landing page's top bar, where it sits
@@ -48,6 +50,12 @@ export function SignOutButton() {
     <form
       action={async () => {
         'use server';
+        // DIAGNOSTIC: the tap-funnel readout is remembered in a cookie for the
+        // life of the browser session, so it goes when whoever turned it on
+        // does. A shared family iPad is the reason: the next person to sign in
+        // is a different child, and inheriting a stranger's diagnostic overlay
+        // over their game is not a thing they can be expected to turn off.
+        (await cookies()).delete(DEBUG_COOKIE);
         await signOut({ redirectTo: '/' });
       }}
     >

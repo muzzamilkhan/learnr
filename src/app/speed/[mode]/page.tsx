@@ -1,7 +1,8 @@
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { SpeedRun } from '@/components/speed-run';
 import { parseMode } from '@/lib/speedrun/modes';
-import { parseDebug } from '@/lib/speedrun/taps';
+import { DEBUG_COOKIE, debugEnabled, parseDebugParam } from '@/lib/speedrun/taps';
 import { CHILD_SPEED_HREF, PARENT_SPEED_HREF } from '@/lib/speedrun/tabs';
 import { readViewer } from '../../(parent)/parent';
 
@@ -58,7 +59,15 @@ export default async function SpeedPage({
   // `'use client'` module is a client reference, so a parser living in
   // `speed-run.tsx` could not be called on the server. The funnel is recorded
   // either way; this only decides whether it is drawn on the device.
-  const debug = parseDebug((await searchParams).debug);
+  //
+  // The URL beats the cookie both ways, and the cookie is what makes the flag
+  // usable at all: a mode chip links to `/speed/multiply.7` and nothing more,
+  // so `?debug=1` could not survive the tap that starts a run. Reading a cookie
+  // costs this route nothing, being `force-dynamic` already.
+  const debug = debugEnabled(
+    parseDebugParam((await searchParams).debug),
+    (await cookies()).get(DEBUG_COOKIE)?.value,
+  );
 
   const { userId, account } = await readViewer();
   const isParent = account?.role === 'parent';

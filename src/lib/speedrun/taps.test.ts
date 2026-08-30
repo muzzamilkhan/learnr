@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  parseDebug,
+  debugEnabled,
+  parseDebugParam,
   RUN_BUCKET_MS,
   summariseTaps,
   WORST_TAPS,
@@ -164,18 +165,47 @@ describe('summariseTaps', () => {
   });
 });
 
-describe('parseDebug', () => {
-  it('turns the probe on only when asked in so many words', () => {
-    expect(parseDebug('1')).toBe(true);
-    expect(parseDebug('taps')).toBe(true);
+describe('parseDebugParam', () => {
+  it('reads the two spellings that turn it on', () => {
+    expect(parseDebugParam('1')).toBe('on');
+    expect(parseDebugParam('taps')).toBe('on');
   });
 
-  it('leaves it off for everything else, including a bare flag', () => {
-    // Diagnostics that draw over a child's game are opt-in, and the cost of
-    // guessing wrong is an overlay on a run somebody meant to play. So this
-    // refuses rather than falling back, unlike `parseScoreTab`.
-    for (const junk of [undefined, '', '0', 'false', 'yes', '__proto__']) {
-      expect(parseDebug(junk)).toBe(false);
+  it('reads the two that turn it off, which a cookie made necessary', () => {
+    // Before the flag persisted there was nothing to turn off: leaving the
+    // query string off was the whole of it. A cookie outlives the URL that set
+    // it, so switching it off has to be sayable.
+    expect(parseDebugParam('0')).toBe('off');
+    expect(parseDebugParam('off')).toBe('off');
+  });
+
+  it('says nothing at all for everything else', () => {
+    // Null is not "off": a URL with no `?debug=` is a URL with no opinion, and
+    // it must leave a cookie already set alone rather than clearing it on the
+    // next run the child taps into.
+    for (const junk of [undefined, '', 'true', 'false', 'yes', '__proto__']) {
+      expect(parseDebugParam(junk)).toBeNull();
+    }
+  });
+});
+
+describe('debugEnabled', () => {
+  it('lets the URL beat the cookie, both ways', () => {
+    expect(debugEnabled('on', undefined)).toBe(true);
+    expect(debugEnabled('off', '1')).toBe(false);
+  });
+
+  it('falls back to the cookie when the URL says nothing', () => {
+    // The reason the cookie exists: a mode chip links to `/speed/multiply.7`
+    // with no query on it, so the flag cannot survive the one tap that starts
+    // a run. Every run after the first would have lost it.
+    expect(debugEnabled(null, '1')).toBe(true);
+    expect(debugEnabled(null, undefined)).toBe(false);
+  });
+
+  it('trusts only the one cookie value it writes', () => {
+    for (const junk of ['', '0', 'true', 'on']) {
+      expect(debugEnabled(null, junk)).toBe(false);
     }
   });
 });

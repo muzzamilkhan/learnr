@@ -23,7 +23,7 @@ import type { TapOutcome } from '@/lib/speedrun/taps';
 import { ExitIcon } from './exit-icon';
 import { NumberPad } from './number-pad';
 import { playSound, primeSounds } from './sounds';
-import { TapReadout } from './tap-readout';
+import { TapReadout, useDebugCookie } from './tap-readout';
 import { reportTaps, TapProbe, timed } from './tap-probe';
 import { SpeedResult } from './speed-result';
 import { SpeedTimer } from './speed-timer';
@@ -175,6 +175,11 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: 
     probe.watch();
     return () => probe.stop();
   }, [probe]);
+
+  // DIAGNOSTIC: remember the flag, because a mode chip links to a bare
+  // `/speed/multiply.7` and would otherwise drop it on the one tap that starts
+  // a run - which made the overlay something only a hand-typed URL ever saw.
+  useDebugCookie(debug);
 
   const start = useCallback(() => {
     // The clock starts when the count-in ends, so the first question has been on

@@ -233,15 +233,58 @@ export function summariseTaps(records: readonly TapRecord[]): TapSummary {
 }
 
 /**
- * Whether `?debug=` is asking for the probe.
+ * The name of the cookie the flag persists in.
  *
- * **This refuses rather than falling back**, which is the opposite of
- * `parseScoreTab` and for the opposite reason. A mistyped tab is a URL in front
- * of a screen that still works, so it opens on a default; a mistyped debug flag
- * would put a diagnostic overlay over a run somebody meant to play. The
- * expensive mistake is on this side, so only the two spellings that mean it
- * turn it on.
+ * **A query string could not survive the tap that starts a run.** A mode chip
+ * links to `/speed/multiply.7` and nothing more - the run is the route, which
+ * is the whole point of that shape - so `?debug=1` was lost the moment anybody
+ * chose what to play. Hand-typing a run URL was the only way the overlay ever
+ * appeared, which is no way to watch a child play twenty runs.
+ *
+ * A session cookie rather than a dated one: it should last as long as the
+ * browser is open and no longer, and it is cleared on sign-out with everything
+ * else that belongs to whoever was using the iPad. It is a diagnostic flag and
+ * decides nothing but whether a readout is drawn, so it is not a boundary and
+ * the client is free to write it.
  */
-export function parseDebug(value: string | undefined): boolean {
-  return value === '1' || value === 'taps';
+export const DEBUG_COOKIE = 'learnr-debug';
+
+/** The one value the cookie is ever set to. Anything else is somebody else's. */
+export const DEBUG_COOKIE_ON = '1';
+
+/**
+ * What a `?debug=` is asking for, if anything.
+ *
+ * **Three answers rather than two, and the third is what the cookie forced.**
+ * Before the flag persisted, "no `?debug=`" and "`?debug=` off" were the same
+ * thing, because leaving the query off *was* how you turned it off. A cookie
+ * outlives the URL that set it, so a URL with no opinion must leave it alone
+ * while a URL that says off must clear it - and those are now different
+ * answers.
+ *
+ * **It still refuses rather than falling back**, which is the opposite of
+ * `parseScoreTab` and for the opposite reason: a mistyped tab is a URL in front
+ * of a screen that works, where a mistyped debug flag would put a diagnostic
+ * overlay over a run somebody meant to play. So only the spellings that plainly
+ * mean it are read, and everything else means nothing at all.
+ */
+export type DebugRequest = 'on' | 'off' | null;
+
+export function parseDebugParam(value: string | undefined): DebugRequest {
+  if (value === '1' || value === 'taps') return 'on';
+  if (value === '0' || value === 'off') return 'off';
+  return null;
+}
+
+/**
+ * Whether to draw the readout: what the URL says, or failing that the cookie.
+ *
+ * The URL wins both ways round, so a run can always be turned back to normal
+ * from the address bar without hunting for browser settings - which matters on
+ * the one device where the flag is used and where clearing a cookie by hand is
+ * several taps into a menu a child should not be in.
+ */
+export function debugEnabled(request: DebugRequest, cookie: string | undefined): boolean {
+  if (request !== null) return request === 'on';
+  return cookie === DEBUG_COOKIE_ON;
 }

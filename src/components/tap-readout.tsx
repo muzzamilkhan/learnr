@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { RUN_BUCKET_MS, type TapSummary } from '@/lib/speedrun/taps';
+import {
+  DEBUG_COOKIE,
+  DEBUG_COOKIE_ON,
+  RUN_BUCKET_MS,
+  type TapSummary,
+} from '@/lib/speedrun/taps';
 import type { TapProbe } from './tap-probe';
 
 /**
@@ -29,6 +34,28 @@ import type { TapProbe } from './tap-probe';
  */
 
 const REFRESH_MS = 1_000;
+
+/**
+ * Keep the cookie in step with what this run resolved to.
+ *
+ * **Written from the browser rather than by the server, because a page cannot
+ * set a cookie.** Only an action or a route handler can, and neither is worth
+ * introducing for a flag that decides whether a readout is drawn - this is a
+ * diagnostic switch, not a boundary, and nothing is trusted on the strength of
+ * it. `SameSite=Lax` and `path=/` so it rides along with every run the child
+ * taps into; no `Max-Age`, so it is a session cookie and dies with the browser.
+ *
+ * It syncs rather than only setting, so `?debug=0` genuinely turns the thing
+ * off. Called unconditionally - a hook cannot be conditional, and the run must
+ * be able to clear a cookie as well as write one.
+ */
+export function useDebugCookie(debug: boolean) {
+  useEffect(() => {
+    document.cookie = debug
+      ? `${DEBUG_COOKIE}=${DEBUG_COOKIE_ON}; path=/; SameSite=Lax`
+      : `${DEBUG_COOKIE}=; path=/; SameSite=Lax; Max-Age=0`;
+  }, [debug]);
+}
 
 function ms(value: number | null): string {
   return value === null ? '-' : `${Math.round(value)}`;
