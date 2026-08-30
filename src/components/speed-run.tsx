@@ -82,45 +82,6 @@ const FLASH_MS = 320;
 /** The run-up, counted in whole seconds. Never below one, whatever `COUNTDOWN_MS` says. */
 const COUNT_FROM = Math.max(1, Math.round(COUNTDOWN_MS / 1000));
 
-/*
- * **A question arrives with no motion on it, and that is the default.**
- *
- * Players reported lag advancing to the next question. Nothing on that path is
- * a round trip - `answerRun` draws the next question in the browser from the
- * run's own seed, and the only request a run makes is the one submitting the
- * score at the end - and generating a question measures at a p95 of 0.11ms on
- * the worst of the twenty-six modes. What was left was these two animations,
- * which restart on every draw because both elements are keyed on it: for the
- * first ~100ms after a correct answer the next question sat at 60% size, dim
- * and out of position. That is not the question being slow to arrive, it is the
- * question arriving and then spending 200ms becoming readable - which at this
- * speed is the same thing to the person reading it.
- *
- * The play screen can afford motion because it holds a right answer on screen
- * for a moment anyway. Here the clock is the thing being enjoyed, so the
- * question is simply there.
- *
- * `?anim=full` restores what used to ship and `?anim=fast` is the third of it,
- * so the three can still be compared on one device without a redeploy between
- * them. Named for what they draw rather than one of them being called
- * "default", since the default is now the absence of them.
- */
-export type AnimSpeed = 'off' | 'fast' | 'full';
-
-// Written out in full per variant, since Tailwind reads class names as literals
-// and a composed one compiles to nothing.
-const PREVIEW_ANIM: Record<AnimSpeed, string> = {
-  off: '',
-  fast: 'animate-[reward-in_90ms_ease-out_both]',
-  full: 'animate-[reward-in_260ms_ease-out_both]',
-};
-
-const CURRENT_ANIM: Record<AnimSpeed, string> = {
-  off: '',
-  fast: 'animate-[speed-drop_70ms_ease-out_both]',
-  full: 'animate-[speed-drop_200ms_ease-out_both]',
-};
-
 interface Props {
   /**
    * The run to play. Not optional and not a starting point to be changed: the
@@ -142,11 +103,9 @@ interface Props {
    */
   backHref: string;
   recordingEnabled: boolean;
-  /** How much motion a new question arrives with. `off` unless `?anim=` asks. */
-  anim: AnimSpeed;
 }
 
-export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, anim }: Props) {
+export function SpeedRun({ mode, homeHref, backHref, recordingEnabled }: Props) {
   const [phase, setPhase] = useState<Phase>('countdown');
   const [run, setRun] = useState<RunState | null>(null);
   /**
@@ -439,7 +398,7 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, anim }: P
         <p
           key={`preview-${run.draw}`}
           aria-hidden
-          className={`${PREVIEW_ANIM[anim]} text-center text-[clamp(1.125rem,3.2vh,2rem)] font-semibold text-(--color-ink-soft) opacity-40 tabular-nums`}
+          className="animate-[reward-in_260ms_ease-out_both] text-center text-[clamp(1.125rem,3.2vh,2rem)] font-semibold text-(--color-ink-soft) opacity-40 tabular-nums"
         >
           {run.next.prompt}
         </p>
@@ -455,7 +414,7 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, anim }: P
               reads as the next question rather than as a second one. */}
           <h1
             key={`current-${run.draw}`}
-            className={`${CURRENT_ANIM[anim]} text-center text-[clamp(2rem,7vh,4.5rem)] leading-none font-bold tabular-nums`}
+            className="animate-[speed-drop_200ms_ease-out_both] text-center text-[clamp(2rem,7vh,4.5rem)] leading-none font-bold tabular-nums"
           >
             {run.current.prompt}
           </h1>
