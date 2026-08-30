@@ -73,9 +73,16 @@ export function TapReadout({ probe }: { probe: TapProbe }) {
 
   if (!summary) return null;
 
+  const launch = probe.launchTiming();
+
   // The three numbers the whole exercise is about, in the order the funnel
   // reaches them: what the browser dropped, what we refused, what was slow.
   const rows: [string, string][] = [
+    // What getting here cost, which is a different question from what a tap
+    // inside the run costs - and the one reported as "a second before clicking
+    // does anything". `wait` is the whole of it, `fetch` the request's share.
+    ['LAUNCH wait', launch ? `${ms(launch.waitMs)}${launch.hardLoad ? ' (load)' : ''}` : '-'],
+    ['  of it, fetch', launch ? ms(launch.fetchMs) : '-'],
     ['taps', `${summary.taps} (${summary.offPad} off-pad)`],
     ['SWALLOWED', `${summary.swallowed} (${summary.swallowedRepeats} repeat)`],
     ['scale', summary.maxScale.toFixed(2)],

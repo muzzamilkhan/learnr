@@ -23,6 +23,7 @@ import type { TapOutcome } from '@/lib/speedrun/taps';
 import { ExitIcon } from './exit-icon';
 import { NumberPad } from './number-pad';
 import { playSound, primeSounds } from './sounds';
+import { reportLaunch, takeLaunchTiming } from './launch-probe';
 import { TapReadout, useDebugCookie } from './tap-readout';
 import { reportTaps, TapProbe, timed } from './tap-probe';
 import { SpeedResult } from './speed-result';
@@ -180,6 +181,20 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: 
   // `/speed/multiply.7` and would otherwise drop it on the one tap that starts
   // a run - which made the overlay something only a hand-typed URL ever saw.
   useDebugCookie(debug);
+
+  /**
+   * DIAGNOSTIC: what getting here cost, reported the moment it is known.
+   *
+   * On mount rather than at the end of the run, because a launch slow enough to
+   * be worth reading about is a launch a child abandons - and a run that is
+   * never finished would otherwise take its own explanation with it. `mode` is
+   * passed so a mark left by a tap on some other chip cannot be spent here.
+   */
+  useEffect(() => {
+    const timing = takeLaunchTiming(modeKey(mode));
+    probe.arrived(timing);
+    reportLaunch(timing, modeKey(mode));
+  }, [mode, probe]);
 
   const start = useCallback(() => {
     // The clock starts when the count-in ends, so the first question has been on

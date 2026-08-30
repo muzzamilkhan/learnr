@@ -1,6 +1,7 @@
 'use client';
 
 import * as Sentry from '@sentry/nextjs';
+import type { LaunchTiming } from '@/lib/speedrun/launch';
 import {
   summariseTaps,
   type TapOutcome,
@@ -70,6 +71,22 @@ export class TapProbe {
    */
   private peakScale = 1;
   private detach: (() => void) | null = null;
+  /**
+   * What getting into this run cost.
+   *
+   * Kept here rather than in React state for the reason everything else in this
+   * class is: the readout polls, so a `setState` would buy a cascading render
+   * on mount to say something that never changes afterwards.
+   */
+  private launch: LaunchTiming | null = null;
+
+  arrived(timing: LaunchTiming) {
+    this.launch = timing;
+  }
+
+  launchTiming(): LaunchTiming | null {
+    return this.launch;
+  }
 
   /**
    * Watch the visual viewport for the whole life of the run.

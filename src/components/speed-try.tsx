@@ -65,6 +65,8 @@ export function SpeedTryLink({
     <div className={`relative mt-auto shrink-0 ${style.pad}`}>
       <Link
         href={`${basePath}/${modeKey(mode)}`}
+        // DIAGNOSTIC: see `speed-cards.tsx`. A Try button starts a run too.
+        data-speed-mode={modeKey(mode)}
         className={`no-select flex w-full items-center justify-center font-bold text-white transition active:scale-95 ${style.link} ${accent.solid}`}
       >
         <BoltIcon className={style.bolt} />

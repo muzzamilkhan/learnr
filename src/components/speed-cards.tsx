@@ -262,6 +262,10 @@ export function SpeedCards({
           <Link
             key={modeKey(mode)}
             href={`${basePath}/${modeKey(mode)}`}
+            // DIAGNOSTIC, with `launch-probe.tsx`: a plain attribute rather
+            // than a handler, so this screen stays a server component and the
+            // twenty-six modes keep rendering with the page.
+            data-speed-mode={modeKey(mode)}
             style={toneStyle(modeHardness(mode))}
             className={`flex items-center justify-center border-(--tone) bg-(--tone-soft) text-center leading-tight font-semibold text-(--tone-ink) transition hover:brightness-95 active:scale-95 ${style.mode}`}
           >

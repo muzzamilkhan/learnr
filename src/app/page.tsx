@@ -15,6 +15,7 @@ import { LevelPicker } from '@/components/level-picker';
 import { LogoMark } from '@/components/logo';
 import { ParentShell } from '@/components/parent-shell';
 import { ProfileMenu } from '@/components/profile-menu';
+import { LaunchWatcher } from '@/components/launch-probe';
 import { SpeedCards } from '@/components/speed-cards';
 import { SpeedScores } from '@/components/speed-scores';
 import { SubjectCards } from '@/components/subject-cards';
@@ -349,6 +350,11 @@ export default async function HomePage({
         />
 
         <h3 className="mt-8 mb-4 text-2xl font-bold tracking-tight">Start a run</h3>
+        {/* DIAGNOSTIC: marks the moment a chip is touched, so the wait a child
+            actually feels is measured from the finger rather than from the
+            router. It is an island beside the cards rather than a handler on
+            them, so `SpeedCards` stays a server component. */}
+        <LaunchWatcher />
         <SpeedCards />
       </section>
 
