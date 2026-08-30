@@ -141,6 +141,16 @@ jobs:
       # Built here rather than on Vercel so the artifact that ships is the one
       # the suite above ran beside, and so a red test means nothing was built
       # at all. --prebuilt then uploads the output rather than the source.
+      #
+      # `SENTRY_AUTH_TOKEN` is what uploads the source maps, and it is scoped
+      # to this one step rather than set on the job or kept in Vercel's own
+      # environment: it is a *build* credential, and a Vercel environment
+      # variable is also handed to every serverless function at runtime, where
+      # nothing needs it. Same reasoning as `DATABASE_URL` above. Without it
+      # the build still succeeds and simply uploads nothing, so an unreadable
+      # production stack trace is the symptom of a missing secret here.
       - run: vercel build --prod
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - run: vercel deploy --prebuilt --prod --yes
