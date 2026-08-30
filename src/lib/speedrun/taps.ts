@@ -99,6 +99,60 @@ export interface TapRecord {
    * iOS 10, whatever `layout.tsx` asks for.
    */
   scale: number;
+  /** `pointerdown` to `pointerup`. Null when the finger never lifted here. */
+  upMs: number | null;
+  /** `pointerdown` to `pointercancel`. Null unless the browser took the touch. */
+  cancelMs: number | null;
+  /**
+   * The pad key under the finger when it lifted, which is not always the one it
+   * landed on and is the whole reason a `pointerup` is worth recording.
+   *
+   * Null means the finger came up somewhere that is not a key - the gap between
+   * two of them, or off the pad entirely. On a tap whose `key` is also null
+   * that says nothing; on a tap that landed on a key it is a drift.
+   */
+  upKey: string | null;
+  /** How far the finger travelled between landing and lifting. Null with no lift. */
+  movedPx: number | null;
+}
+
+/**
+ * What became of a swallowed tap's pointer.
+ *
+ * `swallowed` says a click never arrived and cannot say why, and the mechanisms
+ * that produce it want different fixes - so the funnel could prove the bug was
+ * real without pointing at anything. These are that missing half:
+ *
+ * - **`cancelled`** - a `pointercancel` arrived. The browser took the touch for
+ *   a gesture or a scroll, and said so.
+ * - **`drifted`** - the finger lifted on a different key, or on none. WebKit
+ *   dispatches a click to the nearest common ancestor of the down and up
+ *   elements, so a finger that slides off `7` clicks the grid rather than any
+ *   button, and no handler of ours runs.
+ * - **`held`** - the finger lifted exactly where it landed and there was still
+ *   no click. The pointer stream was complete and the click alone went missing.
+ * - **`lost`** - neither a lift nor a cancel ever came. The stream itself
+ *   stopped, which is a different place to look than all three above.
+ */
+export type SwallowFate = 'cancelled' | 'drifted' | 'held' | 'lost';
+
+const SWALLOW_FATES: readonly SwallowFate[] = ['cancelled', 'drifted', 'held', 'lost'];
+
+/**
+ * Which of the four a swallowed tap was.
+ *
+ * The cancel is read first because it is the only one the browser states rather
+ * than the only one left standing: a cancelled pointer fires no `pointerup`, so
+ * the two cannot honestly disagree, and if they ever do the statement wins.
+ *
+ * Only meaningful for a tap that was swallowed - `summariseTaps` is what decides
+ * that, and a tap that clicked has no fate to explain.
+ */
+export function swallowFate(record: TapRecord): SwallowFate {
+  if (record.cancelMs !== null) return 'cancelled';
+  if (record.upMs === null) return 'lost';
+  if (record.upKey !== record.key) return 'drifted';
+  return 'held';
 }
 
 /**
@@ -146,6 +200,12 @@ export interface TapSummary {
   swallowed: number;
   /** Of those, the ones that repeated the previous key - the double-tap signature. */
   swallowedRepeats: number;
+  /**
+   * Of those, what happened to the pointer, which is the half that names a
+   * cause. See `SwallowFate`. Taps that clicked and taps that missed the pad are
+   * not in here, for the reason they are not in `swallowed`.
+   */
+  swallowedFates: Record<SwallowFate, number>;
   /** Taps that hit no key at all, and so were never the pad's to answer. */
   offPad: number;
   outcomes: Record<TapOutcome, number>;
@@ -153,6 +213,15 @@ export interface TapSummary {
   handlerMs: Percentiles;
   soundMs: Percentiles;
   paintMs: Percentiles;
+  /**
+   * How far fingers travelled between landing and lifting.
+   *
+   * The magnitude behind `drifted`, and it is what decides the fix: a slip of a
+   * few pixels across a key's edge is answered by giving the keys their gaps,
+   * where a slide of sixty is a child moving their hand and wants a different
+   * answer entirely. Taps that never lifted have no distance and are left out.
+   */
+  movedPx: Percentiles;
   /** The largest the viewport ever got. Above 1 is the zoom gesture, caught. */
   maxScale: number;
   buckets: TapBucket[];
@@ -215,6 +284,12 @@ export function summariseTaps(records: readonly TapRecord[]): TapSummary {
 
   const swallowed = records.filter(wasSwallowed);
 
+  const swallowedFates = Object.fromEntries(SWALLOW_FATES.map((name) => [name, 0])) as Record<
+    SwallowFate,
+    number
+  >;
+  for (const record of swallowed) swallowedFates[swallowFate(record)] += 1;
+
   const bucketCount = Math.max(
     1,
     ...records.map((record) => Math.floor(Math.max(0, record.at) / RUN_BUCKET_MS) + 1),
@@ -238,12 +313,14 @@ export function summariseTaps(records: readonly TapRecord[]): TapSummary {
     taps: records.length,
     swallowed: swallowed.length,
     swallowedRepeats: swallowed.filter((record) => record.repeatKey).length,
+    swallowedFates,
     offPad: records.filter((record) => record.key === null).length,
     outcomes,
     clickMs: percentiles(measured(records, (record) => record.clickMs)),
     handlerMs: percentiles(measured(records, (record) => record.handlerMs)),
     soundMs: percentiles(measured(records, (record) => record.soundMs)),
     paintMs: percentiles(measured(records, (record) => record.paintMs)),
+    movedPx: percentiles(measured(records, (record) => record.movedPx)),
     maxScale: Math.max(1, ...records.map((record) => record.scale)),
     buckets,
     worst: [...records]

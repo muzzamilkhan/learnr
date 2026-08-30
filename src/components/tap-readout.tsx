@@ -85,6 +85,17 @@ export function TapReadout({ probe }: { probe: TapProbe }) {
     ['  of it, fetch', launch ? ms(launch.fetchMs) : '-'],
     ['taps', `${summary.taps} (${summary.offPad} off-pad)`],
     ['SWALLOWED', `${summary.swallowed} (${summary.swallowedRepeats} repeat)`],
+    // Why each of those died, which is the question the count alone could never
+    // answer: cancelled by the browser, drifted onto another key, held back with
+    // the pointer complete, or lost with no lift and no cancel. Abbreviated
+    // because this box is thirteen rems wide - see `SwallowFate`.
+    [
+      '  cnl/drf/hld/lst',
+      `${summary.swallowedFates.cancelled}/${summary.swallowedFates.drifted}/${summary.swallowedFates.held}/${summary.swallowedFates.lost}`,
+    ],
+    // How far the fingers went, which tells a slip across a key's edge from a
+    // hand moving across the pad. In pixels, unlike every row around it.
+    ['moved p95/max', `${ms(summary.movedPx.p95)}/${ms(summary.movedPx.max)}`],
     ['scale', summary.maxScale.toFixed(2)],
     ['refused', String(summary.outcomes['refused-full'] + summary.outcomes['refused-over'])],
     ['dead', String(summary.outcomes.dead)],

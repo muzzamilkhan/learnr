@@ -5,6 +5,7 @@ import {
   parseDebugParam,
   RUN_BUCKET_MS,
   summariseTaps,
+  swallowFate,
   WORST_TAPS,
   type TapRecord,
 } from './taps';
@@ -23,8 +24,17 @@ function tap(over: Partial<TapRecord> = {}): TapRecord {
     repeatKey: false,
     sinceLastMs: 400,
     scale: 1,
+    upMs: 12,
+    cancelMs: null,
+    upKey: '7',
+    movedPx: 2,
     ...over,
   };
+}
+
+/** A tap that landed on a key and never became a click, as the fates vary it. */
+function swallowed(over: Partial<TapRecord> = {}): TapRecord {
+  return tap({ clickMs: null, outcome: 'swallowed', ...over });
 }
 
 describe('summariseTaps', () => {
@@ -194,10 +204,111 @@ describe('summariseTaps', () => {
     expect(summary.dropped).toEqual([]);
   });
 
+  it('blames the gesture when a swallowed tap was cancelled', () => {
+    // A pointercancel is the browser saying outright that it took the touch for
+    // something else. It is the one fate that needs no inference, so it is read
+    // first: a cancelled pointer never gets a pointerup to disagree with.
+    const summary = summariseTaps([swallowed({ cancelMs: 40, upMs: null, upKey: null })]);
+
+    expect(summary.swallowedFates.cancelled).toBe(1);
+    expect(summary.swallowedFates.lost).toBe(0);
+  });
+
+  it('blames the finger when it lifted on a different key than it landed on', () => {
+    // The mechanism `upKey` exists for. WebKit dispatches a click to the nearest
+    // common ancestor of the down and up elements, so a finger that slides off
+    // `7` onto `8` - or into the gap between them - fires a click on the grid
+    // and on no button at all. Nothing of ours runs and the tap is simply gone.
+    const summary = summariseTaps([swallowed({ upKey: '8', movedPx: 61 })]);
+
+    expect(summary.swallowedFates.drifted).toBe(1);
+    expect(summary.swallowedFates.held).toBe(0);
+  });
+
+  it('counts a lift into the gap between keys as drifted too', () => {
+    // Off the pad entirely at lift is the same mechanism, the common ancestor
+    // being further up still. A null `upKey` on a tap that had a key is a drift,
+    // not a tap that missed the pad - `key` is what decides that, and it is set.
+    const summary = summariseTaps([swallowed({ upKey: null, movedPx: 24 })]);
+
+    expect(summary.swallowedFates.drifted).toBe(1);
+  });
+
+  it('blames the browser when the finger lifted exactly where it landed', () => {
+    // Up on the same key, nothing cancelled, and still no click. This is the
+    // fate with no explanation of its own, which is why it is worth telling
+    // apart from the other three rather than folding in with them.
+    const summary = summariseTaps([swallowed({ upKey: '7', movedPx: 1 })]);
+
+    expect(summary.swallowedFates.held).toBe(1);
+    expect(summary.swallowedFates.drifted).toBe(0);
+  });
+
+  it('says a tap was lost when neither a lift nor a cancel ever arrived', () => {
+    // The pointer stream itself stopped. Distinct from `held`, where the stream
+    // completed and the click alone went missing, and the distinction decides
+    // whether to look at the pad or at the event pipeline above it.
+    const summary = summariseTaps([swallowed({ upMs: null, upKey: null, movedPx: null })]);
+
+    expect(summary.swallowedFates.lost).toBe(1);
+    expect(summary.swallowedFates.held).toBe(0);
+  });
+
+  it('gives a fate only to the taps that were swallowed', () => {
+    // A tap that clicked has no fate to explain. Counting one would put every
+    // healthy tap into `held` and bury the handful that matter.
+    const summary = summariseTaps([tap(), tap(), swallowed({ upKey: '8' })]);
+
+    expect(summary.swallowedFates.drifted).toBe(1);
+    expect(summary.swallowedFates.held).toBe(0);
+    expect(summary.swallowed).toBe(1);
+  });
+
+  it('leaves a tap that missed the pad out of the fates, as out of the count', () => {
+    // `offPad` for the reason it is left out of `swallowed`: it was never the
+    // pad's to answer, and a fate on it would put a floor under the numbers
+    // this exists to read.
+    const summary = summariseTaps([tap({ key: null, clickMs: null, outcome: 'swallowed' })]);
+
+    expect(summary.swallowedFates.held).toBe(0);
+    expect(summary.swallowedFates.drifted).toBe(0);
+    expect(summary.offPad).toBe(1);
+  });
+
+  it('reports how far the fingers travelled, ignoring the taps that never lifted', () => {
+    // The magnitude behind `drifted`: a two-pixel slip across a key boundary and
+    // a sixty-pixel slide are the same fate and very different bugs, and only
+    // one of them is answered by growing the keys.
+    const summary = summariseTaps([
+      tap({ movedPx: 2 }),
+      tap({ movedPx: 60 }),
+      tap({ movedPx: null }),
+    ]);
+
+    expect(summary.movedPx.max).toBe(60);
+    expect(summary.movedPx.p50).toBe(2);
+  });
+
   it('totals the time spent starting sounds, since that sits inside the handler', () => {
     const summary = summariseTaps([tap({ soundMs: 4 }), tap({ soundMs: 6 }), tap({ soundMs: null })]);
 
     expect(summary.soundMs.max).toBe(6);
+  });
+});
+
+describe('swallowFate', () => {
+  it('reads a cancel ahead of a lift, since a cancel is the browser saying so', () => {
+    // Defensive rather than observed: the spec says a cancelled pointer fires no
+    // pointerup, so the two should never both be set. If they ever are, the
+    // explicit statement beats the inference drawn from coordinates.
+    expect(swallowFate(swallowed({ cancelMs: 30, upMs: 40, upKey: '8' }))).toBe('cancelled');
+  });
+
+  it('tells the four fates apart on the one field each turns on', () => {
+    expect(swallowFate(swallowed({ cancelMs: 30 }))).toBe('cancelled');
+    expect(swallowFate(swallowed({ upMs: null, upKey: null }))).toBe('lost');
+    expect(swallowFate(swallowed({ upKey: '8' }))).toBe('drifted');
+    expect(swallowFate(swallowed({ upKey: '7' }))).toBe('held');
   });
 });
 

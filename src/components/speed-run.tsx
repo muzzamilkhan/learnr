@@ -444,7 +444,15 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: 
         // DIAGNOSTIC: capture, and on the container rather than on each key -
         // the tap being hunted is the one that never becomes a click, so it has
         // to be seen before anything downstream has the chance not to happen.
-        onPointerDownCapture={(event) => probe.down(event.target)}
+        onPointerDownCapture={(event) =>
+          probe.down(event.target, event.pointerId, event.clientX, event.clientY)
+        }
+        // DIAGNOSTIC: what became of the pointer, which is what says *why* a tap
+        // was swallowed. Both land here however far the finger has travelled -
+        // touch sets implicit pointer capture on the element it went down on, so
+        // every later event for that pointer is dispatched inside this tree.
+        onPointerUpCapture={(event) => probe.up(event.pointerId, event.clientX, event.clientY)}
+        onPointerCancelCapture={(event) => probe.cancel(event.pointerId)}
       >
         <Countdown count={COUNT_FROM} />
       </div>
@@ -455,7 +463,11 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: 
     <div
       className="no-select fixed inset-0 z-40 flex flex-col overflow-hidden bg-(--color-paper) px-4 py-3 sm:px-10 sm:py-5"
       // DIAGNOSTIC: see the count-in branch above.
-      onPointerDownCapture={(event) => probe.down(event.target)}
+      onPointerDownCapture={(event) =>
+        probe.down(event.target, event.pointerId, event.clientX, event.clientY)
+      }
+      onPointerUpCapture={(event) => probe.up(event.pointerId, event.clientX, event.clientY)}
+      onPointerCancelCapture={(event) => probe.cancel(event.pointerId)}
     >
       {/* The way out and the timer, and that is the whole header. The door sits
           in the corner furthest from the pad, and leaving records nothing -

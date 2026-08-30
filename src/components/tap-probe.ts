@@ -54,6 +54,23 @@ interface Pending {
   downAt: number;
   /** Set when the click arrives, to measure the handler and the paint against. */
   clickAt: number | null;
+  /**
+   * What pairs a lift or a cancel back to this tap.
+   *
+   * `click` pairs on the key instead, because a click carries no pointer id
+   * worth trusting - but a `pointerup` does, and a child with two thumbs down at
+   * once is exactly the case a key match would get wrong.
+   */
+  pointerId: number;
+  /** Where the finger landed, to measure how far it had gone by the lift. */
+  downX: number;
+  downY: number;
+}
+
+/** The pad key an element sits inside, or null for anything that is not one. */
+function keyOf(target: EventTarget | null): string | null {
+  if (!(target instanceof Element)) return null;
+  return target.closest(`[${PAD_KEY_ATTRIBUTE}]`)?.getAttribute(PAD_KEY_ATTRIBUTE) ?? null;
 }
 
 export class TapProbe {
@@ -134,14 +151,11 @@ export class TapProbe {
    * not the pad's to answer, and counting them as dropped would put a floor
    * under the number that has nothing to do with the bug.
    */
-  down(target: EventTarget | null) {
+  down(target: EventTarget | null, pointerId: number, x: number, y: number) {
     if (this.taps.length >= MAX_RECORDS) return;
 
     const now = performance.now();
-    const key =
-      target instanceof Element
-        ? (target.closest(`[${PAD_KEY_ATTRIBUTE}]`)?.getAttribute(PAD_KEY_ATTRIBUTE) ?? null)
-        : null;
+    const key = keyOf(target);
 
     const scale = Math.max(this.peakScale, window.visualViewport?.scale ?? 1);
     this.peakScale = window.visualViewport?.scale ?? 1;
@@ -163,13 +177,79 @@ export class TapProbe {
         repeatKey: key !== null && key === this.lastKey,
         sinceLastMs: this.lastAt === null ? null : now - this.lastAt,
         scale,
+        // Nothing has happened to this pointer yet. `up` and `cancel` fill these
+        // in; both still null at the end of the run is what `lost` means.
+        upMs: null,
+        cancelMs: null,
+        upKey: null,
+        movedPx: null,
       },
+      pointerId,
+      downX: x,
+      downY: y,
     });
 
     if (key !== null) {
       this.lastKey = key;
       this.lastAt = now;
     }
+  }
+
+  /**
+   * The finger lifted.
+   *
+   * **Where it lifted has to be hit-tested rather than read off the event**,
+   * which is the one surprise in this file. Pointer Events sets *implicit
+   * pointer capture* on the `pointerdown` target for touch, so every later event
+   * for that pointer - the `pointerup` included - is dispatched to the element
+   * the finger landed on, whatever it is now over. Trusting `event.target` here
+   * would report every tap as having lifted on the key it started on: not a weak
+   * measurement of drift but a guarantee of never seeing any.
+   *
+   * That costs one hit test per lift, and this file's first rule is not to
+   * become the bug it is hunting. It is a single test against a pad whose
+   * geometry does not change during a run, on a frame the browser is about to
+   * lay out anyway - set against a click measured at 57-125ms away.
+   */
+  up(pointerId: number, x: number, y: number) {
+    const tap = this.pending(pointerId);
+    if (!tap) return;
+
+    tap.record.upMs = performance.now() - tap.downAt;
+    tap.record.upKey =
+      typeof document === 'undefined' ? null : keyOf(document.elementFromPoint(x, y));
+    // Rounded because a pixel is the unit that means anything here, and these
+    // ride to Sentry as JSON where the fraction would be most of the bytes.
+    tap.record.movedPx = Math.round(Math.hypot(x - tap.downX, y - tap.downY));
+  }
+
+  /**
+   * The browser took the touch for something else, and said so.
+   *
+   * The only fate that needs no inference, and the one that would otherwise hide
+   * inside `lost`: a pointer claimed by a scroll or a gesture never fires a
+   * `pointerup`, so without this the two are identical from here.
+   */
+  cancel(pointerId: number) {
+    const tap = this.pending(pointerId);
+    if (!tap) return;
+
+    tap.record.cancelMs = performance.now() - tap.downAt;
+  }
+
+  /**
+   * The tap a lift or a cancel belongs to, searching backwards.
+   *
+   * Backwards, and only over taps that have neither lifted nor been cancelled,
+   * because Safari reuses pointer ids: the live one is always the most recent.
+   */
+  private pending(pointerId: number): Pending | null {
+    for (let index = this.taps.length - 1; index >= 0; index--) {
+      const tap = this.taps[index];
+      const free = tap && tap.record.upMs === null && tap.record.cancelMs === null;
+      if (free && tap.pointerId === pointerId) return tap;
+    }
+    return null;
   }
 
   /**
@@ -335,13 +415,28 @@ export function reportTaps(summary: TapSummary, mode: string, correct: number) {
           'taps.handler_max': summary.handlerMs.max ?? -1,
           'taps.sound_p95': summary.soundMs.p95 ?? -1,
           'taps.sound_max': summary.soundMs.max ?? -1,
+          // The half of a swallowed tap that names a cause rather than a count.
+          'taps.fate_cancelled': summary.swallowedFates.cancelled,
+          'taps.fate_drifted': summary.swallowedFates.drifted,
+          'taps.fate_held': summary.swallowedFates.held,
+          'taps.fate_lost': summary.swallowedFates.lost,
+          'taps.moved_p50': summary.movedPx.p50 ?? -1,
+          'taps.moved_p95': summary.movedPx.p95 ?? -1,
+          'taps.moved_max': summary.movedPx.max ?? -1,
           'taps.paint_p50': summary.paintMs.p50 ?? -1,
           'taps.paint_p95': summary.paintMs.p95 ?? -1,
           'taps.paint_max': summary.paintMs.max ?? -1,
           'taps.worst': JSON.stringify(summary.worst).slice(0, 2_000),
           // The taps nothing else can describe: `worst` ranks on paint time and
-          // these never painted. `sinceLastMs` is what they are here for.
-          'taps.dropped': JSON.stringify(summary.dropped).slice(0, 2_000),
+          // these never painted. `sinceLastMs` and the fate fields are what they
+          // are here for.
+          //
+          // A wider cap than `worst`, and not a spare digit: eight records at
+          // 223 characters is 1,793, which cleared 2,000 only until the pointer
+          // fields were added. A truncated JSON array is not a shortened reading
+          // of a burst but an unparseable one, and this is the most valuable
+          // attribute on the span.
+          'taps.dropped': JSON.stringify(summary.dropped).slice(0, 4_000),
           ...buckets,
           ...device(),
         },
