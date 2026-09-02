@@ -75,42 +75,43 @@ export function ParentHeading({
 }
 
 /**
- * The four destinations, full width: sharing the space evenly reads as a place
+ * The three destinations, full width: sharing the space evenly reads as a place
  * to go, where chips floating in a corner read as decoration.
  *
- * The two report screens carry the child and the subject across with them,
- * which the other two have no use for. Without that, stepping from a report onto
- * the bench dropped the child and landed on whoever the list happened to name
- * first - the same choice being lost that the pickers were losing.
+ * **The bench is not one of them.** It had a fourth item here for a day, which
+ * put an experiment on the same footing as the three things a parent came to
+ * do - four equal tabs say four equal screens. It is a badge on the report
+ * instead (`ProgressReport`), which is where a parent is when the question
+ * "what else is there?" occurs to them. The nav still lights "Progress" up for
+ * it: the bench is inside the report's path, and a screen reached from the
+ * report is not a fourth place to be.
+ *
+ * The report link carries the child and the subject across, which the other two
+ * have no use for.
  */
 export function ParentNav() {
   const screen = useParentScreen();
   const params = useSearchParams();
-  const looking = { child: params.get('child'), subject: params.get('subject') };
 
   return (
     <nav className="no-select mt-4 flex rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold">
       <NavLink
-        href={progressHref(PROGRESS_HREF, looking)}
+        href={progressHref(PROGRESS_HREF, {
+          child: params.get('child'),
+          subject: params.get('subject'),
+        })}
         label="Progress"
-        active={screen === 'progress'}
+        active={screen === 'progress' || screen === 'lab'}
       />
       <NavLink href="/children" label="Children" active={screen === 'children'} />
       <NavLink href={PARENT_SPEED_HREF} label="Speed run" active={screen === 'speed-run'} />
-      {/* The bench, said as what it is rather than as what is on it: what is
-          there changes, and "Beta" is the promise a parent needs - findings
-          still being judged. */}
-      <NavLink
-        href={progressHref(PROGRESS_LAB_HREF, looking)}
-        label="Beta"
-        active={screen === 'lab'}
-      />
     </nav>
   );
 }
 
 /**
- * Which of the four the current path is on.
+ * Which screen the current path is on - four answers for three nav items, since
+ * the bench has a heading of its own and no tab of its own.
  *
  * The speed screens used to be nested at `/progress/speed/...` so they could not
  * collide with the child's `/speed/...`, and that cost this function an ordering

@@ -1,7 +1,9 @@
+import Link from 'next/link';
 import type { Observation } from '@/lib/analytics/profile';
 import { latestOffsetMinutes, type AnsweredQuestion } from '@/lib/analytics/report';
 import { parseYearLevel, shortYearLabel } from '@/lib/curriculum';
 import type { Sitting } from '@/lib/dto';
+import { PROGRESS_LAB_HREF, progressHref } from '@/lib/parent-links';
 import type { DailyTarget, TargetAnswer } from '@/lib/rewards/target';
 import { SPEED_RUN_SUBJECT } from '@/lib/speedrun/modes';
 import type { SummaryRun } from '@/lib/speedrun/summary';
@@ -91,7 +93,22 @@ export function ProgressReport({
           {level ? shortYearLabel(level) : 'No level set'}
         </p>
 
+        {/* The bench, as a badge rather than a fourth nav tab: what is on it
+            changes and some of it will be deleted, which is not a promise to
+            make in the same row as the three screens a parent came for. It sits
+            with the pickers because it is a control, and it carries the child
+            and subject over so following it does not lose them. "Beta" is the
+            whole label - the word is the warning, and the subtitle over there
+            says the rest. */}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Link
+            href={progressHref(PROGRESS_LAB_HREF, { child: child.id, subject })}
+            aria-label="Beta - analytics being tried out"
+            title="Analytics being tried out"
+            className="no-select rounded-full bg-(--color-brand-soft) px-2.5 py-1 text-xs font-semibold tracking-wide text-(--color-brand) uppercase transition hover:bg-(--color-brand) hover:text-white"
+          >
+            Beta
+          </Link>
           <ChildPicker profiles={profiles} selected={child.id} subject={subject} />
           <SubjectPicker subjects={subjects} selected={subject} child={child.id} />
         </div>
