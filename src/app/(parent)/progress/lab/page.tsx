@@ -22,9 +22,12 @@ export const dynamic = 'force-dynamic';
 const LAB_ANSWERS_PER_TOPIC = 50;
 
 /**
- * A bench for analytics that are not on the report yet - reachable by typing
- * the URL and linked from nowhere, so no parent meets a finding still being
- * judged.
+ * A bench for analytics that are not on the report yet.
+ *
+ * It was reachable only by typing the URL, so that no parent met a finding
+ * still being judged. The nav carries a "Beta" item to it now - the word is
+ * doing the job the missing link used to: what is here is being tried out, and
+ * a parent who follows it has been told so.
  *
  * It nests under `/progress` rather than sitting beside it as its own top-level
  * path, for the reason the report itself does: a route group adds no path

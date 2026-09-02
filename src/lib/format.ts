@@ -53,3 +53,26 @@ const ORDINAL_SUFFIXES: Record<string, string> = {
 export function ordinal(value: number): string {
   return `${value}${ORDINAL_SUFFIXES[ORDINAL_RULES.select(value)] ?? 'th'}`;
 }
+
+/** A minute, in milliseconds. */
+const MINUTE_MS = 60_000;
+
+/**
+ * How long a sitting lasted, said the way it would be said out loud.
+ *
+ * This used to be minutes and nothing else, floored at one - which drew a
+ * twelve-second visit and a fifty-second one identically as "1 min", and a
+ * screenful of them as an afternoon's work. The number is summed `timeTakenMs`,
+ * the same "time on questions" the report's tile is careful to undersell, so
+ * inflating it here was the one place the app rounded a measurement *up* into
+ * something a parent could be pleased about.
+ *
+ * Seconds are truncated rather than rounded for that reason: 59.9 seconds is
+ * not a minute, and every boundary here errs towards the smaller claim. The
+ * floor of one second is the exception, and it is a different statement - a
+ * recorded answer took *some* time, so "0s" would be denying it happened.
+ */
+export function formatDuration(ms: number): string {
+  if (ms < MINUTE_MS) return `${Math.max(1, Math.floor(ms / 1000))}s`;
+  return `${Math.round(ms / MINUTE_MS)} min`;
+}

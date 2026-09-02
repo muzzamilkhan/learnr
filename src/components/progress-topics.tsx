@@ -12,6 +12,7 @@ import {
 } from '@/lib/analytics/report';
 import { yearLabel, type YearLevel } from '@/lib/curriculum';
 import { localDay } from '@/lib/day';
+import { formatDuration } from '@/lib/format';
 import { REPORT_LABEL_SIZE, REPORT_STROKE_PX } from '@/lib/figures/labels';
 import type { Sitting } from '@/lib/dto';
 import { createRng } from '@/lib/rng';
@@ -181,7 +182,7 @@ export function ProgressTopics({
                   · {yearLabel(sitting.level)} · {sitting.attempts} question
                   {sitting.attempts === 1 ? '' : 's'} ·{' '}
                   {Math.round((sitting.correct / sitting.attempts) * 100)}% ·{' '}
-                  {Math.max(1, Math.round(sitting.timeMs / 60_000))} min
+                  {formatDuration(sitting.timeMs)}
                 </span>
               </li>
             ))}

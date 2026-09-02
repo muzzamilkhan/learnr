@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { resolveChild } from '@/lib/children';
+import { PROGRESS_HREF, PROGRESS_LAB_HREF, progressHref } from '@/lib/parent-links';
 import { PARENT_SPEED_HREF } from '@/lib/speedrun/tabs';
 
-type ParentScreen = 'progress' | 'children' | 'speed-run';
+type ParentScreen = 'progress' | 'lab' | 'children' | 'speed-run';
 
 /**
  * The heading and the nav, worked out in the browser rather than passed down
@@ -55,35 +56,57 @@ export function ParentHeading({
 }
 
 /**
- * The three destinations, full width: sharing the space evenly reads as a place
+ * The four destinations, full width: sharing the space evenly reads as a place
  * to go, where chips floating in a corner read as decoration.
+ *
+ * The two report screens carry the child and the subject across with them,
+ * which the other two have no use for. Without that, stepping from a report onto
+ * the bench dropped the child and landed on whoever the list happened to name
+ * first - the same choice being lost that the pickers were losing.
  */
 export function ParentNav() {
   const screen = useParentScreen();
+  const params = useSearchParams();
+  const looking = { child: params.get('child'), subject: params.get('subject') };
 
   return (
     <nav className="no-select mt-4 flex rounded-lg border border-(--color-line) bg-(--color-card) p-0.5 text-sm font-semibold">
-      <NavLink href="/progress" label="Progress" active={screen === 'progress'} />
+      <NavLink
+        href={progressHref(PROGRESS_HREF, looking)}
+        label="Progress"
+        active={screen === 'progress'}
+      />
       <NavLink href="/children" label="Children" active={screen === 'children'} />
       <NavLink href={PARENT_SPEED_HREF} label="Speed run" active={screen === 'speed-run'} />
+      {/* The bench, said as what it is rather than as what is on it: what is
+          there changes, and "Beta" is the promise a parent needs - findings
+          still being judged. */}
+      <NavLink
+        href={progressHref(PROGRESS_LAB_HREF, looking)}
+        label="Beta"
+        active={screen === 'lab'}
+      />
     </nav>
   );
 }
 
 /**
- * Which of the three the current path is on.
+ * Which of the four the current path is on.
  *
  * The speed screens used to be nested at `/progress/speed/...` so they could not
  * collide with the child's `/speed/...`, and that cost this function an ordering
  * constraint: both prefixes matched a speed URL, so the more specific one had to
  * be tested first or every speed screen highlighted "Progress". There is one
- * `/speed` now, serving whoever is signed in, so the three prefixes are disjoint
- * and no line here depends on sitting above another.
+ * `/speed` now - but the bench is genuinely inside the report's path, so the
+ * constraint is back for that one pair and is written down rather than left to
+ * be rediscovered: `/progress/lab` has to be asked about before `/progress`,
+ * which is the fallback and therefore last.
  */
 function useParentScreen(): ParentScreen {
   const pathname = usePathname() ?? '';
   if (pathname.startsWith('/children')) return 'children';
   if (pathname.startsWith(PARENT_SPEED_HREF)) return 'speed-run';
+  if (pathname.startsWith(PROGRESS_LAB_HREF)) return 'lab';
   return 'progress';
 }
 

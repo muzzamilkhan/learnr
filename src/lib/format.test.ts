@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCount, nameList, ordinal } from './format';
+import { formatCount, formatDuration, nameList, ordinal } from './format';
 
 describe('formatCount', () => {
   it('leaves a small count alone', () => {
@@ -39,5 +39,28 @@ describe('ordinal', () => {
       '22nd',
       '23rd',
     ]);
+  });
+});
+
+describe('formatDuration', () => {
+  it('says seconds for a sitting shorter than a minute', () => {
+    expect(formatDuration(12_265)).toBe('12s');
+    expect(formatDuration(40_000)).toBe('40s');
+    expect(formatDuration(59_400)).toBe('59s');
+  });
+
+  it('never rounds a real measurement down to nothing', () => {
+    expect(formatDuration(1)).toBe('1s');
+    expect(formatDuration(400)).toBe('1s');
+  });
+
+  it('switches to minutes at a minute', () => {
+    expect(formatDuration(60_000)).toBe('1 min');
+    expect(formatDuration(90_000)).toBe('2 min');
+    expect(formatDuration(20 * 60_000)).toBe('20 min');
+  });
+
+  it('does not round seconds up into a minute it did not reach', () => {
+    expect(formatDuration(59_900)).toBe('59s');
   });
 });

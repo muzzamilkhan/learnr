@@ -1,8 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { Select } from '@/components/select';
+import { progressHref } from '@/lib/parent-links';
 
 /** A child in the picker, and - if they are not this parent's - who shared them. */
 export interface PickableChild {
@@ -22,6 +23,11 @@ export interface PickableChild {
  * reading about. Own children come first in the list the caller passes, so the
  * one this parent came for is never below someone else's.
  *
+ * The choice is written back onto the screen the picker is *on*, not onto the
+ * report by name: this is drawn on the lab bench too, where a hardcoded
+ * `/progress` meant picking a child navigated away from the screen you were
+ * reading.
+ *
  * Not named `children`: that belongs to React, and a list of child profiles
  * under it reads as nested JSX to everything that looks at the file.
  */
@@ -35,6 +41,7 @@ export function ChildPicker({
   subject: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   if (profiles.length < 2) return null;
 
@@ -46,7 +53,7 @@ export function ChildPicker({
         value: profile.id,
         label: profile.sharedBy ? `${profile.name} · shared by ${profile.sharedBy}` : profile.name,
       }))}
-      onChange={(child) => router.replace(`/progress?child=${child}&subject=${subject}`)}
+      onChange={(child) => router.replace(progressHref(pathname, { child, subject }))}
     />
   );
 }

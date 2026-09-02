@@ -745,6 +745,14 @@ const SITTING_LIMIT = 8;
  * apart from five ninety-second visits, and that difference is most of what a
  * parent is looking for.
  *
+ * **An empty sitting is excluded in the query, not after the take.** The play
+ * screen opens one on every mount, so a child who taps into a lesson and
+ * straight back out leaves a row nobody answered a question in - and those rows
+ * come newest-first alongside the real ones. Filtered afterwards they were still
+ * spending the limit, so a parent asking for the last eight sittings was shown
+ * five, and the substantial ones fell off the bottom to make room for nothing.
+ * `attempts: { some: {} }` is the same drop made where the counting happens.
+ *
  * `null` on failure, for the same reason `readObservations` does it.
  */
 export async function readSittings(
@@ -755,7 +763,7 @@ export async function readSittings(
   if (!prisma) return [];
   try {
     const rows = await prisma.learningSession.findMany({
-      where: { userId, subject },
+      where: { userId, subject, attempts: { some: {} } },
       orderBy: { startedAt: 'desc' },
       take: limit,
       select: {
@@ -768,11 +776,12 @@ export async function readSittings(
 
     return rows
       .map((row) => {
+        // A level the catalog no longer has is the one drop left that happens
+        // after the take, so this can still return fewer than `limit`. Unlike an
+        // empty sitting it cannot be asked for in the query - `parseYearLevel`
+        // is the only thing that knows what a school year is.
         const level = parseYearLevel(row.level);
-        // A sitting nobody answered a question in is not a sitting, and listing
-        // it would make a child look busier than they were. Dropped after the
-        // take rather than before, so this can return fewer than `limit`.
-        if (!level || row.attempts.length === 0) return undefined;
+        if (!level) return undefined;
 
         return {
           id: row.id,

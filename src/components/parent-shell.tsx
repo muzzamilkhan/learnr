@@ -14,8 +14,8 @@ import { ParentHeading, ParentNav } from '@/components/parent-heading';
  * the parent components below it follow: `text-sm`/`text-base` body, single-width
  * borders, `rounded-xl`, and buttons a mouse can hit.
  *
- * The two parent jobs are two screens - the report and the profiles - so the nav
- * lives here rather than being re-stated by each of them. It is rendered from a
+ * The parent's screens share one nav, so it lives here rather than being
+ * re-stated by each of them. It is rendered from a
  * **layout**, not from either page: a shell rebuilt by whichever page is on
  * screen would be unmounted and remounted on every hop between them, and the
  * logo, the menu and the nav would visibly flash. From the layout they are

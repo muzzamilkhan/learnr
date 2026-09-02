@@ -1601,7 +1601,7 @@ children" and is not redirected.
 `/children` is the other screen: a card per child with name, avatar and level, plus
 add, edit, remove and the login code. It does not link to the report - the nav
 above already goes there and the report picks its own child. Both screens sit in
-`ParentShell`, which carries the title, the two-item nav, the profile menu and the
+`ParentShell`, which carries the title, the nav, the profile menu and the
 curriculum link - the last follows every signed-in branch, and is a panel rather
 than a footnote, since a line of small print is the shape of something nobody is
 meant to click.
@@ -1980,6 +1980,40 @@ axis can get wrong. The tilt costs two things vertical got free, both measured:
 flatter label is the easier read and reaches further sideways. 30 degrees asked for
 half again what 45 does, and 45 costs about four characters of the longest topic
 name. `CHART_INSETS` is shared with the component rather than written twice.
+
+**"Recent sittings" counts sittings, not rows.** The play screen opens a
+`LearningSession` on every mount, so a child who taps into a lesson and straight
+back out leaves a row nobody answered a question in - and in live data those
+outnumber the real ones. `readSittings` drops them **in the query**
+(`attempts: { some: {} }`) rather than after the take, which it did once: a
+parent asking for the last eight sittings was shown five, and the substantial
+ones fell off the bottom to make room for nothing. The one drop left after the
+take is a level the catalog no longer has, which only `parseYearLevel` can
+judge, so the read can still return fewer than its limit.
+
+**A sitting's length is said in seconds under a minute** (`formatDuration`,
+`src/lib/format.ts`). It was minutes floored at one, which drew a twelve-second
+visit and a fifty-second one identically as "1 min" and a screenful of them as
+an afternoon's work. The number is summed `timeTakenMs` - the same "time on
+questions" the tile above is careful to undersell - so seconds are truncated
+rather than rounded and every boundary errs towards the smaller claim. The floor
+of one second is the exception and a different statement: a recorded answer took
+*some* time.
+
+**Which child and which subject live in the URL, and everything that moves a
+parent carries them** (`progressHref`, `src/lib/parent-links.ts`). Both pickers
+wrote `/progress` into the link whatever screen they were drawn on, so changing
+the child on the lab bench navigated back to the report; they write the pathname
+they are on now, and the nav's two report links carry the pair across. A path
+that is not a progress screen falls back to the report, since these parameters
+mean nothing to a screen that does not read them.
+
+**`/progress/lab` is a bench for analytics not on the report yet, and the nav
+says "Beta".** It was linked from nowhere and reachable only by typing the URL;
+the word does that job now. It is the one nav item whose prefix is inside
+another's, so `useParentScreen` has to ask about it before `/progress` - the
+ordering constraint the speed screens' move out of `/progress` retired, back for
+this one pair.
 
 The practice calendar is hand-rolled SVG and server-rendered. It draws **four
 Monday-to-Sunday weeks** (`calendarWeeks`), not runs of seven ending today: real

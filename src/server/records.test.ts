@@ -4,6 +4,7 @@ import { makeChild, makeParent } from './test-helpers/factories';
 import {
   readLearnerProfile,
   readObservations,
+  readSittings,
   recordAttempt,
   recordSessionStart,
 } from './records';
@@ -101,5 +102,32 @@ describe('readLearnerProfile', () => {
     const skill = profile.skills.find((s) => s.topic === 'addition');
 
     expect(skill).toMatchObject({ attempts: 2, correct: 1 });
+  });
+});
+
+describe('readSittings', () => {
+  it('returns [] for a child who has never played, not null', async () => {
+    const childId = await makeChild(await makeParent());
+    expect(await readSittings(childId, 'maths')).toEqual([]);
+  });
+
+  it('never spends the limit on a sitting nobody answered a question in', async () => {
+    const childId = await makeChild(await makeParent());
+
+    // The shape the live data actually takes: the play screen opens a sitting on
+    // every mount, so a child bouncing in and out leaves a trail of empty rows
+    // between the real ones. Newest first, an empty one on top.
+    for (let i = 0; i < 3; i += 1) {
+      const answered = await aSession(childId);
+      await recordAttempt(childId, answered, anAttempt());
+      await aSession(childId);
+    }
+
+    const sittings = await readSittings(childId, 'maths', 2);
+
+    // Two real sittings, rather than one real one and an empty row's worth of
+    // nothing - the limit counts what the parent is shown.
+    expect(sittings).toHaveLength(2);
+    expect(sittings?.every((sitting) => sitting.attempts === 1)).toBe(true);
   });
 });

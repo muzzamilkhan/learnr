@@ -1,8 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { Select } from '@/components/select';
+import { progressHref } from '@/lib/parent-links';
 
 /**
  * Which subject this screen is about. A dropdown rather than tabs: it was
@@ -14,7 +15,8 @@ import { Select } from '@/components/select';
  * The order the options arrive in is the caller's, and the report hands them
  * over maths-first (`compareSubjects`) rather than alphabetically.
  *
- * Like `ChildPicker`, the choice goes in the URL so a refresh keeps it.
+ * Like `ChildPicker`, the choice goes in the URL so a refresh keeps it - and
+ * onto the screen the picker is on rather than onto `/progress` by name.
  */
 export function SubjectPicker({
   subjects,
@@ -26,6 +28,7 @@ export function SubjectPicker({
   child: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
 
   if (subjects.length === 0) return null;
 
@@ -34,7 +37,7 @@ export function SubjectPicker({
       label="Subject"
       value={selected}
       options={subjects.map((subject) => ({ value: subject, label: titleCase(subject) }))}
-      onChange={(subject) => router.replace(`/progress?child=${child}&subject=${subject}`)}
+      onChange={(subject) => router.replace(progressHref(pathname, { child, subject }))}
     />
   );
 }
