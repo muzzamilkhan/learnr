@@ -2010,7 +2010,11 @@ mean nothing to a screen that does not read them.
 
 **`/progress/lab` is a bench for analytics not on the report yet, and the nav
 says "Beta".** It was linked from nowhere and reachable only by typing the URL;
-the word does that job now. It is the one nav item whose prefix is inside
+the word does that job now. **The heading takes that word and names the child
+underneath**, where the report does the opposite: `${name}'s progress` on both
+screens left the nav highlight as the only thing saying which one you were on,
+and what a parent needs to know here - that this is still being judged - is a
+poor fit for the half of a heading that truncates on a phone. It is the one nav item whose prefix is inside
 another's, so `useParentScreen` has to ask about it before `/progress` - the
 ordering constraint the speed screens' move out of `/progress` retired, back for
 this one pair.

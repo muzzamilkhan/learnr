@@ -42,10 +42,29 @@ export function ParentHeading({
       ? 'Children'
       : screen === 'speed-run'
         ? 'Speed run'
-        : child
-          ? `${child.name}'s progress`
-          : fallbackTitle;
-  const subtitle = screen === 'progress' && !child ? fallbackSubtitle : undefined;
+        : screen === 'lab'
+          ? 'Beta'
+          : child
+            ? `${child.name}'s progress`
+            : fallbackTitle;
+
+  /**
+   * The bench takes the nav's own word as its title and names the child
+   * underneath, where the report does the opposite. Two reasons, and the second
+   * is the one that decided it: a heading reading `${name}'s progress` on both
+   * screens left the nav highlight as the only thing saying which of them you
+   * were on - and what a parent most needs to know here is that they are
+   * looking at something still being judged, which is a poor fit for the half
+   * of the line that gets truncated on a phone.
+   */
+  const subtitle =
+    screen === 'lab'
+      ? child
+        ? `Analytics being tried out on ${child.name}'s answers`
+        : 'Analytics being tried out'
+      : screen === 'progress' && !child
+        ? fallbackSubtitle
+        : undefined;
 
   return (
     <div className="min-w-0">
