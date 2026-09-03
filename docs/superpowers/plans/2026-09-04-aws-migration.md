@@ -19,6 +19,7 @@
 - **The database does not change.** Neon `ap-southeast-2`, same connection string. No data migration, no dual-write.
 - **`npm test` and `npm run typecheck` must pass before every commit.** `npm test` needs Docker for the `db` project.
 - **Nothing in `src/lib` or `src/content` may import React, `next`, `@prisma/client` or `src/server`** - `src/lib/purity.test.ts` enforces it and this plan must not break it.
+- **Assumed already shipped: email/password sign-in, with a test parent account.** Tracked separately and out of scope here. It makes most of the verification in Tasks 6, 9 and 10 far quicker - a browser at a staging hostname, no OAuth round trip. **It does not replace the Google sign-in check.** Auth.js refuses a Credentials provider alongside database sessions (`UnsupportedStrategy`), so a password login must write a `Session` row and set the cookie by hand, exactly as `redeemLoginCode` does - which means it never touches the callback-URL machinery that `AUTH_URL` exists to fix. The one thing most likely to break behind CloudFront is the one thing a password login routes around.
 - **A staging hostname is used throughout: `aws.learnr.muzza.tech`.** Production `learnr.muzza.tech` keeps pointing at Vercel until Task 10. This is a deliberate addition to the spec - a full Google sign-in cannot be tested without a hostname Google will redirect to.
 
 ---
@@ -929,19 +930,25 @@ curl -s https://aws.learnr.muzza.tech/curriculum | grep -c "Kindergarten"
 
 Expected: non-zero. This page renders from shipped content, so it proves the app runs but not that the database works - continue to step 5 for that.
 
-- [ ] **Step 5: Verify a full Google sign-in**
+- [ ] **Step 5: Verify sign-in with the test account**
 
-In a browser, visit `https://aws.learnr.muzza.tech`, sign in with Google, and confirm you land on `/progress` as a parent with your real children listed. **This is the step Task 5 could not do and the reason the staging host exists.** A failure here is almost certainly `AUTH_URL` - check CloudWatch logs for the callback URL Auth.js built.
+Sign in at `https://aws.learnr.muzza.tech` with the email/password test parent. This proves the database is reachable, the hand-written `Session` row is read back by `src/server/session.ts`, and the cookie survives CloudFront - three things, in one fast check, with no OAuth round trip.
 
-- [ ] **Step 6: Verify a child's login code**
+Note that there is one database and no staging copy, so this test account and its children are **real rows in production**. That is the same trade preview deployments were refused over; here it is one account you created on purpose rather than every branch build reading real families' records.
+
+- [ ] **Step 6: Verify a full Google sign-in as well - this cannot be skipped**
+
+In a browser, sign in with Google and confirm you land on `/progress` as a parent with your real children listed. **Step 5 passing tells you nothing about this one.** A password login writes its own `Session` row and never asks Auth.js to build a callback URL, so it exercises none of `AUTH_URL`, `AUTH_TRUST_HOST`, or CloudFront's `ALL_VIEWER_EXCEPT_HOST_HEADER` origin request policy. This is the step Task 5 could not do and the reason the staging host exists. A failure here is almost certainly `AUTH_URL` - check CloudWatch logs for the callback URL Auth.js actually built.
+
+- [ ] **Step 7: Verify a child's login code**
 
 Generate a code on `/children`, sign out, redeem it, and confirm the child's home screen appears with their level and subjects. This exercises `redeemLoginCodeAction`, the hand-set cookie, and `src/server/session.ts` reading it - the path Auth.js knows nothing about.
 
-- [ ] **Step 7: Verify the play path writes**
+- [ ] **Step 8: Verify the play path writes**
 
 Answer ten questions in a lesson. Confirm the round's stars appear and the total increments. This exercises all six `/api/v1` handlers through CloudFront with `Cookie` forwarded, and the `SELECT ... FOR UPDATE` guards against the real database.
 
-- [ ] **Step 8: Verify response streaming survived CloudFront**
+- [ ] **Step 9: Verify response streaming survived CloudFront**
 
 The one behaviour in this design that has to be observed rather than reasoned about.
 
@@ -1158,7 +1165,9 @@ Expected: the workflow runs `test`, then `deploy`, and finishes green. Confirm `
 
 Nothing is committed here. This is the spec's cutover checklist, run against the staging host before production moves. **Do not proceed to Task 10 until every item passes.**
 
-- [ ] **Step 1: Sign in with Google, and land on `/progress`**
+Use the email/password test account for steps 2 onwards - it is quicker and the parent screens do not care how a session was made. Step 1 is the exception and stays as written.
+
+- [ ] **Step 1: Sign in with Google, and land on `/progress`** - the only item a password login cannot stand in for, per the constraint at the head of this plan
 - [ ] **Step 2: Generate a login code on `/children`, redeem it as a child, and reach the home screen with the right level and subjects**
 - [ ] **Step 3: Play a full round of ten questions; confirm the stars screen and that the total increments by the right amount**
 - [ ] **Step 4: Answer a figure question; tap the figure and confirm the zoom overlay opens, traps focus, and closes**
@@ -1221,7 +1230,7 @@ Expected: a CloudFront domain in the `dig`, an `X-Cache` header, and `200`.
 
 - [ ] **Step 5: Sign in on production and play a round**
 
-The same checks as Task 9, abbreviated: Google sign-in, a login code, ten questions, a speed run. `AUTH_URL` now names production, so a sign-in failure here means step 3's name ordering was wrong.
+The same checks as Task 9, abbreviated: **Google sign-in first** - `AUTH_URL` now names production, and a failure here means step 3's name ordering was wrong - then a login code, ten questions, and a speed run on the test account.
 
 - [ ] **Step 6: Watch for an hour**
 
