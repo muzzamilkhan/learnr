@@ -206,8 +206,19 @@ untouched. The same holds on the landing page's top bar and inside `GetStarted`,
 where below `sm` the pair already collapses behind one button.
 
 The three screens of the flow are their own routes rather than state inside the
-sign-in page: each is a form that posts and moves on, and a browser running no
-JavaScript can complete all three.
+sign-in page - each is a form that posts and moves on, so a half-finished
+sign-up is a URL and the back button does what it looks like it does.
+
+**They follow `CodeSignIn`'s pattern and need JavaScript**, which is a departure
+from the `<details>` reasoning on the speed cards and is deliberate: the closest
+thing in the app to these three forms is the child's code box, and it is a client
+component answering a wrong code inline rather than by navigating. Two form
+idioms for two boxes that sit beside each other on `/signin` is the worse trade.
+
+**The grant travels in an HttpOnly cookie, the address in the form.** The address
+is not a secret and the code is bound to it in the database, so editing it only
+makes the code not match. The grant is a credential and must not be in a URL,
+where it would land in history and in a log.
 
 ## What does not change
 
