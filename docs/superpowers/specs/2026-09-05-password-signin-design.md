@@ -99,10 +99,22 @@ makes them the same person.
 **That check is the whole difference between this design and a dangerous one.**
 Auth.js's own switch for the behaviour, `allowDangerousEmailAccountLinking`,
 links on a bare email match and consults no verification claim; its name is the
-review. So the linking is either done by hand in a `signIn` callback or gated
-behind one, and **which of those is correct depends on whether Auth.js runs the
-`signIn` callback before the adapter links** - to be confirmed against the Auth.js
-documentation while planning, not guessed at here.
+review.
+
+**Settled against the installed source rather than from memory:**
+`@auth/core/lib/actions/callback/index.js` calls `handleAuthorized` - which is
+the `signIn` callback - at line 63, and `handleLoginOrRegister` at line 70. The
+`allowDangerousEmailAccountLinking` branch and the `OAuthAccountNotLinked` throw
+both live inside the latter. **The callback runs first and can refuse before
+anything is linked**, so the shape is the flag turned on and a `signIn` callback
+in front of it, not linking written by hand.
+
+**The callback refuses every Google sign-in whose `email_verified` is not true**,
+not only the ones that would link. A fresh account made from an unverified claim
+is a row holding an address its owner may later verify for real, which is the
+collision this design exists to avoid - so the rule is one line and has no
+exceptions. Returning a string from the callback redirects, which is how it
+reaches `/signin` with an `?error=` of its own.
 
 **Google first, password later.** Covered by row two of the table above: the code
 comes back from the mailbox, and a password is attached to the account already
@@ -141,8 +153,9 @@ beside `parsePhoto` and `parseYearLevel`, and a constant-time comparison.
 `src/server/password.ts` is the half that calls scrypt and reads randomness.
 `src/lib/purity.test.ts` keeps the first half honest.
 
-**`signInWithPassword` sits in `src/server/accounts.ts`, beside
-`redeemLoginCode`**, and returns the three-answer status `RedeemStatus` has, for
+**The Prisma side is `src/server/passwords.ts`**, a sibling of `accounts.ts` the
+way `sharing.ts` is, rather than more of `accounts.ts` - which is 356 lines and
+would roughly double. `signInWithPassword` returns the three-answer status `RedeemStatus` has, for
 that status's reason: a Neon cold start must never be reported as a wrong
 password. `unavailable` is not a failed sign-in and must not be counted as one.
 
@@ -242,10 +255,6 @@ happened.
 
 ## Open questions
 
-- **Whether Auth.js runs the `signIn` callback before the adapter links an
-  account.** Decides whether the `email_verified` check gates
-  `allowDangerousEmailAccountLinking` or replaces it with linking written by
-  hand. To be settled against the documentation during planning.
 - **Code length and lifetime.** Six digits and ten minutes are the convention and
   the starting point; the throttle is what makes either safe, so this is a
   usability choice rather than a security one.
