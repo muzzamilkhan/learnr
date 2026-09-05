@@ -34,6 +34,28 @@ export type PasswordSignInResult =
   /** No database, or a read that threw. Never reported as a wrong password. */
   | { status: 'unavailable' };
 
+/**
+ * `setPasswordWithGrant`'s own result, wider than `PasswordSignInResult` by one
+ * case. Its `rejected` used to cover six unrelated reasons - a password too
+ * short or too long, a grant missing, expired, raced away, or holding a code's
+ * identifier rather than a grant's, and a child account - and the caller had
+ * one sentence for all six: "choose a longer password". Right for the first,
+ * wrong for the rest, and the rest is what a grown-up who steps away from an
+ * open `/password/set` and comes back after the grant's `GRANT_TTL_MS` reaches
+ * in practice - the short-password case is one `PasswordStepForm` already
+ * blocks in the browser.
+ *
+ * `invalid-grant` is everything that is not about the password itself: the
+ * grant this call was handed cannot be spent, whatever the reason. It carries
+ * no detail, on purpose - a missing row, an expired one, a code's identifier
+ * presented where a grant's belongs (the guard `verification-code.test.ts`
+ * proves the two identifiers differ for, see `passwords.test.ts`), a grant
+ * spent by a concurrent call, and an address now belonging to a child are five
+ * different failures the caller answers identically, the way `rejected` itself
+ * already collapses three reasons in `signInWithPassword`.
+ */
+export type SetPasswordResult = PasswordSignInResult | { status: 'invalid-grant' };
+
 export async function signInWithPassword(
   email: string,
   password: string,
@@ -165,7 +187,7 @@ export async function setPasswordWithGrant(
   grant: string,
   password: string,
   now = new Date(),
-): Promise<PasswordSignInResult> {
+): Promise<SetPasswordResult> {
   if (!prisma) return { status: 'unavailable' };
 
   const chosen = parsePassword(password);
@@ -174,19 +196,21 @@ export async function setPasswordWithGrant(
   const db = prisma;
   try {
     const held = await db.verificationToken.findUnique({ where: { token: grant } });
-    if (!held || held.expires <= now) return { status: 'rejected' };
+    if (!held || held.expires <= now) return { status: 'invalid-grant' };
 
     const address = emailFromIdentifier(held.identifier);
-    if (!address || held.identifier !== grantIdentifier(address)) return { status: 'rejected' };
+    if (!address || held.identifier !== grantIdentifier(address)) {
+      return { status: 'invalid-grant' };
+    }
 
     const hash = await hashPassword(chosen, randomBytes);
     const token = randomUUID();
     const expires = new Date(now.getTime() + SESSION_LIFETIME_MS);
 
-    return await db.$transaction<PasswordSignInResult>(async (tx) => {
+    return await db.$transaction<SetPasswordResult>(async (tx) => {
       const spent = await tx.verificationToken.deleteMany({ where: { token: grant } });
       // Somebody else spent it between the read above and here.
-      if (spent.count === 0) return { status: 'rejected' };
+      if (spent.count === 0) return { status: 'invalid-grant' };
 
       const existing = await tx.user.findUnique({
         where: { email: address },
@@ -203,7 +227,7 @@ export async function setPasswordWithGrant(
         });
         userId = created.id;
       } else {
-        if (existing.role === 'child') return { status: 'rejected' };
+        if (existing.role === 'child') return { status: 'invalid-grant' };
         // The healing case, for an account that predates the role column.
         await tx.user.update({
           where: { id: existing.id },

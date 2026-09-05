@@ -260,7 +260,7 @@ describe('setPasswordWithGrant', () => {
     await verified('kid@example.com', 'grant-token');
 
     expect((await setPasswordWithGrant('grant-token', 'correct horse battery')).status)
-      .toBe('rejected');
+      .toBe('invalid-grant');
     expect(await testPrisma().parentPassword.count()).toBe(0);
   });
 
@@ -269,7 +269,7 @@ describe('setPasswordWithGrant', () => {
     await setPasswordWithGrant('grant-token', 'correct horse battery');
 
     expect((await setPasswordWithGrant('grant-token', 'another password')).status)
-      .toBe('rejected');
+      .toBe('invalid-grant');
   });
 
   it('rejects a grant that has run out', async () => {
@@ -279,13 +279,28 @@ describe('setPasswordWithGrant', () => {
     await spendVerificationCode('ada@example.com', '123456', 'grant-token', issued);
 
     expect((await setPasswordWithGrant('grant-token', 'correct horse battery', late)).status)
-      .toBe('rejected');
+      .toBe('invalid-grant');
   });
 
   it('rejects a password too short to be one', async () => {
     await verified('ada@example.com', 'grant-token');
     expect((await setPasswordWithGrant('grant-token', 'short')).status).toBe('rejected');
     expect(await testPrisma().parentPassword.count()).toBe(0);
+  });
+
+  // FIX 5: the guard that keeps a six-digit *code* from being spent as a
+  // *grant* - `emailFromIdentifier` then `held.identifier !== grantIdentifier`
+  // in `setPasswordWithGrant`. The design leans on this by name in three
+  // places and nothing called `setPasswordWithGrant` with a code token before
+  // this test.
+  it('refuses a verification code presented as a grant', async () => {
+    await issueVerificationCode('ada@example.com', '123456');
+
+    const result = await setPasswordWithGrant('123456', 'correct horse battery');
+
+    expect(result.status).toBe('invalid-grant');
+    expect(await testPrisma().parentPassword.count()).toBe(0);
+    expect(await testPrisma().user.count()).toBe(0);
   });
 
   // A refused password must not burn the grant - the grown-up is standing at
