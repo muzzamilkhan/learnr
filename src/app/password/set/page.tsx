@@ -28,6 +28,13 @@ export default async function SetPasswordPage() {
         </p>
         <PasswordStepForm />
       </div>
+
+      <Link
+        href="/signin"
+        className="mt-8 text-center text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+      >
+        Back to the start
+      </Link>
     </main>
   );
 }
