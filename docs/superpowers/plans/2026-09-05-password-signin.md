@@ -690,28 +690,82 @@ And on `User`, beside `photo ChildPhoto?`:
   password ParentPassword?
 ```
 
-- [ ] **Step 2: Write the migration and regenerate the client**
+- [ ] **Step 2: Generate the migration SQL offline — do NOT run `db:migrate`**
 
-Run: `npm run db:migrate -- --name parent-password`
-Expected: a new directory under `prisma/migrations/`, and `prisma generate`
-running afterwards. This needs a reachable `DATABASE_URL` in `.env`.
+**`npm run db:migrate` is forbidden in this task.** The only `DATABASE_URL` in
+`.env` is the production Neon database - CLAUDE.md calls it "the one connection
+the app has", and preview deployments are disabled precisely because they "read
+and write real children's records". `prisma migrate dev` would run against it,
+and offers to *reset* a database when it detects drift. The migration is authored
+offline instead and proved against Testcontainers in Step 4.
 
-- [ ] **Step 3: Verify the type reached the client**
+```bash
+git show HEAD:prisma/schema.prisma > /tmp/schema-before.prisma
+mkdir -p prisma/migrations/20260905000000_parent_password
+npx prisma migrate diff \
+  --from-schema /tmp/schema-before.prisma \
+  --to-schema prisma/schema.prisma \
+  --script > prisma/migrations/20260905000000_parent_password/migration.sql
+```
 
-Run: `npm run typecheck`
-Expected: PASS. Then confirm the model exists:
+The timestamp sorts after the latest existing migration
+(`20260830100000_child_subjects`). The generated file must be exactly this, and
+nothing else - no `CREATE SCHEMA`, no other table. This output was verified on
+this checkout before the task was written:
+
+```sql
+-- CreateTable
+CREATE TABLE "ParentPassword" (
+    "userId" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ParentPassword_pkey" PRIMARY KEY ("userId")
+);
+
+-- AddForeignKey
+ALTER TABLE "ParentPassword" ADD CONSTRAINT "ParentPassword_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
+If the diff emits anything beyond those two statements, stop and report - it
+means the schema edit in Step 1 did more than intended.
+
+- [ ] **Step 3: Regenerate the Prisma client**
+
+Run: `npm run db:generate`
+Expected: success. This needs no database.
+
+Then confirm the model reached the client:
 
 ```bash
 grep -rn "ParentPassword" src/generated/prisma/*.ts | head -3
 ```
 Expected: at least one hit.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Prove the migration against a real Postgres**
+
+Run: `npm run test:db`
+Expected: PASS. This is the step that replaces `migrate dev`: the `db` project's
+`globalSetup` starts a Postgres in Testcontainers and applies **every** migration
+in order, so a migration that does not apply cleanly fails here - against a
+throwaway container rather than against Neon. Docker must be running.
+
+- [ ] **Step 5: Typecheck**
+
+Run: `npm run typecheck`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
 git commit -m "Give a parent a password, in a table of its own"
 ```
+
+**Applying this to production is not part of this task and not yours to do.** It
+ships the way every other migration ships, through `npm run db:deploy` on a
+release.
 
 ---
 
