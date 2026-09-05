@@ -2313,6 +2313,138 @@ git commit -m "Dress the code email so it looks like LearnR"
 
 ---
 
+### Task 13: `isAuthConfigured` is asking the wrong question
+
+**Files:**
+- Modify: `src/auth.ts`
+- Modify: `src/app/viewer.ts`, `src/app/page.tsx`, `src/app/signin/page.tsx`,
+  `src/app/signin/password/page.tsx`, `src/app/password/new/page.tsx`,
+  `src/app/password/code/page.tsx`, `src/app/password/set/page.tsx`
+
+**Found by the Task 8 walkthrough**, not by a review - which is the argument for
+having walked it.
+
+`isAuthConfigured` is `AUTH_GOOGLE_ID && AUTH_GOOGLE_SECRET && AUTH_SECRET`
+(`src/auth.ts:66`), and every call site uses it to decide whether to call `auth()`
+at all - including `readViewer` (`src/app/viewer.ts:47`), which is how **every**
+screen learns who is asking.
+
+That was a true statement while Google was the only way in. It is false now. A
+deployment with `AUTH_SECRET` and a database but no Google credentials - a state
+CLAUDE.md explicitly describes as supported, and precisely the state you would
+stand up to test password sign-in without OAuth - lets a parent complete the whole
+flow, writes their `Session` row, sets their cookie, and then **never reads it on
+any screen**. They sign in successfully and stay signed out, silently.
+
+**It undercuts the reason this feature exists.** The spec's opening line is that
+end-to-end verification wants an account needing no OAuth round trip; an
+environment configured to have no OAuth is the one where this breaks.
+
+**One flag was answering two questions**, which is the actual defect:
+
+- *May a session exist and be read?* Needs `AUTH_SECRET` and a database. A
+  password session is a `Session` row plus the cookie, and Google has nothing to
+  do with it. This is what gates `auth()`.
+- *Should the Google button be offered?* Needs the two Google variables. This is
+  what gates the sign-in buttons and any "sign-in isn't set up" copy.
+
+Split them, and send each call site to the one it meant. **Judge each of the eight
+sites individually rather than substituting one name globally** - `src/app/page.tsx`
+uses the flag twice and the two uses are not obviously the same question.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// src/lib/auth-config.test.ts
+import { describe, expect, it } from 'vitest';
+import { googleConfigured, sessionsReadable } from './auth-config';
+
+// The bug this task exists for: no Google credentials, but a secret and a
+// database - a password session is written, and must still be read.
+describe('sessionsReadable', () => {
+  it('is true without Google credentials', () => {
+    expect(sessionsReadable({ secret: 'x', database: true, googleId: null, googleSecret: null }))
+      .toBe(true);
+  });
+
+  it('is false with no secret', () => {
+    expect(sessionsReadable({ secret: null, database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+
+  it('is false with no database, since a session is a row', () => {
+    expect(sessionsReadable({ secret: 'x', database: false, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+});
+
+describe('googleConfigured', () => {
+  it('needs both Google variables and the secret', () => {
+    expect(googleConfigured({ secret: 'x', database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(true);
+    expect(googleConfigured({ secret: 'x', database: true, googleId: 'a', googleSecret: null }))
+      .toBe(false);
+    expect(googleConfigured({ secret: null, database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+}); 
+```
+
+The two predicates take their inputs as an argument rather than reading
+`process.env`, so they are pure and live in `src/lib` with the rest of the engine.
+`src/auth.ts` reads the environment once and applies them.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run --project unit src/lib/auth-config.test.ts`
+Expected: FAIL - `Failed to resolve import "./auth-config"`.
+
+- [ ] **Step 3: Write the predicates and re-point the call sites**
+
+Create `src/lib/auth-config.ts` with both, then in `src/auth.ts` export
+`isGoogleConfigured` and `isSessionReadable` built from them. Keep
+`isAuthConfigured` **only** if something genuinely still means "Google is set up",
+and if you keep it, make its doc comment say which question it answers - the whole
+defect was one name answering two.
+
+Then visit each of the eight call sites and choose deliberately:
+- gating a call to `auth()` → `isSessionReadable`
+- deciding whether to draw the Google button, or to say sign-in is not set up →
+  `isGoogleConfigured`
+
+Say in your report what you chose for each site and why, especially the two in
+`src/app/page.tsx`.
+
+- [ ] **Step 4: Check Auth.js survives a missing provider credential**
+
+`NextAuth({ providers: [Google(...)] })` is constructed at import time whatever
+the environment holds. Confirm that with `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
+unset, importing `src/auth.ts` and calling `auth()` does not throw - reading a
+session is adapter and cookie work and should not need the provider, but **verify
+it rather than assuming**. If it does throw, the provider list has to become
+conditional too, and say so in your report.
+
+- [ ] **Step 5: Prove the fix end to end, on a branch and never on production**
+
+`.env.local` in this worktree points at a throwaway Neon branch. With
+`AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` removed from the environment the dev
+server sees, run the flow: set a password, then load `/` with the session cookie
+and confirm you are recognised as a parent. Before the fix this shows you signed
+out; after it, signed in.
+
+**Never point any of this at the production `DATABASE_URL`, and never run
+`prisma migrate dev`, `migrate reset` or `db push`.**
+
+- [ ] **Step 6: Commit**
+
+```bash
+npm run test:unit && npm run typecheck && npm run lint
+git add src/lib/auth-config.ts src/lib/auth-config.test.ts src/auth.ts src/app
+git commit -m "Stop a missing Google key hiding a password session"
+```
+
+---
+
 ## Verification
 
 The spec's list, as a checklist to run once at the end:
@@ -2327,6 +2459,8 @@ The spec's list, as a checklist to run once at the end:
 - [ ] Six wrong codes in a row are throttled, and the message says so.
 - [ ] Stopping the database mid-flow reports "something went wrong" rather than
       "that code doesn't work", and spends no attempts.
+- [ ] With no Google credentials in the environment, a password sign-in still
+      leaves the parent recognised on every screen.
 - [ ] The code email arrives looking like LearnR, and still reads correctly with
       every image blocked.
 - [ ] `npm test` and `npm run typecheck` pass, `src/lib/purity.test.ts` included.
