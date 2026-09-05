@@ -52,26 +52,44 @@ same records exist twice because two domains are verified in Resend,
 `noreply@learnr.muzza.tech`, so **the `.learnr` pair is the one that is load
 bearing.** Carry both anyway.
 
-**2. Only one of the nine apps has a DNS record. The rest ride the wildcard.**
-Four apps are on a `muzza.tech` hostname:
+**2. Seven hostnames are connected to projects, and only two of them have a
+record. The other five ride the wildcard.**
 
 | Host | Project | How it resolves |
 | --- | --- | --- |
 | `muzza.tech` | `portfolio` | apex A records |
 | `learnr.muzza.tech` | `learnr` | its own CNAME |
-| `finance.muzza.tech` | `future-finance-v2` | **the wildcard** |
+| `bottle.muzza.tech` | `message-bottle` | **the wildcard** |
 | `quests.muzza.tech` | `family-quests` | **the wildcard** |
+| `gym.muzza.tech` | `workout-planner` | **the wildcard** |
+| `villagers.muzza.tech` | `villagers-game` | **the wildcard** |
+| `finance.muzza.tech` | `future-finance-v2` | **the wildcard** |
 
-The other four projects are on `*.vercel.app` and have no custom domain.
-Confirmed by resolution: `finance.muzza.tech` and `quests.muzza.tech` return no
-CNAME of their own, and an invented name
-(`definitely-not-a-real-app-xyz.muzza.tech`) resolves to Vercel's IPs. So the
-plan's "recreate the records for the other eight apps" is really **recreate one
-wildcard**, and that wildcard is load bearing for two live apps.
+Read this list off the dashboard's **Connected Projects**, not off
+`vercel project ls`: that command prints each project's *latest production
+URL*, which for four of these is still the `*.vercel.app` one even though a
+`muzza.tech` hostname is connected. Taking it as the inventory undercounts by
+four, which is how this note first had the number wrong.
 
-`*.muzza.tech` matches one label, so it does **not** cover
-`aws.learnr.muzza.tech` - which is NXDOMAIN today and free for the staging
-host. The CDK stack creates that record itself.
+So the plan's "recreate the records for the other eight apps" is really
+**recreate one wildcard**, and that wildcard is load bearing for five live
+apps. None of them has a record of its own; an invented name resolves to
+Vercel's IPs exactly as they do.
+
+**`*.muzza.tech` is not limited to one label** - it answers for
+`aws.learnr.muzza.tech` too, which is worth knowing because it means the
+staging host is *not* NXDOMAIN in the new zone and would silently serve Vercel
+until the CDK's explicit record shadows it. An explicit record always beats a
+wildcard, so the stack works; the wildcard is what answers in the gap before
+`cdk deploy` first runs.
+
+**And a name below a CNAME is fine here, which is not obvious.**
+`aws.learnr.muzza.tech` sits under `learnr.muzza.tech`, which is a CNAME, and
+DNS is famously murky about data beneath one. This zone settles it by example:
+`send.learnr.muzza.tech` and `resend._domainkey.learnr.muzza.tech` already sit
+there and resolve on the live internet today. It also stops being a question at
+cutover, when `learnr.muzza.tech` becomes an A-alias to CloudFront rather than
+a CNAME.
 
 **3. The apex cannot be an alias in Route 53, and that is the one genuine
 downgrade.** Vercel's apex `ALIAS` is proprietary: it CNAME-like-resolves the
@@ -111,3 +129,44 @@ which is the one mercy here.
 **`learnr.muzza.tech` is at TTL 60 already**, so Task 4 step 4 - lower the TTL
 before cutover so the rollback is fast - needs nothing. Keep it at 60 through
 the migration. Everything else can keep the TTLs above.
+
+**The Route 53 zone is staged and verified, and is inert.** Task 4 steps 2, 3
+and 5 are done; the zone answers nothing until the nameservers move, which is
+step 6 and is the only part left.
+
+```
+zone id       Z07486711LOMQSHZAG6ZM        # -c hostedZoneId=... for the CDK
+nameservers   ns-217.awsdns-27.com
+              ns-677.awsdns-20.net
+              ns-1271.awsdns-30.org
+              ns-1610.awsdns-09.co.uk
+```
+
+Twelve record sets: the ten above, plus the `NS` and `SOA` Route 53 writes
+itself. Every value was read from live DNS and assembled programmatically
+rather than retyped - a DKIM key is 220 characters on one line and a hand
+transcription that breaks it fails silently.
+
+Verified with `aws route53 test-dns-answer`, which asks the new zone
+authoritatively over the API and so works from a machine that cannot send UDP
+port 53. Eleven checks against the live Vercel answers, all matching: both DKIM
+keys and both SPF records byte-identical, the MX pair identical, the `learnr`
+CNAME identical, the apex a superset of whatever four-address subset Vercel
+returns on a given query, the CAA a superset by exactly `amazon.com`, and
+`finance` and `quests` served by the wildcard.
+
+**Two things to check in the Vercel dashboard after the nameservers move**, both
+of which are quiet rather than loud:
+
+- **Each of the seven connected domains still shows a valid configuration.**
+  Five of them arrive through the generic `cname.vercel-dns-017.com` rather
+  than a per-project hostname like `learnr`'s, which is the ordinary external
+  DNS setup and should verify - but Vercel is the thing that decides, and a
+  domain it marks invalid stops serving.
+- **Resend still shows both domains verified.** The DKIM and SPF records are
+  copied faithfully, so it should; it is worth looking, because the failure is
+  a parent not receiving a sign-up code rather than anything visible.
+
+Rolling this back before the nameservers move is
+`aws route53 delete-hosted-zone --id Z07486711LOMQSHZAG6ZM` after emptying it,
+and costs nothing but the $0.50 the zone accrues monthly.
