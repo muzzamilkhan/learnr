@@ -2128,6 +2128,35 @@ Copy `.env.example` to `.env` and fill in:
   libpq's weaker semantics instead. So a URL saying `require` is one that
   silently loosens on a major version bump, and one saying `verify-full` keeps
   verifying. `PrismaPg` parses the string through that library.
+- `NEON_API_KEY` - authenticates `neonctl`, which is **not installed**: run it as
+  `npx neonctl`. It reads the variable from the *environment*, not from `.env`, so
+  a bare `npx neonctl` in a fresh shell finds no key, falls back to a browser OAuth
+  flow and times out after sixty seconds - pass it explicitly. LearnR's project is
+  `icy-union-73834050` (`neon-teal-ball`, `aws-ap-southeast-2`); its primary branch
+  is the endpoint `DATABASE_URL` names.
+
+  **It is here for branches, and the reason is that there is otherwise only one
+  database.** `DATABASE_URL` is production - the same rows a parent's report reads
+  and a child's answers are written to - so `prisma migrate dev` is never how a
+  schema change is developed here. It would alter production, and it offers to
+  *reset* a database when it finds drift. A migration is written offline instead:
+
+  ```bash
+  git show HEAD:prisma/schema.prisma > /tmp/schema-before.prisma
+  npx prisma migrate diff --from-schema /tmp/schema-before.prisma \
+    --to-schema prisma/schema.prisma --script
+  ```
+
+  contacts no database at all, and `npm run test:db` then applies every migration
+  to a throwaway Testcontainers Postgres, which is the proof. `npm run db:deploy`
+  is what applies one for real, on a release.
+
+  **A branch is the answer whenever something genuinely needs a live database to
+  point at** - which is the same lever the preview-deployments note above asks for
+  before naming branches in `vercel.json`. A branch is a copy-on-write fork of
+  production's data, so it is real data in a place a mistake cannot reach the
+  family using the app.
+
 - `AUTH_SECRET` - `npx auth secret`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
   `http://localhost:3000/api/auth/callback/google`
