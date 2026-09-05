@@ -24,6 +24,26 @@
 - **`includeLocalVariables` stays `false` in `src/sentry.server.config.ts`.** It was ~95% of a 21-second cold start (`a12cbc5`), because `Sentry.init()` runs in `instrumentation.ts` before Next loads a page module and attaches a `node:inspector` session that pauses on every caught exception - so the whole module graph resolves under the debugger. That is a property of the Sentry config, not of Vercel, so it follows the app to Lambda unchanged. Do not re-enable it to debug a Lambda cold start; it is what a Lambda cold start would be measuring.
 - **A staging hostname is used throughout: `aws.learnr.muzza.tech`.** Production `learnr.muzza.tech` keeps pointing at Vercel until Task 10. This is a deliberate addition to the spec - a full Google sign-in cannot be tested without a hostname Google will redirect to.
 
+## Phases
+
+**Both stacks stay live and both keep deploying until Vercel is deliberately retired.** The unit of rollback is a running, current stack - not a snapshot.
+
+| Phase | Tasks | `learnr.muzza.tech` | `aws.learnr.muzza.tech` | Every push deploys |
+| --- | --- | --- | --- | --- |
+| **1. Parallel** | 1-9 | Vercel | AWS | both |
+| **2. Cut over** | 10 | **AWS** | AWS | both |
+| **3. Retire** | 11 | AWS | AWS | AWS only |
+
+**Phase 1 is where the testing happens** and has no deadline. Both stacks serve the same Neon database off the same commit, so the AWS stack is never a stale branch you have to re-verify - it is production's code on production's data at a different hostname.
+
+**Phase 2 is one repository variable and a deploy.** Vercel keeps receiving every push, so rolling back is pointing the Route 53 alias at a stack that is current rather than one frozen at cutover. That is the whole reason the Vercel job survives into phase 2.
+
+**Phase 3 needs a deliberate decision, not a timer running out.** The spec says a week; the gate is that nothing surprising has happened, not that seven days elapsed.
+
+**A session works on both stacks**, because a session is a `Session` row and both read the same database. Somebody signed in on Vercel is signed in on AWS. That is what makes a flip - or a flip back - invisible to a child mid-lesson.
+
+**Weighted DNS was considered and refused.** Route 53 could send a percentage of production traffic to AWS, and sessions crossing between stacks would work for the reason above. But with a household's worth of users a percentage is not a sample, and it turns every report of a problem into a question about which stack served it. A clean flip reversible in 60 seconds is the better instrument.
+
 ---
 
 ### Task 1: Repository preparation
@@ -1023,14 +1043,16 @@ Visit the staging host signed in and confirm avatars and the logo render. `src/c
 
 ---
 
-### Task 8: CI/CD on OIDC
+### Task 8: CI/CD on OIDC, deploying to both stacks
 
 **Files:**
 - Rewrite: `.github/workflows/deploy.yml`
 
 **Interfaces:**
 - Consumes: the stack from Task 5, the assets bucket from Task 7.
-- Produces: a push to `master` that deploys, with no long-lived AWS credential anywhere in the repository.
+- Produces: a push to `master` that migrates once and then deploys to Vercel **and** AWS in parallel, with no long-lived AWS credential anywhere in the repository.
+
+**This is phase 1's defining change, and the reason it is not a swap.** Deploying to AWS *instead of* Vercel would leave Vercel frozen at whatever commit was last shipped, so by cutover the rollback target would be days behind production. Both jobs run until phase 3 deletes one.
 
 - [ ] **Step 1: Create the GitHub OIDC provider and a deploy role**
 
@@ -1053,31 +1075,26 @@ Attach permissions for CDK deploys (assuming the CDK bootstrap roles), `s3:PutOb
 - Secret `SENTRY_AUTH_TOKEN` - already present, still a build credential.
 - Secret `NEXT_PUBLIC_SENTRY_DSN` - the DSN is public by design, but it is needed at build time and a repository secret is the simplest place for it.
 
-Delete `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` **only after Task 10 succeeds**, not now - they are the rollback.
+Keep `VERCEL_TOKEN`, `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. They are not leftovers - the Vercel job uses them through phases 1 and 2, and Task 11 deletes them when the job goes.
 
-- [ ] **Step 3: Rewrite the deploy job**
+- [ ] **Step 3: Split the deploy job into migrate, vercel and aws**
 
-Keep the `test` job exactly as it is. Replace the `deploy` job's body, preserving the comments on the two steps whose reasoning is unchanged - the database guard and the migration.
+Keep the `test` job exactly as it is. The single `deploy` job becomes three, because **the migration must run once and both deploys must run behind it**:
 
 ```yaml
-  deploy:
-    name: Deploy the web app to AWS
+  # One migration for two stacks. Both read the same Neon database off the same
+  # commit, so running `db:deploy` in each job would be the same migration
+  # twice, racing itself for the advisory lock.
+  migrate:
+    name: Migrate the database
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      # What lets this job assume the AWS role. There is no long-lived AWS key
-      # in this repository at all, which is a real improvement on the three
-      # Vercel secrets it replaces rather than a like-for-like swap.
-      id-token: write
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-
       - run: npm ci
 
       # A missing database secret must stop the deploy, because a skipped
@@ -1098,20 +1115,66 @@ Keep the `test` job exactly as it is. Replace the `deploy` job's body, preservin
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      # Migrates before anything is built or deployed, so a schema change lands
-      # before the code reading through it does. `db:deploy` is
-      # `node scripts/migrate.mjs`, not a bare `prisma migrate deploy`: Neon
-      # accepts a connection while its compute is still waking from
-      # autosuspend, and the migration's advisory lock then times out against a
-      # fixed 10s Prisma gives no way to raise (P1002) - the script retries that
-      # one error three times, five seconds apart, and fails on anything else.
+      # `db:deploy` is `node scripts/migrate.mjs`, not a bare
+      # `prisma migrate deploy`: Neon accepts a connection while its compute is
+      # still waking from autosuspend, and the migration's advisory lock then
+      # times out against a fixed 10s Prisma gives no way to raise (P1002) -
+      # the script retries that one error three times, five seconds apart, and
+      # fails on anything else.
       #
-      # It still runs on the runner rather than inside AWS: Neon is publicly
+      # It runs on the runner rather than inside AWS: Neon is publicly
       # reachable, so there is no CodeBuild step, no VPC and no bastion to
       # justify.
       - run: npm run db:deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # Phases 1 and 2 only. Task 11 deletes this job, and that deletion is what
+  # retiring Vercel actually means - until then it is what makes a rollback a
+  # flip to a current stack rather than to a stale snapshot.
+  vercel:
+    name: Deploy to Vercel
+    needs: migrate
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Pinned rather than @latest: an unpinned CLI is unreviewed code in the
+      # deploy pipeline.
+      - run: npm install -g vercel@59.5.0
+      - run: |
+          vercel whoami
+          vercel pull --yes --environment=production
+      - run: vercel build --prod
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      - run: vercel deploy --prebuilt --prod --yes
+
+  aws:
+    name: Deploy to AWS
+    needs: migrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # What lets this job assume the AWS role. There is no long-lived AWS key
+      # in this repository at all, which is a real improvement on the three
+      # Vercel secrets rather than a like-for-like swap.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -1155,11 +1218,13 @@ Keep the `test` job exactly as it is. Replace the `deploy` job's body, preservin
             --distribution-id ${{ vars.DISTRIBUTION_ID }} --paths "/*"
 ```
 
-Set the repository variable `DOMAIN_NAMES` to `aws.learnr.muzza.tech` for now. Task 10 changes it.
+**`vercel` and `aws` run in parallel and neither needs the other.** In phase 1 an `aws` failure leaves production untouched, because `vercel` has already shipped - the build goes red and nothing is broken, which is the right asymmetry while AWS is the one being tested. **After the cutover in phase 2 that asymmetry inverts**, so a red `aws` job then is a production incident and should be treated as one.
+
+Set the repository variable `DOMAIN_NAMES` to `aws.learnr.muzza.tech` for now. Task 10 changes it, and that change is the cutover.
 
 - [ ] **Step 4: Update the workflow's header comment**
 
-The existing comment block explains `vercel.json`, `git.deploymentEnabled: false` and preview deployments. Rewrite the Vercel-specific paragraphs; **keep the two paragraphs on why previews are off and on the suite being the gate**, both of which are unchanged by this move.
+The existing comment block explains `vercel.json`, `git.deploymentEnabled: false` and preview deployments. **`vercel.json` stays for now** - Vercel is still deploying, so `git.deploymentEnabled: false` is still what stops it racing this workflow. Add a paragraph naming the three phases and saying plainly that the `vercel` job is temporary and Task 11 deletes it; **keep the two paragraphs on why previews are off and on the suite being the gate**, both unchanged by this move.
 
 - [ ] **Step 5: Push and verify the workflow deploys**
 
@@ -1169,7 +1234,7 @@ git commit -m "Deploy to AWS from CI, with no long-lived credential"
 git push
 ```
 
-Expected: the workflow runs `test`, then `deploy`, and finishes green. Confirm `https://aws.learnr.muzza.tech` still serves and reflects the pushed commit.
+Expected: the workflow runs `test`, then `migrate`, then `vercel` and `aws` in parallel, and finishes green. Confirm **both** hostnames serve and both reflect the pushed commit - `learnr.muzza.tech` from Vercel and `aws.learnr.muzza.tech` from CloudFront. From here until Task 11, every push keeps them in step, which is what makes phase 1 open-ended.
 
 ---
 
@@ -1253,34 +1318,49 @@ The same checks as Task 9, abbreviated: **Google sign-in first** - `AUTH_URL` no
 
 - [ ] **Step 6: Watch for an hour**
 
-CloudWatch Lambda errors and duration, CloudFront 5xx rate, and Sentry. **Rollback is pointing the Route 53 alias back at Vercel** - a record change with a 60s TTL.
+CloudWatch Lambda errors and duration, CloudFront 5xx rate, and Sentry. **Rollback is pointing the Route 53 alias back at Vercel** - a record change with a 60s TTL, to a stack that is still receiving every push and is therefore running the same commit. That is phase 1's whole payoff.
 
-- [ ] **Step 7: Leave it for a week before Task 11**
+```bash
+# Rollback, if needed: restore the Vercel record and let CDK stop managing it.
+cd infra
+npx cdk deploy --all --require-approval never \
+  -c hostedZoneId=ZONE_ID -c domainNames=aws.learnr.muzza.tech
+# then recreate the learnr.muzza.tech record pointing at Vercel, as inventoried
+# in Task 4 step 1.
+```
+
+- [ ] **Step 7: Stay in phase 2 until you decide to leave it**
+
+Both stacks keep deploying. There is no cost to sitting here and no timer: the gate for Task 11 is that nothing surprising has happened, which the spec sizes at about a week. **Sentry sees both stacks reporting into one project during phases 1 and 2** - if an error's origin is ever ambiguous, that is worth a `server_name` tag rather than a guess.
 
 ---
 
-### Task 11: Cleanup
+### Task 11: Retire Vercel (phase 3)
 
-Only after a week without incident.
+**This is the phase gate, and it is a decision rather than an elapsed time.** Everything before it is reversible in 60 seconds; this is what makes AWS the only stack. Do it when phase 2 has been uneventful - about a week, per the spec - and not because a week has passed.
 
 **Files:**
 - Delete: `vercel.json`
 - Modify: `.gitignore`
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Delete `vercel.json`**
+- [ ] **Step 1: Delete the `vercel` job from `.github/workflows/deploy.yml`**
 
-It exists solely to set `git.deploymentEnabled: false` and stop Vercel racing the workflow. With the project gone there is nothing to race.
+This is the actual retirement; everything else in this task is tidying behind it. `migrate` keeps its place and `aws` keeps `needs: migrate`. Update the header comment's phases paragraph to say phase 3 is done.
+
+- [ ] **Step 2: Delete `vercel.json`**
+
+It exists solely to set `git.deploymentEnabled: false` and stop Vercel racing the workflow. With no Vercel job and the project gone, there is nothing to race.
 
 ```bash
 git rm vercel.json
 ```
 
-- [ ] **Step 2: Remove the `.vercel` entry from `.gitignore`**
+- [ ] **Step 3: Remove the `.vercel` entry from `.gitignore`**
 
 Also remove the stale `/fixtures/corpus/` entry, left behind when the golden corpus was deleted in the API collapse.
 
-- [ ] **Step 3: Update `CLAUDE.md`**
+- [ ] **Step 4: Update `CLAUDE.md`**
 
 This is not a footnote - it is how the next session learns the deployment, and a stale one is worse than none. Sections needing rewrites:
 
@@ -1290,11 +1370,11 @@ This is not a footnote - it is how the next session learns the deployment, and a
 - **Setup** - `.env.example` is unchanged for local development, but note that production values live in SSM at `/learnr/prod/*`.
 - Add a short section on the two things that can silently break: `AUTH_URL` against CloudFront's SigV4-pinned `Host`, and `NEXT_PUBLIC_SENTRY_DSN` being a build argument.
 
-- [ ] **Step 4: Delete the Vercel project and its three repository secrets**
+- [ ] **Step 5: Delete the Vercel project and its three repository secrets**
 
 `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`. Keep the domain registered at Vercel - it is locked until 15 October 2026 and moving it is optional and operationally worthless.
 
-- [ ] **Step 5: Set a billing alarm**
+- [ ] **Step 6: Set a billing alarm**
 
 The Lambda and CloudFront free tiers are permanent and **account-wide**, so nine apps share one pool and one going viral spends it for the other eight. An alarm at $10 is worth more than any per-unit rate.
 
@@ -1303,7 +1383,7 @@ aws budgets create-budget --account-id ACCOUNT_ID --budget \
   '{"BudgetName":"monthly","BudgetLimit":{"Amount":"10","Unit":"USD"},"TimeUnit":"MONTHLY","BudgetType":"COST"}'
 ```
 
-- [ ] **Step 6: Verify and commit**
+- [ ] **Step 7: Verify and commit**
 
 ```bash
 npm run typecheck && npm test
