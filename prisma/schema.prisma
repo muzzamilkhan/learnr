@@ -97,6 +97,10 @@ model User {
   /// in when there is no photo - it is the fallback, not the thing replaced.
   photo ChildPhoto?
 
+  /// The password a grown-up set, if they set one. A row of its own - see
+  /// `ParentPassword`.
+  password ParentPassword?
+
   accounts         Account[]
   sessions         Session[]
   learningSessions LearningSession[]
@@ -129,6 +133,27 @@ model ChildPhoto {
   child     User     @relation(fields: [childId], references: [id], onDelete: Cascade)
   dataUrl   String
   updatedAt DateTime @updatedAt
+}
+
+/// A grown-up's password, hashed with scrypt.
+///
+/// A table rather than a column on `User`, for `ChildPhoto`'s reason: the
+/// Auth.js adapter selects whole `User` rows on every authenticated request,
+/// and a password hash has no business riding along with a session lookup. It
+/// is joined only by the one query that checks a password.
+///
+/// `userId` is the primary key, so a parent has one password or none. Only ever
+/// set on a row with `role = 'parent'`: a child has no email and so no way to
+/// reach the flow that writes this.
+model ParentPassword {
+  userId    String   @id
+  /// `scrypt$N$r$p$salt$key` - see `src/lib/password.ts`. The cost parameters
+  /// travel with the hash so raising them later strands nothing.
+  hash      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
