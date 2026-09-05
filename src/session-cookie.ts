@@ -20,23 +20,27 @@
  */
 
 /**
- * Which hosts the session cookie is sent to.
+ * The cookie is host-only, and there is no longer a setting that widens it.
  *
- * Unset, the cookie is host-only: the browser sends it back to
- * `learnr.muzza.tech` and nowhere else. That was right while this app was the
- * only thing that ever read it, and it is not now - the browser calls the API
- * directly for everything a child does while playing, and a host-only cookie
- * would not go with those calls.
+ * There was: `AUTH_COOKIE_DOMAIN`, set in production to `learnr.muzza.tech` so
+ * the cookie reached that host *and* its subdomains - `api.learnr.muzza.tech`
+ * among them, back when the browser called a Fastify API on Fly for everything
+ * a child did while playing. The collapse put those six writes back on this
+ * origin as `/api/v1` route handlers, and a same-origin request carries a
+ * host-only cookie perfectly well.
  *
- * So production sets it to `learnr.muzza.tech`, which reaches that host *and*
- * its subdomains, `api.learnr.muzza.tech` among them. That is also why the API
- * is a subdomain of this app rather than a sibling like `learnr-api.muzza.tech`:
- * a sibling could only be reached by widening this to `muzza.tech`, which would
- * send a child's session cookie to every host under that name.
+ * So the widening had outlived its reason, and a `Domain` nothing needs is a
+ * cookie sent to hosts that have no business reading it. Deleted rather than
+ * left unset, because a variable still read is a variable somebody can set:
+ * production went on carrying `learnr.muzza.tech` months after the API it was
+ * for stopped existing, which is exactly how `tokensFrom` in
+ * `src/server/session.ts` came to describe a hazard the deployed config was
+ * still creating.
  *
- * `__Secure-` permits a `Domain`; it is `__Host-` that forbids one. Left unset
- * in development, where the web app and the API are two ports on localhost and
- * a host-only cookie already reaches both.
+ * `tokensFrom` stays, and is what makes removing this safe: a browser holding
+ * both the old domain-scoped cookie and a new host-only one sends both, and it
+ * tries each until one resolves rather than letting the first speak for the
+ * live one.
  */
 const useSecureCookies = process.env.NODE_ENV === 'production';
 
@@ -44,22 +48,18 @@ export const SESSION_COOKIE_NAME = useSecureCookies
   ? '__Secure-authjs.session-token'
   : 'authjs.session-token';
 
-const cookieDomain = process.env.AUTH_COOKIE_DOMAIN;
-
 export const SESSION_COOKIE_OPTIONS: {
   httpOnly: true;
   sameSite: 'lax';
   path: '/';
   secure: boolean;
-  domain?: string;
 } = {
   httpOnly: true,
-  // What stands between a cookie this widely scoped and a cross-site write, now
-  // that the browser posts to the API itself rather than through a server
-  // action and Next's origin check. Lax withholds the cookie from a cross-site
-  // POST, which is the shape every one of these calls has.
+  // What stands between this cookie and a cross-site write, now that the
+  // browser posts to `/api/v1` itself rather than through a server action and
+  // Next's origin check. Lax withholds the cookie from a cross-site POST,
+  // which is the shape every one of these calls has.
   sameSite: 'lax',
   path: '/',
   secure: useSecureCookies,
-  ...(cookieDomain ? { domain: cookieDomain } : {}),
 };

@@ -34,9 +34,17 @@ export async function resolveUserId(token: string | undefined): Promise<string |
  * signing in is what writes it. Returning on the first match let the stale
  * cookie speak for the live one.
  *
- * Same-origin means nothing writes a `Domain` any more, so this is insurance for
- * browsers still holding a pair from before the collapse rather than an ongoing
- * hazard. It is cheap and it is already proven, so it stays.
+ * Nothing writes a `Domain` any more, and now that is a property of the code
+ * rather than of a variable: `AUTH_COOKIE_DOMAIN` is gone from
+ * `src/session-cookie.ts`. It was still set in production to
+ * `learnr.muzza.tech` long after the Fly-era API it widened the cookie for
+ * stopped existing, so this was describing a hazard the deployment was
+ * actively creating, not one it had left behind.
+ *
+ * That makes this insurance rather than an ongoing hazard - for browsers
+ * holding a pair from before the collapse, and now for browsers holding one
+ * from before that variable went. It is cheap and it is already proven, so it
+ * stays.
  *
  * `next/headers`' cookie API returns one value per name, so the raw header is
  * what has to be read.
