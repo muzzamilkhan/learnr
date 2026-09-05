@@ -26,7 +26,7 @@ import {
   signInWithPassword,
   spendVerificationCode,
 } from '@/server/passwords';
-import { sendVerificationCode } from '@/server/email';
+import { isEmailConfigured, sendVerificationCode } from '@/server/email';
 import { readViewer } from '@/app/viewer';
 import { availableSubjects } from '@/content/catalog';
 import { parseYearLevel } from '@/lib/curriculum';
@@ -218,10 +218,16 @@ const redeemFailures = createThrottle({
 });
 
 /**
- * This one counts every send, successful ones included - unlike the guess
- * throttles below, which only count a failure. What it limits is mail arriving
- * in somebody's inbox, and every send is that event, whether or not the code
- * inside it ever gets typed back correctly.
+ * This one counts every mail that actually went out, successful ones
+ * included - unlike the guess throttles below, which only count a failure.
+ * What it limits is mail arriving in somebody's inbox, and every send is that
+ * event, whether or not the code inside it ever gets typed back correctly.
+ *
+ * That is also why `sendPasswordCodeAction` counts against it only after
+ * `sendVerificationCode` has returned - a mail provider outage or an
+ * unconfigured `RESEND_API_KEY` is not mail arriving anywhere, and counting
+ * it would spend a real parent's budget for something that never happened to
+ * them.
  */
 const codeSends = createThrottle({ limit: SEND_LIMIT, windowMs: SEND_WINDOW_MS });
 /** Six digits is a million codes; the window is what makes that enough. */
@@ -313,8 +319,10 @@ export async function sendPasswordCodeAction(email: string): Promise<{ error: st
   if (codeSends.blocked(address, now) || (browser && codeSends.blocked(browser, now))) {
     return { error: 'Too many codes asked for. Wait a little while and try again.' };
   }
-  codeSends.fail(address, now);
-  if (browser) codeSends.fail(browser, now);
+
+  if (!isEmailConfigured) {
+    return { error: 'Something went wrong. Wait a moment and try again.' };
+  }
 
   const code = generateVerificationCode(randomInt);
   if (!(await issueVerificationCode(address, code))) {
@@ -325,6 +333,12 @@ export async function sendPasswordCodeAction(email: string): Promise<{ error: st
     // sent, and sending them to look for it wastes their time.
     return { error: "We couldn't send that email. Wait a moment and try again." };
   }
+
+  // Counted only now that a mail has actually gone out - see `codeSends`'s
+  // own comment. A provider outage or a database blip must not spend a real
+  // parent's budget for mail that never reached them.
+  codeSends.fail(address, now);
+  if (browser) codeSends.fail(browser, now);
   return null;
 }
 
@@ -389,6 +403,13 @@ export async function setPasswordAction(password: string): Promise<{ error: stri
 
   if (result.status === 'unavailable') {
     return { error: 'Something went wrong. Wait a moment and try again.' };
+  }
+  if (result.status === 'invalid-grant') {
+    // Not a bad password - the grant itself is gone (expired, already spent,
+    // or never a grant at all). The sentence above already exists for this:
+    // a grown-up who stepped away from an open screen sees the same message
+    // whether the cookie or the row behind it is what timed out.
+    return { error: 'That took too long. Start again and we will send a new code.' };
   }
   if (result.status === 'rejected') {
     // The grant survives a refused password - see `setPasswordWithGrant`.
