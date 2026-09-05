@@ -1,7 +1,8 @@
 # LearnR
 
-A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
-designed for a standard iPad. Maths and English are the two subjects that ship.
+A learning web app for children. Next.js (App Router) on Vercel, Google and
+email/password sign-in for grown-ups, designed for a standard iPad. Maths and
+English are the two subjects that ship.
 
 One Next.js application: the engine, the content, the UI, the routes and the
 data layer in one tree - see **Where everything lives** below. It was two
@@ -187,6 +188,18 @@ trade. `claimParentRole` is written three times - in `src/server/db.ts` for the
 sign-in event, in `src/server/accounts.ts` for the healing case on `/`, and
 inline inside `acceptShareInvite`'s transaction. All three are the same
 compare-and-set on `role IS NULL`, which is what makes duplicating it safe.
+
+**A fourth site claims the role, and it is not that compare-and-set.**
+`src/server/passwords.ts`'s `setPasswordWithGrant` writes `role: 'parent'` on
+the healing branch - an account that predates the column - as part of an
+ordinary read-then-write already inside its transaction:
+`...(existing.role === null ? { role: 'parent' } : {})`. Not the same statement
+as `claimParentRole`, and not safe for the reason the other three are. It is
+safe for a narrower reason of its own: the only value ever written here is
+`'parent'`, a child account is refused two lines above and never reaches this
+branch, and the grant that gets a caller here is single-use - deleted in the
+same transaction before this runs - so no second caller can ever race this one
+to the same row.
 
 ### Repository visibility
 
