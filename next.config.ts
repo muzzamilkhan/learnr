@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Emits `.next/standalone`, a self-contained `server.js` with only the
+  // traced dependencies beside it. This is what runs in the container, and
+  // it is what makes the artifact portable: inside the image it is an
+  // ordinary Node server on a port, not anything AWS-shaped.
+  output: 'standalone',
+
   images: {
     // Google is the only sign-in, so its avatar host is the only remote image the
     // app ever loads. Narrow on purpose: anything else should not be renderable.
