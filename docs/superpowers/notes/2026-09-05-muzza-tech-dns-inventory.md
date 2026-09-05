@@ -133,6 +133,42 @@ zone has none, so wildcards are not separately refused either. Sources:
 TTL 60 on the existing CAA records means a correction propagates in a minute,
 which is the one mercy here.
 
+**5. The apex CAA is not what ACM reads, and the wildcard is why.** Found by
+deploying: the certificate failed in **two minutes** with `CAA_ERROR`, not by
+sitting in validation. A CAA lookup walks *up* the tree only until it finds an
+RRset, and **following a CNAME short-circuits the walk entirely** (RFC 8659).
+`aws.learnr.muzza.tech` had no record of its own, so it matched
+`*.muzza.tech CNAME cname.vercel-dns-017.com.` - and the CAA set answered was
+*Vercel's*, at the CNAME target:
+
+```
+0 issue "pki.goog"   0 issue "sectigo.com"
+0 issue "globalsign.com"   0 issue "letsencrypt.org"
+```
+
+No Amazon CA, and `muzza.tech`'s own `amazon.com` never consulted. Point 4
+above is correct and was still not sufficient: **the apex record is necessary
+and only decides names that actually reach the apex.**
+
+The fix is a CAA record on each covered name, which both permits Amazon and -
+by existing at all - stops the wildcard answering for that name.
+`CertificateStack` writes one per name (`CaaAmazonRecord`) and the certificate
+`DependsOn` them, since created in parallel the CAA check can race ahead of the
+record permitting it. **Budget for the stale answer**: the wildcard's reply
+caches for 1800s, so a redeploy inside half an hour of the first failure fails
+again for a reason already fixed.
+
+**This bites again at cutover, and worse.** `learnr.muzza.tech` is a CNAME to
+Vercel today, so a certificate covering it would fail CAA exactly the same way -
+and the repair used here is unavailable, because **a CAA record cannot coexist
+with a CNAME at the same name**. Route 53 refuses the change outright. Once the
+name is an A-alias to CloudFront the walk reaches the apex and works, but the
+alias cannot be created before the certificate that lets the distribution serve
+the name. Task 10 has to break that circle deliberately - the likely move is to
+replace the CNAME with plain A records at Vercel's addresses first, which makes
+the name non-CNAME and lets CAA reach the apex while production keeps serving,
+then issue and flip. **Decide this before the cutover, not during it.**
+
 ## What is already done
 
 **`learnr.muzza.tech` is at TTL 60 already**, so Task 4 step 4 - lower the TTL
