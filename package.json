@@ -15,6 +15,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "node scripts/migrate.mjs",
+    "test:account": "tsx scripts/test-account.ts",
+    "test:timings": "tsx scripts/timings.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

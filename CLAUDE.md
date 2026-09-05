@@ -2339,6 +2339,60 @@ per-file `beforeAll` leaves `prisma` null and every function returning null
 against a database that is running perfectly well. `npm run db:deploy` and
 `prisma migrate dev` **do** read it, so they reach whatever it names.
 
+## Live testing
+
+**There is one test account, and it is a fixture rather than a feature.**
+`npm run test:account` creates a parent with a password and one child;
+`npm run test:account -- --remove` deletes it, and the cascade takes the
+password, the sessions and the child with it. Its credentials are
+`TEST_ACCOUNT_EMAIL` and `TEST_ACCOUNT_PASSWORD` in the gitignored `.env`, named
+with empty values in `.env.example` - **this repository is public, so they are
+environment and never argument**, which also keeps the password out of a shell
+history.
+
+**It writes the two rows the real flow would have left behind rather than
+weakening that flow.** A password account is only reachable through email →
+code → password, and no `User` row exists until the mailbox answers - which is
+what makes email-squatting unreachable and is not something to soften for
+convenience. So the script reuses `hashPassword` (never a second scrypt of its
+own, which would be free to drift from what the app verifies against) and sets
+`emailVerified`, because an account claiming otherwise is a shape the app never
+makes.
+
+**It writes to whatever `DATABASE_URL` names, which here is production**, and
+prints the host before it writes. That is the honest reading of "live testing"
+in a repository with one database; the way to get a disposable one is the Neon
+branch under **Setup**.
+
+**`npm run test:timings [url]` is what the account is for.** Signed out, `/`
+renders the landing page and `/progress` redirects, so an anonymous timing run
+measures screens the app barely has. It mints a `Session` row directly rather
+than driving the sign-in form - a server action is addressed by a build-specific
+id, so a harness posting one would break on every deploy - and deletes it again
+in a `finally`. It verifies the stored hash against the password first, so a
+harness that had quietly stopped agreeing with the real way in says so.
+
+**Cold and warm are reported apart, because the gap is the finding.** Measured
+against production: `/` first hit **20,823ms**, then 403ms warm; `/speed`
+19,900ms then 874ms. Everything after those two on the same instance was
+400-900ms. The database is not in it - the slow trace's Postgres span is 67ms,
+`pg.connect` 51ms - and the time is `resolve page components` (224 spans, p50
+**17.6s**) and `NextNodeServer.clientComponentLoading` (p50 19.2s): **module
+loading on a cold instance**, not rendering and not Neon.
+
+**`includeLocalVariables: true` in `sentry.server.config.ts` is an aggravator
+and not the cause, and that was measured rather than argued.** It attaches a
+`node:inspector` session at `Sentry.init()` - `setupOnce` →
+`configureAndConnect` → `Debugger.enable` + `setPauseOnExceptions: 'all'`, read
+off the installed source - which is before Next loads a single page module. A
+controlled require of the same module graph with and without it costs
+**335ms against 469ms, about 40%**, repeatably. Real, worth weighing against
+what local variables on a stack trace buy, and nowhere near the 50x that would
+explain twenty seconds. **The root cause is still open**; the next thing to look
+at is what is in the 54MB of `.next/server` that every cold instance has to
+page in, starting with why `recharts` sits in a `[root-of-the-server]` chunk
+when only `/progress` draws a chart.
+
 ## Working agreements
 
 - TDD, lean tests. Test behaviour through the public function, not internals.
