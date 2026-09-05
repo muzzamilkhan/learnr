@@ -320,8 +320,13 @@ export async function sendPasswordCodeAction(email: string): Promise<{ error: st
     return { error: 'Too many codes asked for. Wait a little while and try again.' };
   }
 
+  // Its own sentence, and not the generic one below it. This is a server that
+  // was never given a mail provider - waiting and trying again will produce it
+  // again forever, and the reader cannot do anything about it. It is the same
+  // distinction `authErrorMessage` draws for `Configuration`, and it was worth
+  // making the moment two unrelated causes started sharing one message.
   if (!isEmailConfigured) {
-    return { error: 'Something went wrong. Wait a moment and try again.' };
+    return { error: "Email isn't set up on this server yet. Nothing you did caused this." };
   }
 
   const code = generateVerificationCode(randomInt);
