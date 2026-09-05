@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  // `infra` is a separate npm project with its own tsconfig, its own module
+  // resolution and its own dependencies, so it typechecks itself. Excluded
+  // here mainly because `cdk synth` stages a verbatim copy of this repository
+  // under `infra/cdk.out/asset.<hash>/`, which `**/*.ts` would otherwise sweep
+  // back in - a copy with no generated Prisma client, so it fails loudly and
+  // only ever after a synth.
+  "exclude": ["node_modules", "infra"]
 }
