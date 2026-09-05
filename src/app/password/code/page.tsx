@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
+import { auth, isSessionReadable } from '@/auth';
 import { LogoLockup } from '@/components/logo';
 import { CodeStepForm } from '@/components/password-forms';
 import { normaliseEmail } from '@/lib/verification-code';
@@ -17,7 +17,7 @@ export default async function PasswordCodePage({
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {
-  const session = isAuthConfigured ? await auth() : null;
+  const session = isSessionReadable ? await auth() : null;
   if (session?.user?.id) redirect('/');
 
   const { email } = await searchParams;

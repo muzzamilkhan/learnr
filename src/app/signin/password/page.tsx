@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
+import { auth, isSessionReadable } from '@/auth';
 import { LogoLockup } from '@/components/logo';
 import { PasswordSignInForm } from '@/components/password-forms';
 
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
  * child sees.
  */
 export default async function PasswordSignInPage() {
-  const session = isAuthConfigured ? await auth() : null;
+  const session = isSessionReadable ? await auth() : null;
   if (session?.user?.id) redirect('/');
 
   return (

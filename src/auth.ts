@@ -4,6 +4,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma, isDatabaseConfigured } from '@/server/db';
 import { claimParentRole } from '@/server/accounts';
 import { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/session-cookie';
+import { googleConfigured, sessionsReadable, type AuthEnv } from '@/lib/auth-config';
 
 /**
  * Google is the only NextAuth provider. The other way in - a child redeeming a
@@ -93,6 +94,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 });
 
-export const isAuthConfigured = Boolean(
-  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET && process.env.AUTH_SECRET,
-);
+const authEnv: AuthEnv = {
+  secret: process.env.AUTH_SECRET,
+  database: isDatabaseConfigured,
+  googleId: process.env.AUTH_GOOGLE_ID,
+  googleSecret: process.env.AUTH_GOOGLE_SECRET,
+};
+
+/**
+ * May a session exist and be read? See `sessionsReadable` for why this needs
+ * no Google credentials - a password session is a `Session` row and a cookie,
+ * and every call site that only wants to know whether calling `auth()` is
+ * worth the round trip belongs on this, not on `isGoogleConfigured`.
+ */
+export const isSessionReadable = sessionsReadable(authEnv);
+
+/**
+ * Is Google sign-in itself set up? This is the one place "auth is configured"
+ * still means what it used to: whether to offer the Google button, or to say
+ * sign-in has not been set up at all. It answers a narrower question than it
+ * looks like it should - a deployment can have this false and still run a
+ * full password sign-in - so nothing that only needs a readable session
+ * should reach for it.
+ */
+export const isGoogleConfigured = googleConfigured(authEnv);

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
+import { auth, isSessionReadable } from '@/auth';
 import { LogoLockup } from '@/components/logo';
 import { EmailStepForm } from '@/components/password-forms';
 
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * forgotten password, so the line below the heading says both things at once.
  */
 export default async function NewPasswordPage() {
-  const session = isAuthConfigured ? await auth() : null;
+  const session = isSessionReadable ? await auth() : null;
   if (session?.user?.id) redirect('/');
 
   return (

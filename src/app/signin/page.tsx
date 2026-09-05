@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { auth, isAuthConfigured } from '@/auth';
+import { auth, isSessionReadable } from '@/auth';
 import { SignInButton } from '@/components/auth-buttons';
 import { CodeSignIn } from '@/components/code-sign-in';
 import { LogoLockup } from '@/components/logo';
@@ -47,7 +47,7 @@ export default async function SignInPage({
 }) {
   const { error, callbackUrl } = await searchParams;
 
-  const session = isAuthConfigured ? await auth() : null;
+  const session = isSessionReadable ? await auth() : null;
   if (session?.user?.id) redirect('/');
 
   const message = authErrorMessage(error);

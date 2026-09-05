@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import type { Session } from 'next-auth';
-import { auth, isAuthConfigured } from '@/auth';
+import { auth, isSessionReadable } from '@/auth';
 import { readAccount } from '@/server/accounts';
 import { viewerKind, type ViewerKind } from '@/lib/viewer';
 import type { Account } from '@/lib/dto';
@@ -44,7 +44,7 @@ export interface Viewer {
  * whole job.
  */
 export const readViewer = cache(async (): Promise<Viewer> => {
-  const session = isAuthConfigured ? await auth() : null;
+  const session = isSessionReadable ? await auth() : null;
   const userId = session?.user?.id;
   const account = userId ? await readAccount(userId) : null;
 

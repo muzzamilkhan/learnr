@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { isAuthConfigured } from '@/auth';
+import { isSessionReadable } from '@/auth';
 import { claimParentRole } from '@/server/accounts';
 import { readPlayer } from '@/server/play-state';
 import { readViewableChildren } from '@/server/sharing';
@@ -128,8 +128,12 @@ export default async function HomePage({
   const levels = listLevels();
 
   // Signed out, this is the app's public face: what it is, what it covers, and
-  // the two ways in. See `Landing`.
-  if (isAuthConfigured && !session?.user) return <Landing />;
+  // the ways in. See `Landing`. This is `isSessionReadable`, not
+  // `isGoogleConfigured`: a deployment with a secret and a database but no
+  // Google app can still sign a parent in with a password, so it still has a
+  // sign-in worth landing on. Only a deployment where no session can ever
+  // exist skips straight to play.
+  if (isSessionReadable && !session?.user) return <Landing />;
 
   /*
     Signed in, and their account did not come back. This is not "not a parent" -
@@ -360,10 +364,16 @@ export default async function HomePage({
 
       <CurriculumLink />
 
-      {!isAuthConfigured ? (
+      {/* "Nothing is being saved" is true only when no session of either kind
+          can exist - `isSessionReadable`, not `isGoogleConfigured`. A
+          deployment with a secret and a database but no Google app still
+          saves everything a password-signed-in parent does; this banner would
+          be a lie shown to exactly that parent. */}
+      {!isSessionReadable ? (
         <p className="mt-12 rounded-2xl bg-(--color-brand-soft) px-5 py-4 text-base text-(--color-ink-soft)">
-          Sign-in is not configured yet, so nothing is being saved. Add the Google OAuth
-          variables from <code>.env.example</code> to enable accounts and recording.
+          Sign-in is not configured yet, so nothing is being saved. Add
+          <code> AUTH_SECRET</code> and a database connection from <code>.env.example</code> to
+          enable accounts and recording.
         </p>
       ) : null}
     </main>
