@@ -1,5 +1,7 @@
 import 'server-only';
 
+import { renderVerificationEmail } from '@/lib/email-template';
+
 /**
  * The one place this app sends mail from.
  *
@@ -25,6 +27,7 @@ export async function sendVerificationCode(to: string, code: string): Promise<bo
   }
 
   try {
+    const { html, text } = renderVerificationEmail(code);
     const response = await fetch(ENDPOINT, {
       method: 'POST',
       headers: {
@@ -37,13 +40,8 @@ export async function sendVerificationCode(to: string, code: string): Promise<bo
         subject: `${code} is your LearnR code`,
         // The code is in the subject as well as the body, so it can be read off
         // a notification without opening anything.
-        text: [
-          `Your LearnR code is ${code}.`,
-          '',
-          'Type it into the page you left open. It stops working in ten minutes.',
-          '',
-          "If you didn't ask for this, you can ignore it - nothing has changed.",
-        ].join('\n'),
+        html,
+        text,
       }),
     });
 
