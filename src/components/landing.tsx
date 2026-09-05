@@ -59,7 +59,18 @@ function TopBar() {
               Or, for a parent:
             </p>
             {isGoogleConfigured ? (
-              <SignInButton size="bar" />
+              <>
+                <SignInButton size="bar" />
+                {/* The second method, a peer of the button rather than its
+                    fallback - same wording and styling as the link `/signin`
+                    itself draws. */}
+                <Link
+                  href="/signin/password"
+                  className="text-sm whitespace-nowrap text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+                >
+                  Sign in with a password
+                </Link>
+              </>
             ) : (
               <Link href="/signin/password" className={SIZES.bar}>
                 Sign in with a password
@@ -215,7 +226,15 @@ export function Landing() {
                   of that text, and this is the thing the page is asking for. */}
               <div className="mt-6 flex flex-col items-center gap-2 text-center">
                 {isGoogleConfigured ? (
-                  <SignInButton size="hero" />
+                  <>
+                    <SignInButton size="hero" />
+                    <Link
+                      href="/signin/password"
+                      className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+                    >
+                      Sign in with a password
+                    </Link>
+                  </>
                 ) : (
                   <Link href="/signin/password" className={SIZES.hero}>
                     Sign in with a password
@@ -387,7 +406,15 @@ export function Landing() {
             question in about two minutes.
           </p>
           {isGoogleConfigured ? (
-            <SignInButton size="hero" />
+            <>
+              <SignInButton size="hero" />
+              <Link
+                href="/signin/password"
+                className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+              >
+                Sign in with a password
+              </Link>
+            </>
           ) : (
             <Link href="/signin/password" className={SIZES.hero}>
               Sign in with a password
