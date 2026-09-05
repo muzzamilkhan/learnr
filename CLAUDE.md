@@ -2380,18 +2380,39 @@ against production: `/` first hit **20,823ms**, then 403ms warm; `/speed`
 **17.6s**) and `NextNodeServer.clientComponentLoading` (p50 19.2s): **module
 loading on a cold instance**, not rendering and not Neon.
 
-**`includeLocalVariables: true` in `sentry.server.config.ts` is an aggravator
-and not the cause, and that was measured rather than argued.** It attaches a
-`node:inspector` session at `Sentry.init()` - `setupOnce` →
-`configureAndConnect` → `Debugger.enable` + `setPauseOnExceptions: 'all'`, read
-off the installed source - which is before Next loads a single page module. A
-controlled require of the same module graph with and without it costs
-**335ms against 469ms, about 40%**, repeatably. Real, worth weighing against
-what local variables on a stack trace buy, and nowhere near the 50x that would
-explain twenty seconds. **The root cause is still open**; the next thing to look
-at is what is in the 54MB of `.next/server` that every cold instance has to
-page in, starting with why `recharts` sits in a `[root-of-the-server]` chunk
-when only `/progress` draws a chart.
+**The trace splits it in two, and only one half is ours.** `GET /` at 20,737ms
+is a `default` span of **18,295ms with no database call in it**, followed by the
+actual render at 2,125ms containing all thirty Postgres spans. Aggregated, that
+first span is `resolve page components` (p50 **17.6s**) and
+`NextNodeServer.clientComponentLoading` (p50 19.2s): **module resolution, before
+the render begins**. One instance serves every route, so it is paid once per
+instance rather than once per screen.
+
+Ruled out, each measured rather than argued:
+
+- **Not Neon** - the Postgres spans total under a second, `pg.connect` 51-86ms.
+- **Not rendering** - the render half is 2.1s and warm requests are 400-900ms.
+- **Not bundle size** - a route loads ~1.2MB of chunks, and the same graph loads
+  locally in 200-400ms.
+- **Not Sentry's init cost** - ~200ms locally, `Sentry.init` itself 21ms.
+- **Not `includeLocalVariables`**, though it is an aggravator worth weighing on
+  its own: it attaches a `node:inspector` session at `Sentry.init()` -
+  `setupOnce` → `configureAndConnect` → `Debugger.enable` +
+  `setPauseOnExceptions: 'all'`, read off the installed source, and it is what
+  prints "Debugger listening" in dev. A controlled require costs **335ms
+  against 469ms**. Real, and nowhere near the 50x that would explain twenty
+  seconds.
+
+**The leading hypothesis is that the cost is per *file*, not per byte - and that
+Sentry is 38% of the files.** The traced bundle for `/` is 349 files and 10MB.
+`@sentry/nextjs` is **87** of those files and `@opentelemetry/api` a further
+**45** - 132 files for 0.35MB, against `@prisma/client`'s 4 files for 4.81MB. At
+roughly 50ms a cold read off Vercel's lazily-hydrated filesystem, 349 files is
+17.4s against a measured 17.6s. That is a match and still arithmetic rather than
+proof. **It predicts something falsifiable**: a build without Sentry's server
+instrumentation should cut the cold start by about a third, not by 200ms. Fewer
+files is the lever if it holds; more bytes in fewer files would be *better*.
+**Unproven - the A/B has not been run.**
 
 ## Working agreements
 
