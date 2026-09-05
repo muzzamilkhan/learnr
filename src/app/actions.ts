@@ -237,7 +237,7 @@ const passwordGuesses = createThrottle({
  * - it buys the right to set a password on an address - and a URL lands in
  * history and in a log.
  */
-export const PASSWORD_GRANT_COOKIE = 'learnr-password-grant';
+const PASSWORD_GRANT_COOKIE = 'learnr-password-grant';
 
 /**
  * The child's way in. `redeemLoginCode` writes the same `Session` row the Prisma
