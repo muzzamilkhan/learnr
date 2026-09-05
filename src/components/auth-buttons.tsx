@@ -8,7 +8,10 @@ import { DEBUG_COOKIE } from '@/lib/speedrun/taps';
  * landing page's one call to action, which is a parent's - big enough to be the
  * thing on the screen to press, but not blown up to the child's scale.
  */
-const SIZES = {
+// Exported so a caller offering a plain link in place of the button - when
+// Google isn't configured - can match its size classes exactly rather than
+// inventing a second set.
+export const SIZES = {
   lg: 'no-select rounded-2xl bg-(--color-brand) px-10 py-5 text-2xl font-semibold text-white transition active:scale-[0.98]',
   // Full width inside the phone's "Get started" panel, its own width once it is
   // in the bar itself. See `GetStarted`.

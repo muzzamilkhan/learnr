@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { SignInButton } from '@/components/auth-buttons';
+import { isGoogleConfigured } from '@/auth';
+import { SignInButton, SIZES } from '@/components/auth-buttons';
 import { CodeSignIn } from '@/components/code-sign-in';
 import { GetStarted } from '@/components/get-started';
 import { LogoLockup, LogoMark } from '@/components/logo';
@@ -57,7 +58,13 @@ function TopBar() {
             <p className="mt-2 border-t border-(--color-line) px-1 pt-3 text-xs text-(--color-ink-soft) sm:hidden">
               Or, for a parent:
             </p>
-            <SignInButton size="bar" />
+            {isGoogleConfigured ? (
+              <SignInButton size="bar" />
+            ) : (
+              <Link href="/signin/password" className={SIZES.bar}>
+                Sign in with a password
+              </Link>
+            )}
           </GetStarted>
         </div>
       </div>
@@ -207,7 +214,13 @@ export function Landing() {
                   button in a column of left-aligned text reads as another line
                   of that text, and this is the thing the page is asking for. */}
               <div className="mt-6 flex flex-col items-center gap-2 text-center">
-                <SignInButton size="hero" />
+                {isGoogleConfigured ? (
+                  <SignInButton size="hero" />
+                ) : (
+                  <Link href="/signin/password" className={SIZES.hero}>
+                    Sign in with a password
+                  </Link>
+                )}
                 <p className="text-sm text-(--color-ink-soft)">
                   Free to set up. Your child needs no email and no password.
                 </p>
@@ -373,7 +386,13 @@ export function Landing() {
             Sign in, add your child, and hand them the code. They can be answering their first
             question in about two minutes.
           </p>
-          <SignInButton size="hero" />
+          {isGoogleConfigured ? (
+            <SignInButton size="hero" />
+          ) : (
+            <Link href="/signin/password" className={SIZES.hero}>
+              Sign in with a password
+            </Link>
+          )}
           <p className="text-sm text-(--color-ink-soft)">
             {first && last ? (
               <>
