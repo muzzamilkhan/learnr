@@ -234,11 +234,25 @@ export function Landing() {
                     >
                       Sign in with a password
                     </Link>
+                    <Link
+                      href="/password/new"
+                      className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+                    >
+                      Create an account with a password
+                    </Link>
                   </>
                 ) : (
-                  <Link href="/signin/password" className={SIZES.hero}>
-                    Sign in with a password
-                  </Link>
+                  <>
+                    <Link href="/signin/password" className={SIZES.hero}>
+                      Sign in with a password
+                    </Link>
+                    <Link
+                      href="/password/new"
+                      className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+                    >
+                      Create an account with a password
+                    </Link>
+                  </>
                 )}
                 <p className="text-sm text-(--color-ink-soft)">
                   Free to set up. Your child needs no email and no password.
@@ -414,11 +428,25 @@ export function Landing() {
               >
                 Sign in with a password
               </Link>
+              <Link
+                href="/password/new"
+                className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+              >
+                Create an account with a password
+              </Link>
             </>
           ) : (
-            <Link href="/signin/password" className={SIZES.hero}>
-              Sign in with a password
-            </Link>
+            <>
+              <Link href="/signin/password" className={SIZES.hero}>
+                Sign in with a password
+              </Link>
+              <Link
+                href="/password/new"
+                className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+              >
+                Create an account with a password
+              </Link>
+            </>
           )}
           <p className="text-sm text-(--color-ink-soft)">
             {first && last ? (
