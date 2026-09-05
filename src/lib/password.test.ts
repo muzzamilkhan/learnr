@@ -55,6 +55,13 @@ describe('verifyPassword against an unreadable hash', () => {
   it('is false rather than throwing', async () => {
     expect(await verifyPassword('anything at all', 'not a hash')).toBe(false);
   });
+
+  it('returns false for a parsed hash with invalid scrypt parameters', async () => {
+    // N=3 is not a power of two, which Node's scrypt rejects synchronously.
+    // This stored hash parses correctly but will fail when derive() is called.
+    const storedWithInvalidN = 'scrypt$3$8$1$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    expect(await verifyPassword('correct horse battery', storedWithInvalidN)).toBe(false);
+  });
 });
 
 describe('parsePassword', () => {

@@ -97,9 +97,13 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const parsed = parseStoredHash(stored);
   if (!parsed) return false;
   if (password.length > PASSWORD_MAX_LENGTH) return false;
-  const key = await derive(password, parsed.salt, parsed.N, parsed.r, parsed.p);
-  if (key.length !== parsed.key.length) return false;
-  return timingSafeEqual(key, parsed.key);
+  try {
+    const key = await derive(password, parsed.salt, parsed.N, parsed.r, parsed.p);
+    if (key.length !== parsed.key.length) return false;
+    return timingSafeEqual(key, parsed.key);
+  } catch {
+    return false;
+  }
 }
 
 /**
