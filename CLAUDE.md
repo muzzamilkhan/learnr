@@ -40,7 +40,8 @@ oversight.** They were briefly re-enabled per-branch during the collapse and
 turned off again, because a preview runs against the *production* database and
 so reads and writes real children's records. Handing a family's data to every
 branch build costs more than losing previews. Naming branches in `vercel.json`
-brings them back, but point them at a Neon branch first. It runs `vercel build
+brings them back, but point them at a Neon branch first - which is what the Neon
+CLI under **Setup** is there for. It runs `vercel build
 --prod` on the runner and uploads the output with `--prebuilt`, so the artifact
 that ships is the one the suite ran beside and a red test means nothing was
 built at all.
@@ -2154,6 +2155,29 @@ cold database rather than a broken migration, and the answer is to knock again -
 only that error is retried. Two production builds died this way before the retry
 existed. Without a database it does nothing and succeeds, because a deploy must
 not be the one thing that insists on Postgres.
+
+**The Neon CLI is a devDependency, so branching the database is `npx neonctl`.**
+It is a tool and not a dependency of the app: nothing in `src/` or in the deploy
+workflow reaches for it, and it is pinned in `package.json` only so everyone
+runs the same one. **The browser login flow is not enough, because the Neon
+project is Vercel-managed** - `neonctl auth` signs into a personal Neon account,
+which cannot see a project the Marketplace provisioned. So it authenticates with
+`NEON_API_KEY`, made in the Neon console the `neon-teal-ball` resource in the
+Vercel dashboard links to. `neonctl link` writes the project id to `.neon`,
+which is gitignored beside `.vercel/project.json` for the same reason and saves
+passing `--project-id` to everything:
+
+```bash
+npx neonctl link                              # once, per checkout
+npx neonctl branches create --name <name>     # a branch off production
+npx neonctl connection-string <name>          # the DATABASE_URL for it
+npx neonctl branches delete <name>            # when it is done with
+```
+
+A branch is a copy-on-write fork of production's data, which is the thing that
+makes it worth having and also the thing to be careful with: it carries real
+children's records. It is what preview deployments would have to point at
+before **There are no preview deployments** above could be revisited.
 
 **The `db` test project needs Docker**, and it does *not* read `.env`: the
 Testcontainers Postgres is started in a vitest `globalSetup` which sets

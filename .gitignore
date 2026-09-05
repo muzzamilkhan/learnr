@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# neon - `neonctl link` writes the project and branch ids here, the way
+# `.vercel/project.json` holds Vercel's
+/.neon
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
