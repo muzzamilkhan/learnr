@@ -19,7 +19,9 @@
 - **The database does not change.** Neon `ap-southeast-2`, same connection string. No data migration, no dual-write.
 - **`npm test` and `npm run typecheck` must pass before every commit.** `npm test` needs Docker for the `db` project.
 - **Nothing in `src/lib` or `src/content` may import React, `next`, `@prisma/client` or `src/server`** - `src/lib/purity.test.ts` enforces it and this plan must not break it.
-- **Assumed already shipped: email/password sign-in, with a test parent account.** Tracked separately and out of scope here. It makes most of the verification in Tasks 6, 9 and 10 far quicker - a browser at a staging hostname, no OAuth round trip. **It does not replace the Google sign-in check.** Auth.js refuses a Credentials provider alongside database sessions (`UnsupportedStrategy`), so a password login must write a `Session` row and set the cookie by hand, exactly as `redeemLoginCode` does - which means it never touches the callback-URL machinery that `AUTH_URL` exists to fix. The one thing most likely to break behind CloudFront is the one thing a password login routes around.
+- **Shipped, as of `5c59d44`: email/password sign-in, with a test parent account.** `npm run test:account` creates it, `-- --remove` deletes it; `npm run test:timings [url]` signs in as it and reports cold and warm timings apart. Both write to whatever `DATABASE_URL` names, which here is production. Tracked as #22, still open at the time of writing. It makes most of the verification in Tasks 6, 9 and 10 far quicker - a browser at a staging hostname, no OAuth round trip. **It still does not replace the Google sign-in check.** Auth.js refuses a Credentials provider alongside database sessions (`UnsupportedStrategy`), so a password login must write a `Session` row and set the cookie by hand, exactly as `redeemLoginCode` does - which means it never touches the callback-URL machinery that `AUTH_URL` exists to fix. The one thing most likely to break behind CloudFront is the one thing a password login routes around.
+- **Seven SSM parameters, not five.** The password flow added `RESEND_API_KEY` and `EMAIL_FROM`; without them the sign-up flow refuses to start rather than pretending to mail. Task 6 lists all seven.
+- **`includeLocalVariables` stays `false` in `src/sentry.server.config.ts`.** It was ~95% of a 21-second cold start (`a12cbc5`), because `Sentry.init()` runs in `instrumentation.ts` before Next loads a page module and attaches a `node:inspector` session that pauses on every caught exception - so the whole module graph resolves under the debugger. That is a property of the Sentry config, not of Vercel, so it follows the app to Lambda unchanged. Do not re-enable it to debug a Lambda cold start; it is what a Lambda cold start would be measuring.
 - **A staging hostname is used throughout: `aws.learnr.muzza.tech`.** Production `learnr.muzza.tech` keeps pointing at Vercel until Task 10. This is a deliberate addition to the spec - a full Google sign-in cannot be tested without a hostname Google will redirect to.
 
 ---
@@ -895,12 +897,14 @@ git commit -m "Stand LearnR up on Lambda behind CloudFront"
 - Consumes: the stack from Task 5, which already grants `ssm:GetParametersByPath` on `/learnr/prod/*` and sets `SSM_PARAMETER_PREFIX`.
 - Produces: a fully working application at `https://aws.learnr.muzza.tech` against the production database.
 
-- [ ] **Step 1: Write the five parameters**
+- [ ] **Step 1: Write the seven parameters**
 
 Names must be exactly the environment variable names, since `envNameFor` takes the last path segment.
 
+**`RESEND_API_KEY` and `EMAIL_FROM` are new since the spec was written** and are not optional: without them the password sign-up flow refuses to start rather than pretending to mail, which would make the test account unrecoverable on a fresh environment.
+
 ```bash
-for name in DATABASE_URL AUTH_SECRET AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET SENTRY_DSN; do
+for name in DATABASE_URL AUTH_SECRET AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET SENTRY_DSN RESEND_API_KEY EMAIL_FROM; do
   echo "Setting $name"
   aws ssm put-parameter --region ap-southeast-2 \
     --name "/learnr/prod/$name" --type SecureString --overwrite \
@@ -908,7 +912,7 @@ for name in DATABASE_URL AUTH_SECRET AUTH_GOOGLE_ID AUTH_GOOGLE_SECRET SENTRY_DS
 done
 ```
 
-Use the same values Vercel currently holds - `vercel env pull` writes them to `.env.local`. `NEXT_PUBLIC_SENTRY_DSN` is **not** here: it is inlined at build time and is passed to `cdk deploy` as an environment variable instead.
+Use the same values Vercel currently holds - `vercel env pull` writes them to `.env.local`. Three things are deliberately **not** here: `NEXT_PUBLIC_SENTRY_DSN`, which is inlined at build time and passed to `cdk deploy` instead; `NEON_API_KEY`, a tool credential nothing in the app reads; and `TEST_ACCOUNT_EMAIL`/`TEST_ACCOUNT_PASSWORD`, which belong to the harness on your machine and never to the running app.
 
 - [ ] **Step 2: Register the staging redirect URI with Google**
 
@@ -948,7 +952,15 @@ Generate a code on `/children`, sign out, redeem it, and confirm the child's hom
 
 Answer ten questions in a lesson. Confirm the round's stars appear and the total increments. This exercises all six `/api/v1` handlers through CloudFront with `Cookie` forwarded, and the `SELECT ... FOR UPDATE` guards against the real database.
 
-- [ ] **Step 9: Verify response streaming survived CloudFront**
+- [ ] **Step 9: Run the timings harness against the staging host**
+
+```bash
+npm run test:timings https://aws.learnr.muzza.tech
+```
+
+It mints a `Session` row directly rather than driving the sign-in form, so it reaches the screens behind a sign-in, and it reports cold and warm apart because the gap is the finding. Record both numbers - Task 9 compares them against Vercel's.
+
+- [ ] **Step 10: Verify response streaming survived CloudFront**
 
 The one behaviour in this design that has to be observed rather than reasoned about.
 
@@ -1176,14 +1188,21 @@ Use the email/password test account for steps 2 onwards - it is quicker and the 
 - [ ] **Step 7: Open a parent report and confirm the "Needs a hand" disclosures redraw the stored figures**
 - [ ] **Step 8: Confirm the practice calendar and the speed table render**
 - [ ] **Step 9: Confirm Sentry receives an event from the browser** - the `/monitoring` tunnel route is a Lambda invocation now, so this proves both the tunnel and the build-time DSN
-- [ ] **Step 10: Measure a cold start on a real iPad over a real connection**
+- [ ] **Step 10: Measure a cold start against the known Vercel baseline**
+
+There is now a real number to beat. On Vercel, after `includeLocalVariables` was turned off, `/` cold is **1.09s** and warm requests are **0.08-0.22s** (`a12cbc5`, measured across four preview deployments one variable at a time). Before that fix it was 21.23s, so any reading in that neighbourhood means the option is back on, not that Lambda is slow.
+
+Forcing a cold instance is **easier here than it was on Vercel**, where it needed a throwaway preview deployment. On Lambda, changing any configuration field replaces the execution environment:
 
 ```bash
 aws lambda update-function-configuration --region ap-southeast-2 \
   --function-name FUNCTION_NAME --description "force cold start $(date +%s)"
+npm run test:timings https://aws.learnr.muzza.tech
 ```
 
-Then load the site on the iPad and time it. Record the number. If it is materially worse than 3s, add a 5-minute EventBridge warmer rule before cutting over; below that, ship without one as the spec decided.
+Then load the site on a real iPad over a real connection and time it by hand as well - the harness measures the server, and the iPad is what a child is holding.
+
+**Decision rule:** Lambda adds container init on top of the app's own ~1.09s, so 1.5-3s total is the expected range and is the "accept it, tune later" case the spec chose. Materially worse than 3s, or a warm figure much above 0.22s, means something is wrong rather than merely cold - check `includeLocalVariables` first, then whether SSM is being re-read per request rather than once per container. Add the 5-minute EventBridge warmer only if a genuinely healthy cold start is still too slow on the iPad.
 
 - [ ] **Step 11: Confirm CloudWatch logs show one session lookup per write**, not two - the property `2026-08-29-api-collapse-design.md` bought and the thing most worth not silently losing
 
