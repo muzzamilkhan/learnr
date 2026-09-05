@@ -2380,39 +2380,52 @@ against production: `/` first hit **20,823ms**, then 403ms warm; `/speed`
 **17.6s**) and `NextNodeServer.clientComponentLoading` (p50 19.2s): **module
 loading on a cold instance**, not rendering and not Neon.
 
-**The trace splits it in two, and only one half is ours.** `GET /` at 20,737ms
-is a `default` span of **18,295ms with no database call in it**, followed by the
-actual render at 2,125ms containing all thirty Postgres spans. Aggregated, that
-first span is `resolve page components` (p50 **17.6s**) and
-`NextNodeServer.clientComponentLoading` (p50 19.2s): **module resolution, before
-the render begins**. One instance serves every route, so it is paid once per
-instance rather than once per screen.
+**The cold start was `includeLocalVariables`, and it cost twenty seconds.**
+The trace splits `GET /` at 20,737ms into a `default` span of **18,295ms with
+no database call in it** and a 2,125ms render holding all thirty Postgres
+spans. Aggregated, that first span is `resolve page components` (p50 17.6s) and
+`NextNodeServer.clientComponentLoading` (p50 19.2s) - module resolution, before
+the render. One instance serves every route, so it is paid once per instance.
 
-Ruled out, each measured rather than argued:
+`includeLocalVariables: true` in `sentry.server.config.ts` attaches a
+`node:inspector` session at `Sentry.init()` - `setupOnce` →
+`configureAndConnect` → `Debugger.enable` + `setPauseOnExceptions: 'all'`, read
+off the installed source - and `Sentry.init()` runs in `instrumentation.ts`,
+*before* Next loads a page module. So the whole cold start resolves its modules
+with the V8 debugger attached, pausing on every caught exception, and module
+resolution throws and catches constantly.
 
-- **Not Neon** - the Postgres spans total under a second, `pg.connect` 51-86ms.
-- **Not rendering** - the render half is 2.1s and warm requests are 400-900ms.
-- **Not bundle size** - a route loads ~1.2MB of chunks, and the same graph loads
-  locally in 200-400ms.
-- **Not Sentry's init cost** - ~200ms locally, `Sentry.init` itself 21ms.
-- **Not `includeLocalVariables`**, though it is an aggravator worth weighing on
-  its own: it attaches a `node:inspector` session at `Sentry.init()` -
-  `setupOnce` → `configureAndConnect` → `Debugger.enable` +
-  `setPauseOnExceptions: 'all'`, read off the installed source, and it is what
-  prints "Debugger listening" in dev. A controlled require costs **335ms
-  against 469ms**. Real, and nowhere near the 50x that would explain twenty
-  seconds.
+**Four preview deployments, one variable at a time, first request to a fresh
+instance:**
 
-**The leading hypothesis is that the cost is per *file*, not per byte - and that
-Sentry is 38% of the files.** The traced bundle for `/` is 349 files and 10MB.
-`@sentry/nextjs` is **87** of those files and `@opentelemetry/api` a further
-**45** - 132 files for 0.35MB, against `@prisma/client`'s 4 files for 4.81MB. At
-roughly 50ms a cold read off Vercel's lazily-hydrated filesystem, 349 files is
-17.4s against a measured 17.6s. That is a match and still arithmetic rather than
-proof. **It predicts something falsifiable**: a build without Sentry's server
-instrumentation should cut the cold start by about a third, not by 200ms. Fewer
-files is the lever if it holds; more bytes in fewer files would be *better*.
-**Unproven - the A/B has not been run.**
+| Sentry | `includeLocalVariables` | esm hooks | cold |
+| --- | --- | --- | --- |
+| as shipped | **true** | true | **21.23s** |
+| as shipped | **true** | false | 18.70s |
+| as shipped | **false** | true | **1.09s** |
+| removed from the server build | - | - | 0.86s |
+
+The first and third differ in exactly one option. It was ~95% of the cold start,
+and turning it off recovers everything deleting Sentry would, at no cost to
+error reporting - warm requests improve too, 0.8-1.2s to 0.08-0.22s.
+`registerEsmLoaderHooks` was the other suspect and is not it.
+
+**Do not re-derive this locally.** The same module graph required with and
+without the inspector costs 335ms against 469ms on a laptop - about 40%, which
+reads as an aggravator rather than the cause. A fast disk hides it entirely.
+The only honest measurement is a cold instance on Vercel, and
+`npm run test:timings` is what makes one readable. Everything else that looked
+guilty was innocent: not Neon (Postgres totals under a second), not rendering
+(2.1s), not bundle size (a route loads 1.2MB of chunks), not Sentry's init cost
+(~200ms), and not the file count - the traced bundle drops 349 files to 239
+without Sentry, which is 31% and would have predicted 31%, not 95%.
+
+**Catching one is the hard part.** A second run in quick succession lands warm
+and shows nothing, and every push deploys - so a slow reading right after a push
+may be a new-deployment cold start rather than an idle one. Both measured the
+same. A preview (`vercel build && vercel deploy --prebuilt --force`) is the way
+to get a guaranteed cold instance without touching production; previews are
+SSO-protected, so a share link is needed to reach one.
 
 ## Working agreements
 

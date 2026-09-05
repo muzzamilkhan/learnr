@@ -29,7 +29,37 @@ Sentry.init({
   */
   tracesSampleRate: 1.0,
 
-  // Server only: the values of locals are attached to a stack frame, which is
-  // most of what makes a production stack trace worth reading.
-  includeLocalVariables: true,
+  /*
+    `includeLocalVariables` is deliberately OFF, and it is the most expensive
+    line this file ever had. It attaches a `node:inspector` session at init -
+    `setupOnce` → `configureAndConnect` → `Debugger.enable` +
+    `Debugger.setPauseOnExceptions: 'all'` - which happens in
+    `instrumentation.ts`, *before* Next loads a single page module. Everything
+    the cold start then resolves is resolved with the V8 debugger attached and
+    pausing on every caught exception, and Node's module resolution throws and
+    catches constantly.
+
+    Measured on preview deployments, one variable at a time, first request to a
+    fresh instance:
+
+      Sentry as shipped, this on                      21.23s
+      the same, plus registerEsmLoaderHooks: false    18.70s
+      the same, this off                               1.09s
+      Sentry removed from the server build entirely    0.86s
+
+    So this one option was ~95% of a twenty-second cold start, and turning it
+    off recovers all of what deleting Sentry would - at no cost to error
+    reporting. Warm requests get faster too, from 0.8-1.2s to 0.08-0.22s.
+
+    A local experiment badly underestimated it: the same module graph required
+    with and without the inspector costs 335ms against 469ms on a laptop, about
+    40%. Do not re-derive this one locally - the fast disk hides it, and the
+    only honest measurement is a cold instance on Vercel
+    (`npm run test:timings`).
+
+    What it buys, when it is on, is the values of locals on a stack frame. That
+    is genuinely useful and it is not worth twenty seconds in front of a child
+    - but it is a line to turn back on deliberately, for one deploy, while
+    chasing a specific bug.
+  */
 });
