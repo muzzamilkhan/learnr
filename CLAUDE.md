@@ -2159,20 +2159,33 @@ not be the one thing that insists on Postgres.
 **The Neon CLI is a devDependency, so branching the database is `npx neonctl`.**
 It is a tool and not a dependency of the app: nothing in `src/` or in the deploy
 workflow reaches for it, and it is pinned in `package.json` only so everyone
-runs the same one. **The browser login flow is not enough, because the Neon
-project is Vercel-managed** - `neonctl auth` signs into a personal Neon account,
-which cannot see a project the Marketplace provisioned. So it authenticates with
-`NEON_API_KEY`, made in the Neon console the `neon-teal-ball` resource in the
-Vercel dashboard links to. `neonctl link` writes the project id to `.neon`,
-which is gitignored beside `.vercel/project.json` for the same reason and saves
-passing `--project-id` to everything:
+runs the same one. It authenticates with `NEON_API_KEY` - made in the Neon
+console, which `vercel integration open neon` reaches by SSO - and it does
+**not** read `.env`, so the variable has to be exported into the command's own
+environment. `neonctl link` writes the org and project ids to `.neon`,
+gitignored beside `.vercel/project.json` for the same reason and for the same
+reason not written down here:
 
 ```bash
-npx neonctl link                              # once, per checkout
+set -a; . ./.env; set +a                      # neonctl reads the environment, not .env
+npx neonctl link --project-id <id> -y --no-env-pull   # once, per checkout
 npx neonctl branches create --name <name>     # a branch off production
 npx neonctl connection-string <name>          # the DATABASE_URL for it
 npx neonctl branches delete <name>            # when it is done with
 ```
+
+**`--no-env-pull` on that link is the flag worth knowing.** `neonctl link`
+pulls the linked branch's `DATABASE_URL` into a local `.env` *by default*, which
+on this repo means overwriting a working local file with production's pooled
+connection - `.env` here is hand-written and holds four other credentials. It
+is only `link` that does this; `branches create` writes nothing.
+
+**And the project sits under an org, which is what an empty list means.** The
+key authenticates a personal Neon account, and the Marketplace put the project
+in a Vercel-created org that account is a member of - so `neonctl projects list`
+answers "you don't have any projects yet" until `--org-id` names it, which reads
+exactly like a bad key. After the link the org id is in `.neon` and nothing
+needs the flag again. `neonctl orgs list` is where to find it.
 
 A branch is a copy-on-write fork of production's data, which is the thing that
 makes it worth having and also the thing to be careful with: it carries real
