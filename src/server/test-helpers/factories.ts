@@ -1,7 +1,15 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { hashPassword } from '@/lib/password';
 import { testPrisma } from './db';
 
-/** A parent who signed in with Google. */
+/**
+ * A parent who signed in with Google.
+ *
+ * `emailVerified` is set because every parent this app can make has a
+ * verified address - Google verifies one, and the password flow verifies the
+ * other. A test about the absence of verification sets it back to null
+ * explicitly.
+ */
 export async function makeParent(
   overrides: { name?: string; email?: string } = {},
 ): Promise<string> {
@@ -10,9 +18,17 @@ export async function makeParent(
       role: 'parent',
       name: overrides.name ?? 'Parent',
       email: overrides.email ?? `parent-${randomUUID()}@example.com`,
+      emailVerified: new Date(),
     },
   });
   return user.id;
+}
+
+/** A password on an existing account, written the way the app writes one. */
+export async function makePassword(userId: string, password: string): Promise<void> {
+  await testPrisma().parentPassword.create({
+    data: { userId, hash: await hashPassword(password, randomBytes) },
+  });
 }
 
 /** A managed child: no email, no Account row, a parent who owns them. */
