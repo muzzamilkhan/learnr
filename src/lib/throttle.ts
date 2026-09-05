@@ -3,10 +3,12 @@
  *
  * Pure in the sense the rest of `src/lib` is: `now` is passed in, nothing here
  * reads the clock, and a throttle owns only its own map - so a test can run a
- * window out in a line rather than waiting for one. Its one caller is
- * `redeemLoginCodeAction` in `src/app/actions.ts`, which throttles by the
- * browser's own IP - the thing a server action can see that a login-code guess
- * cannot fake by retrying.
+ * window out in a line rather than waiting for one. `createThrottle` has four
+ * callers in `src/app/actions.ts` now - `redeemLoginCodeAction` (a login
+ * code), `sendPasswordCodeAction` (mail sent), `checkPasswordCodeAction` (a
+ * six-digit code) and `signInWithPasswordAction` (a password) - each its own
+ * instance with its own limit and window, all keyed off `browserIp`: the
+ * thing a server action can see that a guess cannot fake by retrying.
  *
  * The window is fixed rather than sliding, counted from the first failure. A
  * sliding window is a list of timestamps per key where this is two numbers, and

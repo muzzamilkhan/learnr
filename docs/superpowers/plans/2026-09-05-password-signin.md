@@ -690,28 +690,82 @@ And on `User`, beside `photo ChildPhoto?`:
   password ParentPassword?
 ```
 
-- [ ] **Step 2: Write the migration and regenerate the client**
+- [ ] **Step 2: Generate the migration SQL offline — do NOT run `db:migrate`**
 
-Run: `npm run db:migrate -- --name parent-password`
-Expected: a new directory under `prisma/migrations/`, and `prisma generate`
-running afterwards. This needs a reachable `DATABASE_URL` in `.env`.
+**`npm run db:migrate` is forbidden in this task.** The only `DATABASE_URL` in
+`.env` is the production Neon database - CLAUDE.md calls it "the one connection
+the app has", and preview deployments are disabled precisely because they "read
+and write real children's records". `prisma migrate dev` would run against it,
+and offers to *reset* a database when it detects drift. The migration is authored
+offline instead and proved against Testcontainers in Step 4.
 
-- [ ] **Step 3: Verify the type reached the client**
+```bash
+git show HEAD:prisma/schema.prisma > /tmp/schema-before.prisma
+mkdir -p prisma/migrations/20260905000000_parent_password
+npx prisma migrate diff \
+  --from-schema /tmp/schema-before.prisma \
+  --to-schema prisma/schema.prisma \
+  --script > prisma/migrations/20260905000000_parent_password/migration.sql
+```
 
-Run: `npm run typecheck`
-Expected: PASS. Then confirm the model exists:
+The timestamp sorts after the latest existing migration
+(`20260830100000_child_subjects`). The generated file must be exactly this, and
+nothing else - no `CREATE SCHEMA`, no other table. This output was verified on
+this checkout before the task was written:
+
+```sql
+-- CreateTable
+CREATE TABLE "ParentPassword" (
+    "userId" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ParentPassword_pkey" PRIMARY KEY ("userId")
+);
+
+-- AddForeignKey
+ALTER TABLE "ParentPassword" ADD CONSTRAINT "ParentPassword_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
+If the diff emits anything beyond those two statements, stop and report - it
+means the schema edit in Step 1 did more than intended.
+
+- [ ] **Step 3: Regenerate the Prisma client**
+
+Run: `npm run db:generate`
+Expected: success. This needs no database.
+
+Then confirm the model reached the client:
 
 ```bash
 grep -rn "ParentPassword" src/generated/prisma/*.ts | head -3
 ```
 Expected: at least one hit.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Prove the migration against a real Postgres**
+
+Run: `npm run test:db`
+Expected: PASS. This is the step that replaces `migrate dev`: the `db` project's
+`globalSetup` starts a Postgres in Testcontainers and applies **every** migration
+in order, so a migration that does not apply cleanly fails here - against a
+throwaway container rather than against Neon. Docker must be running.
+
+- [ ] **Step 5: Typecheck**
+
+Run: `npm run typecheck`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add prisma/schema.prisma prisma/migrations
 git commit -m "Give a parent a password, in a table of its own"
 ```
+
+**Applying this to production is not part of this task and not yours to do.** It
+ships the way every other migration ships, through `npm run db:deploy` on a
+release.
 
 ---
 
@@ -2091,6 +2145,306 @@ gh issue close 22 --comment "Shipped. Design: docs/superpowers/specs/2026-09-05-
 
 ---
 
+### Task 12: Dressing the email
+
+**Files:**
+- Create: `src/lib/email-template.ts`
+- Test: `src/lib/email-template.test.ts`
+- Modify: `src/server/email.ts`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces: `renderVerificationEmail(code: string): { html: string; text: string }`.
+
+The code mail currently goes out as plain text. It is the first thing this app
+has ever sent to a parent, and it arrives beside every other mail they get - so
+it should look like LearnR rather than like a cron job.
+
+**The pure half is in `src/lib`, and that is what makes this testable.** An email
+body is a string built from a code; nothing about it touches React, Next, Prisma
+or `src/server`, so it lives beside the rest of the pure engine and gets unit
+tests in the fast project. Task 6's sender deliberately has no test because it is
+one `fetch` against a third party - this is the part of it that *can* be tested,
+so it is separated out rather than left inline. `src/server/email.ts` keeps its
+one-function seam: `sendVerificationCode` calls this and posts both parts.
+
+**Both parts, always.** Resend takes `html` and `text` together and the text part
+is not a fallback nobody sees - it is what a screen reader, a plain-text client
+and a spam filter read. The existing wording is already right; keep it as the
+text part rather than rewriting it.
+
+**The design rules that are not negotiable, because email is not a browser:**
+
+- **Inline every style.** No `<style>` block, no classes, no CSS variables -
+  Gmail strips much of a `<head>`, and `var(--color-brand)` resolves to nothing.
+  The palette must be written as literal hex, read from `src/app/globals.css`:
+  `--color-ink` `#1b2430`, `--color-ink-soft` `#5b6b7f`, `--color-paper`
+  `#f7f9fc`, `--color-card` `#ffffff`, `--color-brand` `#3b6ef5`,
+  `--color-brand-soft` `#e5edff`, `--color-line` `#dfe6ef`. The logo palette
+  (`--color-grape` `#6c4de0`, `--color-berry` `#ee4d7d`, `--color-leaf`
+  `#6fb52f`, `--color-sun` `#f5a623`) is scoped on the web to the two screens
+  someone is *choosing* on - a sign-up mail is one of those moments, so a single
+  accent from it is allowed, but the body stays `--color-brand`.
+- **Tables for layout, not flex or grid.** Outlook renders through Word and
+  supports neither.
+- **No image is load-bearing.** Most clients block images until asked. The mark
+  at `https://learnr.muzza.tech/logo-mark.png` may be included, but the mail must
+  read correctly with every image blocked - so the wordmark is live text, not a
+  picture of text, and the code is never an image.
+- **The code is the one thing the eye should land on**: large, spaced, selectable
+  live text in a `--color-brand-soft` panel. Never a picture, never a link.
+- **A `max-width` of 600px** on the outer table, centred, so it is not a full-bleed
+  wall on a desktop client.
+- **Do not add a dark-mode block.** The app's own pages are single-palette and
+  `prefers-color-scheme` support across mail clients is inconsistent enough that
+  a half-working dark variant looks worse than a light one everywhere.
+
+**What it must say, and what it must not.** The same three things the text part
+says: here is your code, type it into the page you left open, it stops working in
+ten minutes - plus the line that matters most, that somebody who did not ask for
+this can ignore it and nothing has changed. **No marketing, no unsubscribe link,
+no tracking pixel**: this is a transactional mail and the only reason it exists is
+that somebody asked for a code thirty seconds ago.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// src/lib/email-template.test.ts
+import { describe, expect, it } from 'vitest';
+import { renderVerificationEmail } from './email-template';
+
+describe('renderVerificationEmail', () => {
+  it('puts the code in both parts', () => {
+    const { html, text } = renderVerificationEmail('123456');
+    expect(html).toContain('123456');
+    expect(text).toContain('123456');
+  });
+
+  // The reason the text part exists at all: a plain-text client, a screen
+  // reader and a spam filter all read it, and it is not a fallback nobody sees.
+  it('says what the code is for in the text part', () => {
+    const { text } = renderVerificationEmail('123456');
+    expect(text).toMatch(/ten minutes/i);
+    expect(text).toMatch(/ignore/i);
+  });
+
+  // Email clients strip a <head>, so a style block or a class is a style that
+  // silently does not apply. Everything has to be on the element.
+  it('carries no style block and no class attributes', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toMatch(/<style/i);
+    expect(html).not.toMatch(/class=/i);
+  });
+
+  // `var(--color-brand)` resolves to nothing in a mail client.
+  it('uses literal colours rather than CSS variables', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toContain('var(--');
+    expect(html).toContain('#3b6ef5');
+  });
+
+  // A transactional mail that somebody asked for thirty seconds ago.
+  it('carries no tracking pixel and no unsubscribe link', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toMatch(/unsubscribe/i);
+    expect(html).not.toMatch(/width=["\']?1["\']?\s+height=["\']?1/i);
+  });
+
+  // The mail has to survive every image being blocked, which is the default in
+  // most clients - so the code can never be one.
+  it('renders the code as text rather than an image', () => {
+    const { html } = renderVerificationEmail('123456');
+    const withoutImages = html.replace(/<img[^>]*>/gi, '');
+    expect(withoutImages).toContain('123456');
+  });
+
+  it('escapes a code that is not what we generate', () => {
+    const { html } = renderVerificationEmail('<script>');
+    expect(html).not.toContain('<script>');
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run --project unit src/lib/email-template.test.ts`
+Expected: FAIL - `Failed to resolve import "./email-template"`.
+
+- [ ] **Step 3: Write the template**
+
+Write `renderVerificationEmail` to satisfy the tests and the design rules above.
+The text part is the wording already in `src/server/email.ts`, moved here
+unchanged. The doc comment explains why the constraints exist - inlined styles,
+tables, no load-bearing image - because every one of them looks like a mistake to
+a reader who has only written for browsers.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run --project unit src/lib/email-template.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Call it from the sender**
+
+In `src/server/email.ts`, replace the inline `text:` body with:
+
+```ts
+const { html, text } = renderVerificationEmail(code);
+```
+
+and pass both to Resend. `sendVerificationCode`'s signature does not change, and
+nothing above it learns that the mail has a shape now.
+
+- [ ] **Step 6: Send one and look at it**
+
+```bash
+npx tsx -e "import('./src/server/email.ts').then(m => m.sendVerificationCode('muzzamil.akhan@gmail.com', '123456')).then(console.log)"
+```
+
+Expected: `true`. **Then actually look at what arrived** - in a client, not just
+in the source. Report what it looked like. Send at most two.
+
+- [ ] **Step 7: Commit**
+
+```bash
+npm run test:unit && npm run typecheck
+git add src/lib/email-template.ts src/lib/email-template.test.ts src/server/email.ts
+git commit -m "Dress the code email so it looks like LearnR"
+```
+
+---
+
+### Task 13: `isAuthConfigured` is asking the wrong question
+
+**Files:**
+- Modify: `src/auth.ts`
+- Modify: `src/app/viewer.ts`, `src/app/page.tsx`, `src/app/signin/page.tsx`,
+  `src/app/signin/password/page.tsx`, `src/app/password/new/page.tsx`,
+  `src/app/password/code/page.tsx`, `src/app/password/set/page.tsx`
+
+**Found by the Task 8 walkthrough**, not by a review - which is the argument for
+having walked it.
+
+`isAuthConfigured` is `AUTH_GOOGLE_ID && AUTH_GOOGLE_SECRET && AUTH_SECRET`
+(`src/auth.ts:66`), and every call site uses it to decide whether to call `auth()`
+at all - including `readViewer` (`src/app/viewer.ts:47`), which is how **every**
+screen learns who is asking.
+
+That was a true statement while Google was the only way in. It is false now. A
+deployment with `AUTH_SECRET` and a database but no Google credentials - a state
+CLAUDE.md explicitly describes as supported, and precisely the state you would
+stand up to test password sign-in without OAuth - lets a parent complete the whole
+flow, writes their `Session` row, sets their cookie, and then **never reads it on
+any screen**. They sign in successfully and stay signed out, silently.
+
+**It undercuts the reason this feature exists.** The spec's opening line is that
+end-to-end verification wants an account needing no OAuth round trip; an
+environment configured to have no OAuth is the one where this breaks.
+
+**One flag was answering two questions**, which is the actual defect:
+
+- *May a session exist and be read?* Needs `AUTH_SECRET` and a database. A
+  password session is a `Session` row plus the cookie, and Google has nothing to
+  do with it. This is what gates `auth()`.
+- *Should the Google button be offered?* Needs the two Google variables. This is
+  what gates the sign-in buttons and any "sign-in isn't set up" copy.
+
+Split them, and send each call site to the one it meant. **Judge each of the eight
+sites individually rather than substituting one name globally** - `src/app/page.tsx`
+uses the flag twice and the two uses are not obviously the same question.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// src/lib/auth-config.test.ts
+import { describe, expect, it } from 'vitest';
+import { googleConfigured, sessionsReadable } from './auth-config';
+
+// The bug this task exists for: no Google credentials, but a secret and a
+// database - a password session is written, and must still be read.
+describe('sessionsReadable', () => {
+  it('is true without Google credentials', () => {
+    expect(sessionsReadable({ secret: 'x', database: true, googleId: null, googleSecret: null }))
+      .toBe(true);
+  });
+
+  it('is false with no secret', () => {
+    expect(sessionsReadable({ secret: null, database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+
+  it('is false with no database, since a session is a row', () => {
+    expect(sessionsReadable({ secret: 'x', database: false, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+});
+
+describe('googleConfigured', () => {
+  it('needs both Google variables and the secret', () => {
+    expect(googleConfigured({ secret: 'x', database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(true);
+    expect(googleConfigured({ secret: 'x', database: true, googleId: 'a', googleSecret: null }))
+      .toBe(false);
+    expect(googleConfigured({ secret: null, database: true, googleId: 'a', googleSecret: 'b' }))
+      .toBe(false);
+  });
+}); 
+```
+
+The two predicates take their inputs as an argument rather than reading
+`process.env`, so they are pure and live in `src/lib` with the rest of the engine.
+`src/auth.ts` reads the environment once and applies them.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run --project unit src/lib/auth-config.test.ts`
+Expected: FAIL - `Failed to resolve import "./auth-config"`.
+
+- [ ] **Step 3: Write the predicates and re-point the call sites**
+
+Create `src/lib/auth-config.ts` with both, then in `src/auth.ts` export
+`isGoogleConfigured` and `isSessionReadable` built from them. Keep
+`isAuthConfigured` **only** if something genuinely still means "Google is set up",
+and if you keep it, make its doc comment say which question it answers - the whole
+defect was one name answering two.
+
+Then visit each of the eight call sites and choose deliberately:
+- gating a call to `auth()` → `isSessionReadable`
+- deciding whether to draw the Google button, or to say sign-in is not set up →
+  `isGoogleConfigured`
+
+Say in your report what you chose for each site and why, especially the two in
+`src/app/page.tsx`.
+
+- [ ] **Step 4: Check Auth.js survives a missing provider credential**
+
+`NextAuth({ providers: [Google(...)] })` is constructed at import time whatever
+the environment holds. Confirm that with `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`
+unset, importing `src/auth.ts` and calling `auth()` does not throw - reading a
+session is adapter and cookie work and should not need the provider, but **verify
+it rather than assuming**. If it does throw, the provider list has to become
+conditional too, and say so in your report.
+
+- [ ] **Step 5: Prove the fix end to end, on a branch and never on production**
+
+`.env.local` in this worktree points at a throwaway Neon branch. With
+`AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` removed from the environment the dev
+server sees, run the flow: set a password, then load `/` with the session cookie
+and confirm you are recognised as a parent. Before the fix this shows you signed
+out; after it, signed in.
+
+**Never point any of this at the production `DATABASE_URL`, and never run
+`prisma migrate dev`, `migrate reset` or `db push`.**
+
+- [ ] **Step 6: Commit**
+
+```bash
+npm run test:unit && npm run typecheck && npm run lint
+git add src/lib/auth-config.ts src/lib/auth-config.test.ts src/auth.ts src/app
+git commit -m "Stop a missing Google key hiding a password session"
+```
+
+---
+
 ## Verification
 
 The spec's list, as a checklist to run once at the end:
@@ -2105,4 +2459,8 @@ The spec's list, as a checklist to run once at the end:
 - [ ] Six wrong codes in a row are throttled, and the message says so.
 - [ ] Stopping the database mid-flow reports "something went wrong" rather than
       "that code doesn't work", and spends no attempts.
+- [ ] With no Google credentials in the environment, a password sign-in still
+      leaves the parent recognised on every screen.
+- [ ] The code email arrives looking like LearnR, and still reads correctly with
+      every image blocked.
 - [ ] `npm test` and `npm run typecheck` pass, `src/lib/purity.test.ts` included.

@@ -1,7 +1,8 @@
 # LearnR
 
-A learning web app for children. Next.js (App Router) on Vercel, Google sign-in,
-designed for a standard iPad. Maths and English are the two subjects that ship.
+A learning web app for children. Next.js (App Router) on Vercel, Google and
+email/password sign-in for grown-ups, designed for a standard iPad. Maths and
+English are the two subjects that ship.
 
 One Next.js application: the engine, the content, the UI, the routes and the
 data layer in one tree - see **Where everything lives** below. It was two
@@ -188,6 +189,18 @@ trade. `claimParentRole` is written three times - in `src/server/db.ts` for the
 sign-in event, in `src/server/accounts.ts` for the healing case on `/`, and
 inline inside `acceptShareInvite`'s transaction. All three are the same
 compare-and-set on `role IS NULL`, which is what makes duplicating it safe.
+
+**A fourth site claims the role, and it is not that compare-and-set.**
+`src/server/passwords.ts`'s `setPasswordWithGrant` writes `role: 'parent'` on
+the healing branch - an account that predates the column - as part of an
+ordinary read-then-write already inside its transaction:
+`...(existing.role === null ? { role: 'parent' } : {})`. Not the same statement
+as `claimParentRole`, and not safe for the reason the other three are. It is
+safe for a narrower reason of its own: the only value ever written here is
+`'parent'`, a child account is refused two lines above and never reaches this
+branch, and the grant that gets a caller here is single-use - deleted in the
+same transaction before this runs - so no second caller can ever race this one
+to the same row.
 
 ### Repository visibility
 
@@ -1572,9 +1585,10 @@ run path.
 ## Accounts
 
 There are two kinds of account, `parent` and `child` (`User.role`), and **a Google
-sign-in can only ever produce a parent**. A child is a profile their parent made -
-no email, no `Account` row - and a login code is their only way in, so signing in
-with Google *is* saying you are a grown-up.
+sign-in or a password sign-up can only ever produce a parent**. Proving you can
+read the mail sent to an address is a grown-up saying they are a grown-up, as much
+as Google is - and a child is a profile their parent made, with no email and no
+`Account` row, so a login code is their only way in.
 
 It used to be a choice, and what retired it is that the second card produced an
 account nobody managed. A self-declared child had `parentId` null, and `parentId`
@@ -1801,6 +1815,51 @@ mutation scopes its `where` by `parentId` as well as `id`, because the child id
 round-trips through the browser. Unlike `records.ts` these are **not**
 best-effort - a silently failed login is a child locked out and a silently failed
 removal is a parent lied to.
+
+**A grown-up can also sign in with an email and a password**, and the design
+(`docs/superpowers/specs/2026-09-05-password-signin-design.md`) carries the
+reasoning; this is the shape of it.
+
+**Three screens - email, code, password - and that order is the design.** No
+`User` row is written until the mailbox answers, which is what makes
+email-squatting unreachable rather than merely guarded against: a link-then-
+password flow would let anyone lock a real Gmail address out of its owner's own
+Google sign-in by typing it into this form first, since `User.email` is
+`@unique`. Password reset is the same three screens reached from "Forgot
+password" rather than "Sign up" - not a second feature, because a password-only
+parent who forgets has to end up back at the mailbox proof either way.
+
+**`VerificationToken` holds both the code and the grant**, kept apart by a prefix
+on `identifier` rather than a second table or a column saying which kind a row
+is - the code is what six digits typed back gets checked against, the grant is
+what it buys and travels in an HttpOnly cookie rather than the URL, since unlike
+the address it is a credential.
+
+**The Google link is gated on `email_verified` in a `signIn` callback, and it
+runs before Auth.js links anything** - read off the installed source rather than
+assumed: `@auth/core/lib/actions/callback/index.js` calls `handleAuthorized`
+(the callback) before `handleLoginOrRegister`, where
+`allowDangerousEmailAccountLinking` and its `OAuthAccountNotLinked` throw both
+live. So the callback can refuse before the dangerous flag ever gets to link on
+a bare address match, and it refuses **every** unverified Google sign-in, not
+only the ones that would link - an account made from a claim Google will not
+stand behind is exactly the collision this whole design exists to avoid.
+
+**Three throttles, keyed differently on purpose.** Sending a code and guessing
+one are both keyed by address and browser, because what they slow is an attempt
+on one address and locks nobody out of an account they already hold. A password
+sign-in is keyed by **browser only** - keying it by address as well would hand an
+attacker a way to lock a named parent out of their own account, the same
+objection this file already makes to a global ceiling on login-code guesses,
+narrowed to one person.
+
+**`isAuthConfigured` used to answer two questions with one name.** Whether a
+session could be read at all, and whether Google itself was wired up, had the
+same answer until a password could mint a session with no Google credentials in
+sight - so a deployment with a secret and a database but no Google app let a
+parent sign in with a password, write their session, and then have every screen
+gate on `isAuthConfigured` and never read it back. `sessionsReadable` and
+`googleConfigured` (`src/lib/auth-config.ts`) are the two questions split apart.
 
 ## Profile pictures
 
@@ -2129,12 +2188,36 @@ Copy `.env.example` to `.env` and fill in:
   libpq's weaker semantics instead. So a URL saying `require` is one that
   silently loosens on a major version bump, and one saying `verify-full` keeps
   verifying. `PrismaPg` parses the string through that library.
+- `NEON_API_KEY` - authenticates the Neon CLI. See **The Neon CLI is a
+  devDependency** below for how it is used and why it does not read `.env`.
+  LearnR's project is `icy-union-73834050` (`neon-teal-ball`,
+  `aws-ap-southeast-2`); its primary branch is the endpoint `DATABASE_URL` names.
+
+  **What that branching is *for*, in this repository, is that there is otherwise
+  only one database.** `DATABASE_URL` is production - the same rows a parent's
+  report reads and a child's answers are written to - so `prisma migrate dev` is
+  never how a schema change is developed here. It would alter production, and it
+  offers to *reset* a database when it finds drift. A migration is written
+  offline instead:
+
+  ```bash
+  git show HEAD:prisma/schema.prisma > /tmp/schema-before.prisma
+  npx prisma migrate diff --from-schema /tmp/schema-before.prisma \
+    --to-schema prisma/schema.prisma --script
+  ```
+
+  which contacts no database at all. `npm run test:db` then applies every
+  migration to a throwaway Testcontainers Postgres, which is the proof, and
+  `npm run db:deploy` is what applies one for real on a release. The
+  `ParentPassword` migration was written exactly this way.
+
 - `AUTH_SECRET` - `npx auth secret`
 - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` - Google Cloud console, redirect URI
   `http://localhost:3000/api/auth/callback/google`
 
 Without these the app still runs and plays - auth and recording are skipped
-(`isAuthConfigured`, `isDatabaseConfigured`) so the engines and UI stay workable.
+(`sessionsReadable`, `googleConfigured`, `isDatabaseConfigured`) so the engines
+and UI stay workable.
 The placeholder in `.env.example` counts as no database, so copying the file as
 it stands is enough to start. The same holds when the database is simply
 unreachable: the first question is drawn unweighted and nothing is recorded, but

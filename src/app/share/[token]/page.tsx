@@ -76,7 +76,18 @@ export default async function SharePage({
             </p>
             <div className="flex justify-center">
               {/* Back to this link, not to the home screen: the invite is the
-                  whole reason they are signing in. */}
+                  whole reason they are signing in.
+
+                  Deliberately not gated on `isGoogleConfigured`, unlike the
+                  other four `SignInButton` call sites: the password flow has
+                  no `redirectTo`/`callbackUrl` of its own (every step of it
+                  ends by pushing to `/`), so there is no way to route it back
+                  to this invite. Hiding this button in a deployment with no
+                  Google credentials would leave a signed-out visitor with
+                  nothing to tap at all - a real dead end, worse than a button
+                  that is merely wrong for that one deployment shape. Wiring a
+                  return path through the password flow is real feature work,
+                  not a gating change. */}
               <SignInButton
                 size="hero"
                 redirectTo={`${sharePath(token)}?go=1`}

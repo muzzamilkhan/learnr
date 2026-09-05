@@ -69,3 +69,26 @@ describe('parseCallbackUrl', () => {
     expect(parseCallbackUrl('progress')).toBe('/');
   });
 });
+
+describe('authErrorMessage for a Google address Google will not vouch for', () => {
+  // The property under test is "this code has a sentence of its own", not any
+  // particular wording - comparing against an unrecognised code's fallback
+  // says exactly that without pinning the prose. Compared against `null` this
+  // assertion could not fail if the `MESSAGES` entry were deleted: `FALLBACK`
+  // is truthy too. An unknown code is the one thing guaranteed to fall to
+  // `FALLBACK`, which is what makes it the right thing to compare against.
+  it('has a sentence of its own, not the fallback an unrecognised code gets', () => {
+    expect(authErrorMessage('GoogleEmailUnverified')).not.toBe(
+      authErrorMessage('AnErrorTypeAuthjsHasNeverHeardOf'),
+    );
+  });
+
+  // This cannot catch the entry being deleted - see the test above for that -
+  // but it catches the specific mistake of reusing OAuthAccountNotLinked's
+  // wording, which tells somebody to sign in the way they signed up. That is
+  // the one thing that cannot work here, since nothing was linked or created.
+  it('does not reuse the already-signed-up-another-way sentence', () => {
+    expect(authErrorMessage('GoogleEmailUnverified'))
+      .not.toBe(authErrorMessage('OAuthAccountNotLinked'));
+  });
+});
