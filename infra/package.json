@@ -1,0 +1,18 @@
+{
+  "name": "infra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CDK stacks for LearnR. Beside the app rather than in a shared infrastructure repo, so a change to the app and its deployment is one commit.",
+  "type": "module",
+  "license": "ISC",
+  "dependencies": {
+    "aws-cdk-lib": "^2.268.0",
+    "constructs": "^10.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "aws-cdk": "^2.1140.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}

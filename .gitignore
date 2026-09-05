@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+# the CDK app is its own npm project beside the app it deploys
+/infra/node_modules
+/infra/cdk.out
 /.pnp
 .pnp.*
 .yarn/*
