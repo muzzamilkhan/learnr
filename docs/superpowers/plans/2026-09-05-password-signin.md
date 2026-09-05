@@ -2145,6 +2145,174 @@ gh issue close 22 --comment "Shipped. Design: docs/superpowers/specs/2026-09-05-
 
 ---
 
+### Task 12: Dressing the email
+
+**Files:**
+- Create: `src/lib/email-template.ts`
+- Test: `src/lib/email-template.test.ts`
+- Modify: `src/server/email.ts`
+
+**Interfaces:**
+- Consumes: nothing from earlier tasks.
+- Produces: `renderVerificationEmail(code: string): { html: string; text: string }`.
+
+The code mail currently goes out as plain text. It is the first thing this app
+has ever sent to a parent, and it arrives beside every other mail they get - so
+it should look like LearnR rather than like a cron job.
+
+**The pure half is in `src/lib`, and that is what makes this testable.** An email
+body is a string built from a code; nothing about it touches React, Next, Prisma
+or `src/server`, so it lives beside the rest of the pure engine and gets unit
+tests in the fast project. Task 6's sender deliberately has no test because it is
+one `fetch` against a third party - this is the part of it that *can* be tested,
+so it is separated out rather than left inline. `src/server/email.ts` keeps its
+one-function seam: `sendVerificationCode` calls this and posts both parts.
+
+**Both parts, always.** Resend takes `html` and `text` together and the text part
+is not a fallback nobody sees - it is what a screen reader, a plain-text client
+and a spam filter read. The existing wording is already right; keep it as the
+text part rather than rewriting it.
+
+**The design rules that are not negotiable, because email is not a browser:**
+
+- **Inline every style.** No `<style>` block, no classes, no CSS variables -
+  Gmail strips much of a `<head>`, and `var(--color-brand)` resolves to nothing.
+  The palette must be written as literal hex, read from `src/app/globals.css`:
+  `--color-ink` `#1b2430`, `--color-ink-soft` `#5b6b7f`, `--color-paper`
+  `#f7f9fc`, `--color-card` `#ffffff`, `--color-brand` `#3b6ef5`,
+  `--color-brand-soft` `#e5edff`, `--color-line` `#dfe6ef`. The logo palette
+  (`--color-grape` `#6c4de0`, `--color-berry` `#ee4d7d`, `--color-leaf`
+  `#6fb52f`, `--color-sun` `#f5a623`) is scoped on the web to the two screens
+  someone is *choosing* on - a sign-up mail is one of those moments, so a single
+  accent from it is allowed, but the body stays `--color-brand`.
+- **Tables for layout, not flex or grid.** Outlook renders through Word and
+  supports neither.
+- **No image is load-bearing.** Most clients block images until asked. The mark
+  at `https://learnr.muzza.tech/logo-mark.png` may be included, but the mail must
+  read correctly with every image blocked - so the wordmark is live text, not a
+  picture of text, and the code is never an image.
+- **The code is the one thing the eye should land on**: large, spaced, selectable
+  live text in a `--color-brand-soft` panel. Never a picture, never a link.
+- **A `max-width` of 600px** on the outer table, centred, so it is not a full-bleed
+  wall on a desktop client.
+- **Do not add a dark-mode block.** The app's own pages are single-palette and
+  `prefers-color-scheme` support across mail clients is inconsistent enough that
+  a half-working dark variant looks worse than a light one everywhere.
+
+**What it must say, and what it must not.** The same three things the text part
+says: here is your code, type it into the page you left open, it stops working in
+ten minutes - plus the line that matters most, that somebody who did not ask for
+this can ignore it and nothing has changed. **No marketing, no unsubscribe link,
+no tracking pixel**: this is a transactional mail and the only reason it exists is
+that somebody asked for a code thirty seconds ago.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+// src/lib/email-template.test.ts
+import { describe, expect, it } from 'vitest';
+import { renderVerificationEmail } from './email-template';
+
+describe('renderVerificationEmail', () => {
+  it('puts the code in both parts', () => {
+    const { html, text } = renderVerificationEmail('123456');
+    expect(html).toContain('123456');
+    expect(text).toContain('123456');
+  });
+
+  // The reason the text part exists at all: a plain-text client, a screen
+  // reader and a spam filter all read it, and it is not a fallback nobody sees.
+  it('says what the code is for in the text part', () => {
+    const { text } = renderVerificationEmail('123456');
+    expect(text).toMatch(/ten minutes/i);
+    expect(text).toMatch(/ignore/i);
+  });
+
+  // Email clients strip a <head>, so a style block or a class is a style that
+  // silently does not apply. Everything has to be on the element.
+  it('carries no style block and no class attributes', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toMatch(/<style/i);
+    expect(html).not.toMatch(/class=/i);
+  });
+
+  // `var(--color-brand)` resolves to nothing in a mail client.
+  it('uses literal colours rather than CSS variables', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toContain('var(--');
+    expect(html).toContain('#3b6ef5');
+  });
+
+  // A transactional mail that somebody asked for thirty seconds ago.
+  it('carries no tracking pixel and no unsubscribe link', () => {
+    const { html } = renderVerificationEmail('123456');
+    expect(html).not.toMatch(/unsubscribe/i);
+    expect(html).not.toMatch(/width=["\']?1["\']?\s+height=["\']?1/i);
+  });
+
+  // The mail has to survive every image being blocked, which is the default in
+  // most clients - so the code can never be one.
+  it('renders the code as text rather than an image', () => {
+    const { html } = renderVerificationEmail('123456');
+    const withoutImages = html.replace(/<img[^>]*>/gi, '');
+    expect(withoutImages).toContain('123456');
+  });
+
+  it('escapes a code that is not what we generate', () => {
+    const { html } = renderVerificationEmail('<script>');
+    expect(html).not.toContain('<script>');
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npx vitest run --project unit src/lib/email-template.test.ts`
+Expected: FAIL - `Failed to resolve import "./email-template"`.
+
+- [ ] **Step 3: Write the template**
+
+Write `renderVerificationEmail` to satisfy the tests and the design rules above.
+The text part is the wording already in `src/server/email.ts`, moved here
+unchanged. The doc comment explains why the constraints exist - inlined styles,
+tables, no load-bearing image - because every one of them looks like a mistake to
+a reader who has only written for browsers.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run: `npx vitest run --project unit src/lib/email-template.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Call it from the sender**
+
+In `src/server/email.ts`, replace the inline `text:` body with:
+
+```ts
+const { html, text } = renderVerificationEmail(code);
+```
+
+and pass both to Resend. `sendVerificationCode`'s signature does not change, and
+nothing above it learns that the mail has a shape now.
+
+- [ ] **Step 6: Send one and look at it**
+
+```bash
+npx tsx -e "import('./src/server/email.ts').then(m => m.sendVerificationCode('muzzamil.akhan@gmail.com', '123456')).then(console.log)"
+```
+
+Expected: `true`. **Then actually look at what arrived** - in a client, not just
+in the source. Report what it looked like. Send at most two.
+
+- [ ] **Step 7: Commit**
+
+```bash
+npm run test:unit && npm run typecheck
+git add src/lib/email-template.ts src/lib/email-template.test.ts src/server/email.ts
+git commit -m "Dress the code email so it looks like LearnR"
+```
+
+---
+
 ## Verification
 
 The spec's list, as a checklist to run once at the end:
@@ -2159,4 +2327,6 @@ The spec's list, as a checklist to run once at the end:
 - [ ] Six wrong codes in a row are throttled, and the message says so.
 - [ ] Stopping the database mid-flow reports "something went wrong" rather than
       "that code doesn't work", and spends no attempts.
+- [ ] The code email arrives looking like LearnR, and still reads correctly with
+      every image blocked.
 - [ ] `npm test` and `npm run typecheck` pass, `src/lib/purity.test.ts` included.
