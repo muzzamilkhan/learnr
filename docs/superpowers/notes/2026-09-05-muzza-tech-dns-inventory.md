@@ -115,11 +115,20 @@ of them - so `cdk deploy` would sit in certificate validation and eventually
 fail, with DNS validation records that look perfectly correct.
 
 Add `amazon.com` to the CAA set when recreating the zone, before deploying the
-certificate stack. AWS also documents `amazontrust.com`, `awstrust.com` and
-`amazonaws.com`; **confirm the exact set against ACM's own documentation at the
-time** rather than trusting this line - it is the sort of list that gets added
-to. Do not simply delete the CAA records instead: they are doing a real job for
-the three CAs already there.
+certificate stack. Do not simply delete the CAA records instead: they are doing
+a real job for the three CAs already there.
+
+**Confirmed against ACM's documentation, 5 September 2026: the staged zone is
+already correct and needs nothing further.** ACM names four acceptable values -
+`amazon.com`, `amazontrust.com`, `awstrust.com`, `amazonaws.com` - and they are
+**alternatives, not a set**: the documentation reads "your CAA record value
+field must contain one of the following domain names", and issuance fails only
+where none of the four is present. The `amazon.com` staged here satisfies it
+alone. The one thing that would still block issuance is an `issuewild` record
+naming no Amazon CA, since `issuewild` overrides `issue` for wildcards - this
+zone has none, so wildcards are not separately refused either. Sources:
+`docs.aws.amazon.com/acm/latest/userguide/setup-caa.html` and
+`.../troubleshooting-caa.html`. Worth re-reading only if AWS changes CAs.
 
 TTL 60 on the existing CAA records means a correction propagates in a minute,
 which is the one mercy here.
