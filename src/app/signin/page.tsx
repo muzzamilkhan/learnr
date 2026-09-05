@@ -76,6 +76,24 @@ export default async function SignInPage({
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-(--color-line) bg-(--color-card) p-6">
         <p className="text-sm font-semibold text-(--color-ink-soft)">For a grown-up</p>
         <SignInButton size="hero" redirectTo={redirectTo} />
+
+        {/* The second method, and a peer of the button above it rather than a
+            fallback for it - which is why it is a rule and two links and not a
+            line of small print. */}
+        <div className="flex w-full flex-col items-center gap-2 border-t border-(--color-line) pt-4">
+          <Link
+            href={`/signin/password?callbackUrl=${encodeURIComponent(redirectTo)}`}
+            className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+          >
+            Sign in with a password
+          </Link>
+          <Link
+            href="/password/new"
+            className="text-sm text-(--color-ink-soft) underline transition hover:text-(--color-brand)"
+          >
+            Create an account with a password
+          </Link>
+        </div>
       </div>
 
       {/* The child's half, and the same weight as the half above it - neither is
