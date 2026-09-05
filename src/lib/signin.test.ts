@@ -69,3 +69,16 @@ describe('parseCallbackUrl', () => {
     expect(parseCallbackUrl('progress')).toBe('/');
   });
 });
+
+describe('authErrorMessage for a Google address Google will not vouch for', () => {
+  it('has a sentence of its own', () => {
+    expect(authErrorMessage('GoogleEmailUnverified')).not.toBeNull();
+  });
+
+  // The existing sentence tells somebody to sign in the way they signed up,
+  // which is the one thing that will not work here.
+  it('does not reuse the already-signed-up-another-way sentence', () => {
+    expect(authErrorMessage('GoogleEmailUnverified'))
+      .not.toBe(authErrorMessage('OAuthAccountNotLinked'));
+  });
+});

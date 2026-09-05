@@ -38,6 +38,11 @@ const MESSAGES: Readonly<Record<string, string>> = {
   // its Google credentials, and the reader cannot do anything about it.
   Configuration: "Sign-in isn't set up on this server yet. Nothing you did caused this.",
   SessionRequired: 'Please sign in to see that page.',
+  // Its own sentence rather than OAuthAccountNotLinked's, which says "use the
+  // way you signed up the first time" - the one thing that cannot work here.
+  // Nothing was linked and nothing was created, so there is no other way in yet.
+  GoogleEmailUnverified:
+    "Google couldn't confirm that email address belongs to you, so nothing was linked. Try a different Google account.",
 };
 
 /**

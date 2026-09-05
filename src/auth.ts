@@ -25,7 +25,21 @@ export { SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS };
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: isDatabaseConfigured && prisma ? PrismaAdapter(prisma) : undefined,
-  providers: [Google],
+  providers: [
+    /**
+     * The flag links a Google sign-in onto an existing account with the same
+     * address instead of throwing `OAuthAccountNotLinked`. It is called
+     * dangerous because on its own it links on a bare address match and
+     * consults no verification claim - so it is never on its own here: the
+     * `signIn` callback below refuses anything Google will not vouch for.
+     *
+     * The order is what makes that work, and it was read off the installed
+     * source rather than assumed: `@auth/core/lib/actions/callback/index.js`
+     * calls `handleAuthorized` - the callback - before `handleLoginOrRegister`,
+     * which is where both the flag and the throw live.
+     */
+    Google({ allowDangerousEmailAccountLinking: true }),
+  ],
   session: { strategy: isDatabaseConfigured ? 'database' : 'jwt' },
   pages: { signIn: '/signin' },
   cookies: {
@@ -37,6 +51,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = user?.id ?? (token?.sub as string);
       }
       return session;
+    },
+    /**
+     * **Every** Google sign-in with an unverified address is refused, not only
+     * the ones that would link. An account made from a claim Google will not
+     * stand behind is a row holding an address its real owner may verify here
+     * later, which is the collision this whole design exists to avoid.
+     *
+     * Returning a string redirects, which is how this reaches `/signin` with an
+     * `?error=` of its own rather than the generic `AccessDenied`.
+     */
+    signIn({ account, profile }) {
+      if (account?.provider !== 'google') return true;
+      if ((profile as { email_verified?: boolean } | undefined)?.email_verified !== true) {
+        return '/signin?error=GoogleEmailUnverified';
+      }
+      return true;
     },
   },
   events: {
