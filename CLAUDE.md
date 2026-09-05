@@ -858,6 +858,41 @@ the caller.
 Standard iPad, landscape and portrait. Minimal and calm rather than playful -
 simple enough for a child to pick up with no explanation.
 
+**Every screen here is a dynamic route, so every one of them needs a
+`loading.tsx`.** Next's router will not leave the screen it is on until a
+dynamic route's server response arrives unless that route has a loading
+boundary - so a tap on a subject card or on the door did *nothing at all*, for
+the whole round trip, and the app read as broken rather than slow. Measured:
+`GET /` is **260ms at p50**, `/progress` 352ms, `/play` 79ms, and the launch
+probe puts the wait a finger actually feels into a speed run at **~340ms median
+and 800-1300ms at p95** once the network and the client render either side are
+counted. None of it was visible. The boundary is also what makes a route
+prefetchable at all - a `<Link>` to a dynamic route with no loading UI has
+nothing to prefetch.
+
+There are three, and where they sit is the whole of the design:
+
+- **`src/app/play/loading.tsx`** reserves the play frame to the pixel - the same
+  `h-[100dvh]` column, header row and clamped pad slot behind the same
+  `min-height:501px` query - so the question lands into a box already its size.
+  The numbers are duplicated rather than shared with `PlaySession`: a constant
+  imported into both would make the skeleton a reason not to change the play
+  screen's layout. No logo and no spinner, by that screen's own rules.
+- **`src/app/loading.tsx`** is the root, and deliberately generic - it stands in
+  for `/`, `/curriculum`, `/signin`, `/password/*` and `/share/*` alike, so it is
+  the mark on paper and nothing it might have to take back. It is also what
+  answers a *first* entry into the parent group, whose layout awaits above that
+  group's own boundary.
+- **`src/app/(parent)/loading.tsx`** sits beside the layout, so it renders
+  *inside* `ParentShell`: the logo, nav and pickers stay mounted and only the
+  panels swap. The same argument the layout was written for, carried into the
+  moment in between.
+
+**The play screen's door is a `<Link>`, not a `router.push`.** Going home is the
+slowest hop the app has and was the one navigation that could not be prepared
+for, because only a link can be prefetched. It draws as the button it was; what
+changed is that it is honestly a navigation, which is all it ever did.
+
 - **Level is the home screen's top-level choice**: one dropdown labelled "Level",
   then the subjects offering that level below it, each card carrying a coloured
   glyph tile, the subject, its year, and its topics as **chips** (`MAX_CHIPS`, then

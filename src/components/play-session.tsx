@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { QuestionTemplate, Question } from '@/lib/templates/types';
 import type { LearnerProfile } from '@/lib/analytics/profile';
 import type { YearLevel } from '@/lib/curriculum';
@@ -176,7 +176,6 @@ export function PlaySession({
   target,
   signOutSlot,
 }: Props) {
-  const router = useRouter();
   const [session, setSession] = useState<SessionState>(() =>
     startSession({ templates, seed, startedAt, subject, level, profile, recentTopics }),
   );
@@ -628,17 +627,25 @@ export function PlaySession({
             together on the left because they are the child's own controls, and
             opposite the profile menu that says whose screen this is. */}
         <div className="flex shrink-0 items-center gap-2">
-          {/* A button rather than a link, and an icon rather than the word: it is
-              the one control on this screen a child might reach for without being
-              able to read, and it sits opposite the profile menu it now matches. */}
-          <button
-            type="button"
-            onClick={() => router.push('/')}
+          {/* An icon rather than the word: it is the one control on this screen
+              a child might reach for without being able to read, and it sits
+              opposite the profile menu it matches.
+
+              **A `<Link>` rather than the `router.push` it was**, which is what
+              lets Next prefetch `/` while the lesson is being played instead of
+              fetching it cold on the way out. Going home is the slowest hop the
+              app has - `GET /` is 260ms at p50 against `/play`'s 79ms - and it
+              was the one navigation that could not be prepared for, because
+              only a link can be prefetched. It draws as the button it was and
+              is one tap either way; what changed is that it is honestly a
+              navigation, which is all it ever did. */}
+          <Link
+            href="/"
             aria-label="Finish and go back"
             className="rounded-full border-2 border-(--color-line) bg-(--color-card) p-2.5 text-(--color-ink-soft) transition active:scale-95"
           >
             <ExitIcon />
-          </button>
+          </Link>
 
           {/* The way in for a child who cannot read the question. It is on their
               screen rather than behind a parent's sign-in for two reasons: the
