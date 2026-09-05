@@ -1,5 +1,6 @@
 'use server';
 
+import { randomInt } from 'node:crypto';
 import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { auth, SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS } from '@/auth';
@@ -19,6 +20,13 @@ import {
   leaveShare,
   revokeShare,
 } from '@/server/sharing';
+import {
+  issueVerificationCode,
+  setPasswordWithGrant,
+  signInWithPassword,
+  spendVerificationCode,
+} from '@/server/passwords';
+import { sendVerificationCode } from '@/server/email';
 import { readViewer } from '@/app/viewer';
 import { availableSubjects } from '@/content/catalog';
 import { parseYearLevel } from '@/lib/curriculum';
@@ -28,6 +36,20 @@ import { parseTarget } from '@/lib/rewards/target';
 import { browserIp, createThrottle } from '@/lib/throttle';
 import { isGuess, REDEEM_FAILURE_LIMIT, REDEEM_FAILURE_WINDOW_MS } from '@/lib/login-code';
 import { parsePhoto } from '@/lib/photo/photo';
+import { PASSWORD_MIN_LENGTH } from '@/lib/password';
+import {
+  CODE_FAILURE_LIMIT,
+  CODE_FAILURE_WINDOW_MS,
+  GRANT_TTL_MS,
+  PASSWORD_FAILURE_LIMIT,
+  PASSWORD_FAILURE_WINDOW_MS,
+  SEND_LIMIT,
+  SEND_WINDOW_MS,
+  generateGrantToken,
+  generateVerificationCode,
+  isGuess as isCodeGuess,
+  normaliseEmail,
+} from '@/lib/verification-code';
 import type { AcceptResult } from '@/lib/dto';
 
 /**
@@ -196,6 +218,28 @@ const redeemFailures = createThrottle({
 });
 
 /**
+ * This one counts every send, successful ones included - unlike the guess
+ * throttles below, which only count a failure. What it limits is mail arriving
+ * in somebody's inbox, and every send is that event, whether or not the code
+ * inside it ever gets typed back correctly.
+ */
+const codeSends = createThrottle({ limit: SEND_LIMIT, windowMs: SEND_WINDOW_MS });
+/** Six digits is a million codes; the window is what makes that enough. */
+const codeGuesses = createThrottle({ limit: CODE_FAILURE_LIMIT, windowMs: CODE_FAILURE_WINDOW_MS });
+/** By browser only - see `PASSWORD_FAILURE_LIMIT` for why not by address. */
+const passwordGuesses = createThrottle({
+  limit: PASSWORD_FAILURE_LIMIT,
+  windowMs: PASSWORD_FAILURE_WINDOW_MS,
+});
+
+/**
+ * The grant rides in an HttpOnly cookie rather than the URL. It is a credential
+ * - it buys the right to set a password on an address - and a URL lands in
+ * history and in a log.
+ */
+export const PASSWORD_GRANT_COOKIE = 'learnr-password-grant';
+
+/**
  * The child's way in. `redeemLoginCode` writes the same `Session` row the Prisma
  * adapter would and this sets the same cookie, so `auth()` cannot tell the two
  * paths apart - which is the whole reason `SESSION_COOKIE_NAME` is pinned in
@@ -247,6 +291,153 @@ export async function redeemLoginCodeAction(code: string): Promise<{ error: stri
     expires: result.session.expires,
   });
 
+  revalidatePath('/');
+  return null;
+}
+
+/**
+ * Step one: the address. The answer is the same whether the address is known,
+ * unknown or nonsense, because a different one would make this form a way to
+ * ask whether somebody has an account here.
+ */
+export async function sendPasswordCodeAction(email: string): Promise<{ error: string } | null> {
+  const address = normaliseEmail(email);
+  if (!address) return { error: "That doesn't look like an email address." };
+
+  const bag = await headers();
+  const browser = browserIp(bag.get('x-real-ip'), bag.get('x-forwarded-for'));
+  const now = Date.now();
+
+  // Keyed by address as well as browser here, unlike the sign-in below: what
+  // this limits is mail sent to somebody, so the address is the thing to count.
+  if (codeSends.blocked(address, now) || (browser && codeSends.blocked(browser, now))) {
+    return { error: 'Too many codes asked for. Wait a little while and try again.' };
+  }
+  codeSends.fail(address, now);
+  if (browser) codeSends.fail(browser, now);
+
+  const code = generateVerificationCode(randomInt);
+  if (!(await issueVerificationCode(address, code))) {
+    return { error: 'Something went wrong. Wait a moment and try again.' };
+  }
+  if (!(await sendVerificationCode(address, code))) {
+    // Said plainly rather than "check your spam folder": the mail was never
+    // sent, and sending them to look for it wastes their time.
+    return { error: "We couldn't send that email. Wait a moment and try again." };
+  }
+  return null;
+}
+
+/**
+ * Step two: the code. On success the grant goes into an HttpOnly cookie and the
+ * screen moves on.
+ */
+export async function checkPasswordCodeAction(
+  email: string,
+  code: string,
+): Promise<{ error: string } | null> {
+  const address = normaliseEmail(email);
+  if (!address) return { error: 'That code doesn’t work. Ask for a new one.' };
+
+  const bag = await headers();
+  const browser = browserIp(bag.get('x-real-ip'), bag.get('x-forwarded-for'));
+  const now = Date.now();
+
+  if (codeGuesses.blocked(address, now) || (browser && codeGuesses.blocked(browser, now))) {
+    return { error: 'Too many tries. Wait a few minutes and ask for a new code.' };
+  }
+
+  const grant = generateGrantToken(randomInt);
+  const status = await spendVerificationCode(address, code, grant);
+
+  if (status !== 'verified') {
+    // Only a rejection is somebody guessing. An unreachable database must not
+    // spend the attempts of the person it is failing.
+    if (isCodeGuess(status)) {
+      codeGuesses.fail(address, now);
+      if (browser) codeGuesses.fail(browser, now);
+    }
+    return {
+      error:
+        status === 'rejected'
+          ? "That code doesn't work. Check it, or ask for a new one."
+          : 'Something went wrong. Wait a moment and try the same code again.',
+    };
+  }
+
+  codeGuesses.clear(address);
+  if (browser) codeGuesses.clear(browser);
+
+  const store = await cookies();
+  store.set(PASSWORD_GRANT_COOKIE, grant, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    secure: process.env.NODE_ENV === 'production',
+    expires: new Date(Date.now() + GRANT_TTL_MS),
+  });
+  return null;
+}
+
+/** Step three: the password. Setting one signs them in - they just proved the address. */
+export async function setPasswordAction(password: string): Promise<{ error: string } | null> {
+  const store = await cookies();
+  const grant = store.get(PASSWORD_GRANT_COOKIE)?.value;
+  if (!grant) return { error: 'That took too long. Start again and we will send a new code.' };
+
+  const result = await setPasswordWithGrant(grant, password);
+
+  if (result.status === 'unavailable') {
+    return { error: 'Something went wrong. Wait a moment and try again.' };
+  }
+  if (result.status === 'rejected') {
+    // The grant survives a refused password - see `setPasswordWithGrant`.
+    return {
+      error: `Choose a password of at least ${PASSWORD_MIN_LENGTH} characters.`,
+    };
+  }
+
+  store.delete(PASSWORD_GRANT_COOKIE);
+  store.set(SESSION_COOKIE_NAME, result.session.token, {
+    ...SESSION_COOKIE_OPTIONS,
+    expires: result.session.expires,
+  });
+  revalidatePath('/');
+  return null;
+}
+
+/** Signing in with one. Throttled by browser only - never by address. */
+export async function signInWithPasswordAction(
+  email: string,
+  password: string,
+): Promise<{ error: string } | null> {
+  const bag = await headers();
+  const browser = browserIp(bag.get('x-real-ip'), bag.get('x-forwarded-for'));
+  const now = Date.now();
+
+  if (browser && passwordGuesses.blocked(browser, now)) {
+    return { error: 'Too many tries. Wait a few minutes and have another go.' };
+  }
+
+  const result = await signInWithPassword(email, password);
+
+  if (result.status !== 'authenticated') {
+    if (browser && result.status === 'rejected') passwordGuesses.fail(browser, now);
+    return {
+      error:
+        result.status === 'rejected'
+          ? "That email address and password don't match an account."
+          : 'Something went wrong. Wait a moment and try again.',
+    };
+  }
+
+  if (browser) passwordGuesses.clear(browser);
+
+  const store = await cookies();
+  store.set(SESSION_COOKIE_NAME, result.session.token, {
+    ...SESSION_COOKIE_OPTIONS,
+    expires: result.session.expires,
+  });
   revalidatePath('/');
   return null;
 }
