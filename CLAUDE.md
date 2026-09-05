@@ -1385,6 +1385,27 @@ slot in an ordinary key's clothes, and the pad keeps four columns. About a third
 answers contain a nought and on the bottom row it was the one digit a thumb had to
 travel for. Styled like every other digit, because it *is* a digit.
 
+**And it answers the finger rather than the click** (`NumberPad`'s `instant`, the
+speed run's alone). A pad wired to `onClick` cannot act until the finger has lifted
+and the browser has decided the gesture was a tap, and the tap funnel priced that on
+the target iPad: `pointerdown` to `click` is **68ms at the median and 115-152ms at
+p95**, against 7ms in the handler and one frame to paint. It is the whole of the
+latency, and **a two-digit answer pays it twice**. It is also a leg a tap can die
+in - **11% of taps that landed on a key never produced a click at all**, which makes
+it about one two-digit answer in five that loses a digit and has to be retyped.
+`touch-action: manipulation` is not the fix for that and never was: every measured
+run sits at `max_scale: 1`, so double-tap-to-zoom is genuinely dead and this is what
+was underneath it. `onPointerDown` deletes the leg instead of shortening it, and both
+ways a tap could go missing with it. What it costs is sliding off a key to think
+better of a digit - which the same funnel says nobody does, at 0px of movement at the
+median and not one tap in any run lifting on a different key than it landed on.
+
+**The lesson screen's pad still answers a click, deliberately.** It has a Check key,
+no clock, and a child who rests a finger on a key while reading the question; only
+the run where ninety seconds is the point trades the one for the other. A keyboard is
+untouched either way, since the speed run reads digits from a window-level `keydown`
+and never needed the button.
+
 **The way out of a result is the door, top-left, exactly where the play screen puts
 it.** **Going again is a glyph too** - a loop, what repeat looks like on every
 remote a child has used. Both keep their words in `aria-label` and `title`. What is

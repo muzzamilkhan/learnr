@@ -27,6 +27,17 @@
  * presents as refusal. Latency alone could never tell those two apart; the
  * funnel can.
  *
+ * **The second leg is now the speed run's own answer to itself, and the numbers
+ * have to be read knowing that.** The funnel found `pointerdown` to `click` at
+ * 68ms median and 115-152ms at p95, with 11% of key taps never producing a
+ * click at all - so the speed run's pad stopped waiting for one and takes its
+ * digits from `pointerdown` (`NumberPad`'s `instant`). `press` therefore runs
+ * inside the pointerdown, and `clickMs` there measures pointerdown to handler
+ * rather than a browser's click delay: **on that screen it should now sit at
+ * or near zero, and `swallowed` with it.** Those two collapsing is the proof
+ * the fix landed, not a broken measurement. The lesson screen's pad still
+ * answers a click, and reads the way this table describes.
+ *
  * This half is pure and lives here for the usual reason: it is arithmetic over
  * records, it is the part worth having tests on, and `src/components/tap-probe.ts`
  * is the half that has to touch `PointerEvent`, `visualViewport` and the clock.

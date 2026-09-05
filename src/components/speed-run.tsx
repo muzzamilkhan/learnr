@@ -547,8 +547,17 @@ export function SpeedRun({ mode, homeHref, backHref, recordingEnabled, debug }: 
             pad has dealt with. What that buys is where `0` goes - the fourth
             column, full height, in an ordinary key's clothes - because a third
             of the answers here contain one and on the bottom row it is the only
-            digit a thumb travels for. See `NumberPad`. */}
-        <NumberPad disabled={phase !== 'running'} decimal={false} onDigit={press} />
+            digit a thumb travels for. See `NumberPad`.
+
+            `instant` is the other thing this pad does not share with the lesson
+            screen's: a digit is taken from the finger landing rather than from
+            the click that follows it, which the tap funnel measured at 68ms
+            median and 115-152ms at p95 - twice over on a two-digit answer, and
+            the leg 11% of taps died in without ever producing a click. Here the
+            ninety seconds are the whole point and sliding off a key to think
+            better of a digit is worth trading for it; on the lesson screen it
+            is not. */}
+        <NumberPad disabled={phase !== 'running'} decimal={false} instant onDigit={press} />
       </div>
 
       {phase === 'countdown' && <Countdown count={count} />}
